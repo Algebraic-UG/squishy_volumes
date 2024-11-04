@@ -1,0 +1,9 @@
+[package]
+name = "blended_mpm_plot"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+plotters = "0.3.7"
+blended_mpm_core.path = "../core"

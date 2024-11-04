@@ -1,0 +1,28 @@
+[package]
+name = "blended_mpm_cli"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[features]
+profile = [ "blended_mpm_core/profile", "dep:coarse-prof" ]
+
+[dependencies]
+plotters = "0.3.7"
+blended_mpm_core.path = "../core"
+clap = { version = "4.5.23", features = ["derive"] }
+ctrlc = "3.4.5"
+
+anyhow.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+bincode.workspace = true
+
+coarse-prof.workspace = true
+coarse-prof.optional = true
+uuid = { version = "1.16.0", features = ["v4"] }
+
+# for flame graphs
+#[profile.release]
+#debug = true

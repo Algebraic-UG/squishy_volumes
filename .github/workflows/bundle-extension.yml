@@ -1,0 +1,80 @@
+name: Bundle Extension
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux:
+    uses: ./.github/workflows/build-wheel.yml
+    with:
+      runs-on: '["ubuntu-22.04"]'
+      target-triple: 'x86_64-unknown-linux-gnu'
+      artifact-name: 'wheel-linux'
+
+  build-windows:
+    uses: ./.github/workflows/build-wheel.yml
+    with:
+      runs-on: '["windows-latest"]'
+      target-triple: 'x86_64-pc-windows-msvc'
+      artifact-name: 'wheel-windows'
+
+  build-macos:
+    uses: ./.github/workflows/build-wheel.yml
+    with:
+      runs-on: '["macos-14"]'
+      target-triple: 'aarch64-apple-darwin'
+      artifact-name: 'wheel-macos'
+
+  bundle-extension:
+    runs-on: [ubuntu-22.04]
+    needs: [build-linux, build-windows, build-macos]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      # =================================================================
+      # Download all wheel artifacts
+      # =================================================================
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-linux
+          path: python/wheels/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-windows
+          path: python/wheels/
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-macos
+          path: python/wheels/
+
+      # =================================================================
+      # Final preparations
+      # =================================================================
+      - name: Update manifest
+        run: uv run --python 3.11 --with toml scripts/update_manifest.py
+
+      - name: Copy license
+        run: cp LICENSE_GPLv3 python/
+
+      - name: Get build script
+        run: curl https://raw.githubusercontent.com/blender/blender/refs/tags/v4.5.0/scripts/addons_core/bl_pkg/cli/blender_ext.py --output blender_ext.py
+
+      # =================================================================
+      # Bundle and upload
+      # =================================================================
+      - name: Build Blender extension bundles
+        working-directory: python
+        run: uv run --python 3.11 ../blender_ext.py build --split-platforms
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blended-mpm-extension
+          path: python/*.zip

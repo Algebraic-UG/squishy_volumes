@@ -1,0 +1,35 @@
+[package]
+name = "blended_mpm_core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+profile = [ "dep:coarse-prof" ]
+
+[lib]
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+strum_macros = "0.26.4"
+strum = { version = "0.26.3", features = ["derive"] }
+base64 = "0.22.1"
+iter_enumeration = "0.1.0"
+rayon = "1.10.0"
+fxhash = "0.2.1"
+nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand"] }
+nalgebra-sparse = { version = "0.10.0", features = ["serde-serialize"] }
+
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+bincode.workspace = true
+
+coarse-prof.workspace = true
+coarse-prof.optional = true
+itertools = "0.14.0"
+roots = "0.0.8"
+
+blended_mpm_api.path = "../api"
