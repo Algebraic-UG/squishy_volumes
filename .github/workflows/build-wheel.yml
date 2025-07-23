@@ -1,0 +1,75 @@
+name: Build Wheel
+
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        required: true
+        type: string
+      target-triple:
+        required: true
+        type: string
+      artifact-name:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ fromJson(inputs.runs-on) }}
+    steps:
+      # =================================================================
+      # tools, these should all be cached
+      # =================================================================
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ inputs.target-triple }}
+
+      - uses: baptiste0928/cargo-install@v3.3.1
+        with:
+          crate: cargo-deny
+
+      - uses: baptiste0928/cargo-install@v3.3.1
+        with:
+          crate: cargo-cyclonedx
+
+      # =================================================================
+      # license related
+      # =================================================================
+      - uses: actions/checkout@v4
+
+      - name: Check licenses
+        working-directory: rust/crates/wrap
+        run: cargo deny --no-default-features --target ${{ inputs.target-triple }} check
+
+      - name: Generate tool licenses
+        run: python ./scripts/update_buildtool_licenses.py
+
+      - name: Generate licenses
+        working-directory: rust
+        run: cargo cyclonedx --no-default-features --features pyo3/extension-module --target ${{ inputs.target-triple }} --override-filename sbom-runtime.cdx
+
+      - name: Copy license
+        run: cp LICENSE_MIT rust/crates/wrap/
+
+      # =================================================================
+      # actual building and uploading
+      # =================================================================
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          working-directory: rust/crates/wrap
+          target: ${{ inputs.target-triple }}
+          args: --no-default-features --release --out dist
+
+      - name: Upload Wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: rust/crates/wrap/dist/*.whl

@@ -1,0 +1,37 @@
+[package]
+name = "blended_mpm_wrap"
+version = "0.1.12"
+edition = "2021"
+license = "MIT"
+
+[features]
+default = ["hot_reload"]
+hot_reload = ["dep:hot-lib-reloader"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "blended_mpm_wrap"
+crate-type = ["cdylib"]
+
+[dependencies]
+numpy = "0.25.0"
+lazy_static = "1.5.0"
+
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+build-info.workspace = true
+
+blended_mpm_hot.path = "../hot"
+
+[dependencies.pyo3]
+version = "0.25.0"
+features = ["abi3-py311", "anyhow", "extension-module"]
+
+[dependencies.hot-lib-reloader]
+git = "https://github.com/Vollkornaffe/hot-lib-reloader-rs.git"
+rev = "24f732c67ac8255b1d92986b10fd7da8f643507a"
+optional = true
+
+[build-dependencies]
+build-info-build.workspace = true
