@@ -4,6 +4,8 @@ The Material Point Method (MPM) in Blender!
 
 Here you can download ready-to-use releases, report bugs, and get the source code.
 
+Works in Blender 4.5 or newer.
+
 ## Where to Get the Extension
 
 You can either
