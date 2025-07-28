@@ -54,7 +54,7 @@ Outputs become available as the initial state is created."""
         simulation = get_selected_simulation(context)
         simulation.last_exception = ""
         start_compute_initial_frame(simulation)
-        self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+        self.report({"INFO"}, f"Creating first frame of {simulation.name}.")
         return {"FINISHED"}
 
 

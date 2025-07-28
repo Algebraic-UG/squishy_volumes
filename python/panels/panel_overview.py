@@ -57,6 +57,13 @@ are completely separate from each other."""
 
     simulation: bpy.props.PointerProperty(type=Blended_MPM_Simulation)  # type: ignore
 
+    @classmethod
+    def poll(cls, context):
+        return (
+            not context.scene.blended_mpm_scene.tutorial_active
+            or not context.scene.blended_mpm_scene.simulations
+        )
+
     def execute(self, context):
         simulations = context.scene.blended_mpm_scene.simulations
 
@@ -90,7 +97,7 @@ are completely separate from each other."""
             your simulation are stored!
 
             You can leave everything as default for now
-            and hit OK.""",
+            and press OK.""",
         )
 
 
@@ -202,9 +209,9 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
                 col = header.column()
                 col.alert = True
                 col.label(text=f"{simulation.name}: Message")
-                header.operator(
-                    "object.blended_mpm_show_message"
-                ).uuid = simulation.uuid
+                header.operator("object.blended_mpm_show_message").uuid = (
+                    simulation.uuid
+                )
             else:
                 progress_text = f"{simulation.name}: "
                 factor = 0.0
@@ -253,12 +260,7 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
                     row.operator(
                         "object.blended_mpm_reload", icon="FILE_CACHE"
                     ).uuid = simulation.uuid
-                tut = row.column()
-                tut.alert = (
-                    context.scene.blended_mpm_scene.tutorial_active
-                    and len(context.scene.blended_mpm_scene.simulations) > 1
-                )
-                tut.operator(
+                row.operator(
                     "object.blended_mpm_remove_simulation", icon="TRASH"
                 ).uuid = simulation.uuid
 

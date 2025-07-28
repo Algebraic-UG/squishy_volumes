@@ -56,21 +56,6 @@ def current_instructions(layout, context):
         )
         return
 
-    if len(context.scene.blended_mpm_scene.simulations) > 1:
-        layout.alert = True
-        display_msg(
-            f"""\
-            You have added several simulations.
-
-            This is supported in general!
-            But the tutorial does not account for it.
-
-            Please remove all but one:
-            Expand the simulations and press
-            {OBJECT_OT_Blended_MPM_Remove_Simulation.bl_label}!"""
-        )
-        return
-
     simulation = context.scene.blended_mpm_scene.simulations[0]
 
     if not get_input_solids(simulation):

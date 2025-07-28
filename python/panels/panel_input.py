@@ -33,7 +33,12 @@ from ..properties.blended_mpm_object_settings import (
     current_input_names_match_cached,
     get_input_solids,
 )
-from ..bridge import available_frames, context_exists, new_simulation
+from ..bridge import (
+    available_frames,
+    context_exists,
+    new_simulation,
+    start_compute,
+)
 from ..setup import create_setup_json, is_scripted
 from ..frame_change import (
     register_frame_handler,
@@ -143,7 +148,7 @@ Note that an eligible object must be selected."""
                 For the *Type* select *{"Collider" if added_solid else "Solid"}*.
 
                 You can leave the settings default
-                and hit OK!"""
+                and press OK!"""
             )
         tutorial_msg(self.layout, context, msg)
 
@@ -214,6 +219,12 @@ Note that this also discards all computed frames in the cache."""
         with_popup(simulation, lambda: new_simulation(simulation, setup_json))
 
         self.report({"INFO"}, f"Updating cache of {simulation.name}")
+
+        if simulation.immediately_start_baking:
+            simulation.last_exception = ""
+            start_compute(simulation, available_frames(simulation))
+            self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+
         return {"FINISHED"}
 
     def invoke(self, context, _):
@@ -245,7 +256,7 @@ Note that this also discards all computed frames in the cache."""
             changes to settings, animation, geometry, etc.
             mandate to *Overwrite Cache* again.
 
-            Please keep this in mind and hit OK.""",
+            Please keep this in mind and press OK.""",
         )
 
 
@@ -345,8 +356,9 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             self.layout.prop(simulation, "capture_frames")
             self.layout.separator()
 
-        tut = self.layout.column()
-        tut.alert = (
+        row = self.layout.row()
+        tut = row.column()
+        tut.alert = bool(
             context.scene.blended_mpm_scene.tutorial_active
             and get_input_solids(simulation)
             and get_input_colliders(simulation)
@@ -361,6 +373,9 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             ),
             icon="FILE_CACHE",
         )
+        col = row.column()
+        col.enabled = not context.scene.blended_mpm_scene.tutorial_active
+        col.prop(simulation, "immediately_start_baking")
 
 
 classes = [

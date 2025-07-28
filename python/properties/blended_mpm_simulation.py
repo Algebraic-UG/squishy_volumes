@@ -183,6 +183,14 @@ You need to override the cache to manifest changes.""",
     # ----------------------------------------------------------------
     # bake settings
     # ----------------------------------------------------------------
+    immediately_start_baking: bpy.props.BoolProperty(
+        name="Start Baking",
+        description="""Save two mouse clicks!
+If the setup is valid, overwriting the cache
+starts baking with the current settings immediately.""",
+        default=True,
+        options=set(),
+    )  # type: ignore
     time_step: bpy.props.FloatProperty(
         name="Time Step",
         description="""The discrete time resolution of the simulation.
