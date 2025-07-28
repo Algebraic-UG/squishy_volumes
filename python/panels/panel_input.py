@@ -30,9 +30,10 @@ from ..properties.blended_mpm_object_settings import (
     OBJECT_ENUM_FLUID,
     OBJECT_ENUM_SOLID,
     Blended_MPM_Object_Settings,
+    current_input_names_match_cached,
     get_input_solids,
 )
-from ..bridge import context_exists, new_simulation
+from ..bridge import available_frames, context_exists, new_simulation
 from ..setup import create_setup_json, is_scripted
 from ..frame_change import (
     register_frame_handler,
@@ -215,6 +216,38 @@ Note that this also discards all computed frames in the cache."""
         self.report({"INFO"}, f"Updating cache of {simulation.name}")
         return {"FINISHED"}
 
+    def invoke(self, context, _):
+        if context.scene.blended_mpm_scene.tutorial_active or simulation_cache_exists(
+            get_selected_simulation(context)
+        ):
+            return context.window_manager.invoke_props_dialog(self)
+        else:
+            return self.execute(context)
+
+    def draw(self, context):
+        simulation = get_selected_simulation(context)
+        if simulation_cache_exists(simulation):
+            self.layout.label(text="WARNING: This is a destructive operation!")
+            self.layout.label(
+                text=f"The previous cache will be overwritten: {available_frames(simulation)} frames"
+            )
+        tutorial_msg(
+            self.layout,
+            context,
+            """\
+            You're about to write your input to cache and
+            complete preparations to get simulating!
+
+            From this step onwards, the simulation is going to
+            remember this *current* input state.
+
+            So, if you wish to change the simulation, any
+            changes to settings, animation, geometry, etc.
+            mandate to *Overwrite Cache* again.
+
+            Please keep this in mind and hit OK.""",
+        )
+
 
 class OBJECT_UL_Blended_MPM_Input_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
@@ -312,7 +345,14 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             self.layout.prop(simulation, "capture_frames")
             self.layout.separator()
 
-        self.layout.operator(
+        tut = self.layout.column()
+        tut.alert = (
+            context.scene.blended_mpm_scene.tutorial_active
+            and get_input_solids(simulation)
+            and get_input_colliders(simulation)
+            and not current_input_names_match_cached(simulation)
+        )
+        tut.operator(
             "object.blended_mpm_write_input_to_cache",
             text=(
                 "Overwrite Cache"

@@ -99,6 +99,8 @@ def pause_compute(simulation):
 
 
 def available_frames(simulation):
+    if not context_exists(simulation):
+        return 0
     return blended_mpm_context_dict[simulation.uuid].available_frames()
 
 

@@ -3,14 +3,12 @@ import bpy
 import textwrap
 
 from ..util import simulation_cache_exists
-from ..bridge import InputNames
 
 from ..properties.blended_mpm_object_settings import (
+    current_input_names_match_cached,
     get_input_colliders,
-    get_input_fluids,
     get_input_solids,
 )
-from ..properties.util import get_input_objects
 
 from .panel_input import selection_eligible_for_input
 from .panel_overview import (
@@ -128,29 +126,13 @@ def current_instructions(layout, context):
 
         return
 
-    solid_names = {obj.name for obj in get_input_solids(simulation)}
-    fluid_names = {obj.name for obj in get_input_fluids(simulation)}
-    collider_names = {obj.name for obj in get_input_colliders(simulation)}
-    input_names = InputNames(simulation)
-
-    names_differ = (
-        input_names.solid_names != solid_names
-        or input_names.fluid_names != fluid_names
-        or input_names.collider_names != collider_names
-    )
-
-    if names_differ:
+    if not current_input_names_match_cached(simulation):
         display_msg(
             f"""\
             Great, the input is defined!
 
             Now we'll give the simulation engine
-            the list.
-
-            From this step onwards, the simulation
-            is going to remember this input state,
-            so if we want to change something we
-            need to *Overwrite Cache*!
+            the input list.
 
             Press {"Overwrite Cache" if simulation_cache_exists(simulation) else "Initialize Cache"}!"""
         )
