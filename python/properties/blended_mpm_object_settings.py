@@ -38,6 +38,8 @@ def get_input_objects_type(simulation, input_type):
 def get_input_solids(simulation):
     return get_input_objects_type(simulation, OBJECT_ENUM_SOLID)
 
+def get_input_fluids(simulation):
+    return get_input_objects_type(simulation, OBJECT_ENUM_FLUID)
 
 def get_input_colliders(simulation):
     return get_input_objects_type(simulation, OBJECT_ENUM_COLLIDER)

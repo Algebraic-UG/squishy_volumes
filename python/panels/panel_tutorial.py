@@ -2,9 +2,13 @@ import bpy
 
 import textwrap
 
+from ..util import simulation_cache_exists
+from ..bridge import InputNames
 
 from ..properties.blended_mpm_object_settings import (
-    OBJECT_ENUM_SOLID,
+    get_input_colliders,
+    get_input_fluids,
+    get_input_solids,
 )
 from ..properties.util import get_input_objects
 
@@ -47,14 +51,17 @@ def current_instructions(layout, context):
             layout.label(text=line)
 
     if not context.scene.blended_mpm_scene.simulations:
-        display_msg(f"""\
+        display_msg(
+            f"""\
             Please start by adding a new simulation.
-            Press {OBJECT_OT_Blended_MPM_Add_Simulation.bl_label}!""")
+            Press {OBJECT_OT_Blended_MPM_Add_Simulation.bl_label}!"""
+        )
         return
 
     if len(context.scene.blended_mpm_scene.simulations) > 1:
         layout.alert = True
-        display_msg(f"""\
+        display_msg(
+            f"""\
             You have added several simulations.
 
             This is supported in general!
@@ -62,53 +69,92 @@ def current_instructions(layout, context):
 
             Please remove all but one:
             Expand the simulations and press
-            {OBJECT_OT_Blended_MPM_Remove_Simulation.bl_label}!""")
+            {OBJECT_OT_Blended_MPM_Remove_Simulation.bl_label}!"""
+        )
         return
 
     simulation = context.scene.blended_mpm_scene.simulations[0]
 
-    if not get_input_objects(simulation):
-        display_msg("""\
+    if not get_input_solids(simulation):
+        display_msg(
+            """\
             Now you can add some inputs!
             Start by adding a *Solid*.
 
-            """)
+            """
+        )
         if not selection_eligible_for_input(context):
-            display_msg("""\
-                Select any mesh that has some volume.
+            display_msg(
+                """\
+                Select any mesh that has some volume
                 (care for face orientation)
+                and isn't already input to this
+                simulation.
 
                 The simplest way is to select the
-                default cube if you still have it.""")
+                default cube if you still have it."""
+            )
         else:
-            display_msg("""\
+            display_msg(
+                """\
                 Add the selected object as input:
-                Press the *plus* button!""")
+                Press the *plus* button!"""
+            )
 
         return
 
-    if [
-        obj
-        for obj in get_input_objects(simulation)
-        if obj.blended_mpm_object.simulation_specific_settings[0].object_enum
-        == OBJECT_ENUM_SOLID
-    ]:
-        display_msg("""\
+    if not get_input_colliders(simulation):
+        display_msg(
+            """\
             Now also add a *Collider*.
 
-            """)
+            """
+        )
+        if not selection_eligible_for_input(context):
+            display_msg(
+                """\
+                Select any mesh that isn't already
+                an input to the simulation.
+
+                For example, create a simple plane
+                under the solid input."""
+            )
+        else:
+            display_msg(
+                """\
+                Add the selected object as input:
+                Press the *plus* button!"""
+            )
 
         return
 
-    #            get_selected_simulation(context) is not None
-    #            and context.active_object is not None
-    #            and context.active_object.select_get()
-    #            and context.active_object.type == "MESH"
-    #            # This could be allowed?
-    #            and not context.active_object.blended_mpm_object.simulation_uuid
-    #            and not has_simulation_specific_settings(
-    #                get_selected_simulation(context), context.active_object
-    #            )
+    solid_names = {obj.name for obj in get_input_solids(simulation)}
+    fluid_names = {obj.name for obj in get_input_fluids(simulation)}
+    collider_names = {obj.name for obj in get_input_colliders(simulation)}
+    input_names = InputNames(simulation)
+
+    names_differ = (
+        input_names.solid_names != solid_names
+        or input_names.fluid_names != fluid_names
+        or input_names.collider_names != collider_names
+    )
+
+    if names_differ:
+        display_msg(
+            f"""\
+            Great, the input is defined!
+
+            Now we'll give the simulation engine
+            the list.
+
+            From this step onwards, the simulation
+            is going to remember this input state,
+            so if we want to change something we
+            need to *Overwrite Cache*!
+
+            Press {"Overwrite Cache" if simulation_cache_exists(simulation) else "Initialize Cache"}!"""
+        )
+        return
 
     display_msg("You have completed the tutorial!")
 

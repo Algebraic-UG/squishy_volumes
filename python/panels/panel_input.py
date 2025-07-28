@@ -299,9 +299,8 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
         )
         list_controls = row.column(align=True)
         tut = list_controls.column()
-        tut.alert = (
-            context.scene.blended_mpm_scene.tutorial_active
-            and selection_eligible_for_input(context)
+        tut.alert = context.scene.blended_mpm_scene.tutorial_active and (
+            not get_input_solids(simulation) or not get_input_colliders(simulation)
         )
         tut.operator("object.blended_mpm_add_input_object", text="", icon="ADD")
         list_controls.operator(
@@ -315,9 +314,11 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
 
         self.layout.operator(
             "object.blended_mpm_write_input_to_cache",
-            text="Overwrite Cache"
-            if simulation_cache_exists(simulation)
-            else "Initialize Cache",
+            text=(
+                "Overwrite Cache"
+                if simulation_cache_exists(simulation)
+                else "Initialize Cache"
+            ),
             icon="FILE_CACHE",
         )
 
