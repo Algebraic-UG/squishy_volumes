@@ -156,3 +156,12 @@ def copy_simple_property_group(source, target):
             setattr(target, prop_name, getattr(source, prop_name))
         except (AttributeError, TypeError):
             pass
+
+
+def tutorial_msg(layout, context, msg):
+    if not context.scene.blended_mpm_scene.tutorial_active:
+        return
+    box = layout.box()
+    box.label(text="Tutorial:")
+    for line in msg.splitlines():
+        box.label(text=line.strip())

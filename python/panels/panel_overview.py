@@ -41,6 +41,7 @@ from ..util import (
     get_simulation_idx_by_uuid,
     simulation_cache_exists,
     simulation_cache_locked,
+    tutorial_msg,
 )
 
 
@@ -71,13 +72,26 @@ are completely separate from each other."""
         self.simulation.uuid = str(uuid.uuid4())
         return context.window_manager.invoke_props_dialog(self)
 
-    def draw(self, _):
+    def draw(self, context):
         self.layout.prop(self.simulation, "name")
         self.layout.prop(self.simulation, "cache_directory")
         col = self.layout.column()
         col.enabled = False
         col.prop(self.simulation, "uuid")
         self.layout.prop(self.simulation, "max_giga_bytes_on_disk")
+        tutorial_msg(
+            self.layout,
+            context,
+            """\
+            You're about to add a new simulation.
+
+            That means you are creating a *cache* directory
+            where all the inputs and outputs of
+            your simulation are stored!
+
+            You can leave everything as default for now
+            and hit OK.""",
+        )
 
 
 class OBJECT_OT_Blended_MPM_Reload(bpy.types.Operator):
@@ -171,7 +185,7 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
     bl_label = "Overview"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Blended MPM"  # The tab name
 
     @classmethod
     def poll(cls, context):
@@ -239,11 +253,22 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
                     row.operator(
                         "object.blended_mpm_reload", icon="FILE_CACHE"
                     ).uuid = simulation.uuid
-                row.operator(
+                tut = row.column()
+                tut.alert = (
+                    context.scene.blended_mpm_scene.tutorial_active
+                    and len(context.scene.blended_mpm_scene.simulations) > 1
+                )
+                tut.operator(
                     "object.blended_mpm_remove_simulation", icon="TRASH"
                 ).uuid = simulation.uuid
 
-        layout.operator("object.blended_mpm_add_simulation", icon="ADD")
+        tut = layout.column()
+        tut.alert = (
+            context.scene.blended_mpm_scene.tutorial_active
+            and not context.scene.blended_mpm_scene.simulations
+        )
+        tut.operator("object.blended_mpm_add_simulation", icon="ADD")
+
         if len(context.scene.blended_mpm_scene.simulations) > 1:
             layout.separator()
             layout.prop(

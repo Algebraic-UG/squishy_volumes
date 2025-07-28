@@ -30,6 +30,7 @@ from ..properties.blended_mpm_object_settings import (
     OBJECT_ENUM_FLUID,
     OBJECT_ENUM_SOLID,
     Blended_MPM_Object_Settings,
+    get_input_solids,
 )
 from ..bridge import context_exists, new_simulation
 from ..setup import create_setup_json, is_scripted
@@ -37,8 +38,15 @@ from ..frame_change import (
     register_frame_handler,
     unregister_frame_handler,
 )
-from ..util import copy_simple_property_group, force_ui_redraw, simulation_cache_exists
+from ..util import (
+    copy_simple_property_group,
+    force_ui_redraw,
+    simulation_cache_exists,
+    tutorial_msg,
+)
 from ..popup import with_popup
+
+from ..properties.blended_mpm_object_settings import get_input_colliders
 
 
 def draw_object_settings(layout, settings):
@@ -65,6 +73,20 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "friction_factor")
 
 
+def selection_eligible_for_input(context):
+    return (
+        get_selected_simulation(context) is not None
+        and context.active_object is not None
+        and context.active_object.select_get()
+        and context.active_object.type == "MESH"
+        # This could be allowed?
+        and not context.active_object.blended_mpm_object.simulation_uuid
+        and not has_simulation_specific_settings(
+            get_selected_simulation(context), context.active_object
+        )
+    )
+
+
 class OBJECT_OT_Blended_MPM_Add_Input_Object(bpy.types.Operator):
     bl_idname = "object.blended_mpm_add_input_object"
     bl_label = "Add Input Object"
@@ -82,17 +104,7 @@ Note that an eligible object must be selected."""
 
     @classmethod
     def poll(cls, context):
-        return (
-            get_selected_simulation(context) is not None
-            and context.active_object is not None
-            and context.active_object.select_get()
-            and context.active_object.type == "MESH"
-            # This could be allowed?
-            and not context.active_object.blended_mpm_object.simulation_uuid
-            and not has_simulation_specific_settings(
-                get_selected_simulation(context), context.active_object
-            )
-        )
+        return selection_eligible_for_input(context)
 
     def execute(self, context):
         settings = context.object.blended_mpm_object.simulation_specific_settings.add()
@@ -113,8 +125,26 @@ Note that an eligible object must be selected."""
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
+        simulation = get_selected_simulation(context)
         self.layout.label(text=context.object.name)
         draw_object_settings(self.layout, self.settings)
+
+        # tutorial
+        msg = "You're about to register the selected object as input."
+
+        added_solid = bool(get_input_solids(simulation))
+        added_collider = bool(get_input_colliders(simulation))
+        if not added_solid or not added_collider:
+            msg = (
+                msg
+                + f"""
+
+                For the *Type* select *{"Collider" if added_solid else "Solid"}*.
+
+                You can leave the settings default
+                and hit OK!"""
+            )
+        tutorial_msg(self.layout, context, msg)
 
 
 class OBJECT_OT_Blended_MPM_Remove_Input_Object(bpy.types.Operator):
@@ -215,7 +245,7 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
     bl_label = "Input"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Blended MPM"  # The tab name
     bl_options = set()
 
     @classmethod
@@ -268,9 +298,12 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             "selected_input_object",
         )
         list_controls = row.column(align=True)
-        list_controls.operator(
-            "object.blended_mpm_add_input_object", text="", icon="ADD"
+        tut = list_controls.column()
+        tut.alert = (
+            context.scene.blended_mpm_scene.tutorial_active
+            and selection_eligible_for_input(context)
         )
+        tut.operator("object.blended_mpm_add_input_object", text="", icon="ADD")
         list_controls.operator(
             "object.blended_mpm_remove_input_object", text="", icon="REMOVE"
         )

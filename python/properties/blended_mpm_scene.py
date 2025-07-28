@@ -39,6 +39,12 @@ def update_object_selection(_, context):
 
 
 class Blended_MPM_Scene(bpy.types.PropertyGroup):
+    tutorial_active: bpy.props.BoolProperty(
+        name="Tutorial Active",
+        description="Whether the tutorial is active.",
+        default=False,
+        options=set(),
+    )  # type: ignore
     simulations: bpy.props.CollectionProperty(
         type=Blended_MPM_Simulation,
         name="Simulations",

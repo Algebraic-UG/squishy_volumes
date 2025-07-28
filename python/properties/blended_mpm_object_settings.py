@@ -18,10 +18,29 @@
 
 import bpy
 
+from ..properties.util import get_input_objects
+
 # these have to match the enum in core::api::ObjectSettings
 OBJECT_ENUM_SOLID = "Solid"
 OBJECT_ENUM_FLUID = "Fluid"
 OBJECT_ENUM_COLLIDER = "Collider"
+
+
+def get_input_objects_type(simulation, input_type):
+    return [
+        obj
+        for obj in get_input_objects(simulation)
+        if obj.blended_mpm_object.simulation_specific_settings[0].object_enum
+        == input_type
+    ]
+
+
+def get_input_solids(simulation):
+    return get_input_objects_type(simulation, OBJECT_ENUM_SOLID)
+
+
+def get_input_colliders(simulation):
+    return get_input_objects_type(simulation, OBJECT_ENUM_COLLIDER)
 
 
 class Blended_MPM_Object_Settings(bpy.types.PropertyGroup):
