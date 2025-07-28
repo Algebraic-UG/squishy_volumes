@@ -7,9 +7,10 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Result, bail};
-use bincode::{config::standard, serde::encode_into_std_write};
+use bincode::serialize;
 use std::{
     fs::{File, rename},
+    io::Write,
     path::PathBuf,
     sync::{
         Arc,
@@ -41,7 +42,7 @@ impl StoreThread {
         let thread = Some(spawn(move || -> Result<()> {
             while let Ok(state) = store_rx.recv() {
                 let mut file = File::create(&temp_file_path).context("temp file creation")?;
-                encode_into_std_write(state, &mut file, standard())
+                file.write_all(&serialize(&state).context("state serialization")?)
                     .context("frame file writing")?;
                 bytes_on_disk.fetch_add(
                     file.metadata().context("frame size")?.len(),

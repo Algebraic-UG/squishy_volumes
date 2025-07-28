@@ -8,12 +8,12 @@
 
 use crate::api::{SerializedSetup, Setup};
 use anyhow::{Context, Result, ensure};
-use bincode::{config::standard, serde::decode_from_std_read};
+use bincode::deserialize;
 use blended_mpm_api::T;
 use lock::CacheLock;
 use serde_json::{Value, from_reader, from_value, to_writer_pretty};
 use std::{
-    fs::{File, canonicalize, create_dir_all, metadata, read_dir, remove_file},
+    fs::{File, canonicalize, create_dir_all, metadata, read, read_dir, remove_file},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
     sync::{
@@ -211,12 +211,10 @@ impl Cache {
         debug!(frame, "reading frame from disk");
         *loaded_frame = Some((
             frame,
-            decode_from_std_read(
-                &mut File::open(frame_path(self.cache_lock.cache_dir(), frame))
-                    .context("open frame")?,
-                standard(),
+            deserialize::<State>(
+                &read(frame_path(self.cache_lock.cache_dir(), frame)).context("read frame")?,
             )
-            .context("read frame")?,
+            .context("decoding frame")?,
         ));
 
         Ok(())
