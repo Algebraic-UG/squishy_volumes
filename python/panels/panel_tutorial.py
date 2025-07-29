@@ -189,7 +189,20 @@ def current_instructions(layout, context):
         )
         return
 
-    display_msg("🎉 You have completed the tutorial! 🎉")
+    display_msg(
+        """\
+        🎉 You have completed the tutorial! 🎉
+
+        Summary:
+        1. Create simulation
+        2. Add input
+        3. Write cache & simulate
+        4. Add output
+
+        If you want to continue learning
+        about the features visit
+        TODO: links"""
+    )
 
 
 class OBJECT_PT_Blended_MPM_Tutorial(bpy.types.Panel):
