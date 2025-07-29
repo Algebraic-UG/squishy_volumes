@@ -58,7 +58,7 @@ def draw_object_attributes(layout, output_type, optional_attributes):
     if output_type == GRID_COLLIDER_DISTANCE:
         grid.prop(optional_attributes, "grid_collider_distances")
         grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "grid_collider_normal")
+        grid.prop(optional_attributes, "grid_collider_normals")
         grid.label(text="FLOAT_VECTOR")
     if output_type == GRID_MOMENTUM_FREE:
         grid.prop(optional_attributes, "grid_momentum_masses")
