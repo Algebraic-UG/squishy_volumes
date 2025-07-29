@@ -295,22 +295,22 @@ fn get_frame_number<P: AsRef<Path>>(frame_path: P) -> Option<usize> {
 }
 
 fn discover_frames<P: AsRef<Path>>(cache_dir: P) -> Result<(u64, Vec<(usize, PathBuf)>)> {
-    let mut bytes_on_disk = 0;
-    let entries = read_dir(cache_dir)
+    Ok(read_dir(cache_dir)
         .context("reading cache directory")?
-        .map(|res| {
-            let entry = res.context("getting dir entry")?;
-            bytes_on_disk += entry.metadata().context("reading file size")?.len();
-            Ok(entry.path())
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok((
-        bytes_on_disk,
-        entries
-            .into_iter()
-            .filter_map(|path| get_frame_number(&path).map(|number| (number, path)))
-            .collect(),
-    ))
+        .try_fold(
+            (0, Vec::new()),
+            |(mut bytes_on_disk, mut frames), entry| -> Result<(u64, Vec<(usize, PathBuf)>)> {
+                let entry = entry.context("getting_dir entry")?;
+                let path = entry.path();
+
+                if let Some(frame_number) = get_frame_number(&path) {
+                    bytes_on_disk += entry.metadata().context("reading file size")?.len();
+                    frames.push((frame_number, path));
+                }
+
+                Ok((bytes_on_disk, frames))
+            },
+        )?)
 }
 
 fn clean_up_frames<P: AsRef<Path>>(cache_dir: P, from_frame: usize) -> Result<()> {
