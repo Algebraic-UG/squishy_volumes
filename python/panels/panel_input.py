@@ -30,7 +30,6 @@ from ..properties.blended_mpm_object_settings import (
     OBJECT_ENUM_FLUID,
     OBJECT_ENUM_SOLID,
     Blended_MPM_Object_Settings,
-    current_input_names_match_cached,
     get_input_solids,
 )
 from ..bridge import (

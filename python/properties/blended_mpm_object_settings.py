@@ -40,25 +40,8 @@ def get_input_solids(simulation):
     return get_input_objects_type(simulation, OBJECT_ENUM_SOLID)
 
 
-def get_input_fluids(simulation):
-    return get_input_objects_type(simulation, OBJECT_ENUM_FLUID)
-
-
 def get_input_colliders(simulation):
     return get_input_objects_type(simulation, OBJECT_ENUM_COLLIDER)
-
-
-def current_input_names_match_cached(simulation):
-    solid_names = {obj.name for obj in get_input_solids(simulation)}
-    fluid_names = {obj.name for obj in get_input_fluids(simulation)}
-    collider_names = {obj.name for obj in get_input_colliders(simulation)}
-    input_names = InputNames(simulation)
-
-    return (
-        input_names.solid_names == solid_names
-        and input_names.fluid_names == fluid_names
-        and input_names.collider_names == collider_names
-    )
 
 
 class Blended_MPM_Object_Settings(bpy.types.PropertyGroup):
