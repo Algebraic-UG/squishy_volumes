@@ -194,6 +194,19 @@ def current_instructions(layout, context):
         )
         return
 
+    if not context.screen.is_animation_playing:
+        display_msg(
+            """\
+            You're almost there!
+
+            The only thing left to do is to
+            play the animation!
+
+            Either press SPACE
+            or the play button."""
+        )
+        return
+
     display_msg(
         """\
         🎉 You have completed the tutorial! 🎉
