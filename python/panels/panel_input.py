@@ -30,15 +30,29 @@ from ..properties.blended_mpm_object_settings import (
     OBJECT_ENUM_FLUID,
     OBJECT_ENUM_SOLID,
     Blended_MPM_Object_Settings,
+    current_input_names_match_cached,
+    get_input_solids,
 )
-from ..bridge import context_exists, new_simulation
+from ..bridge import (
+    available_frames,
+    context_exists,
+    new_simulation,
+    start_compute,
+)
 from ..setup import create_setup_json, is_scripted
 from ..frame_change import (
     register_frame_handler,
     unregister_frame_handler,
 )
-from ..util import copy_simple_property_group, force_ui_redraw, simulation_cache_exists
+from ..util import (
+    copy_simple_property_group,
+    force_ui_redraw,
+    simulation_cache_exists,
+    tutorial_msg,
+)
 from ..popup import with_popup
+
+from ..properties.blended_mpm_object_settings import get_input_colliders
 
 
 def draw_object_settings(layout, settings):
@@ -65,6 +79,20 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "friction_factor")
 
 
+def selection_eligible_for_input(context):
+    return (
+        get_selected_simulation(context) is not None
+        and context.active_object is not None
+        and context.active_object.select_get()
+        and context.active_object.type == "MESH"
+        # This could be allowed?
+        and not context.active_object.blended_mpm_object.simulation_uuid
+        and not has_simulation_specific_settings(
+            get_selected_simulation(context), context.active_object
+        )
+    )
+
+
 class OBJECT_OT_Blended_MPM_Add_Input_Object(bpy.types.Operator):
     bl_idname = "object.blended_mpm_add_input_object"
     bl_label = "Add Input Object"
@@ -82,17 +110,7 @@ Note that an eligible object must be selected."""
 
     @classmethod
     def poll(cls, context):
-        return (
-            get_selected_simulation(context) is not None
-            and context.active_object is not None
-            and context.active_object.select_get()
-            and context.active_object.type == "MESH"
-            # This could be allowed?
-            and not context.active_object.blended_mpm_object.simulation_uuid
-            and not has_simulation_specific_settings(
-                get_selected_simulation(context), context.active_object
-            )
-        )
+        return selection_eligible_for_input(context)
 
     def execute(self, context):
         settings = context.object.blended_mpm_object.simulation_specific_settings.add()
@@ -113,8 +131,26 @@ Note that an eligible object must be selected."""
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
+        simulation = get_selected_simulation(context)
         self.layout.label(text=context.object.name)
         draw_object_settings(self.layout, self.settings)
+
+        # tutorial
+        msg = "You're about to register the selected object as input."
+
+        added_solid = bool(get_input_solids(simulation))
+        added_collider = bool(get_input_colliders(simulation))
+        if not added_solid or not added_collider:
+            msg = (
+                msg
+                + f"""
+
+                For the *Type* select *{"Collider" if added_solid else "Solid"}*.
+
+                You can leave the settings default
+                and press OK!"""
+            )
+        tutorial_msg(self.layout, context, msg)
 
 
 class OBJECT_OT_Blended_MPM_Remove_Input_Object(bpy.types.Operator):
@@ -163,6 +199,13 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
+    @classmethod
+    def poll(cls, context):
+        simulation = get_selected_simulation(context)
+        return not context.scene.blended_mpm_scene.tutorial_active or (
+            get_input_solids(simulation) and get_input_colliders(simulation)
+        )
+
     def execute(self, context):
         simulation = get_selected_simulation(context)
 
@@ -183,7 +226,45 @@ Note that this also discards all computed frames in the cache."""
         with_popup(simulation, lambda: new_simulation(simulation, setup_json))
 
         self.report({"INFO"}, f"Updating cache of {simulation.name}")
+
+        if simulation.immediately_start_baking:
+            simulation.last_exception = ""
+            start_compute(simulation, available_frames(simulation))
+            self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+
         return {"FINISHED"}
+
+    def invoke(self, context, _):
+        if context.scene.blended_mpm_scene.tutorial_active or simulation_cache_exists(
+            get_selected_simulation(context)
+        ):
+            return context.window_manager.invoke_props_dialog(self)
+        else:
+            return self.execute(context)
+
+    def draw(self, context):
+        simulation = get_selected_simulation(context)
+        if simulation_cache_exists(simulation):
+            self.layout.label(text="WARNING: This is a destructive operation!")
+            self.layout.label(
+                text=f"The previous cache will be overwritten: {available_frames(simulation)} frames"
+            )
+        tutorial_msg(
+            self.layout,
+            context,
+            """\
+            You're about to write your input to cache and
+            complete preparations to get simulating!
+
+            From this step onwards, the simulation is going to
+            remember this *current* input state.
+
+            So, if you wish to change the simulation, any
+            changes to settings, animation, geometry, etc.
+            mandate to *Overwrite Cache* again.
+
+            Please keep this in mind and press OK.""",
+        )
 
 
 class OBJECT_UL_Blended_MPM_Input_Object_List(bpy.types.UIList):
@@ -268,9 +349,11 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             "selected_input_object",
         )
         list_controls = row.column(align=True)
-        list_controls.operator(
-            "object.blended_mpm_add_input_object", text="", icon="ADD"
+        tut = list_controls.column()
+        tut.alert = context.scene.blended_mpm_scene.tutorial_active and (
+            not get_input_solids(simulation) or not get_input_colliders(simulation)
         )
+        tut.operator("object.blended_mpm_add_input_object", text="", icon="ADD")
         list_controls.operator(
             "object.blended_mpm_remove_input_object", text="", icon="REMOVE"
         )
@@ -280,13 +363,26 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             self.layout.prop(simulation, "capture_frames")
             self.layout.separator()
 
-        self.layout.operator(
+        row = self.layout.row()
+        tut = row.column()
+        tut.alert = bool(
+            context.scene.blended_mpm_scene.tutorial_active
+            and get_input_solids(simulation)
+            and get_input_colliders(simulation)
+            and not context_exists(simulation)
+        )
+        tut.operator(
             "object.blended_mpm_write_input_to_cache",
-            text="Overwrite Cache"
-            if simulation_cache_exists(simulation)
-            else "Initialize Cache",
+            text=(
+                "Overwrite Cache"
+                if simulation_cache_exists(simulation)
+                else "Initialize Cache"
+            ),
             icon="FILE_CACHE",
         )
+        col = row.column()
+        col.enabled = not context.scene.blended_mpm_scene.tutorial_active
+        col.prop(simulation, "immediately_start_baking")
 
 
 classes = [

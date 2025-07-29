@@ -54,7 +54,7 @@ Outputs become available as the initial state is created."""
         simulation = get_selected_simulation(context)
         simulation.last_exception = ""
         start_compute_initial_frame(simulation)
-        self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+        self.report({"INFO"}, f"Creating first frame of {simulation.name}.")
         return {"FINISHED"}
 
 
@@ -172,9 +172,9 @@ class OBJECT_PT_Blended_MPM_Bake(bpy.types.Panel):
         col = self.layout.column()
         col.enabled = not computing(simulation)
         if available_frames(simulation) == 0:
-            self.layout.operator(
-                "object.blended_mpm_bake_initial_frame", icon="PHYSICS"
-            )
+            tut = col.column()
+            tut.alert = context.scene.blended_mpm_scene.tutorial_active
+            tut.operator("object.blended_mpm_bake_initial_frame", icon="PHYSICS")
         else:
             col.prop(simulation, "time_step")
             # TODO: make implicit viable
@@ -193,7 +193,7 @@ class OBJECT_PT_Blended_MPM_Bake(bpy.types.Panel):
                     text=f"Rebake from #{simulation.loaded_frame}",
                     icon="PHYSICS",
                 )
-            self.layout.operator("object.blended_mpm_bake_pause", icon="CANCEL")
+        self.layout.operator("object.blended_mpm_bake_pause", icon="CANCEL")
 
         if simulation.progress_json_string:
             recursive_progress(self.layout, json.loads(simulation.progress_json_string))

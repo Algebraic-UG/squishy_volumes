@@ -99,6 +99,8 @@ def pause_compute(simulation):
 
 
 def available_frames(simulation):
+    if not context_exists(simulation):
+        return 0
     return blended_mpm_context_dict[simulation.uuid].available_frames()
 
 
@@ -126,6 +128,10 @@ class InputNames:
         self.fluid_names = set()
         self.collider_names = set()
         self.mesh_names = set()
+        if not context_exists(simulation):
+            return
+        if simulation.loaded_frame == -1:
+            return
         for attribute_json in available_attributes(simulation):
             attribute = json.loads(attribute_json)
             if "Object" in attribute:
