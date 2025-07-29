@@ -257,7 +257,9 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
                         "object.blended_mpm_remove_lock_file", icon="WARNING_LARGE"
                     ).uuid = simulation.uuid
                 elif simulation_cache_exists(simulation):
-                    row.operator(
+                    tut = row.column()
+                    tut.enabled = not context.scene.blended_mpm_scene.tutorial_active
+                    tut.operator(
                         "object.blended_mpm_reload", icon="FILE_CACHE"
                     ).uuid = simulation.uuid
                 row.operator(
