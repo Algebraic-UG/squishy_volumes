@@ -46,34 +46,57 @@ from ..bridge import InputNames, available_frames, context_exists
 
 
 def draw_object_attributes(layout, output_type, optional_attributes):
-    if output_type == GRID_COLLIDER_DISTANCE:
-        layout.prop(optional_attributes, "grid_collider_distances")
-        layout.prop(optional_attributes, "grid_collider_normal")
-    if output_type == GRID_MOMENTUM_FREE:
-        layout.prop(optional_attributes, "grid_momentum_masses")
-        layout.prop(optional_attributes, "grid_momentum_velocities")
-    if output_type == GRID_MOMENTUM_CONFORMED:
-        layout.prop(optional_attributes, "grid_momentum_masses")
-        layout.prop(optional_attributes, "grid_momentum_velocities")
-    if output_type == SOLID_PARTICLES:
-        layout.prop(optional_attributes, "solid_masses")
-        layout.prop(optional_attributes, "solid_initial_volumes")
-        layout.prop(optional_attributes, "solid_velocities")
-        layout.prop(optional_attributes, "solid_transformations")
-        layout.prop(optional_attributes, "solid_energies")
-        layout.prop(optional_attributes, "solid_collider_insides")
-    if output_type == FLUID_PARTICLES:
-        layout.prop(optional_attributes, "fluid_velocities")
-        layout.prop(optional_attributes, "fluid_transformations")
-        layout.prop(optional_attributes, "fluid_collider_insides")
-        layout.prop(optional_attributes, "fluid_pressures")
-    if output_type == COLLIDER_SAMPLES:
-        layout.prop(optional_attributes, "collider_normals")
-        layout.prop(optional_attributes, "collider_velocities")
     if output_type == COLLIDER_MESH:
         return
     if output_type == INPUT_MESH:
         return
+
+    layout.label(text="Please mouse-over for the exact identifier.")
+    grid = layout.grid_flow(row_major=True, columns=2, even_columns=False)
+    grid.label(text="Attribute")
+    grid.label(text="Type")
+    if output_type == GRID_COLLIDER_DISTANCE:
+        grid.prop(optional_attributes, "grid_collider_distances")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "grid_collider_normal")
+        grid.label(text="FLOAT_VECTOR")
+    if output_type == GRID_MOMENTUM_FREE:
+        grid.prop(optional_attributes, "grid_momentum_masses")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "grid_momentum_velocities")
+        grid.label(text="FLOAT_VECTOR")
+    if output_type == GRID_MOMENTUM_CONFORMED:
+        grid.prop(optional_attributes, "grid_momentum_masses")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "grid_momentum_velocities")
+        grid.label(text="FLOAT_VECTOR")
+    if output_type == SOLID_PARTICLES:
+        grid.prop(optional_attributes, "solid_masses")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "solid_initial_volumes")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "solid_velocities")
+        grid.label(text="FLOAT_VECTOR")
+        grid.prop(optional_attributes, "solid_transformations")
+        grid.label(text="FLOAT4X4")
+        grid.prop(optional_attributes, "solid_energies")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "solid_collider_insides")
+        grid.label(text="FLOAT")
+    if output_type == FLUID_PARTICLES:
+        grid.prop(optional_attributes, "fluid_velocities")
+        grid.label(text="FLOAT_VECTOR")
+        grid.prop(optional_attributes, "fluid_transformations")
+        grid.label(text="FLOAT4X4")
+        grid.prop(optional_attributes, "fluid_collider_insides")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "fluid_pressures")
+        grid.label(text="FLOAT")
+    if output_type == COLLIDER_SAMPLES:
+        grid.prop(optional_attributes, "collider_normals")
+        grid.label(text="FLOAT_VECTOR")
+        grid.prop(optional_attributes, "collider_velocities")
+        grid.label(text="FLOAT_VECTOR")
 
 
 class OBJECT_OT_Blended_MPM_Jump_To_Start(bpy.types.Operator):
@@ -150,14 +173,13 @@ each frame."""
             """\
             You're about to add an output for the simulation.
 
-            This creates a new object that is synchronized
-            with the simulation if the respective frame
-            is available.
+            This creates a new object that is a receiver
+            of the simulation results.
+            As you play the animation in Blender,
+            the receiver's data is loaded from the cache.
 
-            Apart from positions, there are a number of
-            optional attributes that can be loaded.
-
-            The default geometry nodes will use those
+            A default visualization is provided as a
+            geometry nodes modifier and it'll use the
             attributes that are selected by default.
 
             So, you can just press OK.""",
@@ -273,30 +295,30 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
 
         if input_names.solid_names:
             box = self.layout.box()
-            box.label(text="Solids")
+            box.label(text="Add Solid Output")
             for name in input_names.solid_names:
                 tut = box.column()
                 tut.alert = context.scene.blended_mpm_scene.tutorial_active
                 create_operator(tut, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.fluid_names:
             box = self.layout.box()
-            box.label(text="Fluids")
+            box.label(text="Add Fluid Output")
             for name in input_names.fluid_names:
                 create_operator(box, FLUID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.collider_names:
             box = self.layout.box()
-            box.label(text="Collider")
+            box.label(text="Add Collider Output")
             for name in input_names.collider_names:
                 create_operator(box, COLLIDER_SAMPLES, "POINTCLOUD_DATA", name)
                 create_operator(box, COLLIDER_MESH, "MESH_DATA", name)
         box = self.layout.box()
-        box.label(text="Grids")
+        box.label(text="Add Grid Output")
         create_operator(box, GRID_COLLIDER_DISTANCE, "MESH_GRID", "Distances")
         create_operator(box, GRID_MOMENTUM_FREE, "MESH_GRID", "Free Momentum")
         for name in input_names.collider_names:
             create_operator(box, GRID_MOMENTUM_CONFORMED, "MESH_GRID", name)
         box = self.layout.box()
-        box.label(text="Original Meshes")
+        box.label(text="Get Original Input Meshes")
         for name in input_names.mesh_names:
             create_operator(box, INPUT_MESH, "MESH_DATA", name)
 

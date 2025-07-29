@@ -160,6 +160,8 @@ def current_instructions(layout, context):
     if simulation.loaded_frame == -1:
         display_msg(
             """\
+            At least one frame is ready!
+
             Switch to a frame that is already
             computed.
 
@@ -177,7 +179,10 @@ def current_instructions(layout, context):
     ]:
         display_msg(
             f"""\
-            Time to add some *Output*!
+            At least one frame is ready!
+
+            Let's see the results by
+            defining some *Output*.
 
             Go to the Output panel.
             You might need to scroll
