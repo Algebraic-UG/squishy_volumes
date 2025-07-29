@@ -177,7 +177,7 @@ def current_instructions(layout, context):
     ]:
         display_msg(
             f"""\
-            Time to add some *Ouput*!
+            Time to add some *Output*!
 
             Go to the Output panel.
             You might need to scroll
