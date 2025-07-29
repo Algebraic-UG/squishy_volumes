@@ -296,14 +296,14 @@ fn get_frame_number<P: AsRef<Path>>(frame_path: P) -> Option<usize> {
 
 fn discover_frames<P: AsRef<Path>>(cache_dir: P) -> Result<(u64, Vec<(usize, PathBuf)>)> {
     let mut bytes_on_disk = 0;
-    let entries = read_dir(cache_dir)?
+    let entries = read_dir(cache_dir)
+        .context("reading cache directory")?
         .map(|res| {
-            res.and_then(|e| {
-                bytes_on_disk += e.metadata()?.len();
-                Ok(e.path())
-            })
+            let entry = res.context("getting dir entry")?;
+            bytes_on_disk += entry.metadata().context("reading file size")?.len();
+            Ok(entry.path())
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>>>()?;
     Ok((
         bytes_on_disk,
         entries
