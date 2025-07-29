@@ -199,6 +199,13 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
+    @classmethod
+    def poll(cls, context):
+        simulation = get_selected_simulation(context)
+        return not context.scene.blended_mpm_scene.tutorial_active or (
+            get_input_solids(simulation) and get_input_colliders(simulation)
+        )
+
     def execute(self, context):
         simulation = get_selected_simulation(context)
 
@@ -362,7 +369,7 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             context.scene.blended_mpm_scene.tutorial_active
             and get_input_solids(simulation)
             and get_input_colliders(simulation)
-            and not current_input_names_match_cached(simulation)
+            and not context_exists(simulation)
         )
         tut.operator(
             "object.blended_mpm_write_input_to_cache",

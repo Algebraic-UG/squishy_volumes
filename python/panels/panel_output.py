@@ -18,6 +18,8 @@
 
 import bpy
 
+from ..util import tutorial_msg
+
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
     COLLIDER_MESH,
@@ -138,10 +140,28 @@ each frame."""
     def invoke(self, context, _):
         return context.window_manager.invoke_props_dialog(self)
 
-    def draw(self, _context):
+    def draw(self, context):
         self.layout.label(text=f"{self.output_type}")
         self.layout.prop(self, "object_name")
         draw_object_attributes(self.layout, self.output_type, self.optional_attributes)
+        tutorial_msg(
+            self.layout,
+            context,
+            """\
+            You're about to add an output for the simulation.
+
+            This creates a new object that is synchronized
+            with the simulation if the respective frame
+            is available.
+
+            Apart from positions, there are a number of
+            optional attributes that can be loaded.
+
+            The default geometry nodes will use those
+            attributes that are selected by default.
+
+            So, you can just press OK.""",
+        )
 
 
 class OBJECT_OT_Blended_MPM_Remove_Output_Object(bpy.types.Operator):
@@ -216,7 +236,9 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
         simulation = get_selected_simulation(context)
         self.layout.prop(simulation, "display_start_frame")
         if simulation.loaded_frame == -1:
-            self.layout.operator("object.blended_mpm_jump_to_start")
+            tut = self.layout.column()
+            tut.alert = context.scene.blended_mpm_scene.tutorial_active
+            tut.operator("object.blended_mpm_jump_to_start")
             return
 
         col = self.layout.column()
@@ -253,7 +275,9 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
             box = self.layout.box()
             box.label(text="Solids")
             for name in input_names.solid_names:
-                create_operator(box, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
+                tut = box.column()
+                tut.alert = context.scene.blended_mpm_scene.tutorial_active
+                create_operator(tut, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.fluid_names:
             box = self.layout.box()
             box.label(text="Fluids")

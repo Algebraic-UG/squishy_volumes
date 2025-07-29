@@ -2,10 +2,11 @@ import bpy
 
 import textwrap
 
+from ..magic_consts import SOLID_PARTICLES
+from ..bridge import InputNames, available_frames, computing, context_exists
 from ..util import simulation_cache_exists
-
+from ..properties.util import get_output_objects
 from ..properties.blended_mpm_object_settings import (
-    current_input_names_match_cached,
     get_input_colliders,
     get_input_solids,
 )
@@ -13,7 +14,6 @@ from ..properties.blended_mpm_object_settings import (
 from .panel_input import selection_eligible_for_input
 from .panel_overview import (
     OBJECT_OT_Blended_MPM_Add_Simulation,
-    OBJECT_OT_Blended_MPM_Remove_Simulation,
 )
 
 
@@ -51,12 +51,34 @@ def current_instructions(layout, context):
     if not context.scene.blended_mpm_scene.simulations:
         display_msg(
             f"""\
+            🌱 Welcome to the tutorial! 🌱
+
+            Follow the highlighted buttons
+            and text instructions.
+
             Please start by adding a new simulation.
             Press {OBJECT_OT_Blended_MPM_Add_Simulation.bl_label}!"""
         )
         return
 
     simulation = context.scene.blended_mpm_scene.simulations[0]
+
+    if simulation_cache_exists(simulation) and not context_exists(simulation):
+        display_msg(
+            f"""\
+            Small issue 🙁
+            The cache directory
+            '{simulation.cache_directory}'
+            was already in use.
+
+            This is normally ok, but the tutorial
+            expects a fresh start!
+
+            Please either remove the contents
+            (with your favorite filebrowser)
+            or choose a different *Cache*."""
+        )
+        return
 
     if not get_input_solids(simulation):
         display_msg(
@@ -81,7 +103,7 @@ def current_instructions(layout, context):
             display_msg(
                 """\
                 Add the selected object as input:
-                Press the *plus* button!"""
+                Press the ＋ button!"""
             )
 
         return
@@ -106,24 +128,68 @@ def current_instructions(layout, context):
             display_msg(
                 """\
                 Add the selected object as input:
-                Press the *plus* button!"""
+                Press the ＋ button!"""
             )
 
         return
 
-    if not current_input_names_match_cached(simulation):
+    if not context_exists(simulation):
         display_msg(
-            f"""\
+            """\
             Great, the input is defined!
 
             Now we'll give the simulation engine
             the input list.
 
-            Press {"Overwrite Cache" if simulation_cache_exists(simulation) else "Initialize Cache"}!"""
+            Press Initialize Cache!"""
         )
         return
 
-    display_msg("You have completed the tutorial!")
+    if not computing(simulation) and available_frames(simulation) == 0:
+        display_msg(
+            """\
+            We need at least one frame to continue.
+
+            Please press either
+            Overwrite Cache
+            or
+            Create Simulation State."""
+        )
+        return
+
+    if simulation.loaded_frame == -1:
+        display_msg(
+            """\
+            Switch to a frame that is already
+            computed.
+
+            Go to the Output panel and press
+            Jump to First Frame.
+            """
+        )
+        return
+
+    input_names = InputNames(simulation)
+    if not [
+        obj
+        for obj in get_output_objects(simulation)
+        if obj.blended_mpm_object.output_type == SOLID_PARTICLES
+    ]:
+        display_msg(
+            f"""\
+            Time to add some *Ouput*!
+
+            Go to the Output panel.
+            You might need to scroll
+            or minimize panels.
+
+            Under *Solids* find and
+            press {next(iter(input_names.solid_names))}!
+            """
+        )
+        return
+
+    display_msg("🎉 You have completed the tutorial! 🎉")
 
 
 class OBJECT_PT_Blended_MPM_Tutorial(bpy.types.Panel):
