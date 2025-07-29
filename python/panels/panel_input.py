@@ -296,7 +296,7 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
     bl_label = "Input"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"  # The tab name
+    bl_category = "Blended MPM"
     bl_options = set()
 
     @classmethod

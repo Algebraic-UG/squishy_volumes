@@ -214,7 +214,7 @@ class OBJECT_PT_Blended_MPM_Tutorial(bpy.types.Panel):
     bl_label = "Tutorial"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"  # The tab name
+    bl_category = "Blended MPM"
 
     @classmethod
     def poll(cls, context):
