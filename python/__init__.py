@@ -29,6 +29,8 @@ from .bridge import cleanup_native, build_info
 from .frame_change import register_frame_handler, unregister_frame_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
+from .reload_utils import register_reload_utils, unregister_reload_utils
+from .couple_utils import register_couple_utils, unregister_couple_utils
 
 
 bl_info = {
@@ -75,9 +77,13 @@ def register():
     register_frame_handler()
     register_progress_update()
     register_skin_utils()
+    register_couple_utils()
+    register_reload_utils()
 
 
 def unregister():
+    unregister_reload_utils()
+    unregister_couple_utils()
     unregister_skin_utils()
     unregister_progress_update()
     unregister_frame_handler()
