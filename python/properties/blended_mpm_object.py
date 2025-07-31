@@ -18,6 +18,8 @@
 
 import bpy
 
+from ..magic_consts import OUTPUT_TYPES
+
 from .blended_mpm_object_attributes import Blended_MPM_Optional_Attributes
 from .blended_mpm_object_settings import Blended_MPM_Object_Settings
 
@@ -41,7 +43,9 @@ class Blended_MPM_Object(bpy.types.PropertyGroup):
     )  # type: ignore
     output_type: bpy.props.StringProperty(
         name="Output Type",
-        description="Depending on this, different outputs are synchronizable.",
+        description=f"""Depending on this, different outputs are synchronizable.
+Has to be one of:
+{", ".join(OUTPUT_TYPES)}""",
         options=set(),
     )  # type: ignore
     optional_attributes: bpy.props.PointerProperty(
