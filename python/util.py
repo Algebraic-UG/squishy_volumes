@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 import bpy
+import mathutils
 
 
 def remove_marker(marker_name):
@@ -165,3 +166,20 @@ def tutorial_msg(layout, context, msg):
     box.label(text="Tutorial:")
     for line in msg.splitlines():
         box.label(text=line.strip())
+
+
+def local_bounding_box(obj: bpy.types.Object):
+    if obj.type != "MESH":
+        raise TypeError(f"Object {obj.name!r} is not a mesh")
+
+    verts = obj.data.vertices
+    min_x = min(v.co.x for v in verts)
+    max_x = max(v.co.x for v in verts)
+    min_y = min(v.co.y for v in verts)
+    max_y = max(v.co.y for v in verts)
+    min_z = min(v.co.z for v in verts)
+    max_z = max(v.co.z for v in verts)
+
+    return mathutils.Vector((min_x, min_y, min_z)), mathutils.Vector(
+        (max_x, max_y, max_z)
+    )
