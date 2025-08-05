@@ -9,7 +9,7 @@
 use anyhow::Result;
 use blended_mpm_api::T;
 use nalgebra::Vector3;
-use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::hash_map::Entry;
 
 use crate::{
@@ -63,7 +63,6 @@ impl State {
         profile!("reset");
         self.grid_collider_distances
             .values_mut()
-            .par_bridge()
             .for_each(|node| node.get_mut().unwrap().weighted_distances = Default::default());
     }
 

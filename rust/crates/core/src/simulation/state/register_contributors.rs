@@ -7,9 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use itertools::izip;
 use nalgebra::Vector3;
-use rayon::iter::{ParallelBridge, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::weights::{kernel_quadratic_unrolled, position_to_shift_quadratic};
 
@@ -38,33 +37,32 @@ impl State {
                 .for_each(|grid| grid.prepare_contributors(initial_capacity));
         }
 
-        izip!(
-            self.particles.positions.iter(),
-            self.particles.collider_insides.iter(),
-        )
-        .enumerate()
-        .par_bridge()
-        .for_each(|(idx, (position, collider_inside))| {
-            let shift = position_to_shift_quadratic(position, grid_node_size);
-            kernel_quadratic_unrolled!(|grid_idx| {
-                let grid_idx = grid_idx + shift;
-                let incompatibility =
-                    self.grid_collider_distances
-                        .get(&grid_idx)
-                        .and_then(|grid_node| {
-                            find_worst_incompatibility(collider_inside, &grid_node.lock())
-                        });
+        self.particles
+            .positions
+            .par_iter()
+            .zip(&self.particles.collider_insides)
+            .enumerate()
+            .for_each(|(idx, (position, collider_inside))| {
+                let shift = position_to_shift_quadratic(position, grid_node_size);
+                kernel_quadratic_unrolled!(|grid_idx| {
+                    let grid_idx = grid_idx + shift;
+                    let incompatibility =
+                        self.grid_collider_distances
+                            .get(&grid_idx)
+                            .and_then(|grid_node| {
+                                find_worst_incompatibility(collider_inside, &grid_node.lock())
+                            });
 
-                let grid = if let Some(collider_idx) = incompatibility {
-                    &self.grid_collider_momentums[collider_idx]
-                } else {
-                    &self.grid_momentum
-                };
+                    let grid = if let Some(collider_idx) = incompatibility {
+                        &self.grid_collider_momentums[collider_idx]
+                    } else {
+                        &self.grid_momentum
+                    };
 
-                let grid_idx = grid.map.get(&grid_idx).expect("missing node");
-                grid.contributors[*grid_idx].lock().push(idx);
+                    let grid_idx = grid.map.get(&grid_idx).expect("missing node");
+                    grid.contributors[*grid_idx].lock().push(idx);
+                });
             });
-        });
         Ok(self)
     }
 }
