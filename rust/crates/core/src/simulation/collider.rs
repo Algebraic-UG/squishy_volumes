@@ -32,6 +32,7 @@ pub struct Collider {
     pub surface_samples: Vec<SurfaceSample>,
 
     pub kinematic: Kinematic,
+    pub has_moved: bool,
 
     // TODO: this doesn't need to be stored in each state
     pub scripted_movements: Vec<ScriptedMovement>,
@@ -110,6 +111,7 @@ impl Collider {
             friction_factor,
             surface_samples,
             kinematic,
+            has_moved: true,
             scripted_movements,
         })
     }

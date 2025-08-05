@@ -37,6 +37,9 @@ impl State {
     fn scatter_collider_distances_create_entries(&mut self, grid_node_size: T) {
         profile!("create_entries");
         for collider in &self.collider_objects {
+            if !collider.has_moved {
+                continue;
+            }
             let new_entries: Vec<Vector3<i32>> = collider
                 .surface_samples
                 .par_iter()

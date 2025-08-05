@@ -16,7 +16,7 @@ use crate::{
     math::{NORMALIZATION_EPS, SLERP_EPS},
 };
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
 pub struct Kinematic {
     pub position: Vector3<T>,
     pub orientation: UnitQuaternion<T>,
