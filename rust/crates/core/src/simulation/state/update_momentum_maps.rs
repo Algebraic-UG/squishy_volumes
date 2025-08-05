@@ -37,15 +37,12 @@ impl State {
             });
         }
 
-        let (common_map, collider_maps) = {
+        let collider_maps = {
             profile!("lookup copies");
-            let common_map = self.grid_momentum.map.clone();
-            let collider_maps = self
-                .grid_collider_momentums
+            self.grid_collider_momentums
                 .iter_mut()
                 .map(|grid| grid.map.clone())
-                .collect::<Vec<_>>();
-            (common_map, collider_maps)
+                .collect::<Vec<_>>()
         };
 
         let (senders, collectors): (Vec<_>, Vec<_>) = self
@@ -66,36 +63,39 @@ impl State {
             })
             .unzip();
 
-        self.grid_momentum.map.par_extend(
-            self.particles
-                .positions
-                .par_iter()
-                .zip(&self.particles.collider_insides)
-                .flat_map(|(position, collider_inside)| {
-                    let shift = position_to_shift_quadratic(position, grid_node_size);
-                    kernel_quadratic_unrolled!(|grid_idx| {
-                        let grid_idx = grid_idx + shift;
-                        let incompatibility =
-                            self.grid_collider_distances
-                                .get(&grid_idx)
-                                .and_then(|grid_node| {
-                                    find_worst_incompatibility(collider_inside, &grid_node.lock())
-                                });
+        let new_common_entries = self
+            .particles
+            .positions
+            .par_iter()
+            .zip(&self.particles.collider_insides)
+            .flat_map(|(position, collider_inside)| {
+                let shift = position_to_shift_quadratic(position, grid_node_size);
+                kernel_quadratic_unrolled!(|grid_idx| {
+                    let grid_idx = grid_idx + shift;
+                    let incompatibility =
+                        self.grid_collider_distances
+                            .get(&grid_idx)
+                            .and_then(|grid_node| {
+                                find_worst_incompatibility(collider_inside, &grid_node.lock())
+                            });
 
-                        if let Some(collider_idx) = incompatibility {
-                            if !collider_maps[collider_idx].contains_key(&grid_idx) {
-                                senders[collider_idx]
-                                    .send(grid_idx)
-                                    .expect("collector died");
-                            }
-                            return None;
+                    if let Some(collider_idx) = incompatibility {
+                        if !collider_maps[collider_idx].contains_key(&grid_idx) {
+                            senders[collider_idx]
+                                .send(grid_idx)
+                                .expect("collector died");
                         }
+                        return None;
+                    }
 
-                        (!common_map.contains_key(&grid_idx)).then_some(grid_idx)
-                    })
+                    (!self.grid_momentum.map.contains_key(&grid_idx)).then_some(grid_idx)
                 })
-                .filter_map(|grid_idx| grid_idx.map(|grid_idx| (grid_idx, 0))),
-        );
+            })
+            .filter_map(|grid_idx| grid_idx)
+            .collect::<Vec<_>>();
+        self.grid_momentum
+            .map
+            .extend(new_common_entries.into_iter().map(|grid_idx| (grid_idx, 0)));
 
         {
             profile!("collect");
