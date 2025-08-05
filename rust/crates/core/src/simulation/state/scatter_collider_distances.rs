@@ -63,7 +63,7 @@ impl State {
         profile!("reset");
         self.grid_collider_distances
             .values_mut()
-            .for_each(|node| node.get_mut().unwrap().weighted_distances = Default::default());
+            .for_each(|node| node.get_mut().unwrap().weighted_distances.clear());
     }
 
     // Splat distance information by projecting oriented disks.
