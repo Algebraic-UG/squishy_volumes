@@ -25,7 +25,6 @@ from ..bridge import drop_context
 from ..progress_update import cleanup_markers
 
 from .blended_mpm_simulation_settings import Blended_MPM_Simulation_Settings
-from .util import get_output_collections, get_output_objects
 
 
 def duplicate_simulation_name(simulation):
@@ -66,12 +65,7 @@ def update_name(self, context):
         )
         return  # we'll re-enter anyway
 
-    for obj in get_output_objects(self):
-        input_name = obj.blended_mpm_object.input_name
-        obj.name = f"{self.name} {input_name}"
-        obj.data.name = f"{self.name} {input_name} Mesh"
-    for collection in get_output_collections(self):
-        collection.name = self.name
+    cleanup_markers(self)
 
 
 def update_cache_directory(self, context):
