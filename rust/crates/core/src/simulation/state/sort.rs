@@ -23,7 +23,7 @@ impl State {
 
         // Probably many other alternatives exist, e.g. one could do a z-order curve.
         // This seemed to be faster though. Maybe try again with cached keys?
-        #[derive(Ord, PartialOrd, PartialEq, Eq)]
+        #[derive(Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
         struct SortingPos {
             i: i32,
             j: i32,
@@ -39,35 +39,31 @@ impl State {
         {
             profile!("simulated particles");
 
-            let mut tmp: Vec<(usize, Vector3<T>)> = {
+            let mut tmp: Vec<(usize, SortingPos)> = {
                 profile!("create index-position-pairs");
                 self.particles
                     .positions
                     .iter()
-                    .cloned()
+                    .map(to_sorting_pos)
                     .enumerate()
                     .collect()
             };
 
             {
                 profile!("actual sorting");
-                tmp.par_sort_by_key(|(_, position)| to_sorting_pos(position));
+                tmp.par_sort_unstable_by_key(|pair| pair.1);
             }
 
-            let permutation = {
+            let permutation: Vec<usize> = {
                 profile!("unzip");
-                let (permutation, positions): (Vec<_>, Vec<_>) = tmp.into_iter().unzip();
-                self.particles.positions = positions;
-                permutation
+                tmp.into_iter().map(|(idx, _)| idx).collect()
             };
 
             {
                 profile!("apply permutation");
                 let Particles {
-                    // Already sorted
-                    positions: _,
-
                     // These need to be moved with the particles
+                    positions,
                     sort_map,
                     parameters,
                     masses,
@@ -99,6 +95,7 @@ impl State {
                 }
 
                 scope(|s| {
+                    permute(s, &permutation, positions);
                     permute(s, &permutation, sort_map);
                     permute(s, &permutation, parameters);
                     permute(s, &permutation, masses);
