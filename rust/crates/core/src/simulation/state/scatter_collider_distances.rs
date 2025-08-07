@@ -9,7 +9,7 @@
 use anyhow::Result;
 use blended_mpm_api::T;
 use nalgebra::Vector3;
-use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelExtend, ParallelIterator};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::collections::hash_map::Entry;
 
 use crate::{
@@ -36,25 +36,28 @@ impl State {
 
     fn scatter_collider_distances_create_entries(&mut self, grid_node_size: T) {
         profile!("create_entries");
-        let grid_collider_distances_lookup_copy = {
-            profile!("clone");
-            self.grid_collider_distances.clone()
-        };
         for collider in &self.collider_objects {
-            self.grid_collider_distances.par_extend(
-                collider
-                    .surface_samples
-                    .par_iter()
-                    .flat_map(|surface_sample| {
-                        let shift = position_to_shift_quadratic(
-                            &collider
-                                .kinematic
-                                .to_world_position(surface_sample.position),
-                            grid_node_size,
-                        );
-                        kernel_quadratic_unrolled!(move |grid_idx| grid_idx + shift)
-                    })
-                    .filter(|grid_idx| !grid_collider_distances_lookup_copy.contains_key(grid_idx))
+            if !collider.has_moved {
+                continue;
+            }
+            let new_entries: Vec<Vector3<i32>> = collider
+                .surface_samples
+                .par_iter()
+                .flat_map_iter(|surface_sample| {
+                    let shift = position_to_shift_quadratic(
+                        &collider
+                            .kinematic
+                            .to_world_position(surface_sample.position),
+                        grid_node_size,
+                    );
+                    kernel_quadratic_unrolled!(move |grid_idx| grid_idx + shift)
+                        .into_iter()
+                        .filter(|grid_idx| !self.grid_collider_distances.contains_key(grid_idx))
+                })
+                .collect();
+            self.grid_collider_distances.extend(
+                new_entries
+                    .into_iter()
                     .map(|grid_idx| (grid_idx, Default::default())),
             );
         }
@@ -64,8 +67,7 @@ impl State {
         profile!("reset");
         self.grid_collider_distances
             .values_mut()
-            .par_bridge()
-            .for_each(|node| node.get_mut().unwrap().weighted_distances = Default::default());
+            .for_each(|node| node.get_mut().unwrap().weighted_distances.clear());
     }
 
     // Splat distance information by projecting oriented disks.

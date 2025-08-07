@@ -8,8 +8,7 @@
 
 use anyhow::Result;
 use blended_mpm_api::T;
-use itertools::izip;
-use rayon::iter::{ParallelBridge, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::simulation::grids::Boundary;
 
@@ -38,42 +37,41 @@ impl State {
             grid_momentum
                 .boundaries
                 .resize(grid_momentum.map.len(), Default::default());
-            izip!(
-                grid_momentum.map.keys(),
-                grid_momentum.velocities.iter_mut(),
-                grid_momentum.boundaries.iter_mut(),
-            )
-            .par_bridge()
-            .for_each(|(grid_idx, velocity, boundary)| {
-                let collider_distances = self
-                    .grid_collider_distances
-                    .get(grid_idx)
-                    .expect("missing distance node");
-                let distance_node = collider_distances.try_lock().unwrap();
+            let keys = grid_momentum.map.keys().collect::<Vec<_>>();
+            keys.into_par_iter()
+                .zip(&mut grid_momentum.velocities)
+                .zip(&mut grid_momentum.boundaries)
+                .for_each(|((grid_idx, velocity), boundary)| {
+                    let collider_distances = self
+                        .grid_collider_distances
+                        .get(grid_idx)
+                        .expect("missing distance node");
+                    let distance_node = collider_distances.try_lock().unwrap();
 
-                let Some(weighted_distance) = distance_node.weighted_distances.get(&collider_idx)
-                else {
-                    *boundary = None;
-                    return;
-                };
+                    let Some(weighted_distance) =
+                        distance_node.weighted_distances.get(&collider_idx)
+                    else {
+                        *boundary = None;
+                        return;
+                    };
 
-                let position = grid_idx.map(|i| i as T) * grid_node_size;
+                    let position = grid_idx.map(|i| i as T) * grid_node_size;
 
-                let negative_normal =
-                    weighted_distance.normal * -weighted_distance.distance.signum();
+                    let negative_normal =
+                        weighted_distance.normal * -weighted_distance.distance.signum();
 
-                *velocity = collider.conform_velocity(position, *velocity, negative_normal);
+                    *velocity = collider.conform_velocity(position, *velocity, negative_normal);
 
-                // TODO: this isn't needed for explicit integration
-                let point_velocity = collider.kinematic.point_velocity_from_world(position);
-                let collider_value = negative_normal.dot(&point_velocity);
-                *boundary = Some(Boundary {
-                    normal: negative_normal,
-                    collider_value,
-                    condition_value: velocity.dot(&negative_normal) - collider_value,
-                    dual_variable: 1.,
+                    // TODO: this isn't needed for explicit integration
+                    let point_velocity = collider.kinematic.point_velocity_from_world(position);
+                    let collider_value = negative_normal.dot(&point_velocity);
+                    *boundary = Some(Boundary {
+                        normal: negative_normal,
+                        collider_value,
+                        condition_value: velocity.dot(&negative_normal) - collider_value,
+                        dual_variable: 1.,
+                    });
                 });
-            });
         }
 
         Ok(self)

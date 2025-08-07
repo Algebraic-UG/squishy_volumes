@@ -19,10 +19,13 @@ impl State {
             let Some((from, to)) =
                 ScriptedMovement::find_iterpolation_pair(&collider.scripted_movements, self.time)
             else {
+                collider.has_moved = false;
                 continue;
             };
-            collider.kinematic = Kinematic::interpolate(from, to, self.time)
+            let kinematic = Kinematic::interpolate(from, to, self.time)
                 .context("Movement interpolation failed")?;
+            collider.has_moved = collider.kinematic != kinematic;
+            collider.kinematic = kinematic;
         }
         Ok(self)
     }

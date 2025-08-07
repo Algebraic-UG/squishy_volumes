@@ -196,7 +196,7 @@ fn helper(
                                 return Ok(vertex_normal);
                             };
 
-                            let factor = a.dot(&b).acos();
+                            let factor = a.dot(&b).clamp(-1., 1.).acos();
 
                             Ok(vertex_normal + triangle_normal * factor)
                         },

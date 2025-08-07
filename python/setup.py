@@ -121,7 +121,7 @@ def create_setup_json(simulation):
                 simulation.capture_frames * 4, dtype="float32"
             )
 
-            initial_scale = obj.scale.copy()
+            initial_scale = None
             i = 0
             for frame in range(
                 simulation.capture_start_frame,
@@ -130,13 +130,18 @@ def create_setup_json(simulation):
                 scene.frame_set(frame)
 
                 obj_scale = obj.matrix_world.to_scale()
+                if initial_scale:
+                    if (obj_scale - initial_scale).length_squared > 1e-5:
+                        raise RuntimeError(
+                            "animated scaling is not supported, please check '"
+                            + name
+                            + "'"
+                        )
+                else:
+                    initial_scale = obj_scale
+
                 obj_position = obj.matrix_world.translation
                 obj_orientation = obj.matrix_world.to_quaternion()
-
-                if (obj_scale - initial_scale).length_squared > 1e-5:
-                    raise RuntimeError(
-                        "animated scaling is not supported, please check '" + name + "'"
-                    )
 
                 scripted_positions_array[3 * i + 0] = obj_position.x
                 scripted_positions_array[3 * i + 1] = obj_position.y
