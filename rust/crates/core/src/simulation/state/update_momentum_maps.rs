@@ -7,11 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use itertools::izip;
 use nalgebra::Vector3;
 use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelExtend,
-    ParallelIterator,
+    IndexedParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator,
 };
 use std::{mem::take, sync::mpsc::channel, thread::spawn};
 
@@ -68,7 +66,7 @@ impl State {
             .positions
             .par_iter()
             .zip(&self.particles.collider_insides)
-            .flat_map(|(position, collider_inside)| {
+            .flat_map_iter(|(position, collider_inside)| {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
                 kernel_quadratic_unrolled!(|grid_idx| {
                     let grid_idx = grid_idx + shift;
@@ -90,8 +88,9 @@ impl State {
 
                     (!self.grid_momentum.map.contains_key(&grid_idx)).then_some(grid_idx)
                 })
+                .into_iter()
+                .filter_map(|grid_idx| grid_idx)
             })
-            .filter_map(|grid_idx| grid_idx)
             .collect::<Vec<_>>();
         self.grid_momentum
             .map

@@ -43,7 +43,7 @@ impl State {
             let new_entries: Vec<Vector3<i32>> = collider
                 .surface_samples
                 .par_iter()
-                .flat_map(|surface_sample| {
+                .flat_map_iter(|surface_sample| {
                     let shift = position_to_shift_quadratic(
                         &collider
                             .kinematic
@@ -51,8 +51,9 @@ impl State {
                         grid_node_size,
                     );
                     kernel_quadratic_unrolled!(move |grid_idx| grid_idx + shift)
+                        .into_iter()
+                        .filter(|grid_idx| !self.grid_collider_distances.contains_key(grid_idx))
                 })
-                .filter(|grid_idx| !self.grid_collider_distances.contains_key(grid_idx))
                 .collect();
             self.grid_collider_distances.extend(
                 new_entries
