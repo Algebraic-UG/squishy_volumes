@@ -9,7 +9,7 @@
 use anyhow::Result;
 use blended_mpm_api::T;
 use nalgebra::Vector3;
-use rayon::slice::ParallelSliceMut;
+use rayon::{Scope, scope, slice::ParallelSliceMut};
 
 use crate::simulation::particles::Particles;
 
@@ -84,22 +84,30 @@ impl State {
                     action_matrices: _,
                 } = &mut self.particles;
 
-                fn permute<T: Clone>(permutation: &[usize], to_permute: &mut Vec<T>) {
-                    let lookup = to_permute.clone();
-                    assert!(permutation.len() == to_permute.len());
-                    for (&prior_position, to_permute) in permutation.iter().zip(to_permute) {
-                        *to_permute = lookup[prior_position].clone();
-                    }
+                fn permute<'a, T: Clone + Send>(
+                    s: &Scope<'a>,
+                    permutation: &'a [usize],
+                    to_permute: &'a mut Vec<T>,
+                ) {
+                    s.spawn(move |_| {
+                        let lookup = to_permute.clone();
+                        assert!(permutation.len() == to_permute.len());
+                        for (&prior_position, to_permute) in permutation.iter().zip(to_permute) {
+                            *to_permute = lookup[prior_position].clone();
+                        }
+                    });
                 }
 
-                permute(&permutation, sort_map);
-                permute(&permutation, parameters);
-                permute(&permutation, masses);
-                permute(&permutation, initial_volumes);
-                permute(&permutation, position_gradients);
-                permute(&permutation, velocities);
-                permute(&permutation, velocity_gradients);
-                permute(&permutation, collider_insides);
+                scope(|s| {
+                    permute(s, &permutation, sort_map);
+                    permute(s, &permutation, parameters);
+                    permute(s, &permutation, masses);
+                    permute(s, &permutation, initial_volumes);
+                    permute(s, &permutation, position_gradients);
+                    permute(s, &permutation, velocities);
+                    permute(s, &permutation, velocity_gradients);
+                    permute(s, &permutation, collider_insides);
+                });
             }
 
             {
