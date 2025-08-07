@@ -25,6 +25,7 @@ import bpy
 
 from ..bridge import (
     available_frames,
+    computing,
     context_exists,
     drop_context,
     load_simulation,
@@ -245,10 +246,15 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
             if body is not None:
                 body.prop(simulation, "name")
                 body.prop(simulation, "cache_directory")
+
                 col = body.column()
                 col.enabled = False
                 col.prop(simulation, "uuid")
-                body.prop(simulation, "max_giga_bytes_on_disk")
+
+                col = body.column()
+                col.enabled = not computing(simulation)
+                col.prop(simulation, "max_giga_bytes_on_disk")
+
                 row = body.row()
                 if not context_exists(simulation) and simulation_cache_locked(
                     simulation
