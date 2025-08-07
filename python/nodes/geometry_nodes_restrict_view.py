@@ -38,16 +38,12 @@ def create_geometry_nodes_restrict_view():
         boolean_socket = blended_mpm_falls_outside_of.interface.new_socket(
             name="Boolean", in_out="OUTPUT", socket_type="NodeSocketBool"
         )
-        boolean_socket.default_value = False
         boolean_socket.attribute_domain = "POINT"
 
         # Socket Value
         value_socket = blended_mpm_falls_outside_of.interface.new_socket(
             name="Value", in_out="INPUT", socket_type="NodeSocketFloat"
         )
-        value_socket.default_value = 0.5
-        value_socket.min_value = -10000.0
-        value_socket.max_value = 10000.0
         value_socket.subtype = "NONE"
         value_socket.attribute_domain = "POINT"
 
@@ -55,9 +51,6 @@ def create_geometry_nodes_restrict_view():
         max_socket = blended_mpm_falls_outside_of.interface.new_socket(
             name="Max", in_out="INPUT", socket_type="NodeSocketFloat"
         )
-        max_socket.default_value = 1.0
-        max_socket.min_value = -10000.0
-        max_socket.max_value = 10000.0
         max_socket.subtype = "NONE"
         max_socket.attribute_domain = "POINT"
 
@@ -65,9 +58,6 @@ def create_geometry_nodes_restrict_view():
         min_socket = blended_mpm_falls_outside_of.interface.new_socket(
             name="Min", in_out="INPUT", socket_type="NodeSocketFloat"
         )
-        min_socket.default_value = -1.0
-        min_socket.min_value = -10000.0
-        min_socket.max_value = 10000.0
         min_socket.subtype = "NONE"
         min_socket.attribute_domain = "POINT"
 
@@ -139,6 +129,120 @@ def create_geometry_nodes_restrict_view():
 
     blended_mpm_falls_outside_of = blended_mpm_falls_outside_of_node_group()
 
+    # initialize blended_mpm_change_of_basis node group
+    def blended_mpm_change_of_basis_node_group():
+        blended_mpm_change_of_basis = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Blended MPM Change of Basis"
+        )
+
+        blended_mpm_change_of_basis.color_tag = "NONE"
+        blended_mpm_change_of_basis.description = ""
+        blended_mpm_change_of_basis.default_group_node_width = 140
+
+        # blended_mpm_change_of_basis interface
+        # Socket Transform
+        transform_socket = blended_mpm_change_of_basis.interface.new_socket(
+            name="Transform", in_out="OUTPUT", socket_type="NodeSocketMatrix"
+        )
+        transform_socket.attribute_domain = "POINT"
+
+        # Socket Target Space Obj
+        target_space_obj_socket = blended_mpm_change_of_basis.interface.new_socket(
+            name="Target Space Obj", in_out="INPUT", socket_type="NodeSocketObject"
+        )
+        target_space_obj_socket.attribute_domain = "POINT"
+
+        # Socket Source Space Obj
+        source_space_obj_socket = blended_mpm_change_of_basis.interface.new_socket(
+            name="Source Space Obj", in_out="INPUT", socket_type="NodeSocketObject"
+        )
+        source_space_obj_socket.attribute_domain = "POINT"
+
+        # initialize blended_mpm_change_of_basis nodes
+        # node Group Output
+        group_output_1 = blended_mpm_change_of_basis.nodes.new("NodeGroupOutput")
+        group_output_1.name = "Group Output"
+        group_output_1.is_active_output = True
+
+        # node Group Input
+        group_input_1 = blended_mpm_change_of_basis.nodes.new("NodeGroupInput")
+        group_input_1.name = "Group Input"
+
+        # node Object Info.002
+        object_info_002 = blended_mpm_change_of_basis.nodes.new(
+            "GeometryNodeObjectInfo"
+        )
+        object_info_002.name = "Object Info.002"
+        object_info_002.transform_space = "ORIGINAL"
+        # As Instance
+        object_info_002.inputs[1].default_value = False
+
+        # node Object Info.005
+        object_info_005 = blended_mpm_change_of_basis.nodes.new(
+            "GeometryNodeObjectInfo"
+        )
+        object_info_005.name = "Object Info.005"
+        object_info_005.transform_space = "ORIGINAL"
+        # As Instance
+        object_info_005.inputs[1].default_value = False
+
+        # node Multiply Matrices.003
+        multiply_matrices_003 = blended_mpm_change_of_basis.nodes.new(
+            "FunctionNodeMatrixMultiply"
+        )
+        multiply_matrices_003.name = "Multiply Matrices.003"
+
+        # node Invert Matrix.002
+        invert_matrix_002 = blended_mpm_change_of_basis.nodes.new(
+            "FunctionNodeInvertMatrix"
+        )
+        invert_matrix_002.name = "Invert Matrix.002"
+
+        # Set locations
+        group_output_1.location = (320.0, -60.0)
+        group_input_1.location = (-520.0, -80.0)
+        object_info_002.location = (-280.0, 120.0)
+        object_info_005.location = (-280.0, -120.0)
+        multiply_matrices_003.location = (140.0, -60.0)
+        invert_matrix_002.location = (-80.0, 20.0)
+
+        # Set dimensions
+        group_output_1.width, group_output_1.height = 140.0, 100.0
+        group_input_1.width, group_input_1.height = 140.0, 100.0
+        object_info_002.width, object_info_002.height = 140.0, 100.0
+        object_info_005.width, object_info_005.height = 140.0, 100.0
+        multiply_matrices_003.width, multiply_matrices_003.height = 140.0, 100.0
+        invert_matrix_002.width, invert_matrix_002.height = 140.0, 100.0
+
+        # initialize blended_mpm_change_of_basis links
+        # invert_matrix_002.Matrix -> multiply_matrices_003.Matrix
+        blended_mpm_change_of_basis.links.new(
+            invert_matrix_002.outputs[0], multiply_matrices_003.inputs[0]
+        )
+        # object_info_002.Transform -> invert_matrix_002.Matrix
+        blended_mpm_change_of_basis.links.new(
+            object_info_002.outputs[0], invert_matrix_002.inputs[0]
+        )
+        # object_info_005.Transform -> multiply_matrices_003.Matrix
+        blended_mpm_change_of_basis.links.new(
+            object_info_005.outputs[0], multiply_matrices_003.inputs[1]
+        )
+        # group_input_1.Target Space Obj -> object_info_002.Object
+        blended_mpm_change_of_basis.links.new(
+            group_input_1.outputs[0], object_info_002.inputs[0]
+        )
+        # group_input_1.Source Space Obj -> object_info_005.Object
+        blended_mpm_change_of_basis.links.new(
+            group_input_1.outputs[1], object_info_005.inputs[0]
+        )
+        # multiply_matrices_003.Matrix -> group_output_1.Transform
+        blended_mpm_change_of_basis.links.new(
+            multiply_matrices_003.outputs[0], group_output_1.inputs[0]
+        )
+        return blended_mpm_change_of_basis
+
+    blended_mpm_change_of_basis = blended_mpm_change_of_basis_node_group()
+
     # initialize blended_mpm_restrict_view node group
     def blended_mpm_restrict_view_node_group():
         blended_mpm_restrict_view = bpy.data.node_groups.new(
@@ -172,24 +276,13 @@ def create_geometry_nodes_restrict_view():
 
         # initialize blended_mpm_restrict_view nodes
         # node Group Input
-        group_input_1 = blended_mpm_restrict_view.nodes.new("NodeGroupInput")
-        group_input_1.name = "Group Input"
+        group_input_2 = blended_mpm_restrict_view.nodes.new("NodeGroupInput")
+        group_input_2.name = "Group Input"
 
         # node Group Output
-        group_output_1 = blended_mpm_restrict_view.nodes.new("NodeGroupOutput")
-        group_output_1.name = "Group Output"
-        group_output_1.is_active_output = True
-
-        # node Object Info
-        object_info = blended_mpm_restrict_view.nodes.new("GeometryNodeObjectInfo")
-        object_info.name = "Object Info"
-        object_info.transform_space = "ORIGINAL"
-        # As Instance
-        object_info.inputs[1].default_value = False
-
-        # node Invert Matrix
-        invert_matrix = blended_mpm_restrict_view.nodes.new("FunctionNodeInvertMatrix")
-        invert_matrix.name = "Invert Matrix"
+        group_output_2 = blended_mpm_restrict_view.nodes.new("NodeGroupOutput")
+        group_output_2.name = "Group Output"
+        group_output_2.is_active_output = True
 
         # node Position
         position = blended_mpm_restrict_view.nodes.new("GeometryNodeInputPosition")
@@ -254,32 +347,35 @@ def create_geometry_nodes_restrict_view():
         # Socket_3
         group_002.inputs[2].default_value = -1.0
 
-        # node Reroute
-        reroute = blended_mpm_restrict_view.nodes.new("NodeReroute")
-        reroute.name = "Reroute"
-        reroute.socket_idname = "NodeSocketGeometry"
+        # node Blended MPM Change of Basis
+        blended_mpm_change_of_basis_1 = blended_mpm_restrict_view.nodes.new(
+            "GeometryNodeGroup"
+        )
+        blended_mpm_change_of_basis_1.name = "Blended MPM Change of Basis"
+        blended_mpm_change_of_basis_1.node_tree = blended_mpm_change_of_basis
+
+        # node Self Object
+        self_object = blended_mpm_restrict_view.nodes.new("GeometryNodeSelfObject")
+        self_object.name = "Self Object"
 
         # Set locations
-        group_input_1.location = (-540.0, -140.0)
-        group_output_1.location = (1340.0, 100.0)
-        object_info.location = (-360.0, -180.0)
-        invert_matrix.location = (-180.0, -220.0)
+        group_input_2.location = (-540.0, 80.0)
+        group_output_2.location = (1260.0, 80.0)
         position.location = (-180.0, -140.0)
         transform_point.location = (0.0, -180.0)
         separate_xyz.location = (160.0, -180.0)
         boolean_math_001.location = (720.0, 0.0)
         boolean_math_003.location = (900.0, 0.0)
-        delete_geometry.location = (1160.0, 140.0)
+        delete_geometry.location = (1080.0, 120.0)
         group.location = (380.0, 0.0)
         group_001.location = (380.0, -160.0)
         group_002.location = (380.0, -320.0)
-        reroute.location = (-360.0, 20.0)
+        blended_mpm_change_of_basis_1.location = (-320.0, -220.0)
+        self_object.location = (-520.0, -280.0)
 
         # Set dimensions
-        group_input_1.width, group_input_1.height = 140.0, 100.0
-        group_output_1.width, group_output_1.height = 140.0, 100.0
-        object_info.width, object_info.height = 140.0, 100.0
-        invert_matrix.width, invert_matrix.height = 140.0, 100.0
+        group_input_2.width, group_input_2.height = 140.0, 100.0
+        group_output_2.width, group_output_2.height = 140.0, 100.0
         position.width, position.height = 140.0, 100.0
         transform_point.width, transform_point.height = 140.0, 100.0
         separate_xyz.width, separate_xyz.height = 140.0, 100.0
@@ -289,36 +385,28 @@ def create_geometry_nodes_restrict_view():
         group.width, group.height = 280.0, 100.0
         group_001.width, group_001.height = 280.0, 100.0
         group_002.width, group_002.height = 280.0, 100.0
-        reroute.width, reroute.height = 10.0, 100.0
+        blended_mpm_change_of_basis_1.width, blended_mpm_change_of_basis_1.height = (
+            280.0,
+            100.0,
+        )
+        self_object.width, self_object.height = 140.0, 100.0
 
         # initialize blended_mpm_restrict_view links
-        # delete_geometry.Geometry -> group_output_1.Geometry
+        # delete_geometry.Geometry -> group_output_2.Geometry
         blended_mpm_restrict_view.links.new(
-            delete_geometry.outputs[0], group_output_1.inputs[0]
-        )
-        # group_input_1.Object -> object_info.Object
-        blended_mpm_restrict_view.links.new(
-            group_input_1.outputs[1], object_info.inputs[0]
-        )
-        # object_info.Transform -> invert_matrix.Matrix
-        blended_mpm_restrict_view.links.new(
-            object_info.outputs[0], invert_matrix.inputs[0]
+            delete_geometry.outputs[0], group_output_2.inputs[0]
         )
         # position.Position -> transform_point.Vector
         blended_mpm_restrict_view.links.new(
             position.outputs[0], transform_point.inputs[0]
         )
-        # invert_matrix.Matrix -> transform_point.Transform
-        blended_mpm_restrict_view.links.new(
-            invert_matrix.outputs[0], transform_point.inputs[1]
-        )
         # transform_point.Vector -> separate_xyz.Vector
         blended_mpm_restrict_view.links.new(
             transform_point.outputs[0], separate_xyz.inputs[0]
         )
-        # reroute.Output -> delete_geometry.Geometry
+        # group_input_2.Geometry -> delete_geometry.Geometry
         blended_mpm_restrict_view.links.new(
-            reroute.outputs[0], delete_geometry.inputs[0]
+            group_input_2.outputs[0], delete_geometry.inputs[0]
         )
         # separate_xyz.X -> group.Value
         blended_mpm_restrict_view.links.new(separate_xyz.outputs[0], group.inputs[0])
@@ -350,8 +438,18 @@ def create_geometry_nodes_restrict_view():
         blended_mpm_restrict_view.links.new(
             boolean_math_003.outputs[0], delete_geometry.inputs[1]
         )
-        # group_input_1.Geometry -> reroute.Input
-        blended_mpm_restrict_view.links.new(group_input_1.outputs[0], reroute.inputs[0])
+        # blended_mpm_change_of_basis_1.Transform -> transform_point.Transform
+        blended_mpm_restrict_view.links.new(
+            blended_mpm_change_of_basis_1.outputs[0], transform_point.inputs[1]
+        )
+        # group_input_2.Object -> blended_mpm_change_of_basis_1.Target Space Obj
+        blended_mpm_restrict_view.links.new(
+            group_input_2.outputs[1], blended_mpm_change_of_basis_1.inputs[0]
+        )
+        # self_object.Self Object -> blended_mpm_change_of_basis_1.Source Space Obj
+        blended_mpm_restrict_view.links.new(
+            self_object.outputs[0], blended_mpm_change_of_basis_1.inputs[1]
+        )
         return blended_mpm_restrict_view
 
     return blended_mpm_restrict_view_node_group()
