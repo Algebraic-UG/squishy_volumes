@@ -83,6 +83,10 @@ def cleanup_markers(simulation):
     remove_marker(f"{simulation.name} Bake Latest & End")
 
 
+def is_updating():
+    return bpy.app.timers.is_registered(update_progress)
+
+
 def register_progress_update():
     if not bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.register(update_progress, first_interval=PROGRESS_INTERVAL)
