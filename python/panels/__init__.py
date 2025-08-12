@@ -21,9 +21,14 @@ from .panel_overview import register_panel_overview, unregister_panel_overview
 from .panel_input import register_panel_input, unregister_panel_input
 from .panel_bake import register_panel_bake, unregister_panel_bake
 from .panel_output import register_panel_output, unregister_panel_output
+from .panel_restart_update import (
+    register_panel_restart_update,
+    unregister_panel_restart_update,
+)
 
 
 def register_panels():
+    register_panel_restart_update()
     register_panel_tutorial()
     register_panel_overview()
     register_panel_input()
@@ -38,4 +43,5 @@ def unregister_panels():
     unregister_panel_input()
     unregister_panel_overview()
     unregister_panel_tutorial()
+    unregister_panel_restart_update()
     print("Blended MPM panels unregistered.")
