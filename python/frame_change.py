@@ -43,13 +43,17 @@ def sync(frame):
 
 def sync_simulation(simulation, frame):
     frame = frame - simulation.display_start_frame
-    if (
-        frame < 0
-        or frame + 1 > simulation.bake_frames
-        or frame + 1 > available_frames(simulation)
-    ):
-        return
 
+    simulated_frames = available_frames(simulation)
+    if simulated_frames < 1:
+        return
+    max_frame = min(simulation.bake_frames, simulated_frames - 1)
+
+    # clamping is more practical
+    frame = max(0, min(max_frame, frame))
+
+    if simulation.loaded_frame == frame:
+        return
     simulation.loaded_frame = frame
 
     def ffa(attribute):
