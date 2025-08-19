@@ -32,9 +32,7 @@ def add_drivers(simulation, modifier):
         var = driver.variables.new()
         var.name = "grid_node_size"
         var.type = "CONTEXT_PROP"
-        var.targets[
-            0
-        ].data_path = (
+        var.targets[0].data_path = (
             f"blended_mpm_scene.simulations[{simulation_idx}].from_cache.grid_node_size"
         )
 
@@ -45,9 +43,7 @@ def add_drivers(simulation, modifier):
         var = driver.variables.new()
         var.name = "particle_size"
         var.type = "CONTEXT_PROP"
-        var.targets[
-            0
-        ].data_path = (
+        var.targets[0].data_path = (
             f"blended_mpm_scene.simulations[{simulation_idx}].from_cache.particle_size"
         )
 
@@ -74,7 +70,7 @@ def remove_drivers(obj):
 
 
 def update_drivers(removed_simulation_idx):
-    for obj in bpy.context.scene.objects:
+    for obj in bpy.data.objects:
         drivers_to_remove = []
         if not obj.animation_data:
             continue

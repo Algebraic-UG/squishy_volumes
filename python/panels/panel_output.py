@@ -216,12 +216,12 @@ class OBJECT_UL_Blended_MPM_Output_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
-            return [0] * len(context.scene.objects), []
+            return [0] * len(bpy.data.objects), []
 
         output_objects = get_output_objects(simulation)
         return [
             self.bitflag_filter_item if obj in output_objects else 0
-            for obj in context.scene.objects
+            for obj in bpy.data.objects
         ], []
 
     def draw_item(
@@ -271,7 +271,7 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
         row.column().template_list(
             "OBJECT_UL_Blended_MPM_Output_Object_List",
             "",
-            context.scene,
+            bpy.data,
             "objects",
             context.scene.blended_mpm_scene,
             "selected_output_object",
