@@ -28,6 +28,7 @@ PROGRESS_INTERVAL = 0.25
 
 
 def update_progress():
+    should_redraw = False
     for simulation in bpy.context.scene.blended_mpm_scene.simulations.values():
         cleanup_markers(simulation)
 
@@ -43,8 +44,8 @@ def update_progress():
             continue
 
         progress_json_string = with_popup(simulation, lambda: poll(simulation))
-        if progress_json_string is None:
-            continue
+        if simulation.progress_json_string != progress_json_string:
+            should_redraw = True
         simulation.progress_json_string = progress_json_string
 
         computed_frames = available_frames(simulation)
@@ -64,12 +65,10 @@ def update_progress():
         else:
             add_or_update_marker(f"{simulation.name} Bake Latest & End", end_frame)
 
-        should_show = bpy.context.scene.frame_current - simulation.display_start_frame
-        if should_show != simulation.loaded_frame and should_show < computed_frames:
-            sync_simulation(simulation, bpy.context.scene.frame_current)
+        sync_simulation(simulation, bpy.context.scene.frame_current)
 
-    # TODO: check if anything has changed before calling this
-    force_ui_redraw()
+    if should_redraw:
+        force_ui_redraw()
 
     return PROGRESS_INTERVAL
 

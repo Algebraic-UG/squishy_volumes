@@ -20,6 +20,7 @@ import json
 import time
 import bpy
 
+from .util import frame_to_load
 from .nodes.drivers import remove_drivers
 from .popup import with_popup
 from .properties.util import get_output_objects
@@ -29,7 +30,6 @@ from .output import (
 
 from .bridge import (
     InputNames,
-    available_frames,
     context_exists,
     fetch_flat_attribute,
 )
@@ -42,16 +42,9 @@ def sync(frame):
 
 
 def sync_simulation(simulation, frame):
-    frame = frame - simulation.display_start_frame
-
-    simulated_frames = available_frames(simulation)
-    if simulated_frames < 1:
+    frame = frame_to_load(simulation, frame)
+    if not frame:
         return
-    max_frame = min(simulation.bake_frames, simulated_frames - 1)
-
-    # clamping is more practical
-    frame = max(0, min(max_frame, frame))
-
     if simulation.loaded_frame == frame:
         return
     simulation.loaded_frame = frame

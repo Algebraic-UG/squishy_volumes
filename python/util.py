@@ -24,6 +24,8 @@ import numpy as np
 import bpy
 import mathutils
 
+from .bridge import available_frames
+
 
 def remove_marker(marker_name):
     marker = bpy.context.scene.timeline_markers.get(marker_name)
@@ -183,3 +185,17 @@ def local_bounding_box(obj: bpy.types.Object):
     return mathutils.Vector((min_x, min_y, min_z)), mathutils.Vector(
         (max_x, max_y, max_z)
     )
+
+
+def frame_to_load(simulation, frame):
+    frame = frame - simulation.display_start_frame
+
+    simulated_frames = available_frames(simulation)
+    if simulated_frames < 1:
+        return None
+    max_frame = min(simulation.bake_frames, simulated_frames - 1)
+
+    # clamping is more practical than not loading anything
+    frame = max(0, min(max_frame, frame))
+
+    return frame
