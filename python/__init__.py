@@ -24,7 +24,12 @@ import bpy
 
 from .skin_utils import register_skin_utils, unregister_skin_utils
 from .properties import register_properties, unregister_properties
-from .progress_update import register_progress_update, unregister_progress_update
+from .progress_update import (
+    register_progress_update,
+    register_progress_update_toggle,
+    unregister_progress_update,
+    unregister_progress_update_toggle,
+)
 from .bridge import cleanup_native, build_info
 from .frame_change import register_frame_handler, unregister_frame_handler
 from .panels import register_panels, unregister_panels
@@ -77,6 +82,7 @@ def register():
     register_panels()
     register_frame_handler()
     register_progress_update()
+    register_progress_update_toggle()
     register_skin_utils()
     register_couple_utils()
     register_reload_utils()
@@ -88,6 +94,7 @@ def unregister():
     unregister_reload_utils()
     unregister_couple_utils()
     unregister_skin_utils()
+    unregister_progress_update_toggle()
     unregister_progress_update()
     unregister_frame_handler()
     unregister_panels()

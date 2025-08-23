@@ -20,7 +20,7 @@ import json
 import time
 import bpy
 
-from .util import frame_to_load
+from .util import frame_to_load, get_simulation_by_uuid
 from .nodes.drivers import remove_drivers
 from .popup import with_popup
 from .properties.util import get_output_objects
@@ -35,35 +35,54 @@ from .bridge import (
 )
 
 
-def sync(frame):
-    for simulation in bpy.context.scene.blended_mpm_scene.simulations.values():
+def sync(scene):
+    for simulation in scene.blended_mpm_scene.simulations.values():
         if context_exists(simulation):
-            sync_simulation(simulation, frame)
+            sync_simulation(simulation, scene.frame_current)
+
+
+# this is needed since the scene data block is sometimes (?)
+# write protected in the frame handler.
+def deferred_update(uuid, frame):
+    simulation = get_simulation_by_uuid(uuid)
+
+    if frame is None:
+        simulation.loaded_frame = -1
+    else:
+        simulation.loaded_frame = frame
+
+        def ffa(attribute):
+            return fetch_flat_attribute(
+                simulation,
+                frame,
+                json.dumps({"Setting": attribute}),
+            )
+
+        simulation.from_cache.grid_node_size = ffa("GridNodeSize")[0]
+        simulation.from_cache.particle_size = ffa("ParticleSize")[0]
+        simulation.from_cache.frames_per_second = int(ffa("FramesPerSecond")[0])
+        simulation.from_cache.gravity = ffa("Gravity")
+
+    return None  # unregister
 
 
 def sync_simulation(simulation, frame):
     frame = frame_to_load(simulation, frame)
-    if not frame:
+    bpy.app.timers.register(
+        lambda: deferred_update(simulation.uuid, frame),
+        first_interval=0.0,
+    )
+
+    if frame is None:
         return
-    if simulation.loaded_frame == frame:
-        return
-    simulation.loaded_frame = frame
 
-    def ffa(attribute):
-        return fetch_flat_attribute(simulation, json.dumps({"Setting": attribute}))
-
-    simulation.from_cache.grid_node_size = ffa("GridNodeSize")[0]
-    simulation.from_cache.particle_size = ffa("ParticleSize")[0]
-    simulation.from_cache.frames_per_second = int(ffa("FramesPerSecond")[0])
-    simulation.from_cache.gravity = ffa("Gravity")
-
-    input_names = InputNames(simulation)
+    input_names = InputNames(simulation, frame)
     num_colliders = len(input_names.collider_names)
 
     desynced_objs = []
     for obj in get_output_objects(simulation):
         try:
-            sync_output(simulation, obj, num_colliders)
+            sync_output(simulation, obj, num_colliders, frame)
         except RuntimeError as e:
             desynced_objs.append((obj, e))
     if desynced_objs:
@@ -88,7 +107,7 @@ is now incompatible or gone.)
 
 def frame_change_handler(scene):
     start = time.time()
-    sync(scene.frame_current)
+    sync(scene)
     end = time.time()
     print("Blended MPM: sync took " + str(end - start))
 
