@@ -12,9 +12,9 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[cfg(test)]
+#[cfg(feature = "f64")]
 pub type T = f64;
-#[cfg(not(test))]
+#[cfg(not(feature = "f64"))]
 pub type T = f32;
 
 pub trait Context: Send + Sync {

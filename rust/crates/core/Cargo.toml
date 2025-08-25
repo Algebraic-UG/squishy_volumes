@@ -5,6 +5,7 @@ edition = "2024"
 license = "MIT"
 
 [features]
+f64 = [ "blended_mpm_api/f64" ]
 profile = [ "dep:coarse-prof" ]
 
 [lib]

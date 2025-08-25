@@ -7,7 +7,12 @@
 // https://opensource.org/licenses/MIT.
 
 mod energies;
-#[cfg(test)]
+#[cfg(all(test, feature = "f64"))]
 mod tests;
+#[cfg(all(test, not(feature = "f64")))]
+#[test]
+fn automatic_fail() {
+    panic!("!!! ---> Run tests with 'f64' feature enabled <--- !!!")
+}
 
 pub use energies::*;
