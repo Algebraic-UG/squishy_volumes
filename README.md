@@ -130,3 +130,12 @@ See this helpful [video](https://www.youtube.com/watch?v=zP0s1i9EXeM).
 6. In the venv: `python -m pip install fake-bpy-module-latest`.
 7. Restart VS Code.
 8. ctrl+shift+P -> Blender: Build and Start -> Select Blender binary.
+
+## Automatic Tests
+
+To run the tests, enable the double precision feature.
+
+```
+cd rust
+cargo test --release --package blended_mpm_core --features "f64"
+```
