@@ -46,7 +46,9 @@ def update_progress():
         progress_json_string = with_popup(simulation, lambda: poll(simulation))
         if simulation.progress_json_string != progress_json_string:
             should_redraw = True
-        simulation.progress_json_string = progress_json_string
+        simulation.progress_json_string = (
+            progress_json_string if progress_json_string is not None else ""
+        )
 
         computed_frames = available_frames(simulation)
         if not computed_frames:
