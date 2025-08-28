@@ -47,7 +47,7 @@ def create_setup_json(simulation):
         obj = obj_unevaluated.evaluated_get(depsgraph)
 
         name = obj.name
-        obj_settings = get_simulation_specific_settings(simulation, obj)
+        obj_settings = get_simulation_specific_settings(simulation, obj_unevaluated)
 
         scene.frame_set(simulation.capture_start_frame)
 
