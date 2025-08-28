@@ -142,7 +142,7 @@ each frame."""
         simulation = get_selected_simulation(context)
 
         frame = frame_to_load(simulation, context.scene.frame_current)
-        if not frame:
+        if frame is None:
             self.report(
                 {"ERROR"},
                 f"No frame ready for {simulation.name}.",
