@@ -40,7 +40,10 @@ def create_setup_json(simulation):
     input_objects = []
     serialized_vectors = {}
 
-    for obj in get_input_objects(simulation):
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    for obj_unevaluated in get_input_objects(simulation):
+        obj = obj_unevaluated.evaluated_get(depsgraph)
+
         name = obj.name
         obj_settings = get_simulation_specific_settings(simulation, obj)
 
