@@ -10,7 +10,7 @@ use std::mem::take;
 
 use anyhow::Result;
 use blended_mpm_api::T;
-use nalgebra::Vector3;
+use nalgebra::{Matrix3, Vector3};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use crate::{
@@ -62,6 +62,22 @@ impl State {
                                 &self.particles.position_gradients[particle_idx];
                             let stress = match self.particles.parameters[particle_idx] {
                                 ParticleParameters::Solid { mu, lambda } => {
+                                    let velocity_gradient =
+                                        &self.particles.velocity_gradients[particle_idx];
+                                    let strain_rate = (velocity_gradient
+                                        + velocity_gradient.transpose())
+                                    .scale(0.5);
+                                    let cauchy_stress = 2. * 1000. * strain_rate;
+                                    //+ Matrix3::from_diagonal_element(
+                                    //    lambda * strain_rate.trace(),
+                                    //);
+
+                                    imparted_momentum -= cauchy_stress
+                                        * (to_grid_node
+                                            * (scaling
+                                                * position_gradient.determinant()
+                                                * self.particles.initial_volumes[particle_idx]));
+
                                     first_piola_stress_neo_hookean(mu, lambda, position_gradient)
                                 }
                                 ParticleParameters::Fluid {
