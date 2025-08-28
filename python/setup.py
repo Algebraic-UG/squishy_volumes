@@ -97,6 +97,7 @@ def create_setup_json(simulation):
                         "youngs_modulus": obj_settings.youngs_modulus
                         * simulation_scale,
                         "poissons_ratio": obj_settings.poissons_ratio,
+                        "viscosity": obj_settings.viscosity * simulation_scale,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
                     }
@@ -107,6 +108,7 @@ def create_setup_json(simulation):
                         "density": obj_settings.density / simulation_scale,
                         "exponent": obj_settings.exponent,
                         "bulk_modulus": obj_settings.bulk_modulus * simulation_scale,
+                        "viscosity": obj_settings.viscosity * simulation_scale,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
                     }

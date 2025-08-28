@@ -110,6 +110,16 @@ With 7 it's more like an incompressible fluid like water.""",
         options=set(),
     )  # type: ignore
 
+    viscosity: bpy.props.FloatProperty(
+        name="Dynamic Viscosity",
+        description="""TODO""",
+        default=0.0,
+        min=0.0,
+        max=1000.0,
+        precision=3,
+        options=set(),
+    )  # type: ignore
+
     dilation: bpy.props.FloatProperty(
         name="Dilation",
         description="""Assume an initial uniform dilation of the input geometry.

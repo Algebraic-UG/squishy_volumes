@@ -13,8 +13,16 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParticleParameters {
-    Solid { mu: T, lambda: T },
-    Fluid { exponent: i32, bulk_modulus: T },
+    Solid {
+        mu: T,
+        lambda: T,
+        viscosity: T,
+    },
+    Fluid {
+        exponent: i32,
+        bulk_modulus: T,
+        viscosity: T,
+    },
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
