@@ -122,6 +122,7 @@ fn main() -> Result<()> {
     } else {
         cache.fetch_frame(next_frame - 1)?
     };
+    let start_simulation_time = current_state.time();
 
     while run.load(Ordering::Relaxed)
         && number_of_sub_frames.is_none_or(|n| n > completed_sub_frames)
@@ -144,7 +145,7 @@ fn main() -> Result<()> {
                 "simulated_time: {:0.4}, real_time: {:0.4}, ratio: {:0.4}, per_subframe: {:0.4}, per_frame: {:0.4}",
                 current_state.time(),
                 stamp.elapsed().as_secs_f64(),
-                stamp.elapsed().as_secs_f64() / current_state.time(),
+                stamp.elapsed().as_secs_f64() / (current_state.time()- start_simulation_time),
                 stamp.elapsed().as_secs_f64() / completed_sub_frames as f64,
                 stamp.elapsed().as_secs_f64() / completed_frames as f64,
             );
