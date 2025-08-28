@@ -40,6 +40,8 @@ def create_setup_json(simulation):
     input_objects = []
     serialized_vectors = {}
 
+    simulation_scale = simulation.to_cache.simulation_scale
+
     depsgraph = bpy.context.evaluated_depsgraph_get()
     for obj_unevaluated in get_input_objects(simulation):
         obj = obj_unevaluated.evaluated_get(depsgraph)
@@ -76,9 +78,9 @@ def create_setup_json(simulation):
         ]
 
         linear_velocity = [
-            obj_settings.initial_linear_velocity[0],
-            obj_settings.initial_linear_velocity[1],
-            obj_settings.initial_linear_velocity[2],
+            obj_settings.initial_linear_velocity[0] * simulation_scale,
+            obj_settings.initial_linear_velocity[1] * simulation_scale,
+            obj_settings.initial_linear_velocity[2] * simulation_scale,
         ]
         angular_velocity = [
             obj_settings.initial_angular_velocity[0],
@@ -91,8 +93,9 @@ def create_setup_json(simulation):
             case e if e == OBJECT_ENUM_SOLID:
                 object_settings = {
                     OBJECT_ENUM_SOLID: {
-                        "density": obj_settings.density,
-                        "youngs_modulus": obj_settings.youngs_modulus,
+                        "density": obj_settings.density / simulation_scale,
+                        "youngs_modulus": obj_settings.youngs_modulus
+                        * simulation_scale,
                         "poissons_ratio": obj_settings.poissons_ratio,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
@@ -101,9 +104,9 @@ def create_setup_json(simulation):
             case e if e == OBJECT_ENUM_FLUID:
                 object_settings = {
                     OBJECT_ENUM_FLUID: {
-                        "density": obj_settings.density,
+                        "density": obj_settings.density / simulation_scale,
                         "exponent": obj_settings.exponent,
-                        "bulk_modulus": obj_settings.bulk_modulus,
+                        "bulk_modulus": obj_settings.bulk_modulus * simulation_scale,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
                     }
@@ -217,9 +220,9 @@ def create_setup_json(simulation):
         )
 
     gravity = [
-        simulation.to_cache.gravity[0],
-        simulation.to_cache.gravity[1],
-        simulation.to_cache.gravity[2],
+        simulation.to_cache.gravity[0] * simulation_scale,
+        simulation.to_cache.gravity[1] * simulation_scale,
+        simulation.to_cache.gravity[2] * simulation_scale,
     ]
 
     settings = {

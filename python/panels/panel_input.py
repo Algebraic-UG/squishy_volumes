@@ -317,6 +317,7 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             particle_size.prop(simulation.to_cache, "particle_size")
             to_cache.prop(simulation.to_cache, "frames_per_second")
             to_cache.prop(simulation.to_cache, "gravity")
+            to_cache.prop(simulation.to_cache, "simulation_scale")
 
             if context_exists(simulation):
                 from_cache = row.column()

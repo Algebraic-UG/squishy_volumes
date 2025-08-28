@@ -82,3 +82,14 @@ Overwrite the cache to manifest changes.""",
         default=(0.0, 0.0, -9.8),
         options=set(),
     )  # type: ignore
+    simulation_scale: bpy.props.FloatProperty(
+        name="Simulation Scale",
+        description="""Use this to simulate things as if they were bigger or smaller.
+
+For example, if your scene is 10 meters long but should behave as if it were 10 centimeters,
+you can set this to 100.""",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        precision=6,
+    )
