@@ -40,9 +40,14 @@ def create_setup_json(simulation):
     input_objects = []
     serialized_vectors = {}
 
-    for obj in get_input_objects(simulation):
+    simulation_scale = simulation.to_cache.simulation_scale
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    for obj_unevaluated in get_input_objects(simulation):
+        obj = obj_unevaluated.evaluated_get(depsgraph)
+
         name = obj.name
-        obj_settings = get_simulation_specific_settings(simulation, obj)
+        obj_settings = get_simulation_specific_settings(simulation, obj_unevaluated)
 
         scene.frame_set(simulation.capture_start_frame)
 
@@ -73,9 +78,9 @@ def create_setup_json(simulation):
         ]
 
         linear_velocity = [
-            obj_settings.initial_linear_velocity[0],
-            obj_settings.initial_linear_velocity[1],
-            obj_settings.initial_linear_velocity[2],
+            obj_settings.initial_linear_velocity[0] * simulation_scale,
+            obj_settings.initial_linear_velocity[1] * simulation_scale,
+            obj_settings.initial_linear_velocity[2] * simulation_scale,
         ]
         angular_velocity = [
             obj_settings.initial_angular_velocity[0],
@@ -88,9 +93,11 @@ def create_setup_json(simulation):
             case e if e == OBJECT_ENUM_SOLID:
                 object_settings = {
                     OBJECT_ENUM_SOLID: {
-                        "density": obj_settings.density,
-                        "youngs_modulus": obj_settings.youngs_modulus,
+                        "density": obj_settings.density / simulation_scale,
+                        "youngs_modulus": obj_settings.youngs_modulus
+                        * simulation_scale,
                         "poissons_ratio": obj_settings.poissons_ratio,
+                        "viscosity": obj_settings.viscosity * simulation_scale,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
                     }
@@ -98,9 +105,10 @@ def create_setup_json(simulation):
             case e if e == OBJECT_ENUM_FLUID:
                 object_settings = {
                     OBJECT_ENUM_FLUID: {
-                        "density": obj_settings.density,
+                        "density": obj_settings.density / simulation_scale,
                         "exponent": obj_settings.exponent,
-                        "bulk_modulus": obj_settings.bulk_modulus,
+                        "bulk_modulus": obj_settings.bulk_modulus * simulation_scale,
+                        "viscosity": obj_settings.viscosity * simulation_scale,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
                     }
@@ -112,51 +120,6 @@ def create_setup_json(simulation):
                         "friction_factor": obj_settings.friction_factor,
                     }
                 }
-
-        if is_scripted(simulation, obj):
-            scripted_positions_array = np.empty(
-                simulation.capture_frames * 3, dtype="float32"
-            )
-            scripted_orientations_array = np.empty(
-                simulation.capture_frames * 4, dtype="float32"
-            )
-
-            initial_scale = None
-            i = 0
-            for frame in range(
-                simulation.capture_start_frame,
-                simulation.capture_start_frame + simulation.capture_frames,
-            ):
-                scene.frame_set(frame)
-
-                obj_scale = obj.matrix_world.to_scale()
-                if initial_scale:
-                    if (obj_scale - initial_scale).length_squared > 1e-5:
-                        raise RuntimeError(
-                            "animated scaling is not supported, please check '"
-                            + name
-                            + "'"
-                        )
-                else:
-                    initial_scale = obj_scale
-
-                obj_position = obj.matrix_world.translation
-                obj_orientation = obj.matrix_world.to_quaternion()
-
-                scripted_positions_array[3 * i + 0] = obj_position.x
-                scripted_positions_array[3 * i + 1] = obj_position.y
-                scripted_positions_array[3 * i + 2] = obj_position.z
-
-                scripted_orientations_array[4 * i + 0] = obj_orientation.x
-                scripted_orientations_array[4 * i + 1] = obj_orientation.y
-                scripted_orientations_array[4 * i + 2] = obj_orientation.z
-                scripted_orientations_array[4 * i + 3] = obj_orientation.w
-
-                i += 1
-        else:
-            scripted_positions_array = np.empty(0, dtype="float32")
-            scripted_orientations_array = np.empty(0, dtype="float32")
-
         vertices = name + "_vertices"
         triangles = name + "_triangles"
         triangle_normals = name + "_triangle_normals"
@@ -195,17 +158,73 @@ def create_setup_json(simulation):
         serialized_vectors[triangle_normals] = attribute_to_base64(
             obj.data.loop_triangles, "normal", "float32", 3
         )
-        serialized_vectors[scripted_positions] = array_to_base64(
+
+    per_object_scripted_data = {}
+    for obj in get_input_objects(simulation):
+        if is_scripted(simulation, obj):
+            per_object_scripted_data[obj.name] = (
+                obj.matrix_world.to_scale(),
+                np.empty(simulation.capture_frames * 3, dtype="float32"),
+                np.empty(simulation.capture_frames * 4, dtype="float32"),
+            )
+        else:
+            per_object_scripted_data[obj.name] = (
+                None,
+                np.empty(0, dtype="float32"),
+                np.empty(0, dtype="float32"),
+            )
+
+    for i, frame in enumerate(
+        range(
+            simulation.capture_start_frame,
+            simulation.capture_start_frame + simulation.capture_frames,
+        )
+    ):
+        print(
+            f"capturing {frame} of {simulation.capture_start_frame + simulation.capture_frames}"
+        )
+        scene.frame_set(frame)
+        for obj in get_input_objects(simulation):
+            if not is_scripted(simulation, obj):
+                continue
+            initial_scale, scripted_positions_array, scripted_orientations_array = (
+                per_object_scripted_data[obj.name]
+            )
+
+            obj_scale = obj.matrix_world.to_scale()
+            if (obj_scale - initial_scale).length_squared > 1e-5:
+                raise RuntimeError(
+                    "animated scaling is not supported, please check '" + name + "'"
+                )
+
+            obj_position = obj.matrix_world.translation
+            obj_orientation = obj.matrix_world.to_quaternion()
+
+            scripted_positions_array[3 * i + 0] = obj_position.x
+            scripted_positions_array[3 * i + 1] = obj_position.y
+            scripted_positions_array[3 * i + 2] = obj_position.z
+
+            scripted_orientations_array[4 * i + 0] = obj_orientation.x
+            scripted_orientations_array[4 * i + 1] = obj_orientation.y
+            scripted_orientations_array[4 * i + 2] = obj_orientation.z
+            scripted_orientations_array[4 * i + 3] = obj_orientation.w
+
+    for name, (
+        _,
+        scripted_positions_array,
+        scripted_orientations_array,
+    ) in per_object_scripted_data.items():
+        serialized_vectors[name + "_scripted_positions"] = array_to_base64(
             scripted_positions_array
         )
-        serialized_vectors[scripted_orientations] = array_to_base64(
+        serialized_vectors[name + "_scripted_orientations"] = array_to_base64(
             scripted_orientations_array
         )
 
     gravity = [
-        simulation.to_cache.gravity[0],
-        simulation.to_cache.gravity[1],
-        simulation.to_cache.gravity[2],
+        simulation.to_cache.gravity[0] * simulation_scale,
+        simulation.to_cache.gravity[1] * simulation_scale,
+        simulation.to_cache.gravity[2] * simulation_scale,
     ]
 
     settings = {

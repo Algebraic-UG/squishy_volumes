@@ -60,19 +60,42 @@ impl State {
                         if EXPLICIT_FORCES {
                             let position_gradient =
                                 &self.particles.position_gradients[particle_idx];
+                            let common_viscosity;
                             let stress = match self.particles.parameters[particle_idx] {
-                                ParticleParameters::Solid { mu, lambda } => {
+                                ParticleParameters::Solid {
+                                    mu,
+                                    lambda,
+                                    viscosity,
+                                } => {
+                                    common_viscosity = viscosity;
                                     first_piola_stress_neo_hookean(mu, lambda, position_gradient)
                                 }
                                 ParticleParameters::Fluid {
                                     exponent,
                                     bulk_modulus,
-                                } => first_piola_stress_inviscid(
-                                    bulk_modulus,
-                                    exponent,
-                                    position_gradient,
-                                ),
+                                    viscosity,
+                                } => {
+                                    common_viscosity = viscosity;
+                                    first_piola_stress_inviscid(
+                                        bulk_modulus,
+                                        exponent,
+                                        position_gradient,
+                                    )
+                                }
                             };
+
+                            let velocity_gradient =
+                                &self.particles.velocity_gradients[particle_idx];
+                            let strain_rate =
+                                (velocity_gradient + velocity_gradient.transpose()).scale(0.5);
+                            let cauchy_stress = 2. * common_viscosity * strain_rate;
+
+                            imparted_momentum -= cauchy_stress
+                                * (to_grid_node
+                                    * (scaling
+                                        * position_gradient.determinant()
+                                        * self.particles.initial_volumes[particle_idx]));
+
                             imparted_momentum -= stress
                                 * (position_gradient.transpose()
                                     * (to_grid_node

@@ -61,6 +61,7 @@ impl Fluid {
                 ObjectSettingsFluid {
                     density,
                     exponent,
+                    viscosity,
                     bulk_modulus,
                     dilation,
                     randomness,
@@ -130,6 +131,7 @@ impl Fluid {
                 ParticleParameters::Fluid {
                     exponent,
                     bulk_modulus,
+                    viscosity,
                 },
             );
             masses.resize(n, mass);

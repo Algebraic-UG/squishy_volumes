@@ -82,9 +82,9 @@ def get_selected_input_object(context):
     if simulation is None:
         return None
     selected_input_object = context.scene.blended_mpm_scene.selected_input_object
-    if selected_input_object >= len(context.scene.objects):
+    if selected_input_object >= len(bpy.data.objects):
         return None
-    obj = context.scene.objects[selected_input_object]
+    obj = bpy.data.objects[selected_input_object]
     if not has_simulation_specific_settings(simulation, obj):
         return None
     return obj
@@ -92,9 +92,9 @@ def get_selected_input_object(context):
 
 def get_selected_output_object(context):
     selected_output_object = context.scene.blended_mpm_scene.selected_output_object
-    if selected_output_object >= len(context.scene.objects):
+    if selected_output_object >= len(bpy.data.objects):
         return None
-    obj = context.scene.objects[selected_output_object]
+    obj = bpy.data.objects[selected_output_object]
     if obj.blended_mpm_object.simulation_uuid == "":
         return None
     return obj

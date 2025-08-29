@@ -24,6 +24,7 @@ pub struct ObjectSettingsSolid {
     pub density: T,
     pub youngs_modulus: T,
     pub poissons_ratio: T,
+    pub viscosity: T,
     pub dilation: T,
     pub randomness: T,
 }
@@ -32,6 +33,7 @@ pub struct ObjectSettingsSolid {
 pub struct ObjectSettingsFluid {
     pub density: T,
     pub exponent: i32,
+    pub viscosity: T,
     pub bulk_modulus: T,
     pub dilation: T,
     pub randomness: T,

@@ -104,15 +104,13 @@ def available_frames(simulation):
     return blended_mpm_context_dict[simulation.uuid].available_frames()
 
 
-def available_attributes(simulation):
-    return blended_mpm_context_dict[simulation.uuid].available_attributes(
-        simulation.loaded_frame
-    )
+def available_attributes(simulation, frame):
+    return blended_mpm_context_dict[simulation.uuid].available_attributes(frame)
 
 
-def fetch_flat_attribute(simulation, attribute_json):
+def fetch_flat_attribute(simulation, frame, attribute_json):
     return blended_mpm_context_dict[simulation.uuid].fetch_flat_attribute(
-        simulation.loaded_frame, attribute_json
+        frame, attribute_json
     )
 
 
@@ -123,16 +121,14 @@ def cleanup_native():
 
 
 class InputNames:
-    def __init__(self, simulation):
+    def __init__(self, simulation, frame):
         self.solid_names = set()
         self.fluid_names = set()
         self.collider_names = set()
         self.mesh_names = set()
         if not context_exists(simulation):
             return
-        if simulation.loaded_frame == -1:
-            return
-        for attribute_json in available_attributes(simulation):
+        for attribute_json in available_attributes(simulation, frame):
             attribute = json.loads(attribute_json)
             if "Object" in attribute:
                 name = attribute["Object"]["name"]

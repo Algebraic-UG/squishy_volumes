@@ -62,7 +62,7 @@ This is useful when reloading a Blender filer with multiple simulations."""
         self.layout.label(text="WARNING: these caches contain lock files:")
         for name in [
             simulation.name
-            for simulation in context.scene.bledned_mpm_scene.simulations
+            for simulation in context.scene.blended_mpm_scene.simulations
             if simulation_cache_locked(simulation)
         ]:
             self.layout.lablel(text=f"{name}")

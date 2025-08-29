@@ -39,13 +39,14 @@ impl State {
                     *position += velocity * time_step;
                     *position_gradient += velocity_gradient * *position_gradient * time_step;
                     *elastic_energy = match parameters {
-                        ParticleParameters::Solid { mu, lambda } => {
+                        ParticleParameters::Solid { mu, lambda, .. } => {
                             try_elastic_energy_neo_hookean(*mu, *lambda, position_gradient)
                                 .context("calculating new elastic energy")?
                         }
                         ParticleParameters::Fluid {
                             exponent,
                             bulk_modulus,
+                            ..
                         } => {
                             *position_gradient = Matrix3::from_diagonal_element(
                                 position_gradient.determinant().powf(1. / 3.),

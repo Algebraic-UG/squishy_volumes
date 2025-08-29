@@ -51,12 +51,13 @@ from .util import (
 from .bridge import fetch_flat_attribute
 
 
-def create_output(simulation, obj):
+def create_output(simulation, obj, frame):
     mpm = obj.blended_mpm_object
     if mpm.output_type == COLLIDER_MESH or mpm.output_type == INPUT_MESH:
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps({"Mesh": {"name": mpm.input_name, "attribute": attribute}}),
         )
 
@@ -101,12 +102,13 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
         attribute.data.foreach_set("value", array)
 
 
-def sync_output(simulation, obj, num_colliders):
+def sync_output(simulation, obj, num_colliders, frame):
     mpm = obj.blended_mpm_object
     if mpm.output_type == GRID_COLLIDER_DISTANCE:
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps({"GridColliderDistance": attribute}),
         )
 
@@ -132,6 +134,7 @@ def sync_output(simulation, obj, num_colliders):
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps({"GridMomentums": {"Free": attribute}}),
         )
 
@@ -154,6 +157,7 @@ def sync_output(simulation, obj, num_colliders):
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps(
                 {
                     "GridMomentums": {
@@ -183,6 +187,7 @@ def sync_output(simulation, obj, num_colliders):
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps(
                 {
                     "Object": {
@@ -242,6 +247,7 @@ def sync_output(simulation, obj, num_colliders):
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps(
                 {"Object": {"name": mpm.input_name, "attribute": {"Fluid": attribute}}}
             ),
@@ -282,6 +288,7 @@ def sync_output(simulation, obj, num_colliders):
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps(
                 {
                     "Object": {
@@ -312,6 +319,7 @@ def sync_output(simulation, obj, num_colliders):
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
             simulation,
+            frame,
             json.dumps(
                 {
                     "Object": {

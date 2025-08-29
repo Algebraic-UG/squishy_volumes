@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+f64 = []
+
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true

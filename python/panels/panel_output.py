@@ -18,7 +18,7 @@
 
 import bpy
 
-from ..util import tutorial_msg
+from ..util import frame_to_load, tutorial_msg
 
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
@@ -141,6 +141,14 @@ each frame."""
     def execute(self, context):
         simulation = get_selected_simulation(context)
 
+        frame = frame_to_load(simulation, context.scene.frame_current)
+        if frame is None:
+            self.report(
+                {"ERROR"},
+                f"No frame ready for {simulation.name}.",
+            )
+            return {"CANCELLED"}
+
         mesh_name = f"{self.output_type} - {self.object_name}"
         obj = bpy.data.objects.new(self.object_name, bpy.data.meshes.new(mesh_name))
 
@@ -149,8 +157,8 @@ each frame."""
         obj.blended_mpm_object.output_type = self.output_type
         obj.blended_mpm_object.attributes = self.optional_attributes
 
-        create_output(simulation, obj)
-        sync_output(simulation, obj, self.num_colliders)
+        create_output(simulation, obj, frame)
+        sync_output(simulation, obj, self.num_colliders, frame)
 
         context.collection.objects.link(obj)
 
@@ -216,12 +224,12 @@ class OBJECT_UL_Blended_MPM_Output_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
-            return [0] * len(context.scene.objects), []
+            return [0] * len(bpy.data.objects), []
 
         output_objects = get_output_objects(simulation)
         return [
             self.bitflag_filter_item if obj in output_objects else 0
-            for obj in context.scene.objects
+            for obj in bpy.data.objects
         ], []
 
     def draw_item(
@@ -271,7 +279,7 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
         row.column().template_list(
             "OBJECT_UL_Blended_MPM_Output_Object_List",
             "",
-            context.scene,
+            bpy.data,
             "objects",
             context.scene.blended_mpm_scene,
             "selected_output_object",
@@ -281,7 +289,9 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
             "object.blended_mpm_remove_output_object", text="", icon="REMOVE"
         )
 
-        input_names = InputNames(simulation)
+        input_names = InputNames(
+            simulation, frame_to_load(simulation, context.scene.frame_current)
+        )
         num_colliders = len(input_names.collider_names)
 
         def create_operator(layout, output_type, icon, input_name):

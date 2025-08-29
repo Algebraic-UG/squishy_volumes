@@ -61,6 +61,7 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "density")
             layout.prop(settings, "youngs_modulus")
             layout.prop(settings, "poissons_ratio")
+            layout.prop(settings, "viscosity")
             layout.prop(settings, "dilation")
             layout.prop(settings, "randomness")
             layout.prop(settings, "initial_linear_velocity")
@@ -69,6 +70,7 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "density")
             layout.prop(settings, "exponent")
             layout.prop(settings, "bulk_modulus")
+            layout.prop(settings, "viscosity")
             layout.prop(settings, "dilation")
             layout.prop(settings, "randomness")
             layout.prop(settings, "initial_linear_velocity")
@@ -270,12 +272,12 @@ class OBJECT_UL_Blended_MPM_Input_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
-            return [0] * len(context.scene.objects), []
+            return [0] * len(bpy.data.objects), []
 
         input_objects = get_input_objects(simulation)
         return [
             self.bitflag_filter_item if obj in input_objects else 0
-            for obj in context.scene.objects
+            for obj in bpy.data.objects
         ], []
 
     def draw_item(
@@ -317,6 +319,7 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             particle_size.prop(simulation.to_cache, "particle_size")
             to_cache.prop(simulation.to_cache, "frames_per_second")
             to_cache.prop(simulation.to_cache, "gravity")
+            to_cache.prop(simulation.to_cache, "simulation_scale")
 
             if context_exists(simulation):
                 from_cache = row.column()
@@ -342,7 +345,7 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
         row.column().template_list(
             "OBJECT_UL_Blended_MPM_Input_Object_List",
             "",
-            context.scene,
+            bpy.data,
             "objects",
             context.scene.blended_mpm_scene,
             "selected_input_object",

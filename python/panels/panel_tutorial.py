@@ -171,7 +171,7 @@ def current_instructions(layout, context):
         )
         return
 
-    input_names = InputNames(simulation)
+    input_names = InputNames(simulation, simulation.loaded_frame)
     if not [
         obj
         for obj in get_output_objects(simulation)

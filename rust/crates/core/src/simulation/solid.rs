@@ -65,6 +65,7 @@ impl Solid {
                     density,
                     youngs_modulus,
                     poissons_ratio,
+                    viscosity,
                     dilation,
                     randomness,
                 },
@@ -130,7 +131,14 @@ impl Solid {
             sort_map.extend(first_idx..n);
             reverse_sort_map.extend(first_idx..n);
 
-            parameters.resize(n, ParticleParameters::Solid { mu, lambda });
+            parameters.resize(
+                n,
+                ParticleParameters::Solid {
+                    mu,
+                    lambda,
+                    viscosity,
+                },
+            );
             masses.resize(n, mass);
             initial_volumes.resize(n, particle_volume);
             position_gradients.resize(n, position_gradient);
