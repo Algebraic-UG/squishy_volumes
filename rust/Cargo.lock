@@ -211,7 +211,7 @@ dependencies = [
 
 [[package]]
 name = "blended_mpm_wrap"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "anyhow",
  "blended_mpm_hot",

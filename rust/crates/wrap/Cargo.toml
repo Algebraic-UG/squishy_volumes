@@ -1,6 +1,6 @@
 [package]
 name = "blended_mpm_wrap"
-version = "0.1.15"
+version = "0.1.16"
 edition = "2021"
 license = "MIT"
 
