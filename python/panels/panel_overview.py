@@ -35,7 +35,7 @@ from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..properties.blended_mpm_simulation import Blended_MPM_Simulation
-from ..properties.util import get_selected_simulation
+from ..properties.util import get_output_objects, get_selected_simulation
 from ..util import (
     force_ui_redraw,
     get_simulation_by_uuid,
@@ -135,6 +135,9 @@ please use your OS's file browser."""
         simulation = get_simulation_by_uuid(self.uuid)
         idx = get_simulation_idx_by_uuid(self.uuid)
         selected_uuid = get_selected_simulation(context).uuid
+
+        for obj in get_output_objects(simulation):
+            obj.blended_mpm_object.simulation_uuid = ""
 
         update_drivers(idx)
         cleanup_markers(simulation)
