@@ -19,6 +19,7 @@
 import bpy
 import numpy as np
 
+from .output import sync_output
 from .properties.blended_mpm_object_attributes import optional_attributes_set_all
 from .properties.util import get_selected_simulation
 from .bridge import InputNames
@@ -121,6 +122,9 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
         reference_obj.blended_mpm_object.sync_once_frame = (
             self.reference_frame - simulation.display_start_frame
         )
+
+        sync_output(simulation, reference_obj, 0, self.reference_frame)
+
         self.report(
             {"INFO"},
             f"Added {reference_obj.name} to output objects of {simulation.name} as reference to simulation frame #{reference_obj.blended_mpm_object.sync_once_frame}.",
@@ -133,6 +137,9 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
         modifier["Socket_2"] = reference_obj
 
         driving_obj = create_output_obj(f"DRIVING - {self.driving_input_name}")
+
+        sync_output(simulation, driving_obj, 0, self.reference_frame)
+
         self.report(
             {"INFO"},
             f"Added {driving_obj.name} to output objects of {simulation.name} as driving object for {obj.name}.",
@@ -149,6 +156,7 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
             {"INFO"},
             message=f"{obj.name} is now moving with {driving_obj.name}",
         )
+
         return {"FINISHED"}
 
     def invoke(self, context, _event):
