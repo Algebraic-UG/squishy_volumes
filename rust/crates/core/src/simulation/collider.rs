@@ -143,4 +143,28 @@ impl Collider {
                 tangent_velocity + normal * (1. - self.sticky_factor) * normal_part
             }
     }
+
+    pub fn conform_velocity_friction_only(
+        &self,
+        position: Vector3<T>,
+        velocity: Vector3<T>,
+        normal: Vector3<T>,
+    ) -> Vector3<T> {
+        let point_velocity = self.kinematic.point_velocity_from_world(position);
+
+        let relative_velocity = velocity - point_velocity;
+
+        let normal_part = normal.dot(&relative_velocity);
+        let normal_velocity = normal * normal_part;
+        let tangent_velocity = relative_velocity - normal_velocity;
+        let tangent_part = tangent_velocity.norm();
+
+        point_velocity
+            + (normal * (1. - self.sticky_factor) * normal_part)
+            + if normal_part < 0. && tangent_part > 0. {
+                tangent_velocity * (1. + self.friction_factor * normal_part / tangent_part).max(0.)
+            } else {
+                Vector3::zeros()
+            }
+    }
 }
