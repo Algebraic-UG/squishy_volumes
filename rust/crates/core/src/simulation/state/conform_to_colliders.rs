@@ -60,7 +60,7 @@ impl State {
                     let negative_normal =
                         weighted_distance.normal * -weighted_distance.distance.signum();
 
-                    *velocity = collider.conform_velocity(position, *velocity, negative_normal);
+                    *velocity = collider.conform_velocity(position, *velocity, negative_normal, 0.);
 
                     // TODO: this isn't needed for explicit integration
                     let point_velocity = collider.kinematic.point_velocity_from_world(position);
@@ -91,15 +91,11 @@ impl State {
                 else {
                     return;
                 };
-                let negative_normal =
-                    weighted_distance.normal * weighted_distance.distance.signum();
+                let normal = weighted_distance.normal * weighted_distance.distance.signum();
 
                 let velocity = &mut self.grid_momentum.velocities[*momentum_idx];
-                *velocity = self.collider_objects[*collider_idx].conform_velocity_friction_only(
-                    position,
-                    *velocity,
-                    negative_normal,
-                );
+                *velocity = self.collider_objects[*collider_idx]
+                    .conform_velocity(position, *velocity, normal, 1.);
             });
 
         Ok(self)
