@@ -41,27 +41,33 @@ impl State {
 
                     *elastic_energy = match parameters {
                         ParticleParameters::Solid {
-                            mu, lambda, alpha, ..
+                            mu,
+                            lambda,
+                            sand_alpha,
+                            ..
                         } => {
-                            let mut svd = position_gradient.svd(true, true);
-                            let e = svd.singular_values.map(f32::ln);
-                            let e_tr = e.sum();
-                            let e_hat = e - Vector3::repeat(e_tr / 3.);
-                            let e_hat_norm = e_hat.norm();
-                            if e_tr < 0. && e_hat_norm > 0. {
-                                assert!(*mu > 0.);
-                                if e_hat_norm != 0. {
-                                    let delta_gamma = e_hat_norm
-                                        + (3. * lambda + 2. * mu) / 2. / mu * e_tr * alpha;
-                                    if delta_gamma > 0. {
-                                        let big_h = e - delta_gamma / e_hat_norm * e_hat;
-                                        svd.singular_values = big_h.map(f32::exp);
+                            if let Some(alpha) = sand_alpha {
+                                let mut svd = position_gradient.svd(true, true);
+                                let e = svd.singular_values.map(f32::ln);
+                                let e_tr = e.sum();
+                                let e_hat = e - Vector3::repeat(e_tr / 3.);
+                                let e_hat_norm = e_hat.norm();
+                                if e_tr < 0. && e_hat_norm > 0. {
+                                    assert!(*mu > 0.);
+                                    if e_hat_norm != 0. {
+                                        let delta_gamma = e_hat_norm
+                                            + (3. * lambda + 2. * mu) / 2. / mu * e_tr * alpha;
+                                        if delta_gamma > 0. {
+                                            let big_h = e - delta_gamma / e_hat_norm * e_hat;
+                                            svd.singular_values = big_h.map(f32::exp);
 
-                                        *position_gradient = svd.recompose().map_err(Error::msg)?;
+                                            *position_gradient =
+                                                svd.recompose().map_err(Error::msg)?;
+                                        }
                                     }
+                                } else {
+                                    *position_gradient = svd.u.unwrap() * svd.v_t.unwrap();
                                 }
-                            } else {
-                                *position_gradient = svd.u.unwrap() * svd.v_t.unwrap();
                             }
 
                             try_elastic_energy_neo_hookean(*mu, *lambda, position_gradient)

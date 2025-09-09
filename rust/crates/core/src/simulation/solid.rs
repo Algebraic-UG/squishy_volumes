@@ -68,7 +68,7 @@ impl Solid {
                     viscosity,
                     dilation,
                     randomness,
-                    alpha,
+                    sand_alpha,
                 },
             mesh,
             particles,
@@ -139,7 +139,7 @@ impl Solid {
                     mu,
                     lambda,
                     viscosity,
-                    alpha,
+                    sand_alpha,
                 },
             );
             masses.resize(n, mass);

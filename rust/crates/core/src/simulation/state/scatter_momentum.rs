@@ -66,7 +66,7 @@ impl State {
                                     mu,
                                     lambda,
                                     viscosity,
-                                    alpha: _,
+                                    sand_alpha: _,
                                 } => {
                                     common_viscosity = viscosity;
                                     first_piola_stress_neo_hookean(mu, lambda, position_gradient)
@@ -85,17 +85,19 @@ impl State {
                                 }
                             };
 
-                            let velocity_gradient =
-                                &self.particles.velocity_gradients[particle_idx];
-                            let strain_rate =
-                                (velocity_gradient + velocity_gradient.transpose()).scale(0.5);
-                            let cauchy_stress = 2. * common_viscosity * strain_rate;
+                            if let Some(common_viscosity) = common_viscosity {
+                                let velocity_gradient =
+                                    &self.particles.velocity_gradients[particle_idx];
+                                let strain_rate =
+                                    (velocity_gradient + velocity_gradient.transpose()).scale(0.5);
+                                let cauchy_stress = 2. * common_viscosity * strain_rate;
 
-                            imparted_momentum -= cauchy_stress
-                                * (to_grid_node
-                                    * (scaling
-                                        * position_gradient.determinant()
-                                        * self.particles.initial_volumes[particle_idx]));
+                                imparted_momentum -= cauchy_stress
+                                    * (to_grid_node
+                                        * (scaling
+                                            * position_gradient.determinant()
+                                            * self.particles.initial_volumes[particle_idx]));
+                            }
 
                             imparted_momentum -= stress
                                 * (position_gradient.transpose()

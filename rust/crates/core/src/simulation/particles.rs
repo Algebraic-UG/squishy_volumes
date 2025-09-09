@@ -16,13 +16,13 @@ pub enum ParticleParameters {
     Solid {
         mu: T,
         lambda: T,
-        viscosity: T,
-        alpha: T,
+        viscosity: Option<T>,
+        sand_alpha: Option<T>,
     },
     Fluid {
         exponent: i32,
         bulk_modulus: T,
-        viscosity: T,
+        viscosity: Option<T>,
     },
 }
 
