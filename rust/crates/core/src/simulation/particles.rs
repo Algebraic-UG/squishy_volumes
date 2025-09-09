@@ -17,6 +17,7 @@ pub enum ParticleParameters {
         mu: T,
         lambda: T,
         viscosity: T,
+        alpha: T,
     },
     Fluid {
         exponent: i32,

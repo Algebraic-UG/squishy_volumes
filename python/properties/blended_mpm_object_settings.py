@@ -172,6 +172,16 @@ more samples under compression and less under streching.""",
         options=set(),
     )  # type: ignore
 
+    alpha: bpy.props.FloatProperty(
+        name="Alpha",
+        description="""TODO""",
+        default=0.0,
+        min=0.0,
+        max=10.0,
+        precision=2,
+        options=set(),
+    )  # type: ignore
+
     object_enum: bpy.props.EnumProperty(
         items=[
             (

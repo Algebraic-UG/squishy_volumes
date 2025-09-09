@@ -100,6 +100,7 @@ def create_setup_json(simulation):
                         "viscosity": obj_settings.viscosity * simulation_scale,
                         "dilation": obj_settings.dilation,
                         "randomness": obj_settings.randomness,
+                        "alpha": obj_settings.alpha,
                     }
                 }
             case e if e == OBJECT_ENUM_FLUID:

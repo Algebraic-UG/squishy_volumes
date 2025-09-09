@@ -63,6 +63,7 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "poissons_ratio")
             layout.prop(settings, "viscosity")
             layout.prop(settings, "dilation")
+            layout.prop(settings, "alpha")
             layout.prop(settings, "randomness")
             layout.prop(settings, "initial_linear_velocity")
             layout.prop(settings, "initial_angular_velocity")

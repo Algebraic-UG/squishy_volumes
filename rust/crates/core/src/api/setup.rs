@@ -27,6 +27,7 @@ pub struct ObjectSettingsSolid {
     pub viscosity: T,
     pub dilation: T,
     pub randomness: T,
+    pub alpha: T,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

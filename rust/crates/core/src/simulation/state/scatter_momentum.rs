@@ -66,6 +66,7 @@ impl State {
                                     mu,
                                     lambda,
                                     viscosity,
+                                    alpha: _,
                                 } => {
                                     common_viscosity = viscosity;
                                     first_piola_stress_neo_hookean(mu, lambda, position_gradient)
