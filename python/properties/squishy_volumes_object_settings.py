@@ -18,7 +18,6 @@
 
 import bpy
 
-from ..bridge import InputNames
 from ..properties.util import get_input_objects
 
 # these have to match the enum in core::api::ObjectSettings
