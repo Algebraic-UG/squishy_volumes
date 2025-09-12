@@ -8,8 +8,8 @@
 
 use std::ops::{Deref, DerefMut};
 
-use fxhash::FxHashMap;
 use nalgebra::Vector3;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 

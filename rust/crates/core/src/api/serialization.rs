@@ -9,8 +9,8 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Error, Result, ensure};
-use fxhash::FxHashMap;
 use nalgebra::Vector3;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use tracing::{info, warn};
