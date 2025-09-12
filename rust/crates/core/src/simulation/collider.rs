@@ -17,9 +17,9 @@ use crate::{
     report::Report,
 };
 use anyhow::{Context, Result};
-use blended_mpm_api::T;
 use nalgebra::{UnitQuaternion, Vector3};
 use serde::{Deserialize, Serialize};
+use squishy_volumes_api::T;
 use tracing::info;
 
 use super::kinematic::{Kinematic, ScriptedMovement};

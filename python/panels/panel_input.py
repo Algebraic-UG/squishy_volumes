@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,11 +25,11 @@ from ..properties.util import (
     get_simulation_specific_settings,
     has_simulation_specific_settings,
 )
-from ..properties.blended_mpm_object_settings import (
+from ..properties.squishy_volumes_object_settings import (
     OBJECT_ENUM_COLLIDER,
     OBJECT_ENUM_FLUID,
     OBJECT_ENUM_SOLID,
-    Blended_MPM_Object_Settings,
+    Squishy_Volumes_Object_Settings,
     get_input_solids,
 )
 from ..bridge import (
@@ -51,7 +51,7 @@ from ..util import (
 )
 from ..popup import with_popup
 
-from ..properties.blended_mpm_object_settings import get_input_colliders
+from ..properties.squishy_volumes_object_settings import get_input_colliders
 
 
 def draw_object_settings(layout, settings):
@@ -105,15 +105,15 @@ def selection_eligible_for_input(context):
         and context.active_object.select_get()
         and context.active_object.type == "MESH"
         # This could be allowed?
-        and not context.active_object.blended_mpm_object.simulation_uuid
+        and not context.active_object.squishy_volumes_object.simulation_uuid
         and not has_simulation_specific_settings(
             get_selected_simulation(context), context.active_object
         )
     )
 
 
-class OBJECT_OT_Blended_MPM_Add_Input_Object(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_add_input_object"
+class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_add_input_object"
     bl_label = "Add Input Object"
     bl_description = """Add the selected mesh object to the list of inputs.
 
@@ -125,14 +125,16 @@ An active output object cannot be used as input.
 Note that an eligible object must be selected."""
     bl_options = {"REGISTER", "UNDO"}
 
-    settings: bpy.props.PointerProperty(type=Blended_MPM_Object_Settings)  # type: ignore
+    settings: bpy.props.PointerProperty(type=Squishy_Volumes_Object_Settings)  # type: ignore
 
     @classmethod
     def poll(cls, context):
         return selection_eligible_for_input(context)
 
     def execute(self, context):
-        settings = context.object.blended_mpm_object.simulation_specific_settings.add()
+        settings = (
+            context.object.squishy_volumes_object.simulation_specific_settings.add()
+        )
         copy_simple_property_group(self.settings, settings)
 
         simulation = get_selected_simulation(context)
@@ -172,8 +174,8 @@ Note that an eligible object must be selected."""
         tutorial_msg(self.layout, context, msg)
 
 
-class OBJECT_OT_Blended_MPM_Remove_Input_Object(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_remove_input_object"
+class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_remove_input_object"
     bl_label = "Remove"
     bl_description = """Remove the selected object from the list of inputs.
 
@@ -192,7 +194,7 @@ Note that this does not delete the object."""
         simulation = get_selected_simulation(context)
         obj = get_selected_input_object(context)
         simulation_specific_settings = (
-            obj.blended_mpm_object.simulation_specific_settings
+            obj.squishy_volumes_object.simulation_specific_settings
         )
         simulation_specific_settings.remove(
             [
@@ -207,8 +209,8 @@ Note that this does not delete the object."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Write_Input_To_Cache(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_write_input_to_cache"
+class OBJECT_OT_Squishy_Volumes_Write_Input_To_Cache(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_write_input_to_cache"
     bl_label = "Write to Cache"
     bl_description = """(Over)Write the cache with the new input.
 
@@ -221,7 +223,7 @@ Note that this also discards all computed frames in the cache."""
     @classmethod
     def poll(cls, context):
         simulation = get_selected_simulation(context)
-        return not context.scene.blended_mpm_scene.tutorial_active or (
+        return not context.scene.squishy_volumes_scene.tutorial_active or (
             get_input_solids(simulation) and get_input_colliders(simulation)
         )
 
@@ -255,8 +257,9 @@ Note that this also discards all computed frames in the cache."""
         return {"FINISHED"}
 
     def invoke(self, context, _):
-        if context.scene.blended_mpm_scene.tutorial_active or simulation_cache_exists(
-            get_selected_simulation(context)
+        if (
+            context.scene.squishy_volumes_scene.tutorial_active
+            or simulation_cache_exists(get_selected_simulation(context))
         ):
             return context.window_manager.invoke_props_dialog(self)
         else:
@@ -287,7 +290,7 @@ Note that this also discards all computed frames in the cache."""
         )
 
 
-class OBJECT_UL_Blended_MPM_Input_Object_List(bpy.types.UIList):
+class OBJECT_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
@@ -312,11 +315,11 @@ class OBJECT_UL_Blended_MPM_Input_Object_List(bpy.types.UIList):
         layout.label(text=obj.name)
 
 
-class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
+class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
     bl_label = "Input"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Squishy Volumes"
     bl_options = set()
 
     @classmethod
@@ -362,21 +365,21 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
 
         row = self.layout.row()
         row.column().template_list(
-            "OBJECT_UL_Blended_MPM_Input_Object_List",
+            "OBJECT_UL_Squishy_Volumes_Input_Object_List",
             "",
             bpy.data,
             "objects",
-            context.scene.blended_mpm_scene,
+            context.scene.squishy_volumes_scene,
             "selected_input_object",
         )
         list_controls = row.column(align=True)
         tut = list_controls.column()
-        tut.alert = context.scene.blended_mpm_scene.tutorial_active and (
+        tut.alert = context.scene.squishy_volumes_scene.tutorial_active and (
             not get_input_solids(simulation) or not get_input_colliders(simulation)
         )
-        tut.operator("object.blended_mpm_add_input_object", text="", icon="ADD")
+        tut.operator("object.squishy_volumes_add_input_object", text="", icon="ADD")
         list_controls.operator(
-            "object.blended_mpm_remove_input_object", text="", icon="REMOVE"
+            "object.squishy_volumes_remove_input_object", text="", icon="REMOVE"
         )
 
         if any([is_scripted(simulation, obj) for obj in get_input_objects(simulation)]):
@@ -387,13 +390,13 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
         row = self.layout.row()
         tut = row.column()
         tut.alert = bool(
-            context.scene.blended_mpm_scene.tutorial_active
+            context.scene.squishy_volumes_scene.tutorial_active
             and get_input_solids(simulation)
             and get_input_colliders(simulation)
             and not context_exists(simulation)
         )
         tut.operator(
-            "object.blended_mpm_write_input_to_cache",
+            "object.squishy_volumes_write_input_to_cache",
             text=(
                 "Overwrite Cache"
                 if simulation_cache_exists(simulation)
@@ -402,16 +405,16 @@ class OBJECT_PT_Blended_MPM_Input(bpy.types.Panel):
             icon="FILE_CACHE",
         )
         col = row.column()
-        col.enabled = not context.scene.blended_mpm_scene.tutorial_active
+        col.enabled = not context.scene.squishy_volumes_scene.tutorial_active
         col.prop(simulation, "immediately_start_baking")
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Add_Input_Object,
-    OBJECT_OT_Blended_MPM_Remove_Input_Object,
-    OBJECT_OT_Blended_MPM_Write_Input_To_Cache,
-    OBJECT_UL_Blended_MPM_Input_Object_List,
-    OBJECT_PT_Blended_MPM_Input,
+    OBJECT_OT_Squishy_Volumes_Add_Input_Object,
+    OBJECT_OT_Squishy_Volumes_Remove_Input_Object,
+    OBJECT_OT_Squishy_Volumes_Write_Input_To_Cache,
+    OBJECT_UL_Squishy_Volumes_Input_Object_List,
+    OBJECT_PT_Squishy_Volumes_Input,
 ]
 
 

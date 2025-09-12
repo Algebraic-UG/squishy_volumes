@@ -8,8 +8,8 @@
 
 use std::ops::{Add, Mul, Sub};
 
-use blended_mpm_api::T;
 use nalgebra::{Vector2, Vector3};
+use squishy_volumes_api::T;
 
 pub trait AabbVector:
     Add<Output = Self> + Sub<Output = Self> + Mul<T, Output = Self> + Sized + Clone + Copy

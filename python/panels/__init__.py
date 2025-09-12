@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@ def register_panels():
     register_panel_input()
     register_panel_bake()
     register_panel_output()
-    print("Blended MPM panels registered.")
+    print("Squishy Volumes panels registered.")
 
 
 def unregister_panels():
@@ -38,4 +38,4 @@ def unregister_panels():
     unregister_panel_input()
     unregister_panel_overview()
     unregister_panel_tutorial()
-    print("Blended MPM panels unregistered.")
+    print("Squishy Volumes panels unregistered.")

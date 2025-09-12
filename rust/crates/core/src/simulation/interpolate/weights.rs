@@ -6,8 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use blended_mpm_api::T;
 use nalgebra::Vector3;
+use squishy_volumes_api::T;
 
 pub fn kernel_linear(x: T) -> T {
     let x = x.abs();

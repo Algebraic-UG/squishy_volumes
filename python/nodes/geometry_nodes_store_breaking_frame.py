@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,57 +22,57 @@
 import bpy
 
 from ..magic_consts import (
-    BLENDED_MPM_BREAKING_FRAME,
-    BLENDED_MPM_COLLIDER_INSIDE,
-    BLENDED_MPM_INITIAL_LENGTH,
-    BLENDED_MPM_REFERENCE_INDEX,
-    BLENDED_MPM_REFERENCE_OFFSET,
-    BLENDED_MPM_TRANSFORM,
+    SQUISHY_VOLUMES_BREAKING_FRAME,
+    SQUISHY_VOLUMES_COLLIDER_INSIDE,
+    SQUISHY_VOLUMES_INITIAL_LENGTH,
+    SQUISHY_VOLUMES_REFERENCE_INDEX,
+    SQUISHY_VOLUMES_REFERENCE_OFFSET,
+    SQUISHY_VOLUMES_TRANSFORM,
 )
 
 
 def create_geometry_nodes_store_breaking_frame():
-    # initialize blended_mpm_change_of_basis node group
-    def blended_mpm_change_of_basis_node_group():
-        blended_mpm_change_of_basis = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Change of Basis"
+    # initialize squishy_volumes_change_of_basis node group
+    def squishy_volumes_change_of_basis_node_group():
+        squishy_volumes_change_of_basis = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Change of Basis"
         )
 
-        blended_mpm_change_of_basis.color_tag = "NONE"
-        blended_mpm_change_of_basis.description = ""
-        blended_mpm_change_of_basis.default_group_node_width = 140
+        squishy_volumes_change_of_basis.color_tag = "NONE"
+        squishy_volumes_change_of_basis.description = ""
+        squishy_volumes_change_of_basis.default_group_node_width = 140
 
-        # blended_mpm_change_of_basis interface
+        # squishy_volumes_change_of_basis interface
         # Socket Transform
-        transform_socket = blended_mpm_change_of_basis.interface.new_socket(
+        transform_socket = squishy_volumes_change_of_basis.interface.new_socket(
             name="Transform", in_out="OUTPUT", socket_type="NodeSocketMatrix"
         )
         transform_socket.attribute_domain = "POINT"
 
         # Socket Target Space Obj
-        target_space_obj_socket = blended_mpm_change_of_basis.interface.new_socket(
+        target_space_obj_socket = squishy_volumes_change_of_basis.interface.new_socket(
             name="Target Space Obj", in_out="INPUT", socket_type="NodeSocketObject"
         )
         target_space_obj_socket.attribute_domain = "POINT"
 
         # Socket Source Space Obj
-        source_space_obj_socket = blended_mpm_change_of_basis.interface.new_socket(
+        source_space_obj_socket = squishy_volumes_change_of_basis.interface.new_socket(
             name="Source Space Obj", in_out="INPUT", socket_type="NodeSocketObject"
         )
         source_space_obj_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_change_of_basis nodes
+        # initialize squishy_volumes_change_of_basis nodes
         # node Group Output
-        group_output = blended_mpm_change_of_basis.nodes.new("NodeGroupOutput")
+        group_output = squishy_volumes_change_of_basis.nodes.new("NodeGroupOutput")
         group_output.name = "Group Output"
         group_output.is_active_output = True
 
         # node Group Input
-        group_input = blended_mpm_change_of_basis.nodes.new("NodeGroupInput")
+        group_input = squishy_volumes_change_of_basis.nodes.new("NodeGroupInput")
         group_input.name = "Group Input"
 
         # node Object Info.002
-        object_info_002 = blended_mpm_change_of_basis.nodes.new(
+        object_info_002 = squishy_volumes_change_of_basis.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info_002.name = "Object Info.002"
@@ -81,7 +81,7 @@ def create_geometry_nodes_store_breaking_frame():
         object_info_002.inputs[1].default_value = False
 
         # node Object Info.005
-        object_info_005 = blended_mpm_change_of_basis.nodes.new(
+        object_info_005 = squishy_volumes_change_of_basis.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info_005.name = "Object Info.005"
@@ -90,13 +90,13 @@ def create_geometry_nodes_store_breaking_frame():
         object_info_005.inputs[1].default_value = False
 
         # node Multiply Matrices.003
-        multiply_matrices_003 = blended_mpm_change_of_basis.nodes.new(
+        multiply_matrices_003 = squishy_volumes_change_of_basis.nodes.new(
             "FunctionNodeMatrixMultiply"
         )
         multiply_matrices_003.name = "Multiply Matrices.003"
 
         # node Invert Matrix.002
-        invert_matrix_002 = blended_mpm_change_of_basis.nodes.new(
+        invert_matrix_002 = squishy_volumes_change_of_basis.nodes.new(
             "FunctionNodeInvertMatrix"
         )
         invert_matrix_002.name = "Invert Matrix.002"
@@ -117,84 +117,88 @@ def create_geometry_nodes_store_breaking_frame():
         multiply_matrices_003.width, multiply_matrices_003.height = 140.0, 100.0
         invert_matrix_002.width, invert_matrix_002.height = 140.0, 100.0
 
-        # initialize blended_mpm_change_of_basis links
+        # initialize squishy_volumes_change_of_basis links
         # invert_matrix_002.Matrix -> multiply_matrices_003.Matrix
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             invert_matrix_002.outputs[0], multiply_matrices_003.inputs[0]
         )
         # object_info_002.Transform -> invert_matrix_002.Matrix
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             object_info_002.outputs[0], invert_matrix_002.inputs[0]
         )
         # object_info_005.Transform -> multiply_matrices_003.Matrix
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             object_info_005.outputs[0], multiply_matrices_003.inputs[1]
         )
         # group_input.Target Space Obj -> object_info_002.Object
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             group_input.outputs[0], object_info_002.inputs[0]
         )
         # group_input.Source Space Obj -> object_info_005.Object
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             group_input.outputs[1], object_info_005.inputs[0]
         )
         # multiply_matrices_003.Matrix -> group_output.Transform
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             multiply_matrices_003.outputs[0], group_output.inputs[0]
         )
-        return blended_mpm_change_of_basis
+        return squishy_volumes_change_of_basis
 
-    blended_mpm_change_of_basis = blended_mpm_change_of_basis_node_group()
+    squishy_volumes_change_of_basis = squishy_volumes_change_of_basis_node_group()
 
-    # initialize blended_mpm_move_with_reference node group
-    def blended_mpm_move_with_reference_node_group():
-        blended_mpm_move_with_reference = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Move With Reference"
+    # initialize squishy_volumes_move_with_reference node group
+    def squishy_volumes_move_with_reference_node_group():
+        squishy_volumes_move_with_reference = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Move With Reference"
         )
 
-        blended_mpm_move_with_reference.color_tag = "NONE"
-        blended_mpm_move_with_reference.description = ""
-        blended_mpm_move_with_reference.default_group_node_width = 140
+        squishy_volumes_move_with_reference.color_tag = "NONE"
+        squishy_volumes_move_with_reference.description = ""
+        squishy_volumes_move_with_reference.default_group_node_width = 140
 
-        blended_mpm_move_with_reference.is_modifier = True
+        squishy_volumes_move_with_reference.is_modifier = True
 
-        # blended_mpm_move_with_reference interface
+        # squishy_volumes_move_with_reference interface
         # Socket Geometry
-        geometry_socket = blended_mpm_move_with_reference.interface.new_socket(
+        geometry_socket = squishy_volumes_move_with_reference.interface.new_socket(
             name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_1 = blended_mpm_move_with_reference.interface.new_socket(
+        geometry_socket_1 = squishy_volumes_move_with_reference.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_1.attribute_domain = "POINT"
 
-        # Socket Blended MPM Particles
-        blended_mpm_particles_socket = (
-            blended_mpm_move_with_reference.interface.new_socket(
-                name="Blended MPM Particles",
+        # Socket Squishy Volumes Particles
+        squishy_volumes_particles_socket = (
+            squishy_volumes_move_with_reference.interface.new_socket(
+                name="Squishy Volumes Particles",
                 in_out="INPUT",
                 socket_type="NodeSocketObject",
             )
         )
-        blended_mpm_particles_socket.attribute_domain = "POINT"
+        squishy_volumes_particles_socket.attribute_domain = "POINT"
 
         # Socket Visible Transform
-        visible_transform_socket = blended_mpm_move_with_reference.interface.new_socket(
-            name="Visible Transform", in_out="INPUT", socket_type="NodeSocketMenu"
+        visible_transform_socket = (
+            squishy_volumes_move_with_reference.interface.new_socket(
+                name="Visible Transform", in_out="INPUT", socket_type="NodeSocketMenu"
+            )
         )
         visible_transform_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_move_with_reference nodes
+        # initialize squishy_volumes_move_with_reference nodes
         # node Group Output
-        group_output_1 = blended_mpm_move_with_reference.nodes.new("NodeGroupOutput")
+        group_output_1 = squishy_volumes_move_with_reference.nodes.new(
+            "NodeGroupOutput"
+        )
         group_output_1.name = "Group Output"
         group_output_1.is_active_output = True
 
         # node Set Position
-        set_position = blended_mpm_move_with_reference.nodes.new(
+        set_position = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeSetPosition"
         )
         set_position.name = "Set Position"
@@ -204,25 +208,25 @@ def create_geometry_nodes_store_breaking_frame():
         set_position.inputs[3].default_value = (0.0, 0.0, 0.0)
 
         # node Named Attribute
-        named_attribute = blended_mpm_move_with_reference.nodes.new(
+        named_attribute = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute.name = "Named Attribute"
         named_attribute.data_type = "INT"
         # Name
-        named_attribute.inputs[0].default_value = BLENDED_MPM_REFERENCE_INDEX
+        named_attribute.inputs[0].default_value = SQUISHY_VOLUMES_REFERENCE_INDEX
 
         # node Named Attribute.002
-        named_attribute_002 = blended_mpm_move_with_reference.nodes.new(
+        named_attribute_002 = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_002.name = "Named Attribute.002"
         named_attribute_002.data_type = "FLOAT_VECTOR"
         # Name
-        named_attribute_002.inputs[0].default_value = BLENDED_MPM_REFERENCE_OFFSET
+        named_attribute_002.inputs[0].default_value = SQUISHY_VOLUMES_REFERENCE_OFFSET
 
         # node Object Info
-        object_info = blended_mpm_move_with_reference.nodes.new(
+        object_info = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info.name = "Object Info"
@@ -231,7 +235,7 @@ def create_geometry_nodes_store_breaking_frame():
         object_info.inputs[1].default_value = False
 
         # node Sample Index
-        sample_index = blended_mpm_move_with_reference.nodes.new(
+        sample_index = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index.name = "Sample Index"
@@ -240,53 +244,57 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index.domain = "POINT"
 
         # node Named Attribute.001
-        named_attribute_001 = blended_mpm_move_with_reference.nodes.new(
+        named_attribute_001 = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_001.name = "Named Attribute.001"
         named_attribute_001.data_type = "FLOAT4X4"
         # Name
-        named_attribute_001.inputs[0].default_value = BLENDED_MPM_TRANSFORM
+        named_attribute_001.inputs[0].default_value = SQUISHY_VOLUMES_TRANSFORM
 
         # node Transform Point
-        transform_point = blended_mpm_move_with_reference.nodes.new(
+        transform_point = squishy_volumes_move_with_reference.nodes.new(
             "FunctionNodeTransformPoint"
         )
         transform_point.name = "Transform Point"
 
         # node Self Object
-        self_object = blended_mpm_move_with_reference.nodes.new(
+        self_object = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeSelfObject"
         )
         self_object.name = "Self Object"
 
         # node Transform Point.001
-        transform_point_001 = blended_mpm_move_with_reference.nodes.new(
+        transform_point_001 = squishy_volumes_move_with_reference.nodes.new(
             "FunctionNodeTransformPoint"
         )
         transform_point_001.name = "Transform Point.001"
 
-        # node Blended MPM Change of Basis.001
-        blended_mpm_change_of_basis_001 = blended_mpm_move_with_reference.nodes.new(
-            "GeometryNodeGroup"
+        # node Squishy Volumes Change of Basis.001
+        squishy_volumes_change_of_basis_001 = (
+            squishy_volumes_move_with_reference.nodes.new("GeometryNodeGroup")
         )
-        blended_mpm_change_of_basis_001.name = "Blended MPM Change of Basis.001"
-        blended_mpm_change_of_basis_001.node_tree = blended_mpm_change_of_basis
+        squishy_volumes_change_of_basis_001.name = "Squishy Volumes Change of Basis.001"
+        squishy_volumes_change_of_basis_001.node_tree = squishy_volumes_change_of_basis
 
         # node Group Input
-        group_input_1 = blended_mpm_move_with_reference.nodes.new("NodeGroupInput")
+        group_input_1 = squishy_volumes_move_with_reference.nodes.new("NodeGroupInput")
         group_input_1.name = "Group Input"
 
         # node Group Input.001
-        group_input_001 = blended_mpm_move_with_reference.nodes.new("NodeGroupInput")
+        group_input_001 = squishy_volumes_move_with_reference.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_001.name = "Group Input.001"
 
         # node Group Input.002
-        group_input_002 = blended_mpm_move_with_reference.nodes.new("NodeGroupInput")
+        group_input_002 = squishy_volumes_move_with_reference.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_002.name = "Group Input.002"
 
         # node Menu Switch
-        menu_switch = blended_mpm_move_with_reference.nodes.new(
+        menu_switch = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeMenuSwitch"
         )
         menu_switch.name = "Menu Switch"
@@ -309,7 +317,7 @@ def create_geometry_nodes_store_breaking_frame():
         transform_point.location = (-280.0, -40.0)
         self_object.location = (-600.0, -400.0)
         transform_point_001.location = (40.0, -180.0)
-        blended_mpm_change_of_basis_001.location = (-400.0, -380.0)
+        squishy_volumes_change_of_basis_001.location = (-400.0, -380.0)
         group_input_1.location = (-1080.0, -40.0)
         group_input_001.location = (-640.0, -480.0)
         group_input_002.location = (120.0, 100.0)
@@ -327,145 +335,153 @@ def create_geometry_nodes_store_breaking_frame():
         self_object.width, self_object.height = 140.0, 100.0
         transform_point_001.width, transform_point_001.height = 140.0, 100.0
         (
-            blended_mpm_change_of_basis_001.width,
-            blended_mpm_change_of_basis_001.height,
-        ) = 300.0, 100.0
+            squishy_volumes_change_of_basis_001.width,
+            squishy_volumes_change_of_basis_001.height,
+        ) = (
+            300.0,
+            100.0,
+        )
         group_input_1.width, group_input_1.height = 180.0, 100.0
         group_input_001.width, group_input_001.height = 180.0, 100.0
         group_input_002.width, group_input_002.height = 180.0, 100.0
         menu_switch.width, menu_switch.height = 140.0, 100.0
 
-        # initialize blended_mpm_move_with_reference links
+        # initialize squishy_volumes_move_with_reference links
         # set_position.Geometry -> group_output_1.Geometry
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             set_position.outputs[0], group_output_1.inputs[0]
         )
         # sample_index.Value -> transform_point.Transform
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             sample_index.outputs[0], transform_point.inputs[1]
         )
         # named_attribute_001.Attribute -> sample_index.Value
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             named_attribute_001.outputs[0], sample_index.inputs[1]
         )
         # object_info.Geometry -> sample_index.Geometry
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             object_info.outputs[4], sample_index.inputs[0]
         )
         # named_attribute_002.Attribute -> transform_point.Vector
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             named_attribute_002.outputs[0], transform_point.inputs[0]
         )
-        # self_object.Self Object -> blended_mpm_change_of_basis_001.Target Space Obj
-        blended_mpm_move_with_reference.links.new(
-            self_object.outputs[0], blended_mpm_change_of_basis_001.inputs[0]
+        # self_object.Self Object -> squishy_volumes_change_of_basis_001.Target Space Obj
+        squishy_volumes_move_with_reference.links.new(
+            self_object.outputs[0], squishy_volumes_change_of_basis_001.inputs[0]
         )
-        # blended_mpm_change_of_basis_001.Transform -> transform_point_001.Transform
-        blended_mpm_move_with_reference.links.new(
-            blended_mpm_change_of_basis_001.outputs[0], transform_point_001.inputs[1]
+        # squishy_volumes_change_of_basis_001.Transform -> transform_point_001.Transform
+        squishy_volumes_move_with_reference.links.new(
+            squishy_volumes_change_of_basis_001.outputs[0],
+            transform_point_001.inputs[1],
         )
         # transform_point.Vector -> transform_point_001.Vector
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             transform_point.outputs[0], transform_point_001.inputs[0]
         )
         # named_attribute.Attribute -> sample_index.Index
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             named_attribute.outputs[0], sample_index.inputs[2]
         )
-        # group_input_1.Blended MPM Particles -> object_info.Object
-        blended_mpm_move_with_reference.links.new(
+        # group_input_1.Squishy Volumes Particles -> object_info.Object
+        squishy_volumes_move_with_reference.links.new(
             group_input_1.outputs[1], object_info.inputs[0]
         )
-        # group_input_001.Blended MPM Particles -> blended_mpm_change_of_basis_001.Source Space Obj
-        blended_mpm_move_with_reference.links.new(
-            group_input_001.outputs[1], blended_mpm_change_of_basis_001.inputs[1]
+        # group_input_001.Squishy Volumes Particles -> squishy_volumes_change_of_basis_001.Source Space Obj
+        squishy_volumes_move_with_reference.links.new(
+            group_input_001.outputs[1], squishy_volumes_change_of_basis_001.inputs[1]
         )
         # group_input_002.Geometry -> set_position.Geometry
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             group_input_002.outputs[0], set_position.inputs[0]
         )
         # group_input_002.Visible Transform -> menu_switch.Menu
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             group_input_002.outputs[2], menu_switch.inputs[0]
         )
         # menu_switch.Output -> set_position.Position
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             menu_switch.outputs[0], set_position.inputs[2]
         )
         # transform_point.Vector -> menu_switch.Self Object
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             transform_point.outputs[0], menu_switch.inputs[1]
         )
         # transform_point_001.Vector -> menu_switch.Particle Object
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             transform_point_001.outputs[0], menu_switch.inputs[2]
         )
-        return blended_mpm_move_with_reference
+        return squishy_volumes_move_with_reference
 
-    blended_mpm_move_with_reference = blended_mpm_move_with_reference_node_group()
+    squishy_volumes_move_with_reference = (
+        squishy_volumes_move_with_reference_node_group()
+    )
 
-    # initialize blended_mpm_store_breaking_frame node group
-    def blended_mpm_store_breaking_frame_node_group():
-        blended_mpm_store_breaking_frame = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Store Breaking Frame"
+    # initialize squishy_volumes_store_breaking_frame node group
+    def squishy_volumes_store_breaking_frame_node_group():
+        squishy_volumes_store_breaking_frame = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Store Breaking Frame"
         )
 
-        blended_mpm_store_breaking_frame.color_tag = "NONE"
-        blended_mpm_store_breaking_frame.description = ""
-        blended_mpm_store_breaking_frame.default_group_node_width = 140
+        squishy_volumes_store_breaking_frame.color_tag = "NONE"
+        squishy_volumes_store_breaking_frame.description = ""
+        squishy_volumes_store_breaking_frame.default_group_node_width = 140
 
-        blended_mpm_store_breaking_frame.is_modifier = True
-        blended_mpm_store_breaking_frame.is_tool = True
-        blended_mpm_store_breaking_frame.is_mode_object = False
-        blended_mpm_store_breaking_frame.is_mode_edit = False
-        blended_mpm_store_breaking_frame.is_mode_sculpt = False
-        blended_mpm_store_breaking_frame.is_type_curve = False
-        blended_mpm_store_breaking_frame.is_type_mesh = False
+        squishy_volumes_store_breaking_frame.is_modifier = True
+        squishy_volumes_store_breaking_frame.is_tool = True
+        squishy_volumes_store_breaking_frame.is_mode_object = False
+        squishy_volumes_store_breaking_frame.is_mode_edit = False
+        squishy_volumes_store_breaking_frame.is_mode_sculpt = False
+        squishy_volumes_store_breaking_frame.is_type_curve = False
+        squishy_volumes_store_breaking_frame.is_type_mesh = False
 
-        # blended_mpm_store_breaking_frame interface
+        # squishy_volumes_store_breaking_frame interface
         # Socket Geometry
-        geometry_socket_2 = blended_mpm_store_breaking_frame.interface.new_socket(
+        geometry_socket_2 = squishy_volumes_store_breaking_frame.interface.new_socket(
             name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_2.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_3 = blended_mpm_store_breaking_frame.interface.new_socket(
+        geometry_socket_3 = squishy_volumes_store_breaking_frame.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_3.attribute_domain = "POINT"
 
         # Socket Num Colliders
-        num_colliders_socket = blended_mpm_store_breaking_frame.interface.new_socket(
-            name="Num Colliders", in_out="INPUT", socket_type="NodeSocketInt"
+        num_colliders_socket = (
+            squishy_volumes_store_breaking_frame.interface.new_socket(
+                name="Num Colliders", in_out="INPUT", socket_type="NodeSocketInt"
+            )
         )
         num_colliders_socket.subtype = "NONE"
         num_colliders_socket.attribute_domain = "POINT"
 
         # Socket Particles
-        particles_socket = blended_mpm_store_breaking_frame.interface.new_socket(
+        particles_socket = squishy_volumes_store_breaking_frame.interface.new_socket(
             name="Particles", in_out="INPUT", socket_type="NodeSocketObject"
         )
         particles_socket.attribute_domain = "POINT"
 
         # Socket Dilation Threshold
         dilation_threshold_socket = (
-            blended_mpm_store_breaking_frame.interface.new_socket(
+            squishy_volumes_store_breaking_frame.interface.new_socket(
                 name="Dilation Threshold", in_out="INPUT", socket_type="NodeSocketFloat"
             )
         )
         dilation_threshold_socket.subtype = "NONE"
         dilation_threshold_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_store_breaking_frame nodes
+        # initialize squishy_volumes_store_breaking_frame nodes
         # node Edge Vertices
-        edge_vertices = blended_mpm_store_breaking_frame.nodes.new(
+        edge_vertices = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputMeshEdgeVertices"
         )
         edge_vertices.name = "Edge Vertices"
 
         # node Sample Index.002
-        sample_index_002 = blended_mpm_store_breaking_frame.nodes.new(
+        sample_index_002 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index_002.name = "Sample Index.002"
@@ -474,11 +490,13 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index_002.domain = "POINT"
 
         # node Group Input.001
-        group_input_001_1 = blended_mpm_store_breaking_frame.nodes.new("NodeGroupInput")
+        group_input_001_1 = squishy_volumes_store_breaking_frame.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_001_1.name = "Group Input.001"
 
         # node Sample Index.003
-        sample_index_003 = blended_mpm_store_breaking_frame.nodes.new(
+        sample_index_003 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index_003.name = "Sample Index.003"
@@ -487,22 +505,22 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index_003.domain = "POINT"
 
         # node Named Attribute.004
-        named_attribute_004 = blended_mpm_store_breaking_frame.nodes.new(
+        named_attribute_004 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_004.name = "Named Attribute.004"
         named_attribute_004.data_type = "INT"
         # Name
-        named_attribute_004.inputs[0].default_value = BLENDED_MPM_REFERENCE_INDEX
+        named_attribute_004.inputs[0].default_value = SQUISHY_VOLUMES_REFERENCE_INDEX
 
         # node Math
-        math = blended_mpm_store_breaking_frame.nodes.new("ShaderNodeMath")
+        math = squishy_volumes_store_breaking_frame.nodes.new("ShaderNodeMath")
         math.name = "Math"
         math.operation = "MULTIPLY"
         math.use_clamp = False
 
         # node Math.001
-        math_001 = blended_mpm_store_breaking_frame.nodes.new("ShaderNodeMath")
+        math_001 = squishy_volumes_store_breaking_frame.nodes.new("ShaderNodeMath")
         math_001.name = "Math.001"
         math_001.operation = "LESS_THAN"
         math_001.use_clamp = False
@@ -510,34 +528,36 @@ def create_geometry_nodes_store_breaking_frame():
         math_001.inputs[1].default_value = 0.0
 
         # node Store Named Attribute
-        store_named_attribute = blended_mpm_store_breaking_frame.nodes.new(
+        store_named_attribute = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeStoreNamedAttribute"
         )
         store_named_attribute.name = "Store Named Attribute"
         store_named_attribute.data_type = "INT"
         store_named_attribute.domain = "EDGE"
         # Name
-        store_named_attribute.inputs[2].default_value = BLENDED_MPM_BREAKING_FRAME
+        store_named_attribute.inputs[2].default_value = SQUISHY_VOLUMES_BREAKING_FRAME
 
         # node Scene Time.001
-        scene_time_001 = blended_mpm_store_breaking_frame.nodes.new(
+        scene_time_001 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputSceneTime"
         )
         scene_time_001.name = "Scene Time.001"
         scene_time_001.outputs[0].hide = True
 
         # node Group Output
-        group_output_2 = blended_mpm_store_breaking_frame.nodes.new("NodeGroupOutput")
+        group_output_2 = squishy_volumes_store_breaking_frame.nodes.new(
+            "NodeGroupOutput"
+        )
         group_output_2.name = "Group Output"
         group_output_2.is_active_output = True
 
         # node Repeat Input
-        repeat_input = blended_mpm_store_breaking_frame.nodes.new(
+        repeat_input = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeRepeatInput"
         )
         repeat_input.name = "Repeat Input"
         # node Repeat Output
-        repeat_output = blended_mpm_store_breaking_frame.nodes.new(
+        repeat_output = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeRepeatOutput"
         )
         repeat_output.name = "Repeat Output"
@@ -548,78 +568,80 @@ def create_geometry_nodes_store_breaking_frame():
         repeat_output.repeat_items.new("BOOLEAN", "Value")
 
         # node Boolean Math
-        boolean_math = blended_mpm_store_breaking_frame.nodes.new(
+        boolean_math = squishy_volumes_store_breaking_frame.nodes.new(
             "FunctionNodeBooleanMath"
         )
         boolean_math.name = "Boolean Math"
         boolean_math.operation = "OR"
 
         # node Frame
-        frame = blended_mpm_store_breaking_frame.nodes.new("NodeFrame")
+        frame = squishy_volumes_store_breaking_frame.nodes.new("NodeFrame")
         frame.label = "Edge broken bc. of some collider?"
         frame.name = "Frame"
         frame.label_size = 20
         frame.shrink = True
 
         # node Named Attribute
-        named_attribute_1 = blended_mpm_store_breaking_frame.nodes.new(
+        named_attribute_1 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_1.name = "Named Attribute"
         named_attribute_1.data_type = "FLOAT"
         # Name
-        named_attribute_1.inputs[0].default_value = BLENDED_MPM_INITIAL_LENGTH
+        named_attribute_1.inputs[0].default_value = SQUISHY_VOLUMES_INITIAL_LENGTH
 
         # node Edge Vertices.002
-        edge_vertices_002 = blended_mpm_store_breaking_frame.nodes.new(
+        edge_vertices_002 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputMeshEdgeVertices"
         )
         edge_vertices_002.name = "Edge Vertices.002"
 
         # node Vector Math
-        vector_math = blended_mpm_store_breaking_frame.nodes.new("ShaderNodeVectorMath")
+        vector_math = squishy_volumes_store_breaking_frame.nodes.new(
+            "ShaderNodeVectorMath"
+        )
         vector_math.name = "Vector Math"
         vector_math.operation = "SUBTRACT"
 
         # node Vector Math.001
-        vector_math_001 = blended_mpm_store_breaking_frame.nodes.new(
+        vector_math_001 = squishy_volumes_store_breaking_frame.nodes.new(
             "ShaderNodeVectorMath"
         )
         vector_math_001.name = "Vector Math.001"
         vector_math_001.operation = "LENGTH"
 
         # node Math.002
-        math_002 = blended_mpm_store_breaking_frame.nodes.new("ShaderNodeMath")
+        math_002 = squishy_volumes_store_breaking_frame.nodes.new("ShaderNodeMath")
         math_002.name = "Math.002"
         math_002.operation = "MULTIPLY"
         math_002.use_clamp = False
 
         # node Group Input
-        group_input_2 = blended_mpm_store_breaking_frame.nodes.new("NodeGroupInput")
+        group_input_2 = squishy_volumes_store_breaking_frame.nodes.new("NodeGroupInput")
         group_input_2.name = "Group Input"
 
         # node Math.003
-        math_003 = blended_mpm_store_breaking_frame.nodes.new("ShaderNodeMath")
+        math_003 = squishy_volumes_store_breaking_frame.nodes.new("ShaderNodeMath")
         math_003.name = "Math.003"
         math_003.operation = "GREATER_THAN"
         math_003.use_clamp = False
 
         # node Frame.001
-        frame_001 = blended_mpm_store_breaking_frame.nodes.new("NodeFrame")
+        frame_001 = squishy_volumes_store_breaking_frame.nodes.new("NodeFrame")
         frame_001.label = "Edge broken bc. of dilation?"
         frame_001.name = "Frame.001"
         frame_001.label_size = 20
         frame_001.shrink = True
 
         # node Boolean Math.001
-        boolean_math_001 = blended_mpm_store_breaking_frame.nodes.new(
+        boolean_math_001 = squishy_volumes_store_breaking_frame.nodes.new(
             "FunctionNodeBooleanMath"
         )
         boolean_math_001.name = "Boolean Math.001"
         boolean_math_001.operation = "OR"
 
         # node Sample Index.004
-        sample_index_004 = blended_mpm_store_breaking_frame.nodes.new(
+        sample_index_004 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index_004.name = "Sample Index.004"
@@ -628,14 +650,14 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index_004.domain = "POINT"
 
         # node Named Attribute.003
-        named_attribute_003 = blended_mpm_store_breaking_frame.nodes.new(
+        named_attribute_003 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_003.name = "Named Attribute.003"
         named_attribute_003.data_type = "FLOAT"
 
         # node Object Info.001
-        object_info_001 = blended_mpm_store_breaking_frame.nodes.new(
+        object_info_001 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info_001.name = "Object Info.001"
@@ -645,19 +667,21 @@ def create_geometry_nodes_store_breaking_frame():
         object_info_001.inputs[1].default_value = False
 
         # node String
-        string = blended_mpm_store_breaking_frame.nodes.new("FunctionNodeInputString")
+        string = squishy_volumes_store_breaking_frame.nodes.new(
+            "FunctionNodeInputString"
+        )
         string.name = "String"
-        string.string = BLENDED_MPM_COLLIDER_INSIDE
+        string.string = SQUISHY_VOLUMES_COLLIDER_INSIDE
 
         # node Value to String
-        value_to_string = blended_mpm_store_breaking_frame.nodes.new(
+        value_to_string = squishy_volumes_store_breaking_frame.nodes.new(
             "FunctionNodeValueToString"
         )
         value_to_string.name = "Value to String"
         value_to_string.data_type = "INT"
 
         # node Join Strings
-        join_strings = blended_mpm_store_breaking_frame.nodes.new(
+        join_strings = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeStringJoin"
         )
         join_strings.name = "Join Strings"
@@ -665,11 +689,13 @@ def create_geometry_nodes_store_breaking_frame():
         join_strings.inputs[0].default_value = "_"
 
         # node Group Input.003
-        group_input_003 = blended_mpm_store_breaking_frame.nodes.new("NodeGroupInput")
+        group_input_003 = squishy_volumes_store_breaking_frame.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_003.name = "Group Input.003"
 
         # node Sample Index.005
-        sample_index_005 = blended_mpm_store_breaking_frame.nodes.new(
+        sample_index_005 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index_005.name = "Sample Index.005"
@@ -678,32 +704,38 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index_005.domain = "POINT"
 
         # node Reroute
-        reroute = blended_mpm_store_breaking_frame.nodes.new("NodeReroute")
+        reroute = squishy_volumes_store_breaking_frame.nodes.new("NodeReroute")
         reroute.name = "Reroute"
         reroute.socket_idname = "NodeSocketFloat"
         # node Reroute.001
-        reroute_001 = blended_mpm_store_breaking_frame.nodes.new("NodeReroute")
+        reroute_001 = squishy_volumes_store_breaking_frame.nodes.new("NodeReroute")
         reroute_001.name = "Reroute.001"
         reroute_001.socket_idname = "NodeSocketFloat"
         # node Reroute.002
-        reroute_002 = blended_mpm_store_breaking_frame.nodes.new("NodeReroute")
+        reroute_002 = squishy_volumes_store_breaking_frame.nodes.new("NodeReroute")
         reroute_002.name = "Reroute.002"
         reroute_002.socket_idname = "NodeSocketGeometry"
         # node Group Input.002
-        group_input_002_1 = blended_mpm_store_breaking_frame.nodes.new("NodeGroupInput")
+        group_input_002_1 = squishy_volumes_store_breaking_frame.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_002_1.name = "Group Input.002"
 
-        # node Blended MPM Move With Reference
-        blended_mpm_move_with_reference_1 = blended_mpm_store_breaking_frame.nodes.new(
-            "GeometryNodeGroup"
+        # node Squishy Volumes Move With Reference
+        squishy_volumes_move_with_reference_1 = (
+            squishy_volumes_store_breaking_frame.nodes.new("GeometryNodeGroup")
         )
-        blended_mpm_move_with_reference_1.name = "Blended MPM Move With Reference"
-        blended_mpm_move_with_reference_1.node_tree = blended_mpm_move_with_reference
+        squishy_volumes_move_with_reference_1.name = (
+            "Squishy Volumes Move With Reference"
+        )
+        squishy_volumes_move_with_reference_1.node_tree = (
+            squishy_volumes_move_with_reference
+        )
         # Socket_3
-        blended_mpm_move_with_reference_1.inputs[2].default_value = "Self Object"
+        squishy_volumes_move_with_reference_1.inputs[2].default_value = "Self Object"
 
         # node Sample Index
-        sample_index_1 = blended_mpm_store_breaking_frame.nodes.new(
+        sample_index_1 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index_1.name = "Sample Index"
@@ -712,13 +744,13 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index_1.domain = "POINT"
 
         # node Position
-        position = blended_mpm_store_breaking_frame.nodes.new(
+        position = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputPosition"
         )
         position.name = "Position"
 
         # node Sample Index.001
-        sample_index_001 = blended_mpm_store_breaking_frame.nodes.new(
+        sample_index_001 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index_001.name = "Sample Index.001"
@@ -727,33 +759,35 @@ def create_geometry_nodes_store_breaking_frame():
         sample_index_001.domain = "POINT"
 
         # node Group Input.004
-        group_input_004 = blended_mpm_store_breaking_frame.nodes.new("NodeGroupInput")
+        group_input_004 = squishy_volumes_store_breaking_frame.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_004.name = "Group Input.004"
 
         # node Named Attribute.001
-        named_attribute_001_1 = blended_mpm_store_breaking_frame.nodes.new(
+        named_attribute_001_1 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_001_1.name = "Named Attribute.001"
         named_attribute_001_1.data_type = "INT"
         # Name
-        named_attribute_001_1.inputs[0].default_value = BLENDED_MPM_BREAKING_FRAME
+        named_attribute_001_1.inputs[0].default_value = SQUISHY_VOLUMES_BREAKING_FRAME
 
         # node Math.005
-        math_005 = blended_mpm_store_breaking_frame.nodes.new("ShaderNodeMath")
+        math_005 = squishy_volumes_store_breaking_frame.nodes.new("ShaderNodeMath")
         math_005.name = "Math.005"
         math_005.operation = "LESS_THAN"
         math_005.use_clamp = False
 
         # node Boolean Math.002
-        boolean_math_002 = blended_mpm_store_breaking_frame.nodes.new(
+        boolean_math_002 = squishy_volumes_store_breaking_frame.nodes.new(
             "FunctionNodeBooleanMath"
         )
         boolean_math_002.name = "Boolean Math.002"
         boolean_math_002.operation = "AND"
 
         # node Scene Time.002
-        scene_time_002 = blended_mpm_store_breaking_frame.nodes.new(
+        scene_time_002 = squishy_volumes_store_breaking_frame.nodes.new(
             "GeometryNodeInputSceneTime"
         )
         scene_time_002.name = "Scene Time.002"
@@ -794,7 +828,7 @@ def create_geometry_nodes_store_breaking_frame():
         reroute_001.parent = frame
         reroute_002.parent = frame
         group_input_002_1.parent = frame_001
-        blended_mpm_move_with_reference_1.parent = frame_001
+        squishy_volumes_move_with_reference_1.parent = frame_001
         sample_index_1.parent = frame_001
         position.parent = frame_001
         sample_index_001.parent = frame_001
@@ -835,7 +869,7 @@ def create_geometry_nodes_store_breaking_frame():
         reroute_001.location = (890.0, -416.0)
         reroute_002.location = (890.0, -376.0)
         group_input_002_1.location = (30.0, -56.0)
-        blended_mpm_move_with_reference_1.location = (210.0, -56.0)
+        squishy_volumes_move_with_reference_1.location = (210.0, -56.0)
         sample_index_1.location = (590.0, -56.0)
         position.location = (210.0, -216.0)
         sample_index_001.location = (590.0, -276.0)
@@ -882,9 +916,12 @@ def create_geometry_nodes_store_breaking_frame():
         reroute_002.width, reroute_002.height = 10.0, 100.0
         group_input_002_1.width, group_input_002_1.height = 140.0, 100.0
         (
-            blended_mpm_move_with_reference_1.width,
-            blended_mpm_move_with_reference_1.height,
-        ) = 320.0, 100.0
+            squishy_volumes_move_with_reference_1.width,
+            squishy_volumes_move_with_reference_1.height,
+        ) = (
+            320.0,
+            100.0,
+        )
         sample_index_1.width, sample_index_1.height = 140.0, 100.0
         position.width, position.height = 140.0, 100.0
         sample_index_001.width, sample_index_001.height = 140.0, 100.0
@@ -894,213 +931,217 @@ def create_geometry_nodes_store_breaking_frame():
         boolean_math_002.width, boolean_math_002.height = 140.0, 100.0
         scene_time_002.width, scene_time_002.height = 140.0, 100.0
 
-        # initialize blended_mpm_store_breaking_frame links
+        # initialize squishy_volumes_store_breaking_frame links
         # group_input_001_1.Geometry -> sample_index_002.Geometry
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             group_input_001_1.outputs[0], sample_index_002.inputs[0]
         )
         # edge_vertices.Vertex Index 1 -> sample_index_002.Index
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             edge_vertices.outputs[0], sample_index_002.inputs[2]
         )
         # named_attribute_004.Attribute -> sample_index_003.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             named_attribute_004.outputs[0], sample_index_003.inputs[1]
         )
         # named_attribute_004.Attribute -> sample_index_002.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             named_attribute_004.outputs[0], sample_index_002.inputs[1]
         )
         # edge_vertices.Vertex Index 2 -> sample_index_003.Index
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             edge_vertices.outputs[1], sample_index_003.inputs[2]
         )
         # group_input_001_1.Geometry -> sample_index_003.Geometry
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             group_input_001_1.outputs[0], sample_index_003.inputs[0]
         )
         # math.Value -> math_001.Value
-        blended_mpm_store_breaking_frame.links.new(math.outputs[0], math_001.inputs[0])
+        squishy_volumes_store_breaking_frame.links.new(
+            math.outputs[0], math_001.inputs[0]
+        )
         # boolean_math.Boolean -> repeat_output.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             boolean_math.outputs[0], repeat_output.inputs[0]
         )
         # math_001.Value -> boolean_math.Boolean
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             math_001.outputs[0], boolean_math.inputs[1]
         )
         # repeat_input.Value -> boolean_math.Boolean
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             repeat_input.outputs[1], boolean_math.inputs[0]
         )
         # named_attribute_1.Attribute -> math_002.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             named_attribute_1.outputs[0], math_002.inputs[0]
         )
         # group_input_2.Dilation Threshold -> math_002.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             group_input_2.outputs[3], math_002.inputs[1]
         )
         # vector_math_001.Value -> math_003.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             vector_math_001.outputs[1], math_003.inputs[0]
         )
         # math_002.Value -> math_003.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             math_002.outputs[0], math_003.inputs[1]
         )
         # repeat_output.Value -> boolean_math_001.Boolean
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             repeat_output.outputs[0], boolean_math_001.inputs[1]
         )
         # store_named_attribute.Geometry -> group_output_2.Geometry
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             store_named_attribute.outputs[0], group_output_2.inputs[0]
         )
         # sample_index_003.Value -> sample_index_004.Index
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             sample_index_003.outputs[0], sample_index_004.inputs[2]
         )
         # value_to_string.String -> join_strings.Strings
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             value_to_string.outputs[0], join_strings.inputs[1]
         )
         # join_strings.String -> named_attribute_003.Name
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             join_strings.outputs[0], named_attribute_003.inputs[0]
         )
         # repeat_input.Iteration -> value_to_string.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             repeat_input.outputs[0], value_to_string.inputs[0]
         )
         # sample_index_004.Value -> math.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             sample_index_004.outputs[0], math.inputs[1]
         )
         # group_input_003.Num Colliders -> repeat_input.Iterations
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             group_input_003.outputs[1], repeat_input.inputs[0]
         )
         # group_input_003.Particles -> object_info_001.Object
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             group_input_003.outputs[2], object_info_001.inputs[0]
         )
         # sample_index_002.Value -> sample_index_005.Index
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             sample_index_002.outputs[0], sample_index_005.inputs[2]
         )
         # sample_index_005.Value -> math.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             sample_index_005.outputs[0], math.inputs[0]
         )
         # named_attribute_003.Attribute -> reroute.Input
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             named_attribute_003.outputs[0], reroute.inputs[0]
         )
         # reroute.Output -> reroute_001.Input
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             reroute.outputs[0], reroute_001.inputs[0]
         )
         # reroute_001.Output -> sample_index_005.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             reroute_001.outputs[0], sample_index_005.inputs[1]
         )
         # reroute_001.Output -> sample_index_004.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             reroute_001.outputs[0], sample_index_004.inputs[1]
         )
         # object_info_001.Geometry -> reroute_002.Input
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             object_info_001.outputs[4], reroute_002.inputs[0]
         )
         # reroute_002.Output -> sample_index_005.Geometry
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             reroute_002.outputs[0], sample_index_005.inputs[0]
         )
         # reroute_002.Output -> sample_index_004.Geometry
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             reroute_002.outputs[0], sample_index_004.inputs[0]
         )
         # boolean_math_002.Boolean -> store_named_attribute.Selection
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             boolean_math_002.outputs[0], store_named_attribute.inputs[1]
         )
-        # group_input_002_1.Particles -> blended_mpm_move_with_reference_1.Blended MPM Particles
-        blended_mpm_store_breaking_frame.links.new(
-            group_input_002_1.outputs[2], blended_mpm_move_with_reference_1.inputs[1]
+        # group_input_002_1.Particles -> squishy_volumes_move_with_reference_1.Squishy Volumes Particles
+        squishy_volumes_store_breaking_frame.links.new(
+            group_input_002_1.outputs[2],
+            squishy_volumes_move_with_reference_1.inputs[1],
         )
-        # group_input_002_1.Geometry -> blended_mpm_move_with_reference_1.Geometry
-        blended_mpm_store_breaking_frame.links.new(
-            group_input_002_1.outputs[0], blended_mpm_move_with_reference_1.inputs[0]
+        # group_input_002_1.Geometry -> squishy_volumes_move_with_reference_1.Geometry
+        squishy_volumes_store_breaking_frame.links.new(
+            group_input_002_1.outputs[0],
+            squishy_volumes_move_with_reference_1.inputs[0],
         )
-        # blended_mpm_move_with_reference_1.Geometry -> sample_index_1.Geometry
-        blended_mpm_store_breaking_frame.links.new(
-            blended_mpm_move_with_reference_1.outputs[0], sample_index_1.inputs[0]
+        # squishy_volumes_move_with_reference_1.Geometry -> sample_index_1.Geometry
+        squishy_volumes_store_breaking_frame.links.new(
+            squishy_volumes_move_with_reference_1.outputs[0], sample_index_1.inputs[0]
         )
         # position.Position -> sample_index_1.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             position.outputs[0], sample_index_1.inputs[1]
         )
         # edge_vertices_002.Vertex Index 1 -> sample_index_1.Index
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             edge_vertices_002.outputs[0], sample_index_1.inputs[2]
         )
         # sample_index_1.Value -> vector_math.Vector
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             sample_index_1.outputs[0], vector_math.inputs[0]
         )
         # edge_vertices_002.Vertex Index 2 -> sample_index_001.Index
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             edge_vertices_002.outputs[1], sample_index_001.inputs[2]
         )
-        # blended_mpm_move_with_reference_1.Geometry -> sample_index_001.Geometry
-        blended_mpm_store_breaking_frame.links.new(
-            blended_mpm_move_with_reference_1.outputs[0], sample_index_001.inputs[0]
+        # squishy_volumes_move_with_reference_1.Geometry -> sample_index_001.Geometry
+        squishy_volumes_store_breaking_frame.links.new(
+            squishy_volumes_move_with_reference_1.outputs[0], sample_index_001.inputs[0]
         )
         # position.Position -> sample_index_001.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             position.outputs[0], sample_index_001.inputs[1]
         )
         # sample_index_001.Value -> vector_math.Vector
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             sample_index_001.outputs[0], vector_math.inputs[1]
         )
         # group_input_004.Geometry -> store_named_attribute.Geometry
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             group_input_004.outputs[0], store_named_attribute.inputs[0]
         )
         # boolean_math_001.Boolean -> boolean_math_002.Boolean
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             boolean_math_001.outputs[0], boolean_math_002.inputs[1]
         )
         # math_005.Value -> boolean_math_002.Boolean
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             math_005.outputs[0], boolean_math_002.inputs[0]
         )
         # scene_time_002.Frame -> store_named_attribute.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             scene_time_002.outputs[1], store_named_attribute.inputs[3]
         )
         # scene_time_001.Frame -> math_005.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             scene_time_001.outputs[1], math_005.inputs[0]
         )
         # named_attribute_001_1.Attribute -> math_005.Value
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             named_attribute_001_1.outputs[0], math_005.inputs[1]
         )
         # math_003.Value -> boolean_math_001.Boolean
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             math_003.outputs[0], boolean_math_001.inputs[0]
         )
         # vector_math.Vector -> vector_math_001.Vector
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             vector_math.outputs[0], vector_math_001.inputs[0]
         )
         # string.String -> join_strings.Strings
-        blended_mpm_store_breaking_frame.links.new(
+        squishy_volumes_store_breaking_frame.links.new(
             string.outputs[0], join_strings.inputs[1]
         )
-        return blended_mpm_store_breaking_frame
+        return squishy_volumes_store_breaking_frame
 
-    return blended_mpm_store_breaking_frame_node_group()
+    return squishy_volumes_store_breaking_frame_node_group()

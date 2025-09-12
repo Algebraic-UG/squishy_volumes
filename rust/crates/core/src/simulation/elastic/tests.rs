@@ -6,12 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use nalgebra::Matrix3;
 #[cfg_attr(
     not(feature = "f64"),
     deny(The tests only work with double precision)
 )]
-use blended_mpm_api::T;
-use nalgebra::Matrix3;
+use squishy_volumes_api::T;
 
 use crate::math::{Matrix9, Vector9, safe_inverse::SafeInverse};
 

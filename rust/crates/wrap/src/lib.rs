@@ -22,7 +22,7 @@ use hot_reloadable::handle_reload;
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-fn blended_mpm_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize();
 
     #[cfg(feature = "hot_reload")]

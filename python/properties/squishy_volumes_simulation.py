@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -24,11 +24,11 @@ import bpy
 from ..bridge import drop_context
 from ..progress_update import cleanup_markers
 
-from .blended_mpm_simulation_settings import Blended_MPM_Simulation_Settings
+from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Settings
 
 
 def duplicate_simulation_name(simulation):
-    simulations = bpy.context.scene.blended_mpm_scene.simulations
+    simulations = bpy.context.scene.squishy_volumes_scene.simulations
     return any(
         [
             simulation.name == other.name
@@ -39,7 +39,7 @@ def duplicate_simulation_name(simulation):
 
 
 def duplicate_simulation_cache_directory(simulation):
-    simulations = bpy.context.scene.blended_mpm_scene.simulations
+    simulations = bpy.context.scene.squishy_volumes_scene.simulations
     return any(
         [
             simulation.cache_directory == other.cache_directory
@@ -61,7 +61,7 @@ def make_unique(new, existing):
 def update_name(self, context):
     if duplicate_simulation_name(self):
         self.name = make_unique(
-            self.name, [s.name for s in context.scene.blended_mpm_scene.simulations]
+            self.name, [s.name for s in context.scene.squishy_volumes_scene.simulations]
         )
         return  # we'll re-enter anyway
 
@@ -76,7 +76,10 @@ def update_cache_directory(self, context):
     if duplicate_simulation_cache_directory(self):
         self.cache_directory = make_unique(
             self.cache_directory,
-            [s.cache_directory for s in context.scene.blended_mpm_scene.simulations],
+            [
+                s.cache_directory
+                for s in context.scene.squishy_volumes_scene.simulations
+            ],
         )
         return  # we'll re-enter anyway
 
@@ -84,7 +87,7 @@ def update_cache_directory(self, context):
     drop_context(self)
 
 
-class Blended_MPM_Simulation(bpy.types.PropertyGroup):
+class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name="Name",
         description="It is just the name wihtout any semantic implications.",
@@ -116,7 +119,7 @@ If there exists a cache at the location it can be loaded.
 
 The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
 The latter being a temporary file indicating ownership.""",
-        default=str(Path(tempfile.gettempdir()) / "blended_mpm_cache"),
+        default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
         options=set(),
         update=update_cache_directory,
         subtype="DIR_PATH",
@@ -141,13 +144,13 @@ Changes have *no effect* on *already running* bakes.""",
     # from_cache is read-only but can be overwritten with to_cache
     # ----------------------------------------------------------------
     from_cache: bpy.props.PointerProperty(
-        type=Blended_MPM_Simulation_Settings,
+        type=Squishy_Volumes_Simulation_Settings,
         name="From Cache",
         description="The currently active set of settings (readonly).",
         options=set(),
     )  # type: ignore
     to_cache: bpy.props.PointerProperty(
-        type=Blended_MPM_Simulation_Settings,
+        type=Squishy_Volumes_Simulation_Settings,
         name="To Cache",
         description="The modifiable set of settings.",
         options=set(),

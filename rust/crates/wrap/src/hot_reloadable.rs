@@ -15,35 +15,35 @@ use std::sync::Mutex;
 use std::thread::spawn;
 
 #[cfg(not(feature = "hot_reload"))]
-pub use blended_mpm_hot as blended_mpm_hot_reload;
+pub use squishy_volumes_hot as squishy_volumes_hot_reload;
 
 #[cfg(feature = "hot_reload")]
 #[cfg_attr(
     debug_assertions,
     hot_lib_reloader::hot_module(
-        dylib = "blended_mpm_hot",
+        dylib = "squishy_volumes_hot",
         lib_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/debug")
     )
 )]
 #[cfg_attr(
     not(debug_assertions),
     hot_lib_reloader::hot_module(
-        dylib = "blended_mpm_hot",
+        dylib = "squishy_volumes_hot",
         lib_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/release")
     )
 )]
-pub mod blended_mpm_hot_reload {
+pub mod squishy_volumes_hot_reload {
     hot_functions_from_file!("crates/hot/src/lib.rs");
 
     #[allow(unused)]
-    pub use blended_mpm_hot::*;
+    pub use squishy_volumes_hot::*;
 
     #[lib_change_subscription]
     pub fn subscribe() -> hot_lib_reloader::LibReloadObserver {}
 }
 
 lazy_static! {
-    static ref LOCK: Mutex<Option<Box<dyn blended_mpm_hot_reload::Context>>> =
+    static ref LOCK: Mutex<Option<Box<dyn squishy_volumes_hot_reload::Context>>> =
         Mutex::new(Default::default());
 }
 
@@ -58,24 +58,24 @@ impl CombinedBuildInfo {
     pub fn new() -> Self {
         Self {
             wrapper: _build_info().clone(),
-            core_libs: blended_mpm_hot_reload::build_info(),
+            core_libs: squishy_volumes_hot_reload::build_info(),
         }
     }
 }
 
-const BUG: &str = "You encountered a bug in Blended MPM.
+const BUG: &str = "You encountered a bug in Squishy Volumes.
 It's unlikely that the process can recover.
 Please consider restarting the application.";
 
 pub fn initialize() {
     if let Ok(mut guard) = LOCK.lock() {
-        *guard = Some(blended_mpm_hot_reload::create_context());
+        *guard = Some(squishy_volumes_hot_reload::create_context());
     } else {
         eprintln!("{BUG}");
     }
 }
 
-pub fn try_with_context<R, F: FnOnce(&mut dyn blended_mpm_hot_reload::Context) -> Result<R>>(
+pub fn try_with_context<R, F: FnOnce(&mut dyn squishy_volumes_hot_reload::Context) -> Result<R>>(
     f: F,
 ) -> Result<R> {
     if let Ok(mut guard) = LOCK.lock() {
@@ -84,7 +84,7 @@ pub fn try_with_context<R, F: FnOnce(&mut dyn blended_mpm_hot_reload::Context) -
     bail!(BUG)
 }
 
-pub fn with_context<R, F: FnOnce(&mut dyn blended_mpm_hot_reload::Context) -> R>(
+pub fn with_context<R, F: FnOnce(&mut dyn squishy_volumes_hot_reload::Context) -> R>(
     f: F,
 ) -> Result<R> {
     try_with_context(|c| Ok(f(c)))
@@ -93,7 +93,7 @@ pub fn with_context<R, F: FnOnce(&mut dyn blended_mpm_hot_reload::Context) -> R>
 #[cfg(feature = "hot_reload")]
 pub fn handle_reload() {
     let _ = spawn(|| {
-        let lib_observer = blended_mpm_hot_reload::subscribe();
+        let lib_observer = squishy_volumes_hot_reload::subscribe();
         loop {
             // wait for reload and block it
             let update_blocker = lib_observer.wait_for_about_to_reload();
@@ -112,7 +112,7 @@ pub fn handle_reload() {
             lib_observer.wait_for_reload();
 
             // fresh context with new lib version
-            *context_guard = Some(blended_mpm_hot_reload::create_context());
+            *context_guard = Some(squishy_volumes_hot_reload::create_context());
 
             // context_guard is dropped and calls can continue
         }

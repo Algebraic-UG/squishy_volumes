@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,13 +20,13 @@ import bpy
 
 from ..magic_consts import OUTPUT_TYPES
 
-from .blended_mpm_object_attributes import Blended_MPM_Optional_Attributes
-from .blended_mpm_object_settings import Blended_MPM_Object_Settings
+from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
+from .squishy_volumes_object_settings import Squishy_Volumes_Object_Settings
 
 
-class Blended_MPM_Object(bpy.types.PropertyGroup):
+class Squishy_Volumes_Object(bpy.types.PropertyGroup):
     simulation_specific_settings: bpy.props.CollectionProperty(
-        type=Blended_MPM_Object_Settings,
+        type=Squishy_Volumes_Object_Settings,
         name="Settings per Simulation",
         description="For each simulation an input can have different meanings.",
         options=set(),
@@ -49,7 +49,7 @@ Has to be one of:
         options=set(),
     )  # type: ignore
     optional_attributes: bpy.props.PointerProperty(
-        type=Blended_MPM_Optional_Attributes,
+        type=Squishy_Volumes_Optional_Attributes,
         name="Optional Attributes",
         description="Further customization of what outputs are synchronized.",
         options=set(),

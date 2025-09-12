@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -30,8 +30,8 @@ from ..bridge import (
 )
 
 
-class OBJECT_OT_Blended_MPM_Bake_Initial_Frame(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_bake_initial_frame"
+class OBJECT_OT_Squishy_Volumes_Bake_Initial_Frame(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_bake_initial_frame"
     bl_label = "Create Simulation Sate"
     bl_description = """Create the initial simulation state from the input (Frame #0).
 
@@ -58,8 +58,8 @@ Outputs become available as the initial state is created."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Bake_Start_From_Latest(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_bake_start_from_latest"
+class OBJECT_OT_Squishy_Volumes_Bake_Start_From_Latest(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_bake_start_from_latest"
     bl_label = "Bake (from latest)"
     bl_description = """Continue baking physics.
 
@@ -86,8 +86,8 @@ or cancellation occurs due to user input or error."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Bake_Start_From_Loaded(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_bake_start_from_loaded"
+class OBJECT_OT_Squishy_Volumes_Bake_Start_From_Loaded(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_bake_start_from_loaded"
     bl_label = "Bake"
     bl_description = """Restart baking physics.
 
@@ -117,8 +117,8 @@ come after the displayed one."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Bake_Pause(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_bake_pause"
+class OBJECT_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_bake_pause"
     bl_label = "Pause"
     bl_description = "Pause the computation of the simulation frames."
     bl_options = {"REGISTER"}
@@ -151,11 +151,11 @@ def recursive_progress(layout, progress):
         recursive_progress(layout, sub)
 
 
-class OBJECT_PT_Blended_MPM_Bake(bpy.types.Panel):
+class OBJECT_PT_Squishy_Volumes_Bake(bpy.types.Panel):
     bl_label = "Bake"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Squishy Volumes"
     bl_options = set()
 
     @classmethod
@@ -173,8 +173,8 @@ class OBJECT_PT_Blended_MPM_Bake(bpy.types.Panel):
         col.enabled = not computing(simulation)
         if available_frames(simulation) == 0:
             tut = col.column()
-            tut.alert = context.scene.blended_mpm_scene.tutorial_active
-            tut.operator("object.blended_mpm_bake_initial_frame", icon="PHYSICS")
+            tut.alert = context.scene.squishy_volumes_scene.tutorial_active
+            tut.operator("object.squishy_volumes_bake_initial_frame", icon="PHYSICS")
         else:
             col.prop(simulation, "time_step")
             # TODO: make implicit viable
@@ -183,28 +183,30 @@ class OBJECT_PT_Blended_MPM_Bake(bpy.types.Panel):
             col.prop(simulation, "bake_frames")
 
             row = self.layout.row()
-            row.operator("object.blended_mpm_bake_start_from_latest", icon="PHYSICS")
+            row.operator(
+                "object.squishy_volumes_bake_start_from_latest", icon="PHYSICS"
+            )
             if (
                 simulation.loaded_frame != -1
                 and simulation.loaded_frame + 1 != available_frames(simulation)
             ):
                 row.operator(
-                    "object.blended_mpm_bake_start_from_loaded",
+                    "object.squishy_volumes_bake_start_from_loaded",
                     text=f"Rebake from #{simulation.loaded_frame}",
                     icon="PHYSICS",
                 )
-        self.layout.operator("object.blended_mpm_bake_pause", icon="CANCEL")
+        self.layout.operator("object.squishy_volumes_bake_pause", icon="CANCEL")
 
         if simulation.progress_json_string:
             recursive_progress(self.layout, json.loads(simulation.progress_json_string))
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Bake_Initial_Frame,
-    OBJECT_OT_Blended_MPM_Bake_Start_From_Latest,
-    OBJECT_OT_Blended_MPM_Bake_Start_From_Loaded,
-    OBJECT_OT_Blended_MPM_Bake_Pause,
-    OBJECT_PT_Blended_MPM_Bake,
+    OBJECT_OT_Squishy_Volumes_Bake_Initial_Frame,
+    OBJECT_OT_Squishy_Volumes_Bake_Start_From_Latest,
+    OBJECT_OT_Squishy_Volumes_Bake_Start_From_Loaded,
+    OBJECT_OT_Squishy_Volumes_Bake_Pause,
+    OBJECT_PT_Squishy_Volumes_Bake,
 ]
 
 

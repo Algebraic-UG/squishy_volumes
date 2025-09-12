@@ -11,8 +11,8 @@ use anyhow::Result;
 use std::path::PathBuf;
 use std::{collections::BTreeMap, time::Instant};
 
-use blended_mpm_api::{Context, Simulation};
 use simulation::SimulationLocal;
+use squishy_volumes_api::{Context, Simulation};
 use tracing::{error, info, subscriber::set_global_default};
 use tracing_subscriber::FmtSubscriber;
 

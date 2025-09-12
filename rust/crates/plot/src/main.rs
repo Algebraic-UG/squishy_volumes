@@ -6,8 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use blended_mpm_core::weights::{kernel_cubic, kernel_linear, kernel_quadratic};
 use plotters::prelude::*;
+use squishy_volumes_core::weights::{kernel_cubic, kernel_linear, kernel_quadratic};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = BitMapBackend::new("out.png", (640, 480)).into_drawing_area();
     root.fill(&WHITE)?;

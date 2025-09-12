@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use blended_mpm_api::T;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use squishy_volumes_api::T;
 
 use crate::simulation::grids::Boundary;
 

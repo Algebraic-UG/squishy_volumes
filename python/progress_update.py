@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@ PROGRESS_INTERVAL = 0.25
 
 def update_progress():
     should_redraw = False
-    for simulation in bpy.context.scene.blended_mpm_scene.simulations.values():
+    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():
         cleanup_markers(simulation)
 
         add_or_update_marker(
@@ -94,16 +94,16 @@ def is_updating():
 def register_progress_update(*_scene):
     if not bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.register(update_progress, first_interval=PROGRESS_INTERVAL)
-        print("Blended MPM progress update registered.")
+        print("Squishy Volumes progress update registered.")
 
 
 def unregister_progress_update(*_scene):
-    for simulation in bpy.context.scene.blended_mpm_scene.simulations.values():
+    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():
         cleanup_markers(simulation)
 
     if bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.unregister(update_progress)
-        print("Blended MPM progress update unregistered.")
+        print("Squishy Volumes progress update unregistered.")
 
 
 def register_progress_update_toggle():
@@ -113,7 +113,7 @@ def register_progress_update_toggle():
         bpy.app.handlers.render_complete.append(register_progress_update)
     if register_progress_update not in bpy.app.handlers.render_cancel:
         bpy.app.handlers.render_cancel.append(register_progress_update)
-    print("Blended MPM progress update toggle on render registered.")
+    print("Squishy Volumes progress update toggle on render registered.")
 
 
 def unregister_progress_update_toggle():
@@ -123,4 +123,4 @@ def unregister_progress_update_toggle():
         bpy.app.handlers.render_complete.remove(register_progress_update)
     if register_progress_update in bpy.app.handlers.render_cancel:
         bpy.app.handlers.render_cancel.remove(register_progress_update)
-    print("Blended MPM progress update toggle on render unregistered.")
+    print("Squishy Volumes progress update toggle on render unregistered.")

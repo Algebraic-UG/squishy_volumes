@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,9 +18,9 @@
 
 import json
 
-import blended_mpm_wrap
+import squishy_volumes_wrap
 
-blended_mpm_context_dict = {}
+squishy_volumes_context_dict = {}
 
 
 def giga_f32_to_u64(giga_float):
@@ -28,13 +28,13 @@ def giga_f32_to_u64(giga_float):
 
 
 def build_info():
-    return json.loads(blended_mpm_wrap.build_info_as_json())
+    return json.loads(squishy_volumes_wrap.build_info_as_json())
 
 
 def new_simulation(simulation, serialized_setup):
     drop_context(simulation)
 
-    blended_mpm_context_dict[simulation.uuid] = blended_mpm_wrap.new(
+    squishy_volumes_context_dict[simulation.uuid] = squishy_volumes_wrap.new(
         simulation.uuid,
         simulation.cache_directory,
         serialized_setup,
@@ -47,7 +47,7 @@ def new_simulation(simulation, serialized_setup):
 def load_simulation(simulation):
     drop_context(simulation)
 
-    blended_mpm_context_dict[simulation.uuid] = blended_mpm_wrap.load(
+    squishy_volumes_context_dict[simulation.uuid] = squishy_volumes_wrap.load(
         simulation.uuid,
         simulation.cache_directory,
         giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
@@ -55,27 +55,27 @@ def load_simulation(simulation):
 
 
 def drop_context(simulation):
-    if simulation.uuid in blended_mpm_context_dict:
-        blended_mpm_context_dict.pop(simulation.uuid).drop()
+    if simulation.uuid in squishy_volumes_context_dict:
+        squishy_volumes_context_dict.pop(simulation.uuid).drop()
 
 
 def context_exists(simulation):
-    return simulation.uuid in blended_mpm_context_dict
+    return simulation.uuid in squishy_volumes_context_dict
 
 
 def poll(simulation):
-    return blended_mpm_context_dict[simulation.uuid].poll()
+    return squishy_volumes_context_dict[simulation.uuid].poll()
 
 
 def computing(simulation):
     return (
         context_exists(simulation)
-        and blended_mpm_context_dict[simulation.uuid].computing()
+        and squishy_volumes_context_dict[simulation.uuid].computing()
     )
 
 
 def start_compute_initial_frame(simulation):
-    blended_mpm_context_dict[simulation.uuid].start_compute(
+    squishy_volumes_context_dict[simulation.uuid].start_compute(
         simulation.time_step,
         simulation.explicit,
         simulation.debug_mode,
@@ -86,7 +86,7 @@ def start_compute_initial_frame(simulation):
 
 
 def start_compute(simulation, from_frame):
-    blended_mpm_context_dict[simulation.uuid].start_compute(
+    squishy_volumes_context_dict[simulation.uuid].start_compute(
         simulation.time_step,
         simulation.explicit,
         simulation.debug_mode,
@@ -97,29 +97,29 @@ def start_compute(simulation, from_frame):
 
 
 def pause_compute(simulation):
-    blended_mpm_context_dict[simulation.uuid].pause_compute()
+    squishy_volumes_context_dict[simulation.uuid].pause_compute()
 
 
 def available_frames(simulation):
     if not context_exists(simulation):
         return 0
-    return blended_mpm_context_dict[simulation.uuid].available_frames()
+    return squishy_volumes_context_dict[simulation.uuid].available_frames()
 
 
 def available_attributes(simulation, frame):
-    return blended_mpm_context_dict[simulation.uuid].available_attributes(frame)
+    return squishy_volumes_context_dict[simulation.uuid].available_attributes(frame)
 
 
 def fetch_flat_attribute(simulation, frame, attribute_json):
-    return blended_mpm_context_dict[simulation.uuid].fetch_flat_attribute(
+    return squishy_volumes_context_dict[simulation.uuid].fetch_flat_attribute(
         frame, attribute_json
     )
 
 
 def cleanup_native():
-    for context in blended_mpm_context_dict.values():
+    for context in squishy_volumes_context_dict.values():
         context.drop()
-    blended_mpm_context_dict.clear()
+    squishy_volumes_context_dict.clear()
 
 
 class InputNames:

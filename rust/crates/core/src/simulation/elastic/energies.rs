@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Result, ensure};
-use blended_mpm_api::T;
 use nalgebra::{Matrix3, stack};
+use squishy_volumes_api::T;
 
 use crate::math::{Matrix9, Vector9, safe_inverse::SafeInverse};
 

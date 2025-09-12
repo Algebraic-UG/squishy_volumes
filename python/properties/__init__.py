@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,46 +18,46 @@
 
 import bpy
 
-from .blended_mpm_collection import Blended_MPM_Collection
-from .blended_mpm_object import Blended_MPM_Object
-from .blended_mpm_object_settings import Blended_MPM_Object_Settings
-from .blended_mpm_scene import Blended_MPM_Scene
-from .blended_mpm_simulation import Blended_MPM_Simulation
-from .blended_mpm_simulation_settings import Blended_MPM_Simulation_Settings
-from .blended_mpm_object_attributes import Blended_MPM_Optional_Attributes
+from .squishy_volumes_collection import Squishy_Volumes_Collection
+from .squishy_volumes_object import Squishy_Volumes_Object
+from .squishy_volumes_object_settings import Squishy_Volumes_Object_Settings
+from .squishy_volumes_scene import Squishy_Volumes_Scene
+from .squishy_volumes_simulation import Squishy_Volumes_Simulation
+from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Settings
+from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
 
 
 classes = [
-    Blended_MPM_Simulation_Settings,
-    Blended_MPM_Simulation,
-    Blended_MPM_Scene,
-    Blended_MPM_Collection,
-    Blended_MPM_Object_Settings,
-    Blended_MPM_Optional_Attributes,
-    Blended_MPM_Object,
+    Squishy_Volumes_Simulation_Settings,
+    Squishy_Volumes_Simulation,
+    Squishy_Volumes_Scene,
+    Squishy_Volumes_Collection,
+    Squishy_Volumes_Object_Settings,
+    Squishy_Volumes_Optional_Attributes,
+    Squishy_Volumes_Object,
 ]
 
 
 def register_properties():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.blended_mpm_object = bpy.props.PointerProperty(
-        type=Blended_MPM_Object
+    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(
+        type=Squishy_Volumes_Object
     )
-    bpy.types.Collection.blended_mpm_collection = bpy.props.PointerProperty(
-        type=Blended_MPM_Collection
+    bpy.types.Collection.squishy_volumes_collection = bpy.props.PointerProperty(
+        type=Squishy_Volumes_Collection
     )
-    bpy.types.Scene.blended_mpm_scene = bpy.props.PointerProperty(
-        type=Blended_MPM_Scene
+    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(
+        type=Squishy_Volumes_Scene
     )
 
-    print("Blended MPM properties registered.")
+    print("Squishy Volumes properties registered.")
 
 
 def unregister_properties():
-    del bpy.types.Scene.blended_mpm_scene
-    del bpy.types.Collection.blended_mpm_collection
-    del bpy.types.Object.blended_mpm_object
+    del bpy.types.Scene.squishy_volumes_scene
+    del bpy.types.Collection.squishy_volumes_collection
+    del bpy.types.Object.squishy_volumes_object
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    print("Blended MPM properties unregistered.")
+    print("Squishy Volumes properties unregistered.")

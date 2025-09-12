@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@ import json
 import numpy as np
 import bpy
 
-from .properties.blended_mpm_object_settings import (
+from .properties.squishy_volumes_object_settings import (
     OBJECT_ENUM_COLLIDER,
     OBJECT_ENUM_FLUID,
     OBJECT_ENUM_SOLID,

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,9 +22,9 @@
 import bpy
 
 from ..magic_consts import (
-    BLENDED_MPM_MASS,
-    BLENDED_MPM_INSTANCE_COLOR,
-    BLENDED_MPM_VELOCITY,
+    SQUISHY_VOLUMES_MASS,
+    SQUISHY_VOLUMES_INSTANCE_COLOR,
+    SQUISHY_VOLUMES_VELOCITY,
 )
 
 from .material_colored_instances import create_material_colored_instances
@@ -33,43 +33,43 @@ from .material_colored_instances import create_material_colored_instances
 def create_geometry_nodes_grid_momentum():
     material_colored_instances = create_material_colored_instances()
 
-    # initialize blended_mpm_color_instance node group
-    def blended_mpm_color_instance_node_group():
-        blended_mpm_color_instance = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Color Instance"
+    # initialize squishy_volumes_color_instance node group
+    def squishy_volumes_color_instance_node_group():
+        squishy_volumes_color_instance = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Color Instance"
         )
 
-        blended_mpm_color_instance.color_tag = "NONE"
-        blended_mpm_color_instance.description = ""
-        blended_mpm_color_instance.default_group_node_width = 140
+        squishy_volumes_color_instance.color_tag = "NONE"
+        squishy_volumes_color_instance.description = ""
+        squishy_volumes_color_instance.default_group_node_width = 140
 
-        # blended_mpm_color_instance interface
+        # squishy_volumes_color_instance interface
         # Socket Geometry
-        geometry_socket = blended_mpm_color_instance.interface.new_socket(
+        geometry_socket = squishy_volumes_color_instance.interface.new_socket(
             name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_1 = blended_mpm_color_instance.interface.new_socket(
+        geometry_socket_1 = squishy_volumes_color_instance.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_1.attribute_domain = "POINT"
 
         # Socket Instance Color
-        instance_color_socket = blended_mpm_color_instance.interface.new_socket(
+        instance_color_socket = squishy_volumes_color_instance.interface.new_socket(
             name="Instance Color", in_out="INPUT", socket_type="NodeSocketColor"
         )
         instance_color_socket.default_value = (0.0, 0.0, 0.0, 1.0)
         instance_color_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_color_instance nodes
+        # initialize squishy_volumes_color_instance nodes
         # node Group Input
-        group_input = blended_mpm_color_instance.nodes.new("NodeGroupInput")
+        group_input = squishy_volumes_color_instance.nodes.new("NodeGroupInput")
         group_input.name = "Group Input"
 
         # node Store Named Attribute
-        store_named_attribute = blended_mpm_color_instance.nodes.new(
+        store_named_attribute = squishy_volumes_color_instance.nodes.new(
             "GeometryNodeStoreNamedAttribute"
         )
         store_named_attribute.name = "Store Named Attribute"
@@ -78,17 +78,19 @@ def create_geometry_nodes_grid_momentum():
         # Selection
         store_named_attribute.inputs[1].default_value = True
         # Name
-        store_named_attribute.inputs[2].default_value = BLENDED_MPM_INSTANCE_COLOR
+        store_named_attribute.inputs[2].default_value = SQUISHY_VOLUMES_INSTANCE_COLOR
 
         # node Set Material
-        set_material = blended_mpm_color_instance.nodes.new("GeometryNodeSetMaterial")
+        set_material = squishy_volumes_color_instance.nodes.new(
+            "GeometryNodeSetMaterial"
+        )
         set_material.name = "Set Material"
         # Selection
         set_material.inputs[1].default_value = True
         set_material.inputs[2].default_value = material_colored_instances
 
         # node Group Output
-        group_output = blended_mpm_color_instance.nodes.new("NodeGroupOutput")
+        group_output = squishy_volumes_color_instance.nodes.new("NodeGroupOutput")
         group_output.name = "Group Output"
         group_output.is_active_output = True
 
@@ -104,52 +106,52 @@ def create_geometry_nodes_grid_momentum():
         set_material.width, set_material.height = 250.0, 100.0
         group_output.width, group_output.height = 140.0, 100.0
 
-        # initialize blended_mpm_color_instance links
+        # initialize squishy_volumes_color_instance links
         # group_input.Geometry -> store_named_attribute.Geometry
-        blended_mpm_color_instance.links.new(
+        squishy_volumes_color_instance.links.new(
             group_input.outputs[0], store_named_attribute.inputs[0]
         )
         # group_input.Instance Color -> store_named_attribute.Value
-        blended_mpm_color_instance.links.new(
+        squishy_volumes_color_instance.links.new(
             group_input.outputs[1], store_named_attribute.inputs[3]
         )
         # store_named_attribute.Geometry -> set_material.Geometry
-        blended_mpm_color_instance.links.new(
+        squishy_volumes_color_instance.links.new(
             store_named_attribute.outputs[0], set_material.inputs[0]
         )
         # set_material.Geometry -> group_output.Geometry
-        blended_mpm_color_instance.links.new(
+        squishy_volumes_color_instance.links.new(
             set_material.outputs[0], group_output.inputs[0]
         )
-        return blended_mpm_color_instance
+        return squishy_volumes_color_instance
 
-    blended_mpm_color_instance = blended_mpm_color_instance_node_group()
+    squishy_volumes_color_instance = squishy_volumes_color_instance_node_group()
 
-    # initialize blended_mpm_vector node group
-    def blended_mpm_vector_node_group():
-        blended_mpm_vector = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Vector"
+    # initialize squishy_volumes_vector node group
+    def squishy_volumes_vector_node_group():
+        squishy_volumes_vector = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Vector"
         )
 
-        blended_mpm_vector.color_tag = "NONE"
-        blended_mpm_vector.description = ""
-        blended_mpm_vector.default_group_node_width = 140
+        squishy_volumes_vector.color_tag = "NONE"
+        squishy_volumes_vector.description = ""
+        squishy_volumes_vector.default_group_node_width = 140
 
-        # blended_mpm_vector interface
+        # squishy_volumes_vector interface
         # Socket Instances
-        instances_socket = blended_mpm_vector.interface.new_socket(
+        instances_socket = squishy_volumes_vector.interface.new_socket(
             name="Instances", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         instances_socket.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_2 = blended_mpm_vector.interface.new_socket(
+        geometry_socket_2 = squishy_volumes_vector.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_2.attribute_domain = "POINT"
 
         # Socket Vector
-        vector_socket = blended_mpm_vector.interface.new_socket(
+        vector_socket = squishy_volumes_vector.interface.new_socket(
             name="Vector", in_out="INPUT", socket_type="NodeSocketVector"
         )
         vector_socket.default_value = (0.0, 0.0, 1.0)
@@ -159,7 +161,7 @@ def create_geometry_nodes_grid_momentum():
         vector_socket.attribute_domain = "POINT"
 
         # Socket Scale
-        scale_socket = blended_mpm_vector.interface.new_socket(
+        scale_socket = squishy_volumes_vector.interface.new_socket(
             name="Scale", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         scale_socket.default_value = 1.0
@@ -168,18 +170,18 @@ def create_geometry_nodes_grid_momentum():
         scale_socket.subtype = "NONE"
         scale_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_vector nodes
+        # initialize squishy_volumes_vector nodes
         # node Group Output
-        group_output_1 = blended_mpm_vector.nodes.new("NodeGroupOutput")
+        group_output_1 = squishy_volumes_vector.nodes.new("NodeGroupOutput")
         group_output_1.name = "Group Output"
         group_output_1.is_active_output = True
 
         # node Group Input
-        group_input_1 = blended_mpm_vector.nodes.new("NodeGroupInput")
+        group_input_1 = squishy_volumes_vector.nodes.new("NodeGroupInput")
         group_input_1.name = "Group Input"
 
         # node Mesh Line
-        mesh_line = blended_mpm_vector.nodes.new("GeometryNodeMeshLine")
+        mesh_line = squishy_volumes_vector.nodes.new("GeometryNodeMeshLine")
         mesh_line.name = "Mesh Line"
         mesh_line.count_mode = "TOTAL"
         mesh_line.mode = "OFFSET"
@@ -191,7 +193,7 @@ def create_geometry_nodes_grid_momentum():
         mesh_line.inputs[3].default_value = (1.0, 0.0, 0.0)
 
         # node Align Rotation to Vector
-        align_rotation_to_vector = blended_mpm_vector.nodes.new(
+        align_rotation_to_vector = squishy_volumes_vector.nodes.new(
             "FunctionNodeAlignRotationToVector"
         )
         align_rotation_to_vector.name = "Align Rotation to Vector"
@@ -203,12 +205,12 @@ def create_geometry_nodes_grid_momentum():
         align_rotation_to_vector.inputs[1].default_value = 1.0
 
         # node Vector Math
-        vector_math = blended_mpm_vector.nodes.new("ShaderNodeVectorMath")
+        vector_math = squishy_volumes_vector.nodes.new("ShaderNodeVectorMath")
         vector_math.name = "Vector Math"
         vector_math.operation = "LENGTH"
 
         # node Instance on Points
-        instance_on_points = blended_mpm_vector.nodes.new(
+        instance_on_points = squishy_volumes_vector.nodes.new(
             "GeometryNodeInstanceOnPoints"
         )
         instance_on_points.name = "Instance on Points"
@@ -222,13 +224,15 @@ def create_geometry_nodes_grid_momentum():
         instance_on_points.inputs[5].default_value = (0.0, 0.0, 0.0)
 
         # node Math
-        math = blended_mpm_vector.nodes.new("ShaderNodeMath")
+        math = squishy_volumes_vector.nodes.new("ShaderNodeMath")
         math.name = "Math"
         math.operation = "MULTIPLY"
         math.use_clamp = False
 
         # node Rotate Instances
-        rotate_instances = blended_mpm_vector.nodes.new("GeometryNodeRotateInstances")
+        rotate_instances = squishy_volumes_vector.nodes.new(
+            "GeometryNodeRotateInstances"
+        )
         rotate_instances.name = "Rotate Instances"
         # Selection
         rotate_instances.inputs[1].default_value = True
@@ -257,67 +261,71 @@ def create_geometry_nodes_grid_momentum():
         math.width, math.height = 140.0, 100.0
         rotate_instances.width, rotate_instances.height = 140.0, 100.0
 
-        # initialize blended_mpm_vector links
+        # initialize squishy_volumes_vector links
         # group_input_1.Vector -> align_rotation_to_vector.Vector
-        blended_mpm_vector.links.new(
+        squishy_volumes_vector.links.new(
             group_input_1.outputs[1], align_rotation_to_vector.inputs[2]
         )
         # group_input_1.Vector -> vector_math.Vector
-        blended_mpm_vector.links.new(group_input_1.outputs[1], vector_math.inputs[0])
+        squishy_volumes_vector.links.new(
+            group_input_1.outputs[1], vector_math.inputs[0]
+        )
         # mesh_line.Mesh -> instance_on_points.Instance
-        blended_mpm_vector.links.new(mesh_line.outputs[0], instance_on_points.inputs[2])
+        squishy_volumes_vector.links.new(
+            mesh_line.outputs[0], instance_on_points.inputs[2]
+        )
         # vector_math.Value -> math.Value
-        blended_mpm_vector.links.new(vector_math.outputs[1], math.inputs[0])
+        squishy_volumes_vector.links.new(vector_math.outputs[1], math.inputs[0])
         # group_input_1.Scale -> math.Value
-        blended_mpm_vector.links.new(group_input_1.outputs[2], math.inputs[1])
+        squishy_volumes_vector.links.new(group_input_1.outputs[2], math.inputs[1])
         # group_input_1.Geometry -> instance_on_points.Points
-        blended_mpm_vector.links.new(
+        squishy_volumes_vector.links.new(
             group_input_1.outputs[0], instance_on_points.inputs[0]
         )
         # instance_on_points.Instances -> rotate_instances.Instances
-        blended_mpm_vector.links.new(
+        squishy_volumes_vector.links.new(
             instance_on_points.outputs[0], rotate_instances.inputs[0]
         )
         # rotate_instances.Instances -> group_output_1.Instances
-        blended_mpm_vector.links.new(
+        squishy_volumes_vector.links.new(
             rotate_instances.outputs[0], group_output_1.inputs[0]
         )
         # align_rotation_to_vector.Rotation -> rotate_instances.Rotation
-        blended_mpm_vector.links.new(
+        squishy_volumes_vector.links.new(
             align_rotation_to_vector.outputs[0], rotate_instances.inputs[2]
         )
         # math.Value -> instance_on_points.Scale
-        blended_mpm_vector.links.new(math.outputs[0], instance_on_points.inputs[6])
-        return blended_mpm_vector
+        squishy_volumes_vector.links.new(math.outputs[0], instance_on_points.inputs[6])
+        return squishy_volumes_vector
 
-    blended_mpm_vector = blended_mpm_vector_node_group()
+    squishy_volumes_vector = squishy_volumes_vector_node_group()
 
-    # initialize blended_mpm_crystal_grid node group
-    def blended_mpm_crystal_grid_node_group():
-        blended_mpm_crystal_grid = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Crystal Grid"
+    # initialize squishy_volumes_crystal_grid node group
+    def squishy_volumes_crystal_grid_node_group():
+        squishy_volumes_crystal_grid = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Crystal Grid"
         )
 
-        blended_mpm_crystal_grid.color_tag = "NONE"
-        blended_mpm_crystal_grid.description = ""
-        blended_mpm_crystal_grid.default_group_node_width = 140
+        squishy_volumes_crystal_grid.color_tag = "NONE"
+        squishy_volumes_crystal_grid.description = ""
+        squishy_volumes_crystal_grid.default_group_node_width = 140
 
-        # blended_mpm_crystal_grid interface
+        # squishy_volumes_crystal_grid interface
         # Socket Instances
-        instances_socket_1 = blended_mpm_crystal_grid.interface.new_socket(
+        instances_socket_1 = squishy_volumes_crystal_grid.interface.new_socket(
             name="Instances", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         instances_socket_1.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_3 = blended_mpm_crystal_grid.interface.new_socket(
+        geometry_socket_3 = squishy_volumes_crystal_grid.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_3.attribute_domain = "POINT"
         geometry_socket_3.description = "Points to instance on"
 
         # Socket Scale
-        scale_socket_1 = blended_mpm_crystal_grid.interface.new_socket(
+        scale_socket_1 = squishy_volumes_crystal_grid.interface.new_socket(
             name="Scale", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         scale_socket_1.default_value = 0.5
@@ -327,7 +335,7 @@ def create_geometry_nodes_grid_momentum():
         scale_socket_1.attribute_domain = "POINT"
 
         # Socket Grid Node Size
-        grid_node_size_socket = blended_mpm_crystal_grid.interface.new_socket(
+        grid_node_size_socket = squishy_volumes_crystal_grid.interface.new_socket(
             name="Grid Node Size", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         grid_node_size_socket.default_value = 0.5
@@ -336,18 +344,18 @@ def create_geometry_nodes_grid_momentum():
         grid_node_size_socket.subtype = "NONE"
         grid_node_size_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_crystal_grid nodes
+        # initialize squishy_volumes_crystal_grid nodes
         # node Group Output
-        group_output_2 = blended_mpm_crystal_grid.nodes.new("NodeGroupOutput")
+        group_output_2 = squishy_volumes_crystal_grid.nodes.new("NodeGroupOutput")
         group_output_2.name = "Group Output"
         group_output_2.is_active_output = True
 
         # node Group Input
-        group_input_2 = blended_mpm_crystal_grid.nodes.new("NodeGroupInput")
+        group_input_2 = squishy_volumes_crystal_grid.nodes.new("NodeGroupInput")
         group_input_2.name = "Group Input"
 
         # node UV Sphere
-        uv_sphere = blended_mpm_crystal_grid.nodes.new("GeometryNodeMeshUVSphere")
+        uv_sphere = squishy_volumes_crystal_grid.nodes.new("GeometryNodeMeshUVSphere")
         uv_sphere.name = "UV Sphere"
         # Segments
         uv_sphere.inputs[0].default_value = 4
@@ -355,7 +363,7 @@ def create_geometry_nodes_grid_momentum():
         uv_sphere.inputs[1].default_value = 2
 
         # node Math.003
-        math_003 = blended_mpm_crystal_grid.nodes.new("ShaderNodeMath")
+        math_003 = squishy_volumes_crystal_grid.nodes.new("ShaderNodeMath")
         math_003.name = "Math.003"
         math_003.operation = "MULTIPLY"
         math_003.use_clamp = False
@@ -363,13 +371,13 @@ def create_geometry_nodes_grid_momentum():
         math_003.inputs[1].default_value = 0.25
 
         # node Math.004
-        math_004 = blended_mpm_crystal_grid.nodes.new("ShaderNodeMath")
+        math_004 = squishy_volumes_crystal_grid.nodes.new("ShaderNodeMath")
         math_004.name = "Math.004"
         math_004.operation = "MULTIPLY"
         math_004.use_clamp = False
 
         # node Instance on Points
-        instance_on_points_1 = blended_mpm_crystal_grid.nodes.new(
+        instance_on_points_1 = squishy_volumes_crystal_grid.nodes.new(
             "GeometryNodeInstanceOnPoints"
         )
         instance_on_points_1.name = "Instance on Points"
@@ -400,58 +408,62 @@ def create_geometry_nodes_grid_momentum():
         math_004.width, math_004.height = 140.0, 100.0
         instance_on_points_1.width, instance_on_points_1.height = 140.0, 100.0
 
-        # initialize blended_mpm_crystal_grid links
+        # initialize squishy_volumes_crystal_grid links
         # math_003.Value -> uv_sphere.Radius
-        blended_mpm_crystal_grid.links.new(math_003.outputs[0], uv_sphere.inputs[2])
+        squishy_volumes_crystal_grid.links.new(math_003.outputs[0], uv_sphere.inputs[2])
         # math_004.Value -> math_003.Value
-        blended_mpm_crystal_grid.links.new(math_004.outputs[0], math_003.inputs[0])
+        squishy_volumes_crystal_grid.links.new(math_004.outputs[0], math_003.inputs[0])
         # uv_sphere.Mesh -> instance_on_points_1.Instance
-        blended_mpm_crystal_grid.links.new(
+        squishy_volumes_crystal_grid.links.new(
             uv_sphere.outputs[0], instance_on_points_1.inputs[2]
         )
         # group_input_2.Scale -> math_004.Value
-        blended_mpm_crystal_grid.links.new(group_input_2.outputs[1], math_004.inputs[0])
+        squishy_volumes_crystal_grid.links.new(
+            group_input_2.outputs[1], math_004.inputs[0]
+        )
         # group_input_2.Geometry -> instance_on_points_1.Points
-        blended_mpm_crystal_grid.links.new(
+        squishy_volumes_crystal_grid.links.new(
             group_input_2.outputs[0], instance_on_points_1.inputs[0]
         )
         # group_input_2.Grid Node Size -> math_004.Value
-        blended_mpm_crystal_grid.links.new(group_input_2.outputs[2], math_004.inputs[1])
+        squishy_volumes_crystal_grid.links.new(
+            group_input_2.outputs[2], math_004.inputs[1]
+        )
         # instance_on_points_1.Instances -> group_output_2.Instances
-        blended_mpm_crystal_grid.links.new(
+        squishy_volumes_crystal_grid.links.new(
             instance_on_points_1.outputs[0], group_output_2.inputs[0]
         )
-        return blended_mpm_crystal_grid
+        return squishy_volumes_crystal_grid
 
-    blended_mpm_crystal_grid = blended_mpm_crystal_grid_node_group()
+    squishy_volumes_crystal_grid = squishy_volumes_crystal_grid_node_group()
 
-    # initialize blended_mpm_grid_momentum node group
-    def blended_mpm_grid_momentum_node_group():
-        blended_mpm_grid_momentum = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Grid Momentum"
+    # initialize squishy_volumes_grid_momentum node group
+    def squishy_volumes_grid_momentum_node_group():
+        squishy_volumes_grid_momentum = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Grid Momentum"
         )
 
-        blended_mpm_grid_momentum.color_tag = "NONE"
-        blended_mpm_grid_momentum.description = ""
-        blended_mpm_grid_momentum.default_group_node_width = 140
+        squishy_volumes_grid_momentum.color_tag = "NONE"
+        squishy_volumes_grid_momentum.description = ""
+        squishy_volumes_grid_momentum.default_group_node_width = 140
 
-        blended_mpm_grid_momentum.is_modifier = True
+        squishy_volumes_grid_momentum.is_modifier = True
 
-        # blended_mpm_grid_momentum interface
+        # squishy_volumes_grid_momentum interface
         # Socket Geometry
-        geometry_socket_4 = blended_mpm_grid_momentum.interface.new_socket(
+        geometry_socket_4 = squishy_volumes_grid_momentum.interface.new_socket(
             name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_4.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_5 = blended_mpm_grid_momentum.interface.new_socket(
+        geometry_socket_5 = squishy_volumes_grid_momentum.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_5.attribute_domain = "POINT"
 
         # Socket Scale
-        scale_socket_2 = blended_mpm_grid_momentum.interface.new_socket(
+        scale_socket_2 = squishy_volumes_grid_momentum.interface.new_socket(
             name="Scale", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         scale_socket_2.default_value = 1.0
@@ -461,7 +473,7 @@ def create_geometry_nodes_grid_momentum():
         scale_socket_2.attribute_domain = "POINT"
 
         # Socket Velocity Scale
-        velocity_scale_socket = blended_mpm_grid_momentum.interface.new_socket(
+        velocity_scale_socket = squishy_volumes_grid_momentum.interface.new_socket(
             name="Velocity Scale", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         velocity_scale_socket.default_value = 1.0
@@ -471,7 +483,7 @@ def create_geometry_nodes_grid_momentum():
         velocity_scale_socket.attribute_domain = "POINT"
 
         # Socket Mass Scale
-        mass_scale_socket = blended_mpm_grid_momentum.interface.new_socket(
+        mass_scale_socket = squishy_volumes_grid_momentum.interface.new_socket(
             name="Mass Scale", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         mass_scale_socket.default_value = 1.0
@@ -481,7 +493,7 @@ def create_geometry_nodes_grid_momentum():
         mass_scale_socket.attribute_domain = "POINT"
 
         # Socket Grid Node Size
-        grid_node_size_socket_1 = blended_mpm_grid_momentum.interface.new_socket(
+        grid_node_size_socket_1 = squishy_volumes_grid_momentum.interface.new_socket(
             name="Grid Node Size", in_out="INPUT", socket_type="NodeSocketFloat"
         )
         grid_node_size_socket_1.default_value = 0.5
@@ -490,56 +502,58 @@ def create_geometry_nodes_grid_momentum():
         grid_node_size_socket_1.subtype = "NONE"
         grid_node_size_socket_1.attribute_domain = "POINT"
 
-        # initialize blended_mpm_grid_momentum nodes
+        # initialize squishy_volumes_grid_momentum nodes
         # node Group Input
-        group_input_3 = blended_mpm_grid_momentum.nodes.new("NodeGroupInput")
+        group_input_3 = squishy_volumes_grid_momentum.nodes.new("NodeGroupInput")
         group_input_3.name = "Group Input"
 
         # node Group Output
-        group_output_3 = blended_mpm_grid_momentum.nodes.new("NodeGroupOutput")
+        group_output_3 = squishy_volumes_grid_momentum.nodes.new("NodeGroupOutput")
         group_output_3.name = "Group Output"
         group_output_3.is_active_output = True
 
         # node Group
-        group = blended_mpm_grid_momentum.nodes.new("GeometryNodeGroup")
+        group = squishy_volumes_grid_momentum.nodes.new("GeometryNodeGroup")
         group.name = "Group"
-        group.node_tree = blended_mpm_color_instance
+        group.node_tree = squishy_volumes_color_instance
 
         # node Named Attribute
-        named_attribute = blended_mpm_grid_momentum.nodes.new(
+        named_attribute = squishy_volumes_grid_momentum.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute.name = "Named Attribute"
         named_attribute.data_type = "FLOAT"
         # Name
-        named_attribute.inputs[0].default_value = BLENDED_MPM_MASS
+        named_attribute.inputs[0].default_value = SQUISHY_VOLUMES_MASS
 
         # node Math.001
-        math_001 = blended_mpm_grid_momentum.nodes.new("ShaderNodeMath")
+        math_001 = squishy_volumes_grid_momentum.nodes.new("ShaderNodeMath")
         math_001.name = "Math.001"
         math_001.operation = "MULTIPLY"
         math_001.use_clamp = False
 
         # node Group.001
-        group_001 = blended_mpm_grid_momentum.nodes.new("GeometryNodeGroup")
+        group_001 = squishy_volumes_grid_momentum.nodes.new("GeometryNodeGroup")
         group_001.name = "Group.001"
-        group_001.node_tree = blended_mpm_vector
+        group_001.node_tree = squishy_volumes_vector
 
         # node Join Geometry
-        join_geometry = blended_mpm_grid_momentum.nodes.new("GeometryNodeJoinGeometry")
+        join_geometry = squishy_volumes_grid_momentum.nodes.new(
+            "GeometryNodeJoinGeometry"
+        )
         join_geometry.name = "Join Geometry"
 
         # node Named Attribute.001
-        named_attribute_001 = blended_mpm_grid_momentum.nodes.new(
+        named_attribute_001 = squishy_volumes_grid_momentum.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_001.name = "Named Attribute.001"
         named_attribute_001.data_type = "FLOAT_VECTOR"
         # Name
-        named_attribute_001.inputs[0].default_value = BLENDED_MPM_VELOCITY
+        named_attribute_001.inputs[0].default_value = SQUISHY_VOLUMES_VELOCITY
 
         # node Delete Geometry
-        delete_geometry = blended_mpm_grid_momentum.nodes.new(
+        delete_geometry = squishy_volumes_grid_momentum.nodes.new(
             "GeometryNodeDeleteGeometry"
         )
         delete_geometry.name = "Delete Geometry"
@@ -547,7 +561,7 @@ def create_geometry_nodes_grid_momentum():
         delete_geometry.mode = "ALL"
 
         # node Compare
-        compare = blended_mpm_grid_momentum.nodes.new("FunctionNodeCompare")
+        compare = squishy_volumes_grid_momentum.nodes.new("FunctionNodeCompare")
         compare.name = "Compare"
         compare.data_type = "FLOAT"
         compare.mode = "ELEMENT"
@@ -558,7 +572,7 @@ def create_geometry_nodes_grid_momentum():
         compare.inputs[12].default_value = 0.0
 
         # node Mix
-        mix = blended_mpm_grid_momentum.nodes.new("ShaderNodeMix")
+        mix = squishy_volumes_grid_momentum.nodes.new("ShaderNodeMix")
         mix.name = "Mix"
         mix.blend_type = "MIX"
         mix.clamp_factor = True
@@ -571,27 +585,27 @@ def create_geometry_nodes_grid_momentum():
         mix.inputs[7].default_value = (1.0, 1.0, 1.0, 1.0)
 
         # node Group Input.002
-        group_input_002 = blended_mpm_grid_momentum.nodes.new("NodeGroupInput")
+        group_input_002 = squishy_volumes_grid_momentum.nodes.new("NodeGroupInput")
         group_input_002.name = "Group Input.002"
 
         # node Named Attribute.002
-        named_attribute_002 = blended_mpm_grid_momentum.nodes.new(
+        named_attribute_002 = squishy_volumes_grid_momentum.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_002.name = "Named Attribute.002"
         named_attribute_002.data_type = "FLOAT"
         # Name
-        named_attribute_002.inputs[0].default_value = BLENDED_MPM_MASS
+        named_attribute_002.inputs[0].default_value = SQUISHY_VOLUMES_MASS
 
-        # node Blended MPM Crystal Grid
-        blended_mpm_crystal_grid_1 = blended_mpm_grid_momentum.nodes.new(
+        # node Squishy Volumes Crystal Grid
+        squishy_volumes_crystal_grid_1 = squishy_volumes_grid_momentum.nodes.new(
             "GeometryNodeGroup"
         )
-        blended_mpm_crystal_grid_1.name = "Blended MPM Crystal Grid"
-        blended_mpm_crystal_grid_1.node_tree = blended_mpm_crystal_grid
+        squishy_volumes_crystal_grid_1.name = "Squishy Volumes Crystal Grid"
+        squishy_volumes_crystal_grid_1.node_tree = squishy_volumes_crystal_grid
 
         # node Group Input.001
-        group_input_001 = blended_mpm_grid_momentum.nodes.new("NodeGroupInput")
+        group_input_001 = squishy_volumes_grid_momentum.nodes.new("NodeGroupInput")
         group_input_001.name = "Group Input.001"
 
         # Set locations
@@ -608,7 +622,7 @@ def create_geometry_nodes_grid_momentum():
         mix.location = (640.0, 260.0)
         group_input_002.location = (180.0, 320.0)
         named_attribute_002.location = (180.0, 140.0)
-        blended_mpm_crystal_grid_1.location = (400.0, 440.0)
+        squishy_volumes_crystal_grid_1.location = (400.0, 440.0)
         group_input_001.location = (-80.0, -20.0)
 
         # Set dimensions
@@ -625,75 +639,77 @@ def create_geometry_nodes_grid_momentum():
         mix.width, mix.height = 140.0, 100.0
         group_input_002.width, group_input_002.height = 140.0, 100.0
         named_attribute_002.width, named_attribute_002.height = 160.0, 100.0
-        blended_mpm_crystal_grid_1.width, blended_mpm_crystal_grid_1.height = (
+        squishy_volumes_crystal_grid_1.width, squishy_volumes_crystal_grid_1.height = (
             260.0,
             100.0,
         )
         group_input_001.width, group_input_001.height = 140.0, 100.0
 
-        # initialize blended_mpm_grid_momentum links
+        # initialize squishy_volumes_grid_momentum links
         # join_geometry.Geometry -> group_output_3.Geometry
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             join_geometry.outputs[0], group_output_3.inputs[0]
         )
         # named_attribute_001.Attribute -> group_001.Vector
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             named_attribute_001.outputs[0], group_001.inputs[1]
         )
         # group_input_3.Geometry -> delete_geometry.Geometry
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             group_input_3.outputs[0], delete_geometry.inputs[0]
         )
         # delete_geometry.Geometry -> group_001.Geometry
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             delete_geometry.outputs[0], group_001.inputs[0]
         )
         # compare.Result -> delete_geometry.Selection
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             compare.outputs[0], delete_geometry.inputs[1]
         )
         # named_attribute.Attribute -> compare.A
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             named_attribute.outputs[0], compare.inputs[0]
         )
         # math_001.Value -> mix.Factor
-        blended_mpm_grid_momentum.links.new(math_001.outputs[0], mix.inputs[0])
+        squishy_volumes_grid_momentum.links.new(math_001.outputs[0], mix.inputs[0])
         # mix.Result -> group.Instance Color
-        blended_mpm_grid_momentum.links.new(mix.outputs[2], group.inputs[1])
-        # group_input_002.Scale -> blended_mpm_crystal_grid_1.Scale
-        blended_mpm_grid_momentum.links.new(
-            group_input_002.outputs[1], blended_mpm_crystal_grid_1.inputs[1]
+        squishy_volumes_grid_momentum.links.new(mix.outputs[2], group.inputs[1])
+        # group_input_002.Scale -> squishy_volumes_crystal_grid_1.Scale
+        squishy_volumes_grid_momentum.links.new(
+            group_input_002.outputs[1], squishy_volumes_crystal_grid_1.inputs[1]
         )
-        # group_input_002.Grid Node Size -> blended_mpm_crystal_grid_1.Grid Node Size
-        blended_mpm_grid_momentum.links.new(
-            group_input_002.outputs[4], blended_mpm_crystal_grid_1.inputs[2]
+        # group_input_002.Grid Node Size -> squishy_volumes_crystal_grid_1.Grid Node Size
+        squishy_volumes_grid_momentum.links.new(
+            group_input_002.outputs[4], squishy_volumes_crystal_grid_1.inputs[2]
         )
-        # delete_geometry.Geometry -> blended_mpm_crystal_grid_1.Geometry
-        blended_mpm_grid_momentum.links.new(
-            delete_geometry.outputs[0], blended_mpm_crystal_grid_1.inputs[0]
+        # delete_geometry.Geometry -> squishy_volumes_crystal_grid_1.Geometry
+        squishy_volumes_grid_momentum.links.new(
+            delete_geometry.outputs[0], squishy_volumes_crystal_grid_1.inputs[0]
         )
-        # blended_mpm_crystal_grid_1.Instances -> group.Geometry
-        blended_mpm_grid_momentum.links.new(
-            blended_mpm_crystal_grid_1.outputs[0], group.inputs[0]
+        # squishy_volumes_crystal_grid_1.Instances -> group.Geometry
+        squishy_volumes_grid_momentum.links.new(
+            squishy_volumes_crystal_grid_1.outputs[0], group.inputs[0]
         )
         # named_attribute_002.Attribute -> math_001.Value
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             named_attribute_002.outputs[0], math_001.inputs[1]
         )
         # group_input_002.Mass Scale -> math_001.Value
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             group_input_002.outputs[3], math_001.inputs[0]
         )
         # group_001.Instances -> join_geometry.Geometry
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             group_001.outputs[0], join_geometry.inputs[0]
         )
         # group_input_001.Velocity Scale -> group_001.Scale
-        blended_mpm_grid_momentum.links.new(
+        squishy_volumes_grid_momentum.links.new(
             group_input_001.outputs[2], group_001.inputs[2]
         )
         # group.Geometry -> join_geometry.Geometry
-        blended_mpm_grid_momentum.links.new(group.outputs[0], join_geometry.inputs[0])
-        return blended_mpm_grid_momentum
+        squishy_volumes_grid_momentum.links.new(
+            group.outputs[0], join_geometry.inputs[0]
+        )
+        return squishy_volumes_grid_momentum
 
-    return blended_mpm_grid_momentum_node_group()
+    return squishy_volumes_grid_momentum_node_group()

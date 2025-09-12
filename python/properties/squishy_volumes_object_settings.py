@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,6 @@
 
 import bpy
 
-from ..bridge import InputNames
 from ..properties.util import get_input_objects
 
 # these have to match the enum in core::api::ObjectSettings
@@ -31,7 +30,7 @@ def get_input_objects_type(simulation, input_type):
     return [
         obj
         for obj in get_input_objects(simulation)
-        if obj.blended_mpm_object.simulation_specific_settings[0].object_enum
+        if obj.squishy_volumes_object.simulation_specific_settings[0].object_enum
         == input_type
     ]
 
@@ -44,7 +43,7 @@ def get_input_colliders(simulation):
     return get_input_objects_type(simulation, OBJECT_ENUM_COLLIDER)
 
 
-class Blended_MPM_Object_Settings(bpy.types.PropertyGroup):
+class Squishy_Volumes_Object_Settings(bpy.types.PropertyGroup):
     simulation_uuid: bpy.props.StringProperty(
         name="Simulation UUID",
         description="Backreference to the simulation these settings are meant for.",

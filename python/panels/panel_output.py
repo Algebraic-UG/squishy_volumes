@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,9 @@ from ..magic_consts import (
     SOLID_PARTICLES,
 )
 
-from ..properties.blended_mpm_object_attributes import Blended_MPM_Optional_Attributes
+from ..properties.squishy_volumes_object_attributes import (
+    Squishy_Volumes_Optional_Attributes,
+)
 from ..output import (
     create_output,
     sync_output,
@@ -99,8 +101,8 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.label(text="FLOAT_VECTOR")
 
 
-class OBJECT_OT_Blended_MPM_Jump_To_Start(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_jump_to_start"
+class OBJECT_OT_Squishy_Volumes_Jump_To_Start(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_jump_to_start"
     bl_label = "Jump to First Frame"
     bl_description = """Jump to the first frame that is available
 in the loaded cache."""
@@ -117,8 +119,8 @@ in the loaded cache."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Add_Output_Object(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_add_output_object"
+class OBJECT_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_add_output_object"
     bl_label = "Add Output Object"
     bl_description = """Create a new active output object from the simulation cache.
 
@@ -136,7 +138,7 @@ each frame."""
     output_type: bpy.props.StringProperty()  # type: ignore
     input_name: bpy.props.StringProperty()  # type: ignore
     num_colliders: bpy.props.IntProperty()  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(type=Blended_MPM_Optional_Attributes)  # type: ignore
+    optional_attributes: bpy.props.PointerProperty(type=Squishy_Volumes_Optional_Attributes)  # type: ignore
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
@@ -152,10 +154,10 @@ each frame."""
         mesh_name = f"{self.output_type} - {self.object_name}"
         obj = bpy.data.objects.new(self.object_name, bpy.data.meshes.new(mesh_name))
 
-        obj.blended_mpm_object.input_name = self.input_name
-        obj.blended_mpm_object.simulation_uuid = simulation.uuid
-        obj.blended_mpm_object.output_type = self.output_type
-        obj.blended_mpm_object.attributes = self.optional_attributes
+        obj.squishy_volumes_object.input_name = self.input_name
+        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+        obj.squishy_volumes_object.output_type = self.output_type
+        obj.squishy_volumes_object.attributes = self.optional_attributes
 
         create_output(simulation, obj, frame)
         sync_output(simulation, obj, self.num_colliders, frame)
@@ -194,8 +196,8 @@ each frame."""
         )
 
 
-class OBJECT_OT_Blended_MPM_Remove_Output_Object(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_remove_output_object"
+class OBJECT_OT_Squishy_Volumes_Remove_Output_Object(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_remove_output_object"
     bl_label = "Remove Output Object"
     bl_description = """Deactivates the selected object as a simulation output.
 
@@ -210,7 +212,7 @@ Note that this does not delete the object."""
 
     def execute(self, context):
         obj = get_selected_output_object(context)
-        obj.blended_mpm_object.simulation_uuid = ""
+        obj.squishy_volumes_object.simulation_uuid = ""
         remove_drivers(obj)
 
         self.report(
@@ -220,7 +222,7 @@ Note that this does not delete the object."""
         return {"FINISHED"}
 
 
-class OBJECT_UL_Blended_MPM_Output_Object_List(bpy.types.UIList):
+class OBJECT_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
@@ -245,11 +247,11 @@ class OBJECT_UL_Blended_MPM_Output_Object_List(bpy.types.UIList):
         layout.label(text=obj.name)
 
 
-class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
+class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
     bl_label = "Output"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Squishy Volumes"
     bl_options = set()
 
     @classmethod
@@ -267,8 +269,8 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
         self.layout.prop(simulation, "display_start_frame")
         if simulation.loaded_frame == -1:
             tut = self.layout.column()
-            tut.alert = context.scene.blended_mpm_scene.tutorial_active
-            tut.operator("object.blended_mpm_jump_to_start")
+            tut.alert = context.scene.squishy_volumes_scene.tutorial_active
+            tut.operator("object.squishy_volumes_jump_to_start")
             return
 
         col = self.layout.column()
@@ -277,16 +279,16 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
 
         row = self.layout.row()
         row.column().template_list(
-            "OBJECT_UL_Blended_MPM_Output_Object_List",
+            "OBJECT_UL_Squishy_Volumes_Output_Object_List",
             "",
             bpy.data,
             "objects",
-            context.scene.blended_mpm_scene,
+            context.scene.squishy_volumes_scene,
             "selected_output_object",
         )
         list_controls = row.column(align=True)
         list_controls.operator(
-            "object.blended_mpm_remove_output_object", text="", icon="REMOVE"
+            "object.squishy_volumes_remove_output_object", text="", icon="REMOVE"
         )
 
         input_names = InputNames(
@@ -296,7 +298,7 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
 
         def create_operator(layout, output_type, icon, input_name):
             op = layout.operator(
-                "object.blended_mpm_add_output_object", text=input_name, icon=icon
+                "object.squishy_volumes_add_output_object", text=input_name, icon=icon
             )
             op.object_name = f"{output_type} - {input_name}"
             op.output_type = output_type
@@ -308,7 +310,7 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
             box.label(text="Add Solid Output")
             for name in input_names.solid_names:
                 tut = box.column()
-                tut.alert = context.scene.blended_mpm_scene.tutorial_active
+                tut.alert = context.scene.squishy_volumes_scene.tutorial_active
                 create_operator(tut, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.fluid_names:
             box = self.layout.box()
@@ -334,11 +336,11 @@ class OBJECT_PT_Blended_MPM_Output(bpy.types.Panel):
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Jump_To_Start,
-    OBJECT_OT_Blended_MPM_Add_Output_Object,
-    OBJECT_OT_Blended_MPM_Remove_Output_Object,
-    OBJECT_UL_Blended_MPM_Output_Object_List,
-    OBJECT_PT_Blended_MPM_Output,
+    OBJECT_OT_Squishy_Volumes_Jump_To_Start,
+    OBJECT_OT_Squishy_Volumes_Add_Output_Object,
+    OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
+    OBJECT_UL_Squishy_Volumes_Output_Object_List,
+    OBJECT_PT_Squishy_Volumes_Output,
 ]
 
 

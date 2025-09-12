@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ def get_output_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if obj.blended_mpm_object.simulation_uuid == simulation.uuid
+        if obj.squishy_volumes_object.simulation_uuid == simulation.uuid
     ]
 
 
@@ -41,7 +41,7 @@ def get_output_collections(simulation):
     return [
         collection
         for collection in bpy.data.collections
-        if collection.blended_mpm_collection.simulation_uuid == simulation.uuid
+        if collection.squishy_volumes_collection.simulation_uuid == simulation.uuid
     ]
 
 
@@ -49,7 +49,7 @@ def has_simulation_specific_settings(simulation, obj):
     return any(
         [
             settings.simulation_uuid == simulation.uuid
-            for settings in obj.blended_mpm_object.simulation_specific_settings
+            for settings in obj.squishy_volumes_object.simulation_specific_settings
         ]
     )
 
@@ -57,20 +57,20 @@ def has_simulation_specific_settings(simulation, obj):
 def get_simulation_specific_settings(simulation, obj):
     return [
         settings
-        for settings in obj.blended_mpm_object.simulation_specific_settings
+        for settings in obj.squishy_volumes_object.simulation_specific_settings
         if settings.simulation_uuid == simulation.uuid
     ][0]
 
 
 def get_selected_simulation(context):
-    simulations = context.scene.blended_mpm_scene.simulations
+    simulations = context.scene.squishy_volumes_scene.simulations
     if not simulations:
         return None
 
     if len(simulations) == 1:
         return simulations[0]
 
-    selected_uuid = context.scene.blended_mpm_scene.selected_simulation
+    selected_uuid = context.scene.squishy_volumes_scene.selected_simulation
     if not selected_uuid:
         return None
 
@@ -81,7 +81,7 @@ def get_selected_input_object(context):
     simulation = get_selected_simulation(context)
     if simulation is None:
         return None
-    selected_input_object = context.scene.blended_mpm_scene.selected_input_object
+    selected_input_object = context.scene.squishy_volumes_scene.selected_input_object
     if selected_input_object >= len(bpy.data.objects):
         return None
     obj = bpy.data.objects[selected_input_object]
@@ -91,10 +91,10 @@ def get_selected_input_object(context):
 
 
 def get_selected_output_object(context):
-    selected_output_object = context.scene.blended_mpm_scene.selected_output_object
+    selected_output_object = context.scene.squishy_volumes_scene.selected_output_object
     if selected_output_object >= len(bpy.data.objects):
         return None
     obj = bpy.data.objects[selected_output_object]
-    if obj.blended_mpm_object.simulation_uuid == "":
+    if obj.squishy_volumes_object.simulation_uuid == "":
         return None
     return obj

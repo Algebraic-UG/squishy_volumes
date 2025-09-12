@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@ def update_particle_size(self, _context):
     self.particle_size = self.grid_node_size * self.particle_factor
 
 
-class Blended_MPM_Simulation_Settings(bpy.types.PropertyGroup):
+class Squishy_Volumes_Simulation_Settings(bpy.types.PropertyGroup):
     grid_node_size: bpy.props.FloatProperty(
         name="Grid Node Size",
         description="""The major discrete space resolution of the simulation.

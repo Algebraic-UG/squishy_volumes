@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -34,7 +34,7 @@ from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.blended_mpm_simulation import Blended_MPM_Simulation
+from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
 from ..properties.util import get_output_objects, get_selected_simulation
 from ..util import (
     force_ui_redraw,
@@ -46,27 +46,27 @@ from ..util import (
 )
 
 
-class OBJECT_OT_Blended_MPM_Add_Simulation(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_add_simulation"
+class OBJECT_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
-    bl_description = """Create a new Blended MPM simulation.
+    bl_description = """Create a new Squishy Volumes simulation.
 
 There can be multiple simulations at once
 and they can share input geometries, but the physics
 are completely separate from each other."""
     bl_options = {"REGISTER", "UNDO"}
 
-    simulation: bpy.props.PointerProperty(type=Blended_MPM_Simulation)  # type: ignore
+    simulation: bpy.props.PointerProperty(type=Squishy_Volumes_Simulation)  # type: ignore
 
     @classmethod
     def poll(cls, context):
         return (
-            not context.scene.blended_mpm_scene.tutorial_active
-            or not context.scene.blended_mpm_scene.simulations
+            not context.scene.squishy_volumes_scene.tutorial_active
+            or not context.scene.squishy_volumes_scene.simulations
         )
 
     def execute(self, context):
-        simulations = context.scene.blended_mpm_scene.simulations
+        simulations = context.scene.squishy_volumes_scene.simulations
 
         new_simulation = simulations.add()
         new_simulation.uuid = self.simulation.uuid
@@ -102,8 +102,8 @@ are completely separate from each other."""
         )
 
 
-class OBJECT_OT_Blended_MPM_Reload(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_reload"
+class OBJECT_OT_Squishy_Volumes_Reload(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_reload"
     bl_label = "Reload"
     bl_description = "Reloads the cache"
     bl_options = {"REGISTER"}
@@ -120,8 +120,8 @@ class OBJECT_OT_Blended_MPM_Reload(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Remove_Simulation(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_remove_simulation"
+class OBJECT_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_remove_simulation"
     bl_label = "Remove"
     bl_description = """Remove the simulation from the scene.
 
@@ -137,13 +137,13 @@ please use your OS's file browser."""
         selected_uuid = get_selected_simulation(context).uuid
 
         for obj in get_output_objects(simulation):
-            obj.blended_mpm_object.simulation_uuid = ""
+            obj.squishy_volumes_object.simulation_uuid = ""
 
         update_drivers(idx)
         cleanup_markers(simulation)
         drop_context(simulation)
 
-        simulations = context.scene.blended_mpm_scene.simulations
+        simulations = context.scene.squishy_volumes_scene.simulations
 
         # Note:
         # This actually invalidates the element!
@@ -151,7 +151,9 @@ please use your OS's file browser."""
         simulations.remove(idx)
 
         if simulations and self.uuid == selected_uuid:
-            context.scene.blended_mpm_scene.selected_simulation = simulations[0].uuid
+            context.scene.squishy_volumes_scene.selected_simulation = simulations[
+                0
+            ].uuid
             self.report({"INFO"}, "Updated simulation selection.")
 
         self.report({"INFO"}, "Removed simulation")
@@ -159,8 +161,8 @@ please use your OS's file browser."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Remove_Lock_File(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_remove_lock_file"
+class OBJECT_OT_Squishy_Volumes_Remove_Lock_File(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_remove_lock_file"
     bl_label = "Remove Lock"
     bl_description = """Use with care!
 
@@ -181,8 +183,8 @@ However, the lock file can remain after a crash, in which case it must be delete
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Show_Message(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_show_message"
+class OBJECT_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_show_message"
     bl_label = "Show"
 
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -192,11 +194,11 @@ class OBJECT_OT_Blended_MPM_Show_Message(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
+class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
     bl_label = "Overview"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Squishy Volumes"
 
     @classmethod
     def poll(cls, context):
@@ -205,7 +207,7 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        for simulation in context.scene.blended_mpm_scene.simulations:
+        for simulation in context.scene.squishy_volumes_scene.simulations:
             (header, body) = layout.panel(
                 simulation.uuid, default_closed=not simulation_cache_exists(simulation)
             )
@@ -213,7 +215,7 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
                 col = header.column()
                 col.alert = True
                 col.label(text=f"{simulation.name}: Message")
-                header.operator("object.blended_mpm_show_message").uuid = (
+                header.operator("object.squishy_volumes_show_message").uuid = (
                     simulation.uuid
                 )
             else:
@@ -263,41 +265,43 @@ class OBJECT_PT_Blended_MPM_Overview(bpy.types.Panel):
                     simulation
                 ):
                     row.operator(
-                        "object.blended_mpm_remove_lock_file", icon="WARNING_LARGE"
+                        "object.squishy_volumes_remove_lock_file", icon="WARNING_LARGE"
                     ).uuid = simulation.uuid
                 elif simulation_cache_exists(simulation):
                     tut = row.column()
-                    tut.enabled = not context.scene.blended_mpm_scene.tutorial_active
+                    tut.enabled = (
+                        not context.scene.squishy_volumes_scene.tutorial_active
+                    )
                     tut.operator(
-                        "object.blended_mpm_reload", icon="FILE_CACHE"
+                        "object.squishy_volumes_reload", icon="FILE_CACHE"
                     ).uuid = simulation.uuid
                 row.operator(
-                    "object.blended_mpm_remove_simulation", icon="TRASH"
+                    "object.squishy_volumes_remove_simulation", icon="TRASH"
                 ).uuid = simulation.uuid
 
         tut = layout.column()
         tut.alert = (
-            context.scene.blended_mpm_scene.tutorial_active
-            and not context.scene.blended_mpm_scene.simulations
+            context.scene.squishy_volumes_scene.tutorial_active
+            and not context.scene.squishy_volumes_scene.simulations
         )
-        tut.operator("object.blended_mpm_add_simulation", icon="ADD")
+        tut.operator("object.squishy_volumes_add_simulation", icon="ADD")
 
-        if len(context.scene.blended_mpm_scene.simulations) > 1:
+        if len(context.scene.squishy_volumes_scene.simulations) > 1:
             layout.separator()
             layout.prop(
-                context.scene.blended_mpm_scene,
+                context.scene.squishy_volumes_scene,
                 "selected_simulation",
                 text="Select",
             )
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Add_Simulation,
-    OBJECT_OT_Blended_MPM_Reload,
-    OBJECT_OT_Blended_MPM_Remove_Simulation,
-    OBJECT_OT_Blended_MPM_Remove_Lock_File,
-    OBJECT_OT_Blended_MPM_Show_Message,
-    OBJECT_PT_Blended_MPM_Overview,
+    OBJECT_OT_Squishy_Volumes_Add_Simulation,
+    OBJECT_OT_Squishy_Volumes_Reload,
+    OBJECT_OT_Squishy_Volumes_Remove_Simulation,
+    OBJECT_OT_Squishy_Volumes_Remove_Lock_File,
+    OBJECT_OT_Squishy_Volumes_Show_Message,
+    OBJECT_PT_Squishy_Volumes_Overview,
 ]
 
 

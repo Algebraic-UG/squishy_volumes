@@ -1,5 +1,5 @@
 [package]
-name = "blended_mpm_hot"
+name = "squishy_volumes_hot"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
@@ -13,8 +13,8 @@ license = "MIT"
 crate-type = ["rlib", "dylib"]
 
 [dependencies]
-blended_mpm_api.path = "../api"
-blended_mpm_core.path = "../core"
+squishy_volumes_api.path = "../api"
+squishy_volumes_core.path = "../core"
 build-info.workspace = true
 
 [build-dependencies]

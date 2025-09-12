@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use blended_mpm_api::T;
 use nalgebra::Vector3;
 use rayon::{Scope, scope, slice::ParallelSliceMut};
+use squishy_volumes_api::T;
 
 use crate::simulation::particles::Particles;
 

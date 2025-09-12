@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,15 +25,15 @@ from .util import simulation_cache_locked
 from .frame_change import sync_simulation
 
 
-class OBJECT_OT_Blended_MPM_Reload_All_Caches(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_reload_all_caches"
-    bl_label = "Blended MPM Reload All Caches"
+class OBJECT_OT_Squishy_Volumes_Reload_All_Caches(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_reload_all_caches"
+    bl_label = "Squishy Volumes Reload All Caches"
     bl_description = """Reloads all simulation caches.
 This is useful when reloading a Blender filer with multiple simulations."""
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        for simulation in context.scene.blended_mpm_scene.simulations:
+        for simulation in context.scene.squishy_volumes_scene.simulations:
             lock_file = Path(simulation.cache_directory) / "lock"
             if os.path.exists(lock_file):
                 os.remove(lock_file)
@@ -51,7 +51,7 @@ This is useful when reloading a Blender filer with multiple simulations."""
         if any(
             [
                 simulation_cache_locked(simulation)
-                for simulation in context.scene.blended_mpm_scene.simulations
+                for simulation in context.scene.squishy_volumes_scene.simulations
             ]
         ):
             return context.window_manager.invoke_props_dialog(self)
@@ -62,7 +62,7 @@ This is useful when reloading a Blender filer with multiple simulations."""
         self.layout.label(text="WARNING: these caches contain lock files:")
         for name in [
             simulation.name
-            for simulation in context.scene.blended_mpm_scene.simulations
+            for simulation in context.scene.squishy_volumes_scene.simulations
             if simulation_cache_locked(simulation)
         ]:
             self.layout.lablel(text=f"{name}")
@@ -70,13 +70,13 @@ This is useful when reloading a Blender filer with multiple simulations."""
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Reload_All_Caches,
+    OBJECT_OT_Squishy_Volumes_Reload_All_Caches,
 ]
 
 
 def menu_func_reload_all(self, _context):
     self.layout.operator(
-        OBJECT_OT_Blended_MPM_Reload_All_Caches.bl_idname, icon="FILE_CACHE"
+        OBJECT_OT_Squishy_Volumes_Reload_All_Caches.bl_idname, icon="FILE_CACHE"
     )
 
 

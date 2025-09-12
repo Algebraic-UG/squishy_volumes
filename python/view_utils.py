@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -24,9 +24,9 @@ from .util import local_bounding_box
 from .nodes.geometry_nodes_restrict_view import create_geometry_nodes_restrict_view
 
 
-class OBJECT_OT_Blended_MPM_Restrict_View(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_restrict_view"
-    bl_label = "Blended MPM Restrict View"
+class OBJECT_OT_Squishy_Volumes_Restrict_View(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_restrict_view"
+    bl_label = "Squishy Volumes Restrict View"
     bl_description = """Add an empty cuboid for restricting the view.
 
 The selected object is restricted via a geometry nodes modifier.
@@ -76,7 +76,7 @@ This modifier deletes vertices that are outside of the cuboid."""
 
         context.collection.objects.link(empty)
 
-        modifier = obj.modifiers.new("Blended MPM Restrict View", type="NODES")
+        modifier = obj.modifiers.new("Squishy Volumes Restrict View", type="NODES")
         modifier.node_group = create_geometry_nodes_restrict_view()
         modifier["Socket_2"] = empty
 
@@ -90,12 +90,14 @@ This modifier deletes vertices that are outside of the cuboid."""
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Restrict_View,
+    OBJECT_OT_Squishy_Volumes_Restrict_View,
 ]
 
 
 def menu_func_restrict_view(self, _context):
-    self.layout.operator(OBJECT_OT_Blended_MPM_Restrict_View.bl_idname, icon="MODIFIER")
+    self.layout.operator(
+        OBJECT_OT_Squishy_Volumes_Restrict_View.bl_idname, icon="MODIFIER"
+    )
 
 
 menu_funcs = [menu_func_restrict_view]

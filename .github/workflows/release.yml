@@ -54,7 +54,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: blended-mpm-extension
+          name: squishy-volumes-extension
           path: release/
 
       - name: Collect release files into a list

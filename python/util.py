@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -54,7 +54,7 @@ def get_simulation_obj(simulation, name):
     if collection is None:
         collection = bpy.data.collections.new(collection_name)
         bpy.context.scene.collection.children.link(collection)
-        collection.blended_mpm_collection.simulation_uuid = simulation.uuid
+        collection.squishy_volumes_collection.simulation_uuid = simulation.uuid
 
     mesh = bpy.data.meshes.get(mesh_name)
     if mesh is None:
@@ -63,8 +63,8 @@ def get_simulation_obj(simulation, name):
     obj = bpy.data.objects.get(object_name)
     if obj is None:
         obj = bpy.data.objects.new(object_name, mesh)
-        obj.blended_mpm_object.input_name = name
-        obj.blended_mpm_object.simulation_uuid = simulation.uuid
+        obj.squishy_volumes_object.input_name = name
+        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
 
     if obj.name not in collection.all_objects:
         collection.objects.link(obj)
@@ -108,20 +108,20 @@ def get_simulation_idx_by_uuid(uuid):
     return [
         idx
         for idx, simulation in enumerate(
-            bpy.context.scene.blended_mpm_scene.simulations
+            bpy.context.scene.squishy_volumes_scene.simulations
         )
         if simulation.uuid == uuid
     ][0]
 
 
 def get_simulation_by_uuid(uuid):
-    for simulation in bpy.context.scene.blended_mpm_scene.simulations:
+    for simulation in bpy.context.scene.squishy_volumes_scene.simulations:
         if simulation.uuid == uuid:
             return simulation
     raise RuntimeError(f"There is no simulation with UUID {uuid}")
 
 
-DEBUG_VISUALS = "Blended MPM Debug Visuals"
+DEBUG_VISUALS = "Squishy Volumes Debug Visuals"
 
 
 def force_ui_redraw():
@@ -145,7 +145,7 @@ def fix_quaternion_order(quaternion):
 def dialog_info(message):
     bpy.context.window_manager.invoke_confirm(
         lambda self, _: self.layout.label(text=message),
-        title="Blended MPM Info",
+        title="Squishy Volumes Info",
         icon="INFO",
     )
 
@@ -162,7 +162,7 @@ def copy_simple_property_group(source, target):
 
 
 def tutorial_msg(layout, context, msg):
-    if not context.scene.blended_mpm_scene.tutorial_active:
+    if not context.scene.squishy_volumes_scene.tutorial_active:
         return
     box = layout.box()
     box.label(text="Tutorial:")
