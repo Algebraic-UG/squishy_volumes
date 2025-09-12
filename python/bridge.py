@@ -41,6 +41,8 @@ def new_simulation(simulation, serialized_setup):
         giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
     )
 
+    return True
+
 
 def load_simulation(simulation):
     drop_context(simulation)
