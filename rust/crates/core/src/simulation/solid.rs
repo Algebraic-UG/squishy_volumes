@@ -83,6 +83,7 @@ impl Solid {
 
         let mu = mu_stable_neo_hookean(youngs_modulus, poissons_ratio);
         let lambda = lambda_stable_neo_hookean(youngs_modulus, poissons_ratio);
+        info!(mu, lambda, "Lamé parameters");
         let particle_volume = particle_size.powi(3);
 
         let position_gradient = Matrix3::from(orientation.to_rotation_matrix()) * dilation;
