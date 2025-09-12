@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,13 +23,14 @@ from .panels.panel_output import draw_object_attributes
 
 def selectable_simulations(_, context):
     return [
-        (sim.uuid, sim.name, "") for sim in context.scene.blended_mpm_scene.simulations
+        (sim.uuid, sim.name, "")
+        for sim in context.scene.squishy_volumes_scene.simulations
     ]
 
 
-class OBJECT_OT_Blended_MPM_Recouple_Output(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_recouple_output"
-    bl_label = "Blended MPM (Re)Couple Output"
+class OBJECT_OT_Squishy_Volumes_Recouple_Output(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_recouple_output"
+    bl_label = "Squishy Volumes (Re)Couple Output"
     bl_description = """Set the selected object as an output receiver.
 
 It is basically the same operation as adding output,
@@ -53,13 +54,13 @@ for the initial coupling case.
         return (
             context.active_object is not None
             and context.active_object.select_get()
-            and not context.active_object.blended_mpm_object.simulation_uuid
+            and not context.active_object.squishy_volumes_object.simulation_uuid
         )
 
     def execute(self, context):
         obj = context.active_object
 
-        obj.blended_mpm_object.simulation_uuid = self.simulation
+        obj.squishy_volumes_object.simulation_uuid = self.simulation
 
         self.report(
             {"INFO"},
@@ -71,7 +72,7 @@ for the initial coupling case.
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
-        mpm = context.active_object.blended_mpm_object
+        mpm = context.active_object.squishy_volumes_object
 
         self.layout.prop(self, "simulation")
         self.layout.prop(mpm, "input_name")
@@ -81,13 +82,13 @@ for the initial coupling case.
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Recouple_Output,
+    OBJECT_OT_Squishy_Volumes_Recouple_Output,
 ]
 
 
 def menu_func_recouple_output(self, _context):
     self.layout.operator(
-        OBJECT_OT_Blended_MPM_Recouple_Output.bl_idname, icon="MODIFIER"
+        OBJECT_OT_Squishy_Volumes_Recouple_Output.bl_idname, icon="MODIFIER"
     )
 
 

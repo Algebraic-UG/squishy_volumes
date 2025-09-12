@@ -6,9 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use blended_mpm_api::T;
 use nalgebra::{Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
+use squishy_volumes_api::T;
 
 use super::Mesh;
 

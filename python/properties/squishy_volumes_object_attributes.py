@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,15 +19,15 @@
 import bpy
 
 from ..magic_consts import (
-    BLENDED_MPM_ELASTIC_ENERGY,
-    BLENDED_MPM_TRANSFORM,
-    BLENDED_MPM_COLLIDER_INSIDE,
-    BLENDED_MPM_VELOCITY,
-    BLENDED_MPM_DISTANCE,
-    BLENDED_MPM_NORMAL,
-    BLENDED_MPM_MASS,
-    BLENDED_MPM_PRESSURE,
-    BLENDED_MPM_INITIAL_VOLUME,
+    SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_TRANSFORM,
+    SQUISHY_VOLUMES_COLLIDER_INSIDE,
+    SQUISHY_VOLUMES_VELOCITY,
+    SQUISHY_VOLUMES_DISTANCE,
+    SQUISHY_VOLUMES_NORMAL,
+    SQUISHY_VOLUMES_MASS,
+    SQUISHY_VOLUMES_PRESSURE,
+    SQUISHY_VOLUMES_INITIAL_VOLUME,
 )
 
 
@@ -50,115 +50,115 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.collider_velocities = value
 
 
-class Blended_MPM_Optional_Attributes(bpy.types.PropertyGroup):
+class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
     grid_collider_distances: bpy.props.BoolProperty(
         name="Distance",
-        description=f"Attribute name: {BLENDED_MPM_DISTANCE}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_DISTANCE}",
         default=True,
         options=set(),
     )  # type: ignore
 
     grid_collider_normals: bpy.props.BoolProperty(
         name="Normal",
-        description=f"Attribute name: {BLENDED_MPM_NORMAL}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_NORMAL}",
         default=True,
         options=set(),
     )  # type: ignore
 
     grid_momentum_masses: bpy.props.BoolProperty(
         name="Masses",
-        description=f"Attribute name: {BLENDED_MPM_MASS}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_MASS}",
         default=True,
         options=set(),
     )  # type: ignore
 
     grid_momentum_velocities: bpy.props.BoolProperty(
         name="Velocities",
-        description=f"Attribute name: {BLENDED_MPM_VELOCITY}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore
 
     solid_masses: bpy.props.BoolProperty(
         name="Masses",
-        description=f"Attribute name: {BLENDED_MPM_MASS}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_MASS}",
         default=False,
         options=set(),
     )  # type: ignore
 
     solid_initial_volumes: bpy.props.BoolProperty(
         name="Initial Volumes",
-        description=f"Attribute name: {BLENDED_MPM_INITIAL_VOLUME}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_VOLUME}",
         default=False,
         options=set(),
     )  # type: ignore
 
     solid_velocities: bpy.props.BoolProperty(
         name="Velocites",
-        description=f"Attribute name: {BLENDED_MPM_VELOCITY}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore
 
     solid_transformations: bpy.props.BoolProperty(
         name="Transformations",
-        description=f"Attribute name: {BLENDED_MPM_TRANSFORM}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_TRANSFORM}",
         default=True,
         options=set(),
     )  # type: ignore
 
     solid_energies: bpy.props.BoolProperty(
         name="Energies",
-        description=f"Attribute name: {BLENDED_MPM_ELASTIC_ENERGY}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_ELASTIC_ENERGY}",
         default=True,
         options=set(),
     )  # type: ignore
 
     solid_collider_insides: bpy.props.BoolProperty(
         name="Collider Insides",
-        description=f"Attribute name: {BLENDED_MPM_COLLIDER_INSIDE}_X",
+        description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
         default=True,
         options=set(),
     )  # type: ignore
 
     fluid_velocities: bpy.props.BoolProperty(
         name="Velocities",
-        description=f"Attribute name: {BLENDED_MPM_VELOCITY}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore
 
     fluid_transformations: bpy.props.BoolProperty(
         name="Transformations",
-        description=f"Attribute name: {BLENDED_MPM_TRANSFORM}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_TRANSFORM}",
         default=True,
         options=set(),
     )  # type: ignore
 
     fluid_collider_insides: bpy.props.BoolProperty(
         name="Collider Insides",
-        description=f"Attribute name: {BLENDED_MPM_COLLIDER_INSIDE}_X",
+        description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
         default=True,
         options=set(),
     )  # type: ignore
 
     fluid_pressures: bpy.props.BoolProperty(
         name="Pressures",
-        description=f"Attribute name: {BLENDED_MPM_PRESSURE}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_PRESSURE}",
         default=True,
         options=set(),
     )  # type: ignore
 
     collider_normals: bpy.props.BoolProperty(
         name="Normals",
-        description=f"Attribute name: {BLENDED_MPM_NORMAL}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_NORMAL}",
         default=True,
         options=set(),
     )  # type: ignore
 
     collider_velocities: bpy.props.BoolProperty(
         name="Velocities",
-        description=f"Attribute name: {BLENDED_MPM_VELOCITY}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore

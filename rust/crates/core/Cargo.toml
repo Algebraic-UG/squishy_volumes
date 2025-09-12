@@ -1,11 +1,11 @@
 [package]
-name = "blended_mpm_core"
+name = "squishy_volumes_core"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
 [features]
-f64 = [ "blended_mpm_api/f64" ]
+f64 = [ "squishy_volumes_api/f64" ]
 profile = [ "dep:coarse-prof" ]
 
 [lib]
@@ -33,4 +33,4 @@ coarse-prof.optional = true
 itertools = "0.14.0"
 roots = "0.0.8"
 
-blended_mpm_api.path = "../api"
+squishy_volumes_api.path = "../api"

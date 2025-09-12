@@ -9,9 +9,9 @@
 use std::mem::take;
 
 use anyhow::Result;
-use blended_mpm_api::T;
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use squishy_volumes_api::T;
 
 use crate::{
     simulation::{

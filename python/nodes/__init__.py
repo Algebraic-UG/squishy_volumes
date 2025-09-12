@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 #
 # change the fixed attribute strings to python constants use this
 #
-#     %s/\"blended_mpm_([^"]*)\"/BLENDED_MPM_\U\1/gc
+#     %s/\"squishy_volumes_([^"]*)\"/SQUISHY_VOLUMES_\U\1/gc
 #
 # any custom node groups referenced through strings must be recreated and not looked up
-# (search for "Blended MPM <...>" lookups)
+# (search for "Squishy Volumes <...>" lookups)

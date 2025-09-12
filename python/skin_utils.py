@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,14 +20,14 @@ import bpy
 import numpy as np
 
 from .output import sync_output
-from .properties.blended_mpm_object_attributes import optional_attributes_set_all
+from .properties.squishy_volumes_object_attributes import optional_attributes_set_all
 from .properties.util import get_selected_simulation
 from .bridge import InputNames
 from .magic_consts import (
-    BLENDED_MPM_BREAKING_FRAME,
+    SQUISHY_VOLUMES_BREAKING_FRAME,
     FLUID_PARTICLES,
     SOLID_PARTICLES,
-    BLENDED_MPM_TRANSFORM,
+    SQUISHY_VOLUMES_TRANSFORM,
 )
 
 from .nodes.geometry_nodes_move_with_reference import (
@@ -48,18 +48,18 @@ def selectable_driving_objects(_, context):
     ]
 
 
-class OBJECT_OT_Blended_MPM_Move_With_Particles(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_move_with_particles"
-    bl_label = "Blended MPM Move with Particles"
+class OBJECT_OT_Squishy_Volumes_Move_With_Particles(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_move_with_particles"
+    bl_label = "Squishy Volumes Move with Particles"
     bl_description = "TODO"
     # This description is out of date
-    # f"""Use a Blended MPM particle output to animate this mesh.
+    # f"""Use a Squishy Volumes particle output to animate this mesh.
     #
-    # This adds the point attributes {BLENDED_MPM_REFERENCE_INDEX} and {BLENDED_MPM_REFERENCE_OFFSET}.
+    # This adds the point attributes {SQUISHY_VOLUMES_REFERENCE_INDEX} and {SQUISHY_VOLUMES_REFERENCE_OFFSET}.
     #
     # This happens in two steps:
-    # 1. "Blended MPM Store Reference" is applied.
-    # 2. "Blended MPM Move With Reference" is attached.
+    # 1. "Squishy Volumes Store Reference" is applied.
+    # 2. "Squishy Volumes Move With Reference" is attached.
     #
     # Note that the references are calculated in the current configuration.
     # In most cases, this should be done while displaying the initial frame."""
@@ -68,7 +68,7 @@ class OBJECT_OT_Blended_MPM_Move_With_Particles(bpy.types.Operator):
     driving_input_name: bpy.props.EnumProperty(
         items=selectable_driving_objects,
         name="Driving Object",
-        description=f"""This must yield an output that can receive the {BLENDED_MPM_TRANSFORM} attribute.""",
+        description=f"""This must yield an output that can receive the {SQUISHY_VOLUMES_TRANSFORM} attribute.""",
         options=set(),
     )  # type: ignore
     reference_frame: bpy.props.IntProperty(
@@ -85,7 +85,7 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
             get_selected_simulation(context) is not None
             and context.active_object is not None
             and context.active_object.select_get()
-            and not context.active_object.blended_mpm_object.simulation_uuid
+            and not context.active_object.squishy_volumes_object.simulation_uuid
         )
 
     def execute(self, context):
@@ -102,14 +102,14 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
 
         def create_output_obj(name):
             output_obj = bpy.data.objects.new(name, bpy.data.meshes.new(name))
-            output_obj.blended_mpm_object.input_name = self.driving_input_name
-            output_obj.blended_mpm_object.simulation_uuid = simulation.uuid
-            output_obj.blended_mpm_object.output_type = output_type
+            output_obj.squishy_volumes_object.input_name = self.driving_input_name
+            output_obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+            output_obj.squishy_volumes_object.output_type = output_type
 
             optional_attributes_set_all(
-                output_obj.blended_mpm_object.optional_attributes, False
+                output_obj.squishy_volumes_object.optional_attributes, False
             )
-            output_obj.blended_mpm_object.optional_attributes.solid_transformations = (
+            output_obj.squishy_volumes_object.optional_attributes.solid_transformations = (
                 True
             )
 
@@ -118,8 +118,8 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
             return output_obj
 
         reference_obj = create_output_obj(f"REFERENCE - {self.driving_input_name}")
-        reference_obj.blended_mpm_object.sync_once = True
-        reference_obj.blended_mpm_object.sync_once_frame = (
+        reference_obj.squishy_volumes_object.sync_once = True
+        reference_obj.squishy_volumes_object.sync_once_frame = (
             self.reference_frame - simulation.display_start_frame
         )
 
@@ -127,11 +127,12 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
 
         self.report(
             {"INFO"},
-            f"Added {reference_obj.name} to output objects of {simulation.name} as reference to simulation frame #{reference_obj.blended_mpm_object.sync_once_frame}.",
+            f"Added {reference_obj.name} to output objects of {simulation.name} as reference to simulation frame #{reference_obj.squishy_volumes_object.sync_once_frame}.",
         )
 
         modifier = obj.modifiers.new(
-            f"{OBJECT_OT_Blended_MPM_Move_With_Particles.bl_label} - 1/2", type="NODES"
+            f"{OBJECT_OT_Squishy_Volumes_Move_With_Particles.bl_label} - 1/2",
+            type="NODES",
         )
         modifier.node_group = create_geometry_nodes_store_reference()
         modifier["Socket_2"] = reference_obj
@@ -146,7 +147,8 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
         )
 
         modifier = obj.modifiers.new(
-            f"{OBJECT_OT_Blended_MPM_Move_With_Particles.bl_label} - 2/2", type="NODES"
+            f"{OBJECT_OT_Squishy_Volumes_Move_With_Particles.bl_label} - 2/2",
+            type="NODES",
         )
         modifier.node_group = create_geometry_nodes_move_with_reference()
         modifier["Socket_2"] = driving_obj
@@ -163,16 +165,16 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
         return context.window_manager.invoke_props_dialog(self)
 
 
-class OBJECT_OT_Blended_MPM_Break_Edges(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_break_edges"
-    bl_label = "Blended MPM Break Edges"
+class OBJECT_OT_Squishy_Volumes_Break_Edges(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_break_edges"
+    bl_label = "Squishy Volumes Break Edges"
     bl_description = f"""Avoid unnatural stretching of mesh that is moving with particles.
 
-This adds the edge attribute {BLENDED_MPM_BREAKING_FRAME}.
+This adds the edge attribute {SQUISHY_VOLUMES_BREAKING_FRAME}.
 
 This happens in two steps:
-1. "Blended MPM Store Breaking Farme" is applied.
-2. "Blended MPM Remove Broken" is attached.
+1. "Squishy Volumes Store Breaking Farme" is applied.
+2. "Squishy Volumes Remove Broken" is attached.
 
 Note that this operation steps through the given frame range.
 That means it can be quite slow, depending on the complexity of the scene.
@@ -215,17 +217,19 @@ but the but dilation threshold isn't violated.""",
         return (
             context.active_object is not None
             and context.active_object.select_get()
-            and not context.active_object.blended_mpm_object.simulation_uuid
+            and not context.active_object.squishy_volumes_object.simulation_uuid
         )
 
     def execute(self, context):
         obj = context.active_object
 
         array = np.full(shape=(len(obj.data.edges)), fill_value=1e8, dtype="int32")
-        if BLENDED_MPM_BREAKING_FRAME in obj.data.attributes:
-            obj.data.attributes.remove(obj.data.attributes[BLENDED_MPM_BREAKING_FRAME])
+        if SQUISHY_VOLUMES_BREAKING_FRAME in obj.data.attributes:
+            obj.data.attributes.remove(
+                obj.data.attributes[SQUISHY_VOLUMES_BREAKING_FRAME]
+            )
         attr = obj.data.attributes.new(
-            BLENDED_MPM_BREAKING_FRAME, type="INT", domain="EDGE"
+            SQUISHY_VOLUMES_BREAKING_FRAME, type="INT", domain="EDGE"
         )
         attr.data.foreach_set("value", array)
 
@@ -237,14 +241,14 @@ but the but dilation threshold isn't violated.""",
 
             print(f"Checking for edge breakage in frame {frame}")
 
-            modifier = obj.modifiers.new("Blended MPM Temporary", type="NODES")
+            modifier = obj.modifiers.new("Squishy Volumes Temporary", type="NODES")
             modifier.node_group = node_group
             modifier["Socket_2"] = self.num_colliders
             modifier["Socket_3"] = bpy.data.objects[self.particle_obj]
             modifier["Socket_4"] = self.dilation_threshold
             bpy.ops.object.modifier_apply(modifier=modifier.name)
 
-        modifier = obj.modifiers.new("Blended MPM Default", type="NODES")
+        modifier = obj.modifiers.new("Squishy Volumes Default", type="NODES")
         modifier.node_group = create_geometry_nodes_remove_broken()
 
         self.report(
@@ -258,19 +262,21 @@ but the but dilation threshold isn't violated.""",
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Move_With_Particles,
-    OBJECT_OT_Blended_MPM_Break_Edges,
+    OBJECT_OT_Squishy_Volumes_Move_With_Particles,
+    OBJECT_OT_Squishy_Volumes_Break_Edges,
 ]
 
 
 def menu_func_move_with_particles(self, _context):
     self.layout.operator(
-        OBJECT_OT_Blended_MPM_Move_With_Particles.bl_idname, icon="MODIFIER"
+        OBJECT_OT_Squishy_Volumes_Move_With_Particles.bl_idname, icon="MODIFIER"
     )
 
 
 def menu_func_break_edges(self, _context):
-    self.layout.operator(OBJECT_OT_Blended_MPM_Break_Edges.bl_idname, icon="MODIFIER")
+    self.layout.operator(
+        OBJECT_OT_Squishy_Volumes_Break_Edges.bl_idname, icon="MODIFIER"
+    )
 
 
 menu_funcs = [menu_func_move_with_particles, menu_func_break_edges]

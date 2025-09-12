@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 import bpy
 
 
-class Blended_MPM_Collection(bpy.types.PropertyGroup):
+class Squishy_Volumes_Collection(bpy.types.PropertyGroup):
     simulation_uuid: bpy.props.StringProperty(
         name="Simulation UUID",
         description="The UUID of the simulation driving this",

@@ -6,8 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use blended_mpm_api::T;
 use nalgebra::{Matrix2, Matrix3, Vector2, Vector3};
+use squishy_volumes_api::T;
 
 #[allow(unused)]
 pub fn basis_from_direction_2d(dir: Vector2<T>) -> Matrix2<T> {

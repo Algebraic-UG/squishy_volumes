@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -33,7 +33,7 @@ def add_drivers(simulation, modifier):
         var.name = "grid_node_size"
         var.type = "CONTEXT_PROP"
         var.targets[0].data_path = (
-            f"blended_mpm_scene.simulations[{simulation_idx}].from_cache.grid_node_size"
+            f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.grid_node_size"
         )
 
     if "Particle Size" in tree:
@@ -44,11 +44,11 @@ def add_drivers(simulation, modifier):
         var.name = "particle_size"
         var.type = "CONTEXT_PROP"
         var.targets[0].data_path = (
-            f"blended_mpm_scene.simulations[{simulation_idx}].from_cache.particle_size"
+            f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.particle_size"
         )
 
 
-DRIVER_PATTERN = r"^(blended_mpm_scene\.simulations\[)(\d+)(\].*)"
+DRIVER_PATTERN = r"^(squishy_volumes_scene\.simulations\[)(\d+)(\].*)"
 
 
 def remove_drivers(obj):

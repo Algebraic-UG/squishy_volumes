@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use blended_mpm_api::T;
 use nalgebra::{Matrix3, Vector3};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use squishy_volumes_api::T;
 use std::array::from_fn;
 
 use crate::{simulation::weights::kernel_quadratic, weights::KERNEL_QUADRATIC_LENGTH};

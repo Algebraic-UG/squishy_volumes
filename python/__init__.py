@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -40,7 +40,7 @@ from .view_utils import register_view_utils, unregister_view_utils
 
 
 bl_info = {
-    "name": "Blended MPM",
+    "name": "Squishy Volumes",
     "blender": (4, 2, 0),
     "category": "Physics",
 }
@@ -55,13 +55,13 @@ def toggle_register(*_):
 def register_blend_file_change_handler():
     if toggle_register not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(toggle_register)
-        print("Blended MPM load_post registered.")
+        print("Squishy Volumes load_post registered.")
 
 
 def unregister_blend_file_change_handler():
     if toggle_register in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(toggle_register)
-        print("Blended MPM load_post unregistered.")
+        print("Squishy Volumes load_post unregistered.")
 
 
 def register():
@@ -74,7 +74,7 @@ def register():
         raise RuntimeError(
             f"Version mismatch! Expected {version_python} but loaded {version_rust}"
         )
-    print(f"Blended MPM detailed build info: {json.dumps(build_info(), indent=4)}")
+    print(f"Squishy Volumes detailed build info: {json.dumps(build_info(), indent=4)}")
 
     register_popup()
     register_blend_file_change_handler()

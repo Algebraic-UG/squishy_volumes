@@ -10,9 +10,9 @@ use std::array::from_fn;
 
 use anyhow::{Context, Error, Result, ensure};
 use base64::prelude::*;
-use blended_mpm_api::T;
 use nalgebra::{Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
+use squishy_volumes_api::T;
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializedVector {

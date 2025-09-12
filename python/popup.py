@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -27,9 +27,9 @@ from .util import get_simulation_by_uuid
 simulation_uuid = None
 
 
-class OBJECT_OT_Blended_MPM_Popup(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_popup"
-    bl_label = "Blended MPM Message"
+class OBJECT_OT_Squishy_Volumes_Popup(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_popup"
+    bl_label = "Squishy Volumes Message"
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -37,7 +37,8 @@ class OBJECT_OT_Blended_MPM_Popup(bpy.types.Operator):
         simulation = get_simulation_by_uuid(self.uuid)
         self.report(
             {"INFO"},
-            message="Blended MPM clearing last message:\n" + simulation.last_exception,
+            message="Squishy Volumes clearing last message:\n"
+            + simulation.last_exception,
         )
         simulation.last_exception = ""
         return {"FINISHED"}
@@ -56,7 +57,7 @@ class OBJECT_OT_Blended_MPM_Popup(bpy.types.Operator):
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Popup,
+    OBJECT_OT_Squishy_Volumes_Popup,
 ]
 
 
@@ -75,7 +76,7 @@ def popup(uuid):
         return
     global simulation_uuid
     simulation_uuid = uuid
-    bpy.ops.object.blended_mpm_popup("INVOKE_DEFAULT")
+    bpy.ops.object.squishy_volumes_popup("INVOKE_DEFAULT")
 
 
 def with_popup(simulation, f):

@@ -6,8 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use blended_mpm_api::T;
 use nalgebra::{Matrix3, Matrix4, Vector3, Vector4};
+use squishy_volumes_api::T;
 
 pub trait Flat3 {
     fn flat(&self) -> [T; 3];

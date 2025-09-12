@@ -1,4 +1,4 @@
-# Blended MPM
+# Squishy Volumes
 
 The Material Point Method (MPM) in Blender!
 
@@ -10,7 +10,7 @@ Works in Blender 4.5 or newer.
 
 You can either
 - ❤ buy the extension ❤ (TODO: shop link)
-- download ZIP from [github release page](https://github.com/Algebraic-UG/blended_mpm/releases)
+- download ZIP from [github release page](https://github.com/Algebraic-UG/squishy_volumes/releases)
 - [build from source](#building)
 
 ## How to Use the Extension
@@ -62,8 +62,8 @@ We are continually seeking ways to enhance the build system.
 ### Clone the repository
 
 ```
-git clone git@github.com:Algebraic-UG/blended_mpm.git
-cd blended_mpm
+git clone git@github.com:Algebraic-UG/squishy_volumes.git
+cd squishy_volumes
 ```
 > [!IMPORTANT]
 > All subsequent steps assume the checkout directory as working directory.
@@ -137,5 +137,5 @@ To run the tests, enable the double precision feature.
 
 ```
 cd rust
-cargo test --release --package blended_mpm_core --features "f64"
+cargo test --release --package squishy_volumes_core --features "f64"
 ```

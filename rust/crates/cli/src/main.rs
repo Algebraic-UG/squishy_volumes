@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{ensure, Result};
-use blended_mpm_core::{Cache, Phase, PhaseInput, Report, ReportInfo, State};
+use squishy_volumes_core::{Cache, Phase, PhaseInput, Report, ReportInfo, State};
 use std::{
     num::NonZero,
     path::PathBuf,

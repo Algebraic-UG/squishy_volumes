@@ -15,8 +15,8 @@ pub fn build_info() -> BuildInfo {
     _build_info().clone()
 }
 
-pub use blended_mpm_api::{Context, Simulation, Task};
-use blended_mpm_core::ContextImpl;
+pub use squishy_volumes_api::{Context, Simulation, Task};
+use squishy_volumes_core::ContextImpl;
 
 #[unsafe(no_mangle)]
 pub fn create_context() -> Box<dyn Context> {

@@ -6,19 +6,19 @@ from ..magic_consts import SOLID_PARTICLES
 from ..bridge import InputNames, available_frames, computing, context_exists
 from ..util import simulation_cache_exists
 from ..properties.util import get_output_objects
-from ..properties.blended_mpm_object_settings import (
+from ..properties.squishy_volumes_object_settings import (
     get_input_colliders,
     get_input_solids,
 )
 
 from .panel_input import selection_eligible_for_input
 from .panel_overview import (
-    OBJECT_OT_Blended_MPM_Add_Simulation,
+    OBJECT_OT_Squishy_Volumes_Add_Simulation,
 )
 
 
-class OBJECT_OT_Blended_MPM_Start_Tutorial(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_start_tutorial"
+class OBJECT_OT_Squishy_Volumes_Start_Tutorial(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_start_tutorial"
     bl_label = "Start Tutorial"
     bl_description = """The tutorial helps you to execute a basic workflow.
 
@@ -28,18 +28,18 @@ that is dropped onto a plane."""
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        context.scene.blended_mpm_scene.tutorial_active = True
+        context.scene.squishy_volumes_scene.tutorial_active = True
         return {"FINISHED"}
 
 
-class OBJECT_OT_Blended_MPM_Stop_Tutorial(bpy.types.Operator):
-    bl_idname = "object.blended_mpm_stop_tutorial"
+class OBJECT_OT_Squishy_Volumes_Stop_Tutorial(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_stop_tutorial"
     bl_label = "Stop Tutorial"
     bl_description = "Removes the hints and highlighting."
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        context.scene.blended_mpm_scene.tutorial_active = False
+        context.scene.squishy_volumes_scene.tutorial_active = False
         return {"FINISHED"}
 
 
@@ -48,7 +48,7 @@ def current_instructions(layout, context):
         for line in textwrap.dedent(msg).splitlines():
             layout.label(text=line)
 
-    if not context.scene.blended_mpm_scene.simulations:
+    if not context.scene.squishy_volumes_scene.simulations:
         display_msg(
             f"""\
             🌱 Welcome to the tutorial! 🌱
@@ -57,11 +57,11 @@ def current_instructions(layout, context):
             and text instructions.
 
             Please start by adding a new simulation.
-            Press {OBJECT_OT_Blended_MPM_Add_Simulation.bl_label}!"""
+            Press {OBJECT_OT_Squishy_Volumes_Add_Simulation.bl_label}!"""
         )
         return
 
-    simulation = context.scene.blended_mpm_scene.simulations[0]
+    simulation = context.scene.squishy_volumes_scene.simulations[0]
 
     if simulation_cache_exists(simulation) and not context_exists(simulation):
         display_msg(
@@ -175,7 +175,7 @@ def current_instructions(layout, context):
     if not [
         obj
         for obj in get_output_objects(simulation)
-        if obj.blended_mpm_object.output_type == SOLID_PARTICLES
+        if obj.squishy_volumes_object.output_type == SOLID_PARTICLES
     ]:
         display_msg(
             f"""\
@@ -223,31 +223,31 @@ def current_instructions(layout, context):
     )
 
 
-class OBJECT_PT_Blended_MPM_Tutorial(bpy.types.Panel):
+class OBJECT_PT_Squishy_Volumes_Tutorial(bpy.types.Panel):
     bl_label = "Tutorial"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Blended MPM"
+    bl_category = "Squishy Volumes"
 
     @classmethod
     def poll(cls, context):
         return (
-            not context.scene.blended_mpm_scene.simulations
-            or context.scene.blended_mpm_scene.tutorial_active
+            not context.scene.squishy_volumes_scene.simulations
+            or context.scene.squishy_volumes_scene.tutorial_active
         )
 
     def draw(self, context):
-        if context.scene.blended_mpm_scene.tutorial_active:
+        if context.scene.squishy_volumes_scene.tutorial_active:
             current_instructions(self.layout.box(), context)
-            self.layout.operator("object.blended_mpm_stop_tutorial")
+            self.layout.operator("object.squishy_volumes_stop_tutorial")
         else:
-            self.layout.operator("object.blended_mpm_start_tutorial")
+            self.layout.operator("object.squishy_volumes_start_tutorial")
 
 
 classes = [
-    OBJECT_OT_Blended_MPM_Start_Tutorial,
-    OBJECT_OT_Blended_MPM_Stop_Tutorial,
-    OBJECT_PT_Blended_MPM_Tutorial,
+    OBJECT_OT_Squishy_Volumes_Start_Tutorial,
+    OBJECT_OT_Squishy_Volumes_Stop_Tutorial,
+    OBJECT_PT_Squishy_Volumes_Tutorial,
 ]
 
 

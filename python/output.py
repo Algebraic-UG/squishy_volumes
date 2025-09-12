@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,14 +21,14 @@ import mathutils
 import numpy as np
 
 from .magic_consts import (
-    BLENDED_MPM_COLLIDER_INSIDE,
-    BLENDED_MPM_DISTANCE,
-    BLENDED_MPM_ELASTIC_ENERGY,
-    BLENDED_MPM_MASS,
-    BLENDED_MPM_NORMAL,
-    BLENDED_MPM_PRESSURE,
-    BLENDED_MPM_TRANSFORM,
-    BLENDED_MPM_VELOCITY,
+    SQUISHY_VOLUMES_COLLIDER_INSIDE,
+    SQUISHY_VOLUMES_DISTANCE,
+    SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_MASS,
+    SQUISHY_VOLUMES_NORMAL,
+    SQUISHY_VOLUMES_PRESSURE,
+    SQUISHY_VOLUMES_TRANSFORM,
+    SQUISHY_VOLUMES_VELOCITY,
     COLLIDER_MESH,
     COLLIDER_SAMPLES,
     FLUID_PARTICLES,
@@ -52,7 +52,7 @@ from .bridge import fetch_flat_attribute
 
 
 def create_output(simulation, obj, frame):
-    mpm = obj.blended_mpm_object
+    mpm = obj.squishy_volumes_object
     if mpm.output_type == COLLIDER_MESH or mpm.output_type == INPUT_MESH:
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: fetch_flat_attribute(
@@ -72,7 +72,7 @@ def create_output(simulation, obj, frame):
     if mpm.output_type == FLUID_PARTICLES:
         return  # TODO create
 
-    modifier = obj.modifiers.new("Blended MPM Default", type="NODES")
+    modifier = obj.modifiers.new("Squishy Volumes Default", type="NODES")
 
     if mpm.output_type == GRID_COLLIDER_DISTANCE:
         modifier.node_group = create_geometry_nodes_grid_distance()
@@ -103,7 +103,7 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
 
 
 def sync_output(simulation, obj, num_colliders, frame):
-    mpm = obj.blended_mpm_object
+    mpm = obj.squishy_volumes_object
 
     if mpm.sync_once and frame != mpm.sync_once_frame:
         return
@@ -122,7 +122,7 @@ def sync_output(simulation, obj, num_colliders, frame):
                 add_attribute(
                     obj.data,
                     ffa({"ColliderDistances": collider_idx}),
-                    f"{BLENDED_MPM_DISTANCE}_{collider_idx}",
+                    f"{SQUISHY_VOLUMES_DISTANCE}_{collider_idx}",
                     "FLOAT",
                 )
         if mpm.optional_attributes.grid_collider_normals:
@@ -130,7 +130,7 @@ def sync_output(simulation, obj, num_colliders, frame):
                 add_attribute(
                     obj.data,
                     ffa({"ColliderDistanceNormals": collider_idx}),
-                    f"{BLENDED_MPM_NORMAL}_{collider_idx}",
+                    f"{SQUISHY_VOLUMES_NORMAL}_{collider_idx}",
                     "FLOAT_VECTOR",
                 )
 
@@ -147,14 +147,14 @@ def sync_output(simulation, obj, num_colliders, frame):
             add_attribute(
                 obj.data,
                 ffa("Masses"),
-                BLENDED_MPM_MASS,
+                SQUISHY_VOLUMES_MASS,
                 "FLOAT",
             )
         if mpm.optional_attributes.grid_momentum_velocities:
             add_attribute(
                 obj.data,
                 ffa("Velocities"),
-                BLENDED_MPM_VELOCITY,
+                SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
     if mpm.output_type == GRID_MOMENTUM_CONFORMED:
@@ -176,14 +176,14 @@ def sync_output(simulation, obj, num_colliders, frame):
             add_attribute(
                 obj.data,
                 ffa("Masses"),
-                BLENDED_MPM_MASS,
+                SQUISHY_VOLUMES_MASS,
                 "FLOAT",
             )
         if mpm.optional_attributes.grid_momentum_velocities:
             add_attribute(
                 obj.data,
                 ffa("Velocities"),
-                BLENDED_MPM_VELOCITY,
+                SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
 
@@ -208,35 +208,35 @@ def sync_output(simulation, obj, num_colliders, frame):
             add_attribute(
                 obj.data,
                 ffa("Masses"),
-                BLENDED_MPM_ELASTIC_ENERGY,
+                SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
         if mpm.optional_attributes.solid_initial_volumes:
             add_attribute(
                 obj.data,
                 ffa("InitialVolumes"),
-                BLENDED_MPM_ELASTIC_ENERGY,
+                SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
         if mpm.optional_attributes.solid_velocities:
             add_attribute(
                 obj.data,
                 ffa("Velocities"),
-                BLENDED_MPM_VELOCITY,
+                SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
         if mpm.optional_attributes.solid_transformations:
             add_attribute(
                 obj.data,
                 ffa("Transformations"),
-                BLENDED_MPM_TRANSFORM,
+                SQUISHY_VOLUMES_TRANSFORM,
                 "FLOAT4X4",
             )
         if mpm.optional_attributes.solid_energies:
             add_attribute(
                 obj.data,
                 ffa("ElasticEnergies"),
-                BLENDED_MPM_ELASTIC_ENERGY,
+                SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
         if mpm.optional_attributes.solid_collider_insides:
@@ -244,7 +244,7 @@ def sync_output(simulation, obj, num_colliders, frame):
                 add_attribute(
                     obj.data,
                     ffa({"ColliderInsides": collider_idx}),
-                    f"{BLENDED_MPM_COLLIDER_INSIDE}_{collider_idx}",
+                    f"{SQUISHY_VOLUMES_COLLIDER_INSIDE}_{collider_idx}",
                     "FLOAT",
                 )
     if mpm.output_type == FLUID_PARTICLES:
@@ -262,14 +262,14 @@ def sync_output(simulation, obj, num_colliders, frame):
             add_attribute(
                 obj.data,
                 ffa("Velocities"),
-                BLENDED_MPM_VELOCITY,
+                SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
         if mpm.optional_attributes.fluid_transformations:
             add_attribute(
                 obj.data,
                 ffa("Transformations"),
-                BLENDED_MPM_TRANSFORM,
+                SQUISHY_VOLUMES_TRANSFORM,
                 "FLOAT4X4",
             )
         if mpm.optional_attributes.fluid_collider_insides:
@@ -277,14 +277,14 @@ def sync_output(simulation, obj, num_colliders, frame):
                 add_attribute(
                     obj.data,
                     ffa({"ColliderInsides": collider_idx}),
-                    f"{BLENDED_MPM_COLLIDER_INSIDE}_{collider_idx}",
+                    f"{SQUISHY_VOLUMES_COLLIDER_INSIDE}_{collider_idx}",
                     "FLOAT",
                 )
         if mpm.optional_attributes.fluid_pressures:
             add_attribute(
                 obj.data,
                 ffa("Pressures"),
-                BLENDED_MPM_PRESSURE,
+                SQUISHY_VOLUMES_PRESSURE,
                 "FLOAT",
             )
 
@@ -309,14 +309,14 @@ def sync_output(simulation, obj, num_colliders, frame):
             add_attribute(
                 obj.data,
                 ffa("SampleNormals"),
-                BLENDED_MPM_NORMAL,
+                SQUISHY_VOLUMES_NORMAL,
                 "FLOAT_VECTOR",
             )
         if mpm.optional_attributes.collider_velocities:
             add_attribute(
                 obj.data,
                 ffa("SampleVelocities"),
-                BLENDED_MPM_VELOCITY,
+                SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
     if mpm.output_type == COLLIDER_MESH:

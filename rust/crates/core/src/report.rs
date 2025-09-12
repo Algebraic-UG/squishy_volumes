@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-use blended_mpm_api::Task;
+use squishy_volumes_api::Task;
 
 pub const REPORT_STRIDE: usize = 1 << 12;
 

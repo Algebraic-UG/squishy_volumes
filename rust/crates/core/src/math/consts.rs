@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use blended_mpm_api::T;
+use squishy_volumes_api::T;
 
 pub const SURFACE_DISK_SIZE_FACTOR: T = 0.5;
 pub const NORMALIZATION_EPS: T = 1e-5;

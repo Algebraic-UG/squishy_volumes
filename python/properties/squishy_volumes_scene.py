@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,13 +20,13 @@ import bpy
 
 from ..properties.util import get_selected_input_object
 
-from .blended_mpm_simulation import Blended_MPM_Simulation
+from .squishy_volumes_simulation import Squishy_Volumes_Simulation
 
 
 def selectable_simulations(_, context):
     return [
         (simulation.uuid, simulation.name, "")
-        for simulation in context.scene.blended_mpm_scene.simulations
+        for simulation in context.scene.squishy_volumes_scene.simulations
     ]
 
 
@@ -38,7 +38,7 @@ def update_object_selection(_, context):
             obj.select_set(True)
 
 
-class Blended_MPM_Scene(bpy.types.PropertyGroup):
+class Squishy_Volumes_Scene(bpy.types.PropertyGroup):
     tutorial_active: bpy.props.BoolProperty(
         name="Tutorial Active",
         description="Whether the tutorial is active.",
@@ -46,9 +46,9 @@ class Blended_MPM_Scene(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
     simulations: bpy.props.CollectionProperty(
-        type=Blended_MPM_Simulation,
+        type=Squishy_Volumes_Simulation,
         name="Simulations",
-        description="Blended MPM Simluations that can receive inputs and produce outputs.",
+        description="Squishy Volumes Simluations that can receive inputs and produce outputs.",
         options=set(),
     )  # type: ignore
     selected_simulation: bpy.props.EnumProperty(

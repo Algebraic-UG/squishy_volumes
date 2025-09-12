@@ -1,5 +1,5 @@
 [package]
-name = "blended_mpm_wrap"
+name = "squishy_volumes_wrap"
 version = "0.1.16"
 edition = "2021"
 license = "MIT"
@@ -10,7 +10,7 @@ hot_reload = ["dep:hot-lib-reloader"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "blended_mpm_wrap"
+name = "squishy_volumes_wrap"
 crate-type = ["cdylib"]
 
 [dependencies]
@@ -22,7 +22,7 @@ serde.workspace = true
 serde_json.workspace = true
 build-info.workspace = true
 
-blended_mpm_hot.path = "../hot"
+squishy_volumes_hot.path = "../hot"
 
 [dependencies.pyo3]
 version = "0.25.0"

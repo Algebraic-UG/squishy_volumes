@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -36,7 +36,7 @@ from .bridge import (
 
 
 def sync(scene):
-    for simulation in scene.blended_mpm_scene.simulations.values():
+    for simulation in scene.squishy_volumes_scene.simulations.values():
         if context_exists(simulation):
             sync_simulation(simulation, scene.frame_current)
 
@@ -87,7 +87,7 @@ def sync_simulation(simulation, frame):
             desynced_objs.append((obj, e))
     if desynced_objs:
         for obj, _ in desynced_objs:
-            obj.blended_mpm_object.simulation_uuid = ""
+            obj.squishy_volumes_object.simulation_uuid = ""
             remove_drivers(obj)
 
         def raise_():
@@ -109,32 +109,32 @@ def frame_change_handler(scene):
     start = time.time()
     sync(scene)
     end = time.time()
-    print("Blended MPM: sync took " + str(end - start))
+    print("Squishy Volumes: sync took " + str(end - start))
 
 
 def check_interface_locked(scene):
     if not scene.render.use_lock_interface:
         scene.render.use_lock_interface = True
         print(
-            "Blended MPM: Locked interface for rendering. See also https://docs.blender.org/api/master/bpy.app.handlers.html#note-on-altering-data"
+            "Squishy Volumes: Locked interface for rendering. See also https://docs.blender.org/api/master/bpy.app.handlers.html#note-on-altering-data"
         )
 
 
 def register_frame_handler():
     if check_interface_locked not in bpy.app.handlers.render_pre:
         bpy.app.handlers.render_pre.append(check_interface_locked)
-        print("Blended MPM render pre check registered.")
+        print("Squishy Volumes render pre check registered.")
 
     if frame_change_handler not in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(frame_change_handler)
-        print("Blended MPM frame change handler registered.")
+        print("Squishy Volumes frame change handler registered.")
 
 
 def unregister_frame_handler():
     if frame_change_handler in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.remove(frame_change_handler)
-        print("Blended MPM frame change handler unregistered.")
+        print("Squishy Volumes frame change handler unregistered.")
 
     if check_interface_locked in bpy.app.handlers.render_pre:
         bpy.app.handlers.render_pre.remove(check_interface_locked)
-        print("Blended MPM render pre check unregistered.")
+        print("Squishy Volumes render pre check unregistered.")

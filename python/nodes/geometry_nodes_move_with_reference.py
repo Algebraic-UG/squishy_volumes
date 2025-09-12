@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,54 +23,54 @@
 import bpy
 
 from ..magic_consts import (
-    BLENDED_MPM_REFERENCE_INDEX,
-    BLENDED_MPM_REFERENCE_OFFSET,
-    BLENDED_MPM_TRANSFORM,
+    SQUISHY_VOLUMES_REFERENCE_INDEX,
+    SQUISHY_VOLUMES_REFERENCE_OFFSET,
+    SQUISHY_VOLUMES_TRANSFORM,
 )
 
 
 def create_geometry_nodes_move_with_reference():
-    # initialize blended_mpm_change_of_basis node group
-    def blended_mpm_change_of_basis_node_group():
-        blended_mpm_change_of_basis = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Change of Basis"
+    # initialize squishy_volumes_change_of_basis node group
+    def squishy_volumes_change_of_basis_node_group():
+        squishy_volumes_change_of_basis = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Change of Basis"
         )
 
-        blended_mpm_change_of_basis.color_tag = "NONE"
-        blended_mpm_change_of_basis.description = ""
-        blended_mpm_change_of_basis.default_group_node_width = 140
+        squishy_volumes_change_of_basis.color_tag = "NONE"
+        squishy_volumes_change_of_basis.description = ""
+        squishy_volumes_change_of_basis.default_group_node_width = 140
 
-        # blended_mpm_change_of_basis interface
+        # squishy_volumes_change_of_basis interface
         # Socket Transform
-        transform_socket = blended_mpm_change_of_basis.interface.new_socket(
+        transform_socket = squishy_volumes_change_of_basis.interface.new_socket(
             name="Transform", in_out="OUTPUT", socket_type="NodeSocketMatrix"
         )
         transform_socket.attribute_domain = "POINT"
 
         # Socket Target Space Obj
-        target_space_obj_socket = blended_mpm_change_of_basis.interface.new_socket(
+        target_space_obj_socket = squishy_volumes_change_of_basis.interface.new_socket(
             name="Target Space Obj", in_out="INPUT", socket_type="NodeSocketObject"
         )
         target_space_obj_socket.attribute_domain = "POINT"
 
         # Socket Source Space Obj
-        source_space_obj_socket = blended_mpm_change_of_basis.interface.new_socket(
+        source_space_obj_socket = squishy_volumes_change_of_basis.interface.new_socket(
             name="Source Space Obj", in_out="INPUT", socket_type="NodeSocketObject"
         )
         source_space_obj_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_change_of_basis nodes
+        # initialize squishy_volumes_change_of_basis nodes
         # node Group Output
-        group_output = blended_mpm_change_of_basis.nodes.new("NodeGroupOutput")
+        group_output = squishy_volumes_change_of_basis.nodes.new("NodeGroupOutput")
         group_output.name = "Group Output"
         group_output.is_active_output = True
 
         # node Group Input
-        group_input = blended_mpm_change_of_basis.nodes.new("NodeGroupInput")
+        group_input = squishy_volumes_change_of_basis.nodes.new("NodeGroupInput")
         group_input.name = "Group Input"
 
         # node Object Info.002
-        object_info_002 = blended_mpm_change_of_basis.nodes.new(
+        object_info_002 = squishy_volumes_change_of_basis.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info_002.name = "Object Info.002"
@@ -79,7 +79,7 @@ def create_geometry_nodes_move_with_reference():
         object_info_002.inputs[1].default_value = False
 
         # node Object Info.005
-        object_info_005 = blended_mpm_change_of_basis.nodes.new(
+        object_info_005 = squishy_volumes_change_of_basis.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info_005.name = "Object Info.005"
@@ -88,13 +88,13 @@ def create_geometry_nodes_move_with_reference():
         object_info_005.inputs[1].default_value = False
 
         # node Multiply Matrices.003
-        multiply_matrices_003 = blended_mpm_change_of_basis.nodes.new(
+        multiply_matrices_003 = squishy_volumes_change_of_basis.nodes.new(
             "FunctionNodeMatrixMultiply"
         )
         multiply_matrices_003.name = "Multiply Matrices.003"
 
         # node Invert Matrix.002
-        invert_matrix_002 = blended_mpm_change_of_basis.nodes.new(
+        invert_matrix_002 = squishy_volumes_change_of_basis.nodes.new(
             "FunctionNodeInvertMatrix"
         )
         invert_matrix_002.name = "Invert Matrix.002"
@@ -115,84 +115,88 @@ def create_geometry_nodes_move_with_reference():
         multiply_matrices_003.width, multiply_matrices_003.height = 140.0, 100.0
         invert_matrix_002.width, invert_matrix_002.height = 140.0, 100.0
 
-        # initialize blended_mpm_change_of_basis links
+        # initialize squishy_volumes_change_of_basis links
         # invert_matrix_002.Matrix -> multiply_matrices_003.Matrix
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             invert_matrix_002.outputs[0], multiply_matrices_003.inputs[0]
         )
         # object_info_002.Transform -> invert_matrix_002.Matrix
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             object_info_002.outputs[0], invert_matrix_002.inputs[0]
         )
         # object_info_005.Transform -> multiply_matrices_003.Matrix
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             object_info_005.outputs[0], multiply_matrices_003.inputs[1]
         )
         # group_input.Target Space Obj -> object_info_002.Object
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             group_input.outputs[0], object_info_002.inputs[0]
         )
         # group_input.Source Space Obj -> object_info_005.Object
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             group_input.outputs[1], object_info_005.inputs[0]
         )
         # multiply_matrices_003.Matrix -> group_output.Transform
-        blended_mpm_change_of_basis.links.new(
+        squishy_volumes_change_of_basis.links.new(
             multiply_matrices_003.outputs[0], group_output.inputs[0]
         )
-        return blended_mpm_change_of_basis
+        return squishy_volumes_change_of_basis
 
-    blended_mpm_change_of_basis = blended_mpm_change_of_basis_node_group()
+    squishy_volumes_change_of_basis = squishy_volumes_change_of_basis_node_group()
 
-    # initialize blended_mpm_move_with_reference node group
-    def blended_mpm_move_with_reference_node_group():
-        blended_mpm_move_with_reference = bpy.data.node_groups.new(
-            type="GeometryNodeTree", name="Blended MPM Move With Reference"
+    # initialize squishy_volumes_move_with_reference node group
+    def squishy_volumes_move_with_reference_node_group():
+        squishy_volumes_move_with_reference = bpy.data.node_groups.new(
+            type="GeometryNodeTree", name="Squishy Volumes Move With Reference"
         )
 
-        blended_mpm_move_with_reference.color_tag = "NONE"
-        blended_mpm_move_with_reference.description = ""
-        blended_mpm_move_with_reference.default_group_node_width = 140
+        squishy_volumes_move_with_reference.color_tag = "NONE"
+        squishy_volumes_move_with_reference.description = ""
+        squishy_volumes_move_with_reference.default_group_node_width = 140
 
-        blended_mpm_move_with_reference.is_modifier = True
+        squishy_volumes_move_with_reference.is_modifier = True
 
-        # blended_mpm_move_with_reference interface
+        # squishy_volumes_move_with_reference interface
         # Socket Geometry
-        geometry_socket = blended_mpm_move_with_reference.interface.new_socket(
+        geometry_socket = squishy_volumes_move_with_reference.interface.new_socket(
             name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket.attribute_domain = "POINT"
 
         # Socket Geometry
-        geometry_socket_1 = blended_mpm_move_with_reference.interface.new_socket(
+        geometry_socket_1 = squishy_volumes_move_with_reference.interface.new_socket(
             name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
         )
         geometry_socket_1.attribute_domain = "POINT"
 
-        # Socket Blended MPM Particles
-        blended_mpm_particles_socket = (
-            blended_mpm_move_with_reference.interface.new_socket(
-                name="Blended MPM Particles",
+        # Socket Squishy Volumes Particles
+        squishy_volumes_particles_socket = (
+            squishy_volumes_move_with_reference.interface.new_socket(
+                name="Squishy Volumes Particles",
                 in_out="INPUT",
                 socket_type="NodeSocketObject",
             )
         )
-        blended_mpm_particles_socket.attribute_domain = "POINT"
+        squishy_volumes_particles_socket.attribute_domain = "POINT"
 
         # Socket Visible Transform
-        visible_transform_socket = blended_mpm_move_with_reference.interface.new_socket(
-            name="Visible Transform", in_out="INPUT", socket_type="NodeSocketMenu"
+        visible_transform_socket = (
+            squishy_volumes_move_with_reference.interface.new_socket(
+                name="Visible Transform", in_out="INPUT", socket_type="NodeSocketMenu"
+            )
         )
         visible_transform_socket.attribute_domain = "POINT"
 
-        # initialize blended_mpm_move_with_reference nodes
+        # initialize squishy_volumes_move_with_reference nodes
         # node Group Output
-        group_output_1 = blended_mpm_move_with_reference.nodes.new("NodeGroupOutput")
+        group_output_1 = squishy_volumes_move_with_reference.nodes.new(
+            "NodeGroupOutput"
+        )
         group_output_1.name = "Group Output"
         group_output_1.is_active_output = True
 
         # node Set Position
-        set_position = blended_mpm_move_with_reference.nodes.new(
+        set_position = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeSetPosition"
         )
         set_position.name = "Set Position"
@@ -202,25 +206,25 @@ def create_geometry_nodes_move_with_reference():
         set_position.inputs[3].default_value = (0.0, 0.0, 0.0)
 
         # node Named Attribute
-        named_attribute = blended_mpm_move_with_reference.nodes.new(
+        named_attribute = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute.name = "Named Attribute"
         named_attribute.data_type = "INT"
         # Name
-        named_attribute.inputs[0].default_value = BLENDED_MPM_REFERENCE_INDEX
+        named_attribute.inputs[0].default_value = SQUISHY_VOLUMES_REFERENCE_INDEX
 
         # node Named Attribute.002
-        named_attribute_002 = blended_mpm_move_with_reference.nodes.new(
+        named_attribute_002 = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_002.name = "Named Attribute.002"
         named_attribute_002.data_type = "FLOAT_VECTOR"
         # Name
-        named_attribute_002.inputs[0].default_value = BLENDED_MPM_REFERENCE_OFFSET
+        named_attribute_002.inputs[0].default_value = SQUISHY_VOLUMES_REFERENCE_OFFSET
 
         # node Object Info
-        object_info = blended_mpm_move_with_reference.nodes.new(
+        object_info = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeObjectInfo"
         )
         object_info.name = "Object Info"
@@ -229,7 +233,7 @@ def create_geometry_nodes_move_with_reference():
         object_info.inputs[1].default_value = False
 
         # node Sample Index
-        sample_index = blended_mpm_move_with_reference.nodes.new(
+        sample_index = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeSampleIndex"
         )
         sample_index.name = "Sample Index"
@@ -238,53 +242,57 @@ def create_geometry_nodes_move_with_reference():
         sample_index.domain = "POINT"
 
         # node Named Attribute.001
-        named_attribute_001 = blended_mpm_move_with_reference.nodes.new(
+        named_attribute_001 = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeInputNamedAttribute"
         )
         named_attribute_001.name = "Named Attribute.001"
         named_attribute_001.data_type = "FLOAT4X4"
         # Name
-        named_attribute_001.inputs[0].default_value = BLENDED_MPM_TRANSFORM
+        named_attribute_001.inputs[0].default_value = SQUISHY_VOLUMES_TRANSFORM
 
         # node Transform Point
-        transform_point = blended_mpm_move_with_reference.nodes.new(
+        transform_point = squishy_volumes_move_with_reference.nodes.new(
             "FunctionNodeTransformPoint"
         )
         transform_point.name = "Transform Point"
 
         # node Self Object
-        self_object = blended_mpm_move_with_reference.nodes.new(
+        self_object = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeSelfObject"
         )
         self_object.name = "Self Object"
 
         # node Transform Point.001
-        transform_point_001 = blended_mpm_move_with_reference.nodes.new(
+        transform_point_001 = squishy_volumes_move_with_reference.nodes.new(
             "FunctionNodeTransformPoint"
         )
         transform_point_001.name = "Transform Point.001"
 
-        # node Blended MPM Change of Basis.001
-        blended_mpm_change_of_basis_001 = blended_mpm_move_with_reference.nodes.new(
-            "GeometryNodeGroup"
+        # node Squishy Volumes Change of Basis.001
+        squishy_volumes_change_of_basis_001 = (
+            squishy_volumes_move_with_reference.nodes.new("GeometryNodeGroup")
         )
-        blended_mpm_change_of_basis_001.name = "Blended MPM Change of Basis.001"
-        blended_mpm_change_of_basis_001.node_tree = blended_mpm_change_of_basis
+        squishy_volumes_change_of_basis_001.name = "Squishy Volumes Change of Basis.001"
+        squishy_volumes_change_of_basis_001.node_tree = squishy_volumes_change_of_basis
 
         # node Group Input
-        group_input_1 = blended_mpm_move_with_reference.nodes.new("NodeGroupInput")
+        group_input_1 = squishy_volumes_move_with_reference.nodes.new("NodeGroupInput")
         group_input_1.name = "Group Input"
 
         # node Group Input.001
-        group_input_001 = blended_mpm_move_with_reference.nodes.new("NodeGroupInput")
+        group_input_001 = squishy_volumes_move_with_reference.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_001.name = "Group Input.001"
 
         # node Group Input.002
-        group_input_002 = blended_mpm_move_with_reference.nodes.new("NodeGroupInput")
+        group_input_002 = squishy_volumes_move_with_reference.nodes.new(
+            "NodeGroupInput"
+        )
         group_input_002.name = "Group Input.002"
 
         # node Menu Switch
-        menu_switch = blended_mpm_move_with_reference.nodes.new(
+        menu_switch = squishy_volumes_move_with_reference.nodes.new(
             "GeometryNodeMenuSwitch"
         )
         menu_switch.name = "Menu Switch"
@@ -307,7 +315,7 @@ def create_geometry_nodes_move_with_reference():
         transform_point.location = (-280.0, -40.0)
         self_object.location = (-600.0, -400.0)
         transform_point_001.location = (40.0, -180.0)
-        blended_mpm_change_of_basis_001.location = (-400.0, -380.0)
+        squishy_volumes_change_of_basis_001.location = (-400.0, -380.0)
         group_input_1.location = (-1080.0, -40.0)
         group_input_001.location = (-640.0, -480.0)
         group_input_002.location = (120.0, 100.0)
@@ -325,79 +333,83 @@ def create_geometry_nodes_move_with_reference():
         self_object.width, self_object.height = 140.0, 100.0
         transform_point_001.width, transform_point_001.height = 140.0, 100.0
         (
-            blended_mpm_change_of_basis_001.width,
-            blended_mpm_change_of_basis_001.height,
-        ) = 300.0, 100.0
+            squishy_volumes_change_of_basis_001.width,
+            squishy_volumes_change_of_basis_001.height,
+        ) = (
+            300.0,
+            100.0,
+        )
         group_input_1.width, group_input_1.height = 180.0, 100.0
         group_input_001.width, group_input_001.height = 180.0, 100.0
         group_input_002.width, group_input_002.height = 180.0, 100.0
         menu_switch.width, menu_switch.height = 140.0, 100.0
 
-        # initialize blended_mpm_move_with_reference links
+        # initialize squishy_volumes_move_with_reference links
         # set_position.Geometry -> group_output_1.Geometry
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             set_position.outputs[0], group_output_1.inputs[0]
         )
         # sample_index.Value -> transform_point.Transform
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             sample_index.outputs[0], transform_point.inputs[1]
         )
         # named_attribute_001.Attribute -> sample_index.Value
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             named_attribute_001.outputs[0], sample_index.inputs[1]
         )
         # object_info.Geometry -> sample_index.Geometry
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             object_info.outputs[4], sample_index.inputs[0]
         )
         # named_attribute_002.Attribute -> transform_point.Vector
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             named_attribute_002.outputs[0], transform_point.inputs[0]
         )
-        # self_object.Self Object -> blended_mpm_change_of_basis_001.Target Space Obj
-        blended_mpm_move_with_reference.links.new(
-            self_object.outputs[0], blended_mpm_change_of_basis_001.inputs[0]
+        # self_object.Self Object -> squishy_volumes_change_of_basis_001.Target Space Obj
+        squishy_volumes_move_with_reference.links.new(
+            self_object.outputs[0], squishy_volumes_change_of_basis_001.inputs[0]
         )
-        # blended_mpm_change_of_basis_001.Transform -> transform_point_001.Transform
-        blended_mpm_move_with_reference.links.new(
-            blended_mpm_change_of_basis_001.outputs[0], transform_point_001.inputs[1]
+        # squishy_volumes_change_of_basis_001.Transform -> transform_point_001.Transform
+        squishy_volumes_move_with_reference.links.new(
+            squishy_volumes_change_of_basis_001.outputs[0],
+            transform_point_001.inputs[1],
         )
         # transform_point.Vector -> transform_point_001.Vector
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             transform_point.outputs[0], transform_point_001.inputs[0]
         )
         # named_attribute.Attribute -> sample_index.Index
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             named_attribute.outputs[0], sample_index.inputs[2]
         )
-        # group_input_1.Blended MPM Particles -> object_info.Object
-        blended_mpm_move_with_reference.links.new(
+        # group_input_1.Squishy Volumes Particles -> object_info.Object
+        squishy_volumes_move_with_reference.links.new(
             group_input_1.outputs[1], object_info.inputs[0]
         )
-        # group_input_001.Blended MPM Particles -> blended_mpm_change_of_basis_001.Source Space Obj
-        blended_mpm_move_with_reference.links.new(
-            group_input_001.outputs[1], blended_mpm_change_of_basis_001.inputs[1]
+        # group_input_001.Squishy Volumes Particles -> squishy_volumes_change_of_basis_001.Source Space Obj
+        squishy_volumes_move_with_reference.links.new(
+            group_input_001.outputs[1], squishy_volumes_change_of_basis_001.inputs[1]
         )
         # group_input_002.Geometry -> set_position.Geometry
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             group_input_002.outputs[0], set_position.inputs[0]
         )
         # group_input_002.Visible Transform -> menu_switch.Menu
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             group_input_002.outputs[2], menu_switch.inputs[0]
         )
         # menu_switch.Output -> set_position.Position
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             menu_switch.outputs[0], set_position.inputs[2]
         )
         # transform_point.Vector -> menu_switch.Self Object
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             transform_point.outputs[0], menu_switch.inputs[1]
         )
         # transform_point_001.Vector -> menu_switch.Particle Object
-        blended_mpm_move_with_reference.links.new(
+        squishy_volumes_move_with_reference.links.new(
             transform_point_001.outputs[0], menu_switch.inputs[2]
         )
-        return blended_mpm_move_with_reference
+        return squishy_volumes_move_with_reference
 
-    return blended_mpm_move_with_reference_node_group()
+    return squishy_volumes_move_with_reference_node_group()

@@ -5,14 +5,14 @@ schema_version = "1.0.0"
 
 # Example of manifest file for a Blender extension
 # Change the values according to your extension
-id = "blended_mpm_extension"
+id = "squishy_volumes_extension"
 
 # filled by update_manifest.py
 # version = "0.0.0"
 
-name = "Blended MPM Extension"
+name = "Squishy Volumes"
 tagline = "MPM Physics Extension"
-maintainer = "Lars Helge Scheel <larshelge.scheel@gmail.com>"
+maintainer = "Algebraic <squishy.volumes@algebraic.games>"
 # Supported types: "add-on", "theme"
 type = "add-on"
 

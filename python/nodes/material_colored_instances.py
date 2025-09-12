@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# This file is part of the Blended MPM extension.
+# This file is part of the Squishy Volumes extension.
 # Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,34 +21,34 @@
 
 import bpy
 
-from ..magic_consts import BLENDED_MPM_INSTANCE_COLOR
+from ..magic_consts import SQUISHY_VOLUMES_INSTANCE_COLOR
 
 
 def create_material_colored_instances():
-    mat = bpy.data.materials.new(name="Blended MPM Colored Instances")
+    mat = bpy.data.materials.new(name="Squishy Volumes Colored Instances")
     mat.use_nodes = True
 
-    # initialize Blended MPM Colored Instances node group
-    def blended_mpm_colored_instances_node_group():
-        blended_mpm_colored_instances = mat.node_tree
+    # initialize Squishy Volumes Colored Instances node group
+    def squishy_volumes_colored_instances_node_group():
+        squishy_volumes_colored_instances = mat.node_tree
         # start with a clean node tree
-        for node in blended_mpm_colored_instances.nodes:
-            blended_mpm_colored_instances.nodes.remove(node)
-        blended_mpm_colored_instances.color_tag = "NONE"
-        blended_mpm_colored_instances.description = ""
-        blended_mpm_colored_instances.default_group_node_width = 140
+        for node in squishy_volumes_colored_instances.nodes:
+            squishy_volumes_colored_instances.nodes.remove(node)
+        squishy_volumes_colored_instances.color_tag = "NONE"
+        squishy_volumes_colored_instances.description = ""
+        squishy_volumes_colored_instances.default_group_node_width = 140
 
-        # blended_mpm_colored_instances interface
+        # squishy_volumes_colored_instances interface
 
-        # initialize blended_mpm_colored_instances nodes
+        # initialize squishy_volumes_colored_instances nodes
         # node Attribute
-        attribute = blended_mpm_colored_instances.nodes.new("ShaderNodeAttribute")
+        attribute = squishy_volumes_colored_instances.nodes.new("ShaderNodeAttribute")
         attribute.name = "Attribute"
-        attribute.attribute_name = BLENDED_MPM_INSTANCE_COLOR
+        attribute.attribute_name = SQUISHY_VOLUMES_INSTANCE_COLOR
         attribute.attribute_type = "INSTANCER"
 
         # node Principled BSDF
-        principled_bsdf = blended_mpm_colored_instances.nodes.new(
+        principled_bsdf = squishy_volumes_colored_instances.nodes.new(
             "ShaderNodeBsdfPrincipled"
         )
         principled_bsdf.name = "Principled BSDF"
@@ -120,7 +120,7 @@ def create_material_colored_instances():
         principled_bsdf.inputs[30].default_value = 1.3300000429153442
 
         # node Material Output
-        material_output = blended_mpm_colored_instances.nodes.new(
+        material_output = squishy_volumes_colored_instances.nodes.new(
             "ShaderNodeOutputMaterial"
         )
         material_output.name = "Material Output"
@@ -141,17 +141,17 @@ def create_material_colored_instances():
         principled_bsdf.width, principled_bsdf.height = 240.0, 100.0
         material_output.width, material_output.height = 140.0, 100.0
 
-        # initialize blended_mpm_colored_instances links
+        # initialize squishy_volumes_colored_instances links
         # attribute.Color -> principled_bsdf.Base Color
-        blended_mpm_colored_instances.links.new(
+        squishy_volumes_colored_instances.links.new(
             attribute.outputs[0], principled_bsdf.inputs[0]
         )
         # principled_bsdf.BSDF -> material_output.Surface
-        blended_mpm_colored_instances.links.new(
+        squishy_volumes_colored_instances.links.new(
             principled_bsdf.outputs[0], material_output.inputs[0]
         )
-        return blended_mpm_colored_instances
+        return squishy_volumes_colored_instances
 
-    blended_mpm_colored_instances_node_group()
+    squishy_volumes_colored_instances_node_group()
 
     return mat

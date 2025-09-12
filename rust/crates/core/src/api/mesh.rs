@@ -17,11 +17,11 @@ use std::{
 
 use anyhow::{Result, bail, ensure};
 
-use blended_mpm_api::T;
 use iter_enumeration::{IntoIterEnum2, IntoIterEnum3};
 use nalgebra::{Matrix3, Vector2, Vector3};
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use serde::{Deserialize, Serialize};
+use squishy_volumes_api::T;
 use tracing::{info, warn};
 
 use crate::math::{Aabb, basis_from_direction_3d};

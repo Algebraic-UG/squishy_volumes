@@ -9,9 +9,9 @@
 use crate::api::{SerializedSetup, Setup};
 use anyhow::{Context, Result, ensure};
 use bincode::deserialize;
-use blended_mpm_api::T;
 use lock::CacheLock;
 use serde_json::{Value, from_reader, from_value, to_writer_pretty};
+use squishy_volumes_api::T;
 use std::{
     fs::{File, canonicalize, create_dir_all, metadata, read, read_dir, remove_file},
     io::{BufWriter, Write},

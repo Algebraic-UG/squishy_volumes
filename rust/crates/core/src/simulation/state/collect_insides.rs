@@ -7,10 +7,10 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use blended_mpm_api::T;
 use fxhash::FxHashMap;
 use nalgebra::{Matrix4, Vector3, Vector4};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use squishy_volumes_api::T;
 use std::{array::from_fn, collections::hash_map::Entry};
 
 use crate::{
