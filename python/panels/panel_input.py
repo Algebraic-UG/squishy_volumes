@@ -61,7 +61,19 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "density")
             layout.prop(settings, "youngs_modulus")
             layout.prop(settings, "poissons_ratio")
-            layout.prop(settings, "viscosity")
+
+            viscosity = layout.row()
+            viscosity.prop(settings, "use_viscosity", text="")
+            col = viscosity.column()
+            col.enabled = settings.use_viscosity
+            col.prop(settings, "viscosity")
+
+            sand_alpha = layout.row()
+            sand_alpha.prop(settings, "use_sand_alpha", text="")
+            col = sand_alpha.column()
+            col.enabled = settings.use_sand_alpha
+            col.prop(settings, "sand_alpha")
+
             layout.prop(settings, "dilation")
             layout.prop(settings, "randomness")
             layout.prop(settings, "initial_linear_velocity")
@@ -70,7 +82,13 @@ def draw_object_settings(layout, settings):
             layout.prop(settings, "density")
             layout.prop(settings, "exponent")
             layout.prop(settings, "bulk_modulus")
-            layout.prop(settings, "viscosity")
+
+            viscosity = layout.row()
+            viscosity.prop(settings, "use_viscosity", text="")
+            col = viscosity.column()
+            col.enabled = settings.use_viscosity
+            col.prop(settings, "viscosity")
+
             layout.prop(settings, "dilation")
             layout.prop(settings, "randomness")
             layout.prop(settings, "initial_linear_velocity")

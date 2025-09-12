@@ -110,6 +110,12 @@ With 7 it's more like an incompressible fluid like water.""",
         options=set(),
     )  # type: ignore
 
+    use_viscosity: bpy.props.BoolProperty(
+        name="Use Dynamic Viscosity",
+        description="""TODO""",
+        default=False,
+        options=set(),
+    )  # type: ignore
     viscosity: bpy.props.FloatProperty(
         name="Dynamic Viscosity",
         description="""TODO""",
@@ -169,6 +175,22 @@ more samples under compression and less under streching.""",
         min=0.0,
         max=10.0,
         precision=1,
+        options=set(),
+    )  # type: ignore
+
+    use_sand_alpha: bpy.props.BoolProperty(
+        name="Use Sand Alpha",
+        description="""TODO""",
+        default=False,
+        options=set(),
+    )  # type: ignore
+    sand_alpha: bpy.props.FloatProperty(
+        name="Sand Alpha",
+        description="""TODO""",
+        default=0.0,
+        min=0.0,
+        max=10.0,
+        precision=3,
         options=set(),
     )  # type: ignore
 
