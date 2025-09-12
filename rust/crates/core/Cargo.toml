@@ -17,7 +17,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 base64 = "0.22.1"
 iter_enumeration = "0.1.0"
 rayon = "1.10.0"
-fxhash = "0.2.1"
+rustc-hash = "2.1.1"
 nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand"] }
 nalgebra-sparse = { version = "0.10.0", features = ["serde-serialize"] }
 

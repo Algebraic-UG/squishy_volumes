@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use fxhash::FxHashMap;
 use nalgebra::{Matrix4, Vector3, Vector4};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::FxHashMap;
 use squishy_volumes_api::T;
 use std::{array::from_fn, collections::hash_map::Entry};
 

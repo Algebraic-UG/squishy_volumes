@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Result, bail, ensure};
-use fxhash::FxHashMap;
 use nalgebra::Vector3;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use std::{

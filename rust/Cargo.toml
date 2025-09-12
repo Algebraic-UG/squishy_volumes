@@ -7,7 +7,7 @@ anyhow = "1.0.93"
 serde_json = "1.0.132"
 serde = { version = "1.0.214", features = ["derive"] }
 tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
+tracing-subscriber = "0.3.20"
 coarse-prof = "0.2.6"
 # TODO: serious performance issues on serialization!
 #bincode = "2.0.1"
