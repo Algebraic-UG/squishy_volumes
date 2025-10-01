@@ -4,7 +4,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-rm -f python/extension/wheels/*
+rm -f python/wheels/*
 
 cd rust/crates/wrap
 uvx --python 3.11 maturin build --release --out ../../../python/wheels/
