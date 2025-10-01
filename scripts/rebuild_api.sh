@@ -8,6 +8,8 @@ rm -f python/wheels/*
 
 uv run --with toml scripts/update_lib_version.py
 
+./scripts/add_license_headers.sh
+
 cd rust/crates/wrap
 uvx --python 3.11 maturin build --release --out ../../../python/wheels/
 
