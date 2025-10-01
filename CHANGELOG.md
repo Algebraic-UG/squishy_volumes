@@ -1,7 +1,8 @@
 # Change Log
 
-## [0.1.17] - 2025-09-12
+## [1.1.18] - 2025-10-02
 
-The extension got a new name: "Squishy Volumes"!
-The main features include a rudimentary sand simulation and significantly improved mesh advection.
-The most critical fixed bug was that friction was not consistent across different collider locations.
+With this release we'll have a much smoother update!
+
+A 'renaming trick' allows for installing a new version without closing Blender
+and the release files now contain an `index.json` which allows checking for updates!

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [1.1.18] - 2025-10-02
+
+With this release we'll have a much smoother update!
+
+A 'renaming trick' allows for installing a new version without closing Blender
+and the release files now contain an `index.json` which allows checking for updates!
+
 ## [0.1.17] - 2025-09-12
 
 The extension got a new name: "Squishy Volumes"!
