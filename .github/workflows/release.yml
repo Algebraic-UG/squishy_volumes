@@ -62,7 +62,7 @@ jobs:
         run: |
           {
             echo 'release_files<<EOF'
-            find release -maxdepth 1 -name '*.zip' -printf '%p\n'
+            find release -maxdepth 1 -type f -printf '%p\n'
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
