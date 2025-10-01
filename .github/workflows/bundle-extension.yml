@@ -74,7 +74,13 @@ jobs:
         working-directory: python
         run: uv run --python 3.11 ../blender_ext.py build --split-platforms
 
+      - name: Generate index.json for easy updates
+        working-directory: python
+        run: uv run --python 3.11 ../blender_ext.py server-generate --repo-dir=./
+
       - uses: actions/upload-artifact@v4
         with:
           name: squishy-volumes-extension
-          path: python/*.zip
+          path: |
+            python/index.json
+            python/*.zip
