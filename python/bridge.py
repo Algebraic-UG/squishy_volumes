@@ -18,7 +18,7 @@
 
 import json
 
-import squishy_volumes_wrap
+from .shim import *
 
 squishy_volumes_context_dict = {}
 
