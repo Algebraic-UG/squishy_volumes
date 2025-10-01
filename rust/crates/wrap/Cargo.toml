@@ -10,7 +10,7 @@ hot_reload = ["dep:hot-lib-reloader"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "squishy_volumes_wrap"
+name = "squishy_volumes_wrap_0_1_17"
 crate-type = ["cdylib"]
 
 [dependencies]

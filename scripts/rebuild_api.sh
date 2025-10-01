@@ -6,6 +6,8 @@ cd "$(dirname "$0")/.."
 
 rm -f python/wheels/*
 
+uv run --with toml scripts/update_lib_version.py
+
 cd rust/crates/wrap
 uvx --python 3.11 maturin build --release --out ../../../python/wheels/
 

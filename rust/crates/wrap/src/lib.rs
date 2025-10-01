@@ -12,16 +12,15 @@ use pyo3::{prelude::*, types::PyList};
 use serde_json::{from_str, to_string};
 use std::path::PathBuf;
 
+mod shim;
+pub use shim::*;
+
 mod hot_reloadable;
 use hot_reloadable::{initialize, try_with_context, with_context, CombinedBuildInfo};
 
 #[cfg(feature = "hot_reload")]
 use hot_reloadable::handle_reload;
 
-/// A Python module implemented in Rust. The name of this function must match
-/// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
-/// import the module.
-#[pymodule]
 fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize();
 
