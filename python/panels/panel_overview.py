@@ -35,7 +35,11 @@ from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
-from ..properties.util import get_output_objects, get_selected_simulation
+from ..properties.util import (
+    get_input_objects,
+    get_output_objects,
+    get_selected_simulation,
+)
 from ..util import (
     force_ui_redraw,
     get_simulation_by_uuid,
@@ -136,6 +140,15 @@ please use your OS's file browser."""
         idx = get_simulation_idx_by_uuid(self.uuid)
         selected_uuid = get_selected_simulation(context).uuid
 
+        for obj in get_input_objects(simulation):
+            all_settings = obj.squishy_volumes_object.simulation_specific_settings
+            all_settings.remove(
+                next(
+                    i
+                    for i, settings in enumerate(all_settings)
+                    if settings.simulation_uuid == simulation.uuid
+                )
+            )
         for obj in get_output_objects(simulation):
             obj.squishy_volumes_object.simulation_uuid = ""
 
