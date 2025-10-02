@@ -116,6 +116,7 @@ impl Solid {
                 parameters,
                 masses,
                 initial_volumes,
+                initial_positions,
                 positions,
                 position_gradients,
                 velocities,
@@ -147,6 +148,11 @@ impl Solid {
             elastic_energies.resize(n, elastic_energy);
             collider_insides.resize(n, Default::default());
 
+            initial_positions.extend(
+                samples
+                    .iter()
+                    .map(|sample| orientation.transform_vector(sample) + position),
+            );
             positions.extend(
                 samples
                     .iter()

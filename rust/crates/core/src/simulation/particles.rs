@@ -35,6 +35,7 @@ pub struct Particles {
 
     pub masses: Vec<T>,
     pub initial_volumes: Vec<T>,
+    pub initial_positions: Vec<Vector3<T>>,
 
     pub positions: Vec<Vector3<T>>,
     pub position_gradients: Vec<Matrix3<T>>,

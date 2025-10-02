@@ -64,6 +64,7 @@ impl State {
                 let Particles {
                     // These need to be moved with the particles
                     positions,
+                    initial_positions,
                     sort_map,
                     parameters,
                     masses,
@@ -96,6 +97,7 @@ impl State {
 
                 scope(|s| {
                     permute(s, &permutation, positions);
+                    permute(s, &permutation, initial_positions);
                     permute(s, &permutation, sort_map);
                     permute(s, &permutation, parameters);
                     permute(s, &permutation, masses);
