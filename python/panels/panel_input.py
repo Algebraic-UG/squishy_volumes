@@ -352,17 +352,6 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
                 from_cache.prop(simulation.from_cache, "frames_per_second")
                 from_cache.prop(simulation.from_cache, "gravity")
 
-        obj = get_selected_input_object(context)
-        if obj is not None:
-            (header, body) = self.layout.panel(
-                "input_object_settings", default_closed=True
-            )
-            header.label(text=f"Settings for {obj.name}")
-            if body is not None:
-                draw_object_settings(
-                    body, get_simulation_specific_settings(simulation, obj)
-                )
-
         row = self.layout.row()
         row.column().template_list(
             "OBJECT_UL_Squishy_Volumes_Input_Object_List",
@@ -381,6 +370,17 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
         list_controls.operator(
             "object.squishy_volumes_remove_input_object", text="", icon="REMOVE"
         )
+
+        obj = get_selected_input_object(context)
+        if obj is not None:
+            (header, body) = self.layout.panel(
+                "input_object_settings", default_closed=True
+            )
+            header.label(text=f"Settings for {obj.name}")
+            if body is not None:
+                draw_object_settings(
+                    body, get_simulation_specific_settings(simulation, obj)
+                )
 
         if any([is_scripted(simulation, obj) for obj in get_input_objects(simulation)]):
             self.layout.prop(simulation, "capture_start_frame")
