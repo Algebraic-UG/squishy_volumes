@@ -23,7 +23,7 @@ import textwrap
 from ..magic_consts import SOLID_PARTICLES
 from ..bridge import InputNames, available_frames, computing, context_exists
 from ..util import simulation_cache_exists
-from ..properties.util import get_output_objects
+from ..properties.util import get_output_objects, get_selected_simulation
 from ..properties.squishy_volumes_object_settings import (
     get_input_colliders,
     get_input_solids,
@@ -79,7 +79,7 @@ def current_instructions(layout, context):
         )
         return
 
-    simulation = context.scene.squishy_volumes_scene.simulations[0]
+    simulation = get_selected_simulation(context)
 
     if simulation_cache_exists(simulation) and not context_exists(simulation):
         display_msg(
