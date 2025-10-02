@@ -44,6 +44,7 @@ from .nodes.geometry_nodes_grid_momentum import create_geometry_nodes_grid_momen
 from .nodes.geometry_nodes_surface_samples import create_geometry_nodes_surface_samples
 from .nodes.geometry_nodes_grid_distance import create_geometry_nodes_grid_distance
 from .nodes.geometry_nodes_particles import create_geometry_nodes_particles
+from .nodes.material_display_uvw import create_material_display_uvw
 from .util import (
     fill_mesh_with_positions,
     fill_mesh_with_vertices_and_triangles,
@@ -83,6 +84,7 @@ def create_output(simulation, obj, frame):
         modifier.node_group = create_geometry_nodes_grid_momentum()
     if mpm.output_type == SOLID_PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
+        modifier["Socket_10"] = create_material_display_uvw()
     if mpm.output_type == COLLIDER_SAMPLES:
         modifier.node_group = create_geometry_nodes_surface_samples()
 
