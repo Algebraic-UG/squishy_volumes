@@ -83,7 +83,8 @@ def with_popup(simulation, f):
     try:
         return f()
     except RuntimeError as e:
-        s = str(e)
+        s = f"""{e}
+(Please 'Clear Message' to print to 'Info')"""
         if simulation.last_exception != s:
             simulation.last_exception = s
             popup(simulation.uuid)
