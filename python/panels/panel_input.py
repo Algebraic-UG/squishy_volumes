@@ -23,7 +23,6 @@ from ..properties.util import (
     get_selected_input_object,
     get_selected_simulation,
     get_simulation_specific_settings,
-    has_simulation_specific_settings,
 )
 from ..properties.squishy_volumes_object_settings import (
     OBJECT_ENUM_COLLIDER,
@@ -106,7 +105,7 @@ def selection_eligible_for_input(context):
         and context.active_object.type == "MESH"
         # This could be allowed?
         and not context.active_object.squishy_volumes_object.simulation_uuid
-        and not has_simulation_specific_settings(
+        and not get_simulation_specific_settings(
             get_selected_simulation(context), context.active_object
         )
     )
@@ -197,11 +196,11 @@ Note that this does not delete the object."""
             obj.squishy_volumes_object.simulation_specific_settings
         )
         simulation_specific_settings.remove(
-            [
+            next(
                 idx
                 for idx, settings in enumerate(simulation_specific_settings)
                 if settings.simulation_uuid == simulation.uuid
-            ][0]
+            )
         )
         self.report(
             {"INFO"}, f"Removed {obj.name} from input objects of {simulation.name}."
@@ -352,17 +351,6 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
                 from_cache.prop(simulation.from_cache, "frames_per_second")
                 from_cache.prop(simulation.from_cache, "gravity")
 
-        obj = get_selected_input_object(context)
-        if obj is not None:
-            (header, body) = self.layout.panel(
-                "input_object_settings", default_closed=True
-            )
-            header.label(text=f"Settings for {obj.name}")
-            if body is not None:
-                draw_object_settings(
-                    body, get_simulation_specific_settings(simulation, obj)
-                )
-
         row = self.layout.row()
         row.column().template_list(
             "OBJECT_UL_Squishy_Volumes_Input_Object_List",
@@ -381,6 +369,17 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
         list_controls.operator(
             "object.squishy_volumes_remove_input_object", text="", icon="REMOVE"
         )
+
+        obj = get_selected_input_object(context)
+        if obj is not None:
+            (header, body) = self.layout.panel(
+                "input_object_settings", default_closed=True
+            )
+            header.label(text=f"Settings for {obj.name}")
+            if body is not None:
+                draw_object_settings(
+                    body, get_simulation_specific_settings(simulation, obj)
+                )
 
         if any([is_scripted(simulation, obj) for obj in get_input_objects(simulation)]):
             self.layout.prop(simulation, "capture_start_frame")
