@@ -18,7 +18,7 @@
 
 import bpy
 
-from ..properties.util import get_input_objects
+from ..properties.util import get_simulation_specific_settings, is_some_and
 
 # these have to match the enum in core::api::ObjectSettings
 OBJECT_ENUM_SOLID = "Solid"
@@ -29,9 +29,11 @@ OBJECT_ENUM_COLLIDER = "Collider"
 def get_input_objects_type(simulation, input_type):
     return [
         obj
-        for obj in get_input_objects(simulation)
-        if obj.squishy_volumes_object.simulation_specific_settings[0].object_enum
-        == input_type
+        for obj in bpy.data.objects
+        if is_some_and(
+            get_simulation_specific_settings(simulation, obj),
+            lambda settings: settings.object_enum == input_type,
+        )
     ]
 
 

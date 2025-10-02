@@ -92,3 +92,7 @@ def get_selected_output_object(context):
     if obj.squishy_volumes_object.simulation_uuid == "":
         return None
     return obj
+
+
+def is_some_and(x, f):
+    return x is not None and f(x)
