@@ -19,6 +19,7 @@
 import json
 
 from .shim import *
+from .hint_at_info import *
 
 squishy_volumes_context_dict = {}
 
@@ -27,13 +28,19 @@ def giga_f32_to_u64(giga_float):
     return int(float(giga_float) * 1e9)
 
 
+@hint_at_info
 def build_info():
     return json.loads(squishy_volumes_wrap.build_info_as_json())
 
 
-def new_simulation(simulation, serialized_setup):
-    drop_context(simulation)
+def _drop_context(simulation):
+    if simulation.uuid in squishy_volumes_context_dict:
+        squishy_volumes_context_dict.pop(simulation.uuid).drop()
 
+
+@hint_at_info
+def new_simulation(simulation, serialized_setup):
+    _drop_context(simulation)
     squishy_volumes_context_dict[simulation.uuid] = squishy_volumes_wrap.new(
         simulation.uuid,
         simulation.cache_directory,
@@ -44,9 +51,9 @@ def new_simulation(simulation, serialized_setup):
     return True
 
 
+@hint_at_info
 def load_simulation(simulation):
-    drop_context(simulation)
-
+    _drop_context(simulation)
     squishy_volumes_context_dict[simulation.uuid] = squishy_volumes_wrap.load(
         simulation.uuid,
         simulation.cache_directory,
@@ -54,19 +61,22 @@ def load_simulation(simulation):
     )
 
 
+@hint_at_info
 def drop_context(simulation):
-    if simulation.uuid in squishy_volumes_context_dict:
-        squishy_volumes_context_dict.pop(simulation.uuid).drop()
+    _drop_context(simulation)
 
 
+@hint_at_info
 def context_exists(simulation):
     return simulation.uuid in squishy_volumes_context_dict
 
 
+@hint_at_info
 def poll(simulation):
     return squishy_volumes_context_dict[simulation.uuid].poll()
 
 
+@hint_at_info
 def computing(simulation):
     return (
         context_exists(simulation)
@@ -74,6 +84,7 @@ def computing(simulation):
     )
 
 
+@hint_at_info
 def start_compute_initial_frame(simulation):
     squishy_volumes_context_dict[simulation.uuid].start_compute(
         simulation.time_step,
@@ -85,6 +96,7 @@ def start_compute_initial_frame(simulation):
     )
 
 
+@hint_at_info
 def start_compute(simulation, from_frame):
     squishy_volumes_context_dict[simulation.uuid].start_compute(
         simulation.time_step,
@@ -96,26 +108,31 @@ def start_compute(simulation, from_frame):
     )
 
 
+@hint_at_info
 def pause_compute(simulation):
     squishy_volumes_context_dict[simulation.uuid].pause_compute()
 
 
+@hint_at_info
 def available_frames(simulation):
     if not context_exists(simulation):
         return 0
     return squishy_volumes_context_dict[simulation.uuid].available_frames()
 
 
+@hint_at_info
 def available_attributes(simulation, frame):
     return squishy_volumes_context_dict[simulation.uuid].available_attributes(frame)
 
 
+@hint_at_info
 def fetch_flat_attribute(simulation, frame, attribute_json):
     return squishy_volumes_context_dict[simulation.uuid].fetch_flat_attribute(
         frame, attribute_json
     )
 
 
+@hint_at_info
 def cleanup_native():
     for context in squishy_volumes_context_dict.values():
         context.drop()
