@@ -80,6 +80,7 @@ pub enum AttributeSolid {
     Masses,
     InitialVolumes,
     Positions,
+    InitialPositions,
     Velocities,
     PositionGradients,
     ElasticEnergies,
@@ -90,6 +91,7 @@ pub enum AttributeSolid {
 #[derive(EnumIter, Serialize, Deserialize)]
 pub enum AttributeFluid {
     Positions,
+    InitialPositions,
     Velocities,
     Transformations,
     ColliderInsides(usize),
@@ -186,6 +188,9 @@ impl State {
                             AttributeSolid::Positions => {
                                 is.flat_map(|i| ps.positions[i].flat()).collect()
                             }
+                            AttributeSolid::InitialPositions => {
+                                is.flat_map(|i| ps.initial_positions[i].flat()).collect()
+                            }
                             AttributeSolid::Velocities => {
                                 is.flat_map(|i| ps.velocities[i].flat()).collect()
                             }
@@ -227,6 +232,9 @@ impl State {
                         match attribute {
                             AttributeFluid::Positions => {
                                 is.flat_map(|i| ps.positions[i].flat()).collect()
+                            }
+                            AttributeFluid::InitialPositions => {
+                                is.flat_map(|i| ps.initial_positions[i].flat()).collect()
                             }
                             AttributeFluid::Velocities => {
                                 is.flat_map(|i| ps.velocities[i].flat()).collect()
