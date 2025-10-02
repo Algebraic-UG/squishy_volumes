@@ -25,7 +25,7 @@ def get_input_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if has_simulation_specific_settings(simulation, obj)
+        if get_simulation_specific_settings(simulation, obj)
     ]
 
 
@@ -45,21 +45,15 @@ def get_output_collections(simulation):
     ]
 
 
-def has_simulation_specific_settings(simulation, obj):
-    return any(
-        [
-            settings.simulation_uuid == simulation.uuid
-            for settings in obj.squishy_volumes_object.simulation_specific_settings
-        ]
-    )
-
-
 def get_simulation_specific_settings(simulation, obj):
-    return [
-        settings
-        for settings in obj.squishy_volumes_object.simulation_specific_settings
-        if settings.simulation_uuid == simulation.uuid
-    ][0]
+    return next(
+        (
+            settings
+            for settings in obj.squishy_volumes_object.simulation_specific_settings
+            if settings.simulation_uuid == simulation.uuid
+        ),
+        None,
+    )
 
 
 def get_selected_simulation(context):
@@ -85,7 +79,7 @@ def get_selected_input_object(context):
     if selected_input_object >= len(bpy.data.objects):
         return None
     obj = bpy.data.objects[selected_input_object]
-    if not has_simulation_specific_settings(simulation, obj):
+    if not get_simulation_specific_settings(simulation, obj):
         return None
     return obj
 
