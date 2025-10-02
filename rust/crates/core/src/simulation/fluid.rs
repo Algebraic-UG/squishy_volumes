@@ -20,6 +20,7 @@ use crate::{
     Report,
     api::{GlobalSettings, Mesh, ObjectSettingsFluid},
     simulation::{
+        error_messages::SAMPLING_FAILED,
         particles::{ParticleParameters, Particles},
         state::profile,
     },
@@ -117,10 +118,7 @@ impl Fluid {
                 trial_position_gradients: _,
                 action_matrices: _,
             } = particles;
-            ensure!(
-                !samples.is_empty(),
-                "Fluid object appears to have no mass, is the resolution sufficient?"
-            );
+            ensure!(!samples.is_empty(), SAMPLING_FAILED);
 
             let n = first_idx + samples.len();
             sort_map.extend(first_idx..n);

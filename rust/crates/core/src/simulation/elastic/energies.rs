@@ -10,7 +10,10 @@ use anyhow::{Context, Result, ensure};
 use nalgebra::{Matrix3, stack};
 use squishy_volumes_api::T;
 
-use crate::math::{Matrix9, Vector9, safe_inverse::SafeInverse};
+use crate::{
+    math::{Matrix9, Vector9, safe_inverse::SafeInverse},
+    simulation::error_messages::INVERTED_PARTICLE,
+};
 
 // Wikipedia: Lamé parameters (this is the "second")
 pub fn mu(youngs_modulus: T, poissons_ratio: T) -> T {
@@ -158,7 +161,7 @@ pub fn try_elastic_energy_neo_hookean(
     position_gradient: &Matrix3<T>,
 ) -> Result<T> {
     let invariant_3 = invariant_3(position_gradient);
-    ensure!(invariant_3 > 0., "determinant isn't positive");
+    ensure!(invariant_3 > 0., INVERTED_PARTICLE);
     Ok(elastic_energy_neo_hookean_by_invariants(
         mu,
         lambda,
