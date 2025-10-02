@@ -24,6 +24,7 @@ from .magic_consts import (
     SQUISHY_VOLUMES_COLLIDER_INSIDE,
     SQUISHY_VOLUMES_DISTANCE,
     SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_INITIAL_POSITION,
     SQUISHY_VOLUMES_MASS,
     SQUISHY_VOLUMES_NORMAL,
     SQUISHY_VOLUMES_PRESSURE,
@@ -43,6 +44,7 @@ from .nodes.geometry_nodes_grid_momentum import create_geometry_nodes_grid_momen
 from .nodes.geometry_nodes_surface_samples import create_geometry_nodes_surface_samples
 from .nodes.geometry_nodes_grid_distance import create_geometry_nodes_grid_distance
 from .nodes.geometry_nodes_particles import create_geometry_nodes_particles
+from .nodes.material_display_uvw import create_material_display_uvw
 from .util import (
     fill_mesh_with_positions,
     fill_mesh_with_vertices_and_triangles,
@@ -82,6 +84,7 @@ def create_output(simulation, obj, frame):
         modifier.node_group = create_geometry_nodes_grid_momentum()
     if mpm.output_type == SOLID_PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
+        modifier["Socket_10"] = create_material_display_uvw()
     if mpm.output_type == COLLIDER_SAMPLES:
         modifier.node_group = create_geometry_nodes_surface_samples()
 
@@ -218,6 +221,13 @@ def sync_output(simulation, obj, num_colliders, frame):
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
+        if mpm.optional_attributes.solid_initial_positions:
+            add_attribute(
+                obj.data,
+                ffa("InitialPositions"),
+                SQUISHY_VOLUMES_INITIAL_POSITION,
+                "FLOAT_VECTOR",
+            )
         if mpm.optional_attributes.solid_velocities:
             add_attribute(
                 obj.data,
@@ -258,6 +268,13 @@ def sync_output(simulation, obj, num_colliders, frame):
         )
         fill_mesh_with_positions(obj.data, ffa("Positions"))
 
+        if mpm.optional_attributes.fluid_initial_positions:
+            add_attribute(
+                obj.data,
+                ffa("InitialPositions"),
+                SQUISHY_VOLUMES_INITIAL_POSITION,
+                "FLOAT_VECTOR",
+            )
         if mpm.optional_attributes.fluid_velocities:
             add_attribute(
                 obj.data,

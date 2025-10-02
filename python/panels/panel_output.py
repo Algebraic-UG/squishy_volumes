@@ -77,6 +77,8 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.label(text="FLOAT")
         grid.prop(optional_attributes, "solid_initial_volumes")
         grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "solid_initial_positions")
+        grid.label(text="FLOAT_VECTOR")
         grid.prop(optional_attributes, "solid_velocities")
         grid.label(text="FLOAT_VECTOR")
         grid.prop(optional_attributes, "solid_transformations")
@@ -86,6 +88,8 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.prop(optional_attributes, "solid_collider_insides")
         grid.label(text="FLOAT")
     if output_type == FLUID_PARTICLES:
+        grid.prop(optional_attributes, "fluid_initial_positions")
+        grid.label(text="FLOAT_VECTOR")
         grid.prop(optional_attributes, "fluid_velocities")
         grid.label(text="FLOAT_VECTOR")
         grid.prop(optional_attributes, "fluid_transformations")
