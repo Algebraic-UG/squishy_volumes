@@ -24,6 +24,7 @@ from .magic_consts import (
     SQUISHY_VOLUMES_COLLIDER_INSIDE,
     SQUISHY_VOLUMES_DISTANCE,
     SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_INITIAL_POSITION,
     SQUISHY_VOLUMES_MASS,
     SQUISHY_VOLUMES_NORMAL,
     SQUISHY_VOLUMES_PRESSURE,
@@ -218,6 +219,13 @@ def sync_output(simulation, obj, num_colliders, frame):
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
+        if mpm.optional_attributes.solid_initial_positions:
+            add_attribute(
+                obj.data,
+                ffa("InitialPositions"),
+                SQUISHY_VOLUMES_INITIAL_POSITION,
+                "FLOAT_VECTOR",
+            )
         if mpm.optional_attributes.solid_velocities:
             add_attribute(
                 obj.data,
@@ -258,6 +266,13 @@ def sync_output(simulation, obj, num_colliders, frame):
         )
         fill_mesh_with_positions(obj.data, ffa("Positions"))
 
+        if mpm.optional_attributes.fluid_initial_positions:
+            add_attribute(
+                obj.data,
+                ffa("InitialPositions"),
+                SQUISHY_VOLUMES_INITIAL_POSITION,
+                "FLOAT_VECTOR",
+            )
         if mpm.optional_attributes.fluid_velocities:
             add_attribute(
                 obj.data,

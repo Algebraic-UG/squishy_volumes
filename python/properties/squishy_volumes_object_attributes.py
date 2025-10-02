@@ -22,6 +22,7 @@ from ..magic_consts import (
     SQUISHY_VOLUMES_ELASTIC_ENERGY,
     SQUISHY_VOLUMES_TRANSFORM,
     SQUISHY_VOLUMES_COLLIDER_INSIDE,
+    SQUISHY_VOLUMES_INITIAL_POSITION,
     SQUISHY_VOLUMES_VELOCITY,
     SQUISHY_VOLUMES_DISTANCE,
     SQUISHY_VOLUMES_NORMAL,
@@ -38,6 +39,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.grid_momentum_velocities = value
     optional_attributes.solid_masses = value
     optional_attributes.solid_initial_volumes = value
+    optional_attributes.solid_initial_positions = value
     optional_attributes.solid_velocities = value
     optional_attributes.solid_transformations = value
     optional_attributes.solid_energies = value
@@ -86,6 +88,13 @@ class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
+    solid_initial_positions: bpy.props.BoolProperty(
+        name="Initial Positions",
+        description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_POSITION}",
+        default=True,
+        options=set(),
+    )  # type: ignore
+
     solid_initial_volumes: bpy.props.BoolProperty(
         name="Initial Volumes",
         description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_VOLUME}",
@@ -117,6 +126,13 @@ class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
     solid_collider_insides: bpy.props.BoolProperty(
         name="Collider Insides",
         description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
+        default=True,
+        options=set(),
+    )  # type: ignore
+
+    fluid_initial_positions: bpy.props.BoolProperty(
+        name="Initial Positions",
+        description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_POSITION}",
         default=True,
         options=set(),
     )  # type: ignore
