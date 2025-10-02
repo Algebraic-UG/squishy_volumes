@@ -11,6 +11,7 @@ mod collider;
 mod compute_thread;
 #[allow(unused)]
 mod elastic;
+mod error_messages;
 mod fluid;
 mod grids;
 mod interpolate;

@@ -18,6 +18,7 @@ use crate::{
         elastic::{
             lambda_stable_neo_hookean, mu_stable_neo_hookean, try_elastic_energy_neo_hookean,
         },
+        error_messages::SAMPLING_FAILED,
         particles::ParticleParameters,
         state::profile,
     },
@@ -124,10 +125,7 @@ impl Solid {
                 trial_position_gradients: _,
                 action_matrices: _,
             } = particles;
-            ensure!(
-                !samples.is_empty(),
-                "Solid object appears to have no mass, is the resolution sufficient?"
-            );
+            ensure!(!samples.is_empty(), SAMPLING_FAILED);
 
             let n = first_idx + samples.len();
             sort_map.extend(first_idx..n);
