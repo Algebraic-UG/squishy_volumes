@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use std::{
+    collections::VecDeque,
     num::NonZero,
     sync::{
         Arc, Mutex,
@@ -71,6 +72,7 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
+                let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
                     let start_compute_frame = Instant::now();
 
@@ -121,7 +123,14 @@ impl ComputeThread {
 
                     let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
                     let remaining_frames = number_of_frames.get() - next_frame;
-                    let remaining_time_sec = last_frame_time_sec * remaining_frames as f32;
+
+                    frame_times.push_back(last_frame_time_sec);
+                    if frame_times.len() > 5 {
+                        frame_times.pop_front();
+                    }
+                    let approx_frame_time =
+                        frame_times.iter().sum::<f32>() / frame_times.len() as f32;
+                    let remaining_time_sec = approx_frame_time * remaining_frames as f32;
 
                     *stats.lock().unwrap() = Some(ComputeStats {
                         remaining_time_sec,
