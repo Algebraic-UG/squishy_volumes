@@ -139,6 +139,11 @@ def cleanup_native():
     squishy_volumes_context_dict.clear()
 
 
+@hint_at_info
+def stats(simulation):
+    return json.loads(squishy_volumes_context_dict[simulation.uuid].stats())
+
+
 class InputNames:
     def __init__(self, simulation, frame):
         self.solid_names = set()

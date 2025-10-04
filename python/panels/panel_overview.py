@@ -29,6 +29,7 @@ from ..bridge import (
     context_exists,
     drop_context,
     load_simulation,
+    stats,
 )
 from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
@@ -291,6 +292,16 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 row.operator(
                     "object.squishy_volumes_remove_simulation", icon="TRASH"
                 ).uuid = simulation.uuid
+
+                if not context_exists(simulation):
+                    continue
+
+                # TODO: pick the JSON apart for nicer UI
+                body.label(text="Stats")
+                for line in json.dumps(
+                    stats(simulation), indent=2, sort_keys=True
+                ).splitlines():
+                    body.label(text=line)
 
         tut = layout.column()
         tut.alert = (

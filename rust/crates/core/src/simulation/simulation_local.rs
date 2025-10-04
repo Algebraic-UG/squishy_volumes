@@ -13,7 +13,11 @@ use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{T, Task};
 use tracing::warn;
 
-use crate::{PhaseInput, Simulation, api::ObjectWithData, math::flat::Flat3};
+use crate::{
+    PhaseInput, Simulation,
+    api::{ObjectWithData, Stats},
+    math::flat::Flat3,
+};
 
 use super::{
     cache::Cache,
@@ -149,5 +153,12 @@ impl Simulation for SimulationLocal {
             }
             attribute => self.cache.fetch_flat_attribute(frame, attribute),
         }
+    }
+
+    fn stats(&self) -> Result<Value> {
+        Ok(to_value(Stats {
+            total_grid_node_count: 42,
+            total_particle_count: 42,
+        })?)
     }
 }
