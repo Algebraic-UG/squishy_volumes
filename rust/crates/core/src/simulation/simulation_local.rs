@@ -6,10 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{
-    num::NonZero,
-    sync::{Arc, Mutex},
-};
+use std::{num::NonZero, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, from_value, to_value};
@@ -29,7 +26,6 @@ use super::{
 };
 
 pub struct SimulationLocal {
-    stats: Arc<Mutex<Stats>>,
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
 }
@@ -37,7 +33,6 @@ pub struct SimulationLocal {
 impl SimulationLocal {
     pub fn new(cache: Cache) -> Self {
         Self {
-            stats: Arc::new(Mutex::new(Stats::default())),
             cache: cache.into(),
             compute_thread: None,
         }
@@ -85,7 +80,6 @@ impl Simulation for SimulationLocal {
         self.cache.check()?;
         self.cache.drop_frames(next_frame)?;
         self.compute_thread = Some(ComputeThread::new(
-            self.stats.clone(),
             self.cache.clone(),
             self.cache.setup.settings.frames_per_second as usize,
             PhaseInput {
@@ -162,6 +156,13 @@ impl Simulation for SimulationLocal {
     }
 
     fn stats(&self) -> Result<Value> {
-        Ok(to_value(self.stats.lock().unwrap().clone())?)
+        Ok(to_value(Stats {
+            loaded_state: self.cache.loaded_state_stats(),
+            compute: self
+                .compute_thread
+                .as_ref()
+                .and_then(|compute_thread| compute_thread.stats.lock().unwrap().clone()),
+            bytes_on_disk: self.cache.current_bytes_on_disk(),
+        })?)
     }
 }

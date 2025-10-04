@@ -23,7 +23,7 @@ use tracing::{debug, info};
 
 use crate::{
     State,
-    api::Stats,
+    api::ComputeStats,
     report::{Report, ReportInfo},
     simulation::state::{Phase, PhaseInput},
 };
@@ -31,6 +31,8 @@ use crate::{
 use super::cache::Cache;
 
 pub struct ComputeThread {
+    pub stats: Arc<Mutex<Option<ComputeStats>>>,
+
     run: Arc<AtomicBool>,
     report: Report,
     thread: Option<JoinHandle<Result<()>>>,
@@ -38,7 +40,6 @@ pub struct ComputeThread {
 
 impl ComputeThread {
     pub fn new(
-        stats: Arc<Mutex<Stats>>,
         cache: Arc<Cache>,
         frames_per_second: usize,
         mut phase_input: PhaseInput,
@@ -54,9 +55,11 @@ impl ComputeThread {
             steps_to_completion: number_of_frames,
         });
         let seconds_per_frame = 1. / frames_per_second as f64;
+        let stats = Arc::new(Mutex::new(None));
         let thread = {
             let run = run.clone();
             let frame_report = report.clone();
+            let stats = stats.clone();
             Some(spawn(move || -> Result<()> {
                 let mut current_state = if next_frame == 0 {
                     let state = State::new(run.clone(), frame_report.clone(), &cache.setup)?;
@@ -70,7 +73,6 @@ impl ComputeThread {
 
                 while next_frame < number_of_frames.get() {
                     let start_compute_frame = Instant::now();
-                    current_state.update_stats(&mut stats.lock().unwrap());
 
                     let step_report = frame_report.new_sub(ReportInfo {
                         name: "Simulation Milliseconds to Next Frame".to_string(),
@@ -121,12 +123,11 @@ impl ComputeThread {
                     let remaining_frames = number_of_frames.get() - next_frame;
                     let remaining_time_sec = last_frame_time_sec * remaining_frames as f32;
 
-                    let mut stats = stats.lock().unwrap();
-
-                    stats.last_frame_time_sec = Some(last_frame_time_sec);
-                    stats.remaining_time_sec = Some(remaining_time_sec);
-                    stats.last_frame_substeps = Some(substeps);
-                    stats.bytes_on_disk = Some(cache.current_bytes_on_disk());
+                    *stats.lock().unwrap() = Some(ComputeStats {
+                        remaining_time_sec,
+                        last_frame_time_sec,
+                        last_frame_substeps: substeps,
+                    });
                 }
 
                 Ok(())
@@ -134,6 +135,7 @@ impl ComputeThread {
         };
 
         Ok(Self {
+            stats,
             run,
             report: report.as_store(),
             thread,

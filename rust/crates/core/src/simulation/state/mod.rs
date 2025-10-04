@@ -24,7 +24,7 @@ use strum::{EnumIter, IntoEnumIterator};
 use tracing::info;
 
 use crate::{
-    api::{ObjectSettings, ObjectWithData, Setup, Stats},
+    api::{ObjectSettings, ObjectWithData, Setup, StateStats},
     report::{Report, ReportInfo},
     simulation::{
         collider::ColliderConstruction, fluid::FluidConstruction, solid::SolidConstruction,
@@ -327,18 +327,15 @@ impl State {
         once(&mut self.grid_momentum).chain(self.grid_collider_momentums.iter_mut())
     }
 
-    pub fn update_stats(&self, stats: &mut Stats) {
-        stats.total_particle_count = Some(
-            self.particles.reverse_sort_map.len()
-                + self
-                    .collider_objects
-                    .iter()
-                    .map(|collider| collider.surface_samples.len())
-                    .sum::<usize>(),
-        );
-        stats.total_grid_node_count =
-            Some(self.grid_momentums().map(|grid| grid.masses.len()).sum());
-        stats.per_object_count = self
+    pub fn stats(&self) -> StateStats {
+        let total_particle_count = self.particles.reverse_sort_map.len()
+            + self
+                .collider_objects
+                .iter()
+                .map(|collider| collider.surface_samples.len())
+                .sum::<usize>();
+        let total_grid_node_count = self.grid_momentums().map(|grid| grid.masses.len()).sum();
+        let per_object_count = self
             .name_map
             .iter()
             .map(|(name, object_idx)| {
@@ -358,6 +355,12 @@ impl State {
                 )
             })
             .collect();
+
+        StateStats {
+            total_particle_count,
+            total_grid_node_count,
+            per_object_count,
+        }
     }
 }
 

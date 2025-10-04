@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::api::{SerializedSetup, Setup};
+use crate::api::{SerializedSetup, Setup, StateStats};
 use anyhow::{Context, Result, ensure};
 use bincode::deserialize;
 use lock::CacheLock;
@@ -36,7 +36,7 @@ pub struct Cache {
     bytes_on_disk: Arc<AtomicU64>,
     max_bytes_on_disk: Arc<AtomicU64>,
 
-    loaded_frame: Mutex<Option<(usize, State)>>,
+    loaded_frame: Mutex<Option<(usize, State, StateStats)>>,
     cache_lock: CacheLock,
     available_frames: Arc<AtomicUsize>,
     store_thread: Mutex<StoreThread>,
@@ -199,10 +199,14 @@ impl Cache {
         self.store_thread.lock().unwrap().store(state)
     }
 
-    fn load_frame(&self, loaded_frame: &mut Option<(usize, State)>, frame: usize) -> Result<()> {
+    fn load_frame(
+        &self,
+        loaded_frame: &mut Option<(usize, State, StateStats)>,
+        frame: usize,
+    ) -> Result<()> {
         if loaded_frame
             .as_ref()
-            .is_some_and(|(loaded_frame, _)| *loaded_frame == frame)
+            .is_some_and(|(loaded_frame, _, _)| *loaded_frame == frame)
         {
             return Ok(());
         }
@@ -213,13 +217,13 @@ impl Cache {
         );
 
         debug!(frame, "reading frame from disk");
-        *loaded_frame = Some((
-            frame,
-            deserialize::<State>(
-                &read(frame_path(self.cache_lock.cache_dir(), frame)).context("read frame")?,
-            )
-            .context("decoding frame")?,
-        ));
+        let state = deserialize::<State>(
+            &read(frame_path(self.cache_lock.cache_dir(), frame)).context("read frame")?,
+        )
+        .context("decoding frame")?;
+        let stats = state.stats();
+
+        *loaded_frame = Some((frame, state, stats));
 
         Ok(())
     }
@@ -270,6 +274,14 @@ impl Cache {
             Ordering::Relaxed,
         );
         Ok(())
+    }
+
+    pub fn loaded_state_stats(&self) -> Option<StateStats> {
+        self.loaded_frame
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map(|(_, _, stats)| stats.clone())
     }
 }
 
