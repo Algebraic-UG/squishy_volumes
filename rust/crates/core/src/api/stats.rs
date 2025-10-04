@@ -1,16 +1,19 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Stats {
-    pub total_particle_count: usize,
-    pub total_grid_node_count: usize,
-    // TODO:
-    // per object count
-    // time remaining to completion
-    // time per frame
-    // substeps per frame? or dt
-    // memory usage
-    // total disc usage
-    // disc usage per frame
-    // elastic and kinetic energy?
+    // these can be calculated from the state
+    pub total_particle_count: Option<usize>,
+    pub total_grid_node_count: Option<usize>,
+    pub per_object_count: BTreeMap<String, usize>,
+
+    // these can be calculated in the compute thread
+    pub remaining_time_sec: Option<f32>,
+    pub last_frame_time_sec: Option<f32>,
+    pub last_frame_substeps: Option<usize>,
+
+    // can be copied from existing tracking
+    pub bytes_on_disk: Option<u64>,
 }

@@ -9,10 +9,11 @@
 use std::{
     num::NonZero,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread::{JoinHandle, spawn},
+    time::Instant,
 };
 
 use anyhow::{Context, Result};
@@ -22,6 +23,7 @@ use tracing::{debug, info};
 
 use crate::{
     State,
+    api::Stats,
     report::{Report, ReportInfo},
     simulation::state::{Phase, PhaseInput},
 };
@@ -36,6 +38,7 @@ pub struct ComputeThread {
 
 impl ComputeThread {
     pub fn new(
+        stats: Arc<Mutex<Stats>>,
         cache: Arc<Cache>,
         frames_per_second: usize,
         mut phase_input: PhaseInput,
@@ -66,6 +69,9 @@ impl ComputeThread {
                 };
 
                 while next_frame < number_of_frames.get() {
+                    let start_compute_frame = Instant::now();
+                    current_state.update_stats(&mut stats.lock().unwrap());
+
                     let step_report = frame_report.new_sub(ReportInfo {
                         name: "Simulation Milliseconds to Next Frame".to_string(),
                         completed_steps: 0,
@@ -76,6 +82,7 @@ impl ComputeThread {
                     });
 
                     let next_stored_frame_time = next_frame as f64 * seconds_per_frame;
+                    let mut substeps = 0;
                     while current_state.time() < next_stored_frame_time {
                         let phase_report = step_report.new_sub(ReportInfo {
                             name: "Phases".to_string(),
@@ -102,12 +109,24 @@ impl ComputeThread {
                         step_report.set_completed(
                             ((current_state.time() % seconds_per_frame) * 1000.) as usize,
                         );
+                        substeps += 1;
                     }
                     frame_report.step();
 
                     cache.store_frame(current_state.clone())?;
                     debug!("computed frame {} of {}", next_frame, number_of_frames);
                     next_frame += 1;
+
+                    let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
+                    let remaining_frames = number_of_frames.get() - next_frame;
+                    let remaining_time_sec = last_frame_time_sec * remaining_frames as f32;
+
+                    let mut stats = stats.lock().unwrap();
+
+                    stats.last_frame_time_sec = Some(last_frame_time_sec);
+                    stats.remaining_time_sec = Some(remaining_time_sec);
+                    stats.last_frame_substeps = Some(substeps);
+                    stats.bytes_on_disk = Some(cache.current_bytes_on_disk());
                 }
 
                 Ok(())

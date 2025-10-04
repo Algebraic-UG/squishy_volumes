@@ -186,6 +186,10 @@ impl Cache {
             .store(max_bytes_on_disk, Ordering::Relaxed);
     }
 
+    pub fn current_bytes_on_disk(&self) -> u64 {
+        self.bytes_on_disk.load(Ordering::Relaxed)
+    }
+
     pub fn store_frame(&self, state: State) -> Result<()> {
         ensure!(
             self.bytes_on_disk.load(Ordering::Relaxed)
