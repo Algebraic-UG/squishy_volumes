@@ -15,7 +15,7 @@ use tracing::warn;
 
 use crate::{
     PhaseInput, Simulation,
-    api::{ObjectWithData, Stats},
+    api::{ComputeStats, ObjectWithData, Stats},
     math::flat::Flat3,
 };
 
@@ -28,6 +28,7 @@ use super::{
 pub struct SimulationLocal {
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
+    cached_compute_stats: Option<ComputeStats>,
 }
 
 impl SimulationLocal {
@@ -35,6 +36,7 @@ impl SimulationLocal {
         Self {
             cache: cache.into(),
             compute_thread: None,
+            cached_compute_stats: None,
         }
     }
 }
@@ -96,6 +98,10 @@ impl Simulation for SimulationLocal {
     }
 
     fn pause_compute(&mut self) {
+        self.cached_compute_stats = self
+            .compute_thread
+            .as_ref()
+            .and_then(|compute_thread| compute_thread.stats.lock().unwrap().clone());
         self.compute_thread = None
     }
 
@@ -161,7 +167,8 @@ impl Simulation for SimulationLocal {
             compute: self
                 .compute_thread
                 .as_ref()
-                .and_then(|compute_thread| compute_thread.stats.lock().unwrap().clone()),
+                .and_then(|compute_thread| compute_thread.stats.lock().unwrap().clone())
+                .or(self.cached_compute_stats.clone()),
             bytes_on_disk: self.cache.current_bytes_on_disk(),
         })?)
     }
