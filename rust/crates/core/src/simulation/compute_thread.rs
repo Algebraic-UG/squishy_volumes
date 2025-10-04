@@ -7,12 +7,14 @@
 // https://opensource.org/licenses/MIT.
 
 use std::{
+    collections::VecDeque,
     num::NonZero,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread::{JoinHandle, spawn},
+    time::Instant,
 };
 
 use anyhow::{Context, Result};
@@ -22,6 +24,7 @@ use tracing::{debug, info};
 
 use crate::{
     State,
+    api::ComputeStats,
     report::{Report, ReportInfo},
     simulation::state::{Phase, PhaseInput},
 };
@@ -29,6 +32,8 @@ use crate::{
 use super::cache::Cache;
 
 pub struct ComputeThread {
+    pub stats: Arc<Mutex<Option<ComputeStats>>>,
+
     run: Arc<AtomicBool>,
     report: Report,
     thread: Option<JoinHandle<Result<()>>>,
@@ -51,9 +56,11 @@ impl ComputeThread {
             steps_to_completion: number_of_frames,
         });
         let seconds_per_frame = 1. / frames_per_second as f64;
+        let stats = Arc::new(Mutex::new(None));
         let thread = {
             let run = run.clone();
             let frame_report = report.clone();
+            let stats = stats.clone();
             Some(spawn(move || -> Result<()> {
                 let mut current_state = if next_frame == 0 {
                     let state = State::new(run.clone(), frame_report.clone(), &cache.setup)?;
@@ -65,7 +72,10 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
+                let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
+                    let start_compute_frame = Instant::now();
+
                     let step_report = frame_report.new_sub(ReportInfo {
                         name: "Simulation Milliseconds to Next Frame".to_string(),
                         completed_steps: 0,
@@ -76,6 +86,7 @@ impl ComputeThread {
                     });
 
                     let next_stored_frame_time = next_frame as f64 * seconds_per_frame;
+                    let mut substeps = 0;
                     while current_state.time() < next_stored_frame_time {
                         let phase_report = step_report.new_sub(ReportInfo {
                             name: "Phases".to_string(),
@@ -102,12 +113,30 @@ impl ComputeThread {
                         step_report.set_completed(
                             ((current_state.time() % seconds_per_frame) * 1000.) as usize,
                         );
+                        substeps += 1;
                     }
                     frame_report.step();
 
                     cache.store_frame(current_state.clone())?;
                     debug!("computed frame {} of {}", next_frame, number_of_frames);
                     next_frame += 1;
+
+                    let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
+                    let remaining_frames = number_of_frames.get() - next_frame;
+
+                    frame_times.push_back(last_frame_time_sec);
+                    if frame_times.len() > 5 {
+                        frame_times.pop_front();
+                    }
+                    let approx_frame_time =
+                        frame_times.iter().sum::<f32>() / frame_times.len() as f32;
+                    let remaining_time_sec = approx_frame_time * remaining_frames as f32;
+
+                    *stats.lock().unwrap() = Some(ComputeStats {
+                        remaining_time_sec,
+                        last_frame_time_sec,
+                        last_frame_substeps: substeps,
+                    });
                 }
 
                 Ok(())
@@ -115,6 +144,7 @@ impl ComputeThread {
         };
 
         Ok(Self {
+            stats,
             run,
             report: report.as_store(),
             thread,

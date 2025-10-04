@@ -1,3 +1,11 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright 2025  Algebraic UG (haftungsbeschränkt)
+//
+// Use of this source code is governed by an MIT-style
+// license that can be found in the LICENSE_MIT file or at
+// https://opensource.org/licenses/MIT.
+
 pub const SAMPLING_FAILED: &'static str = "Object could not be sampled.\n\
 This is most likely because the volume is negative or tiny relative to the resolution.\n\
 Please check the normals and consider increasing the resolution by reducing 'Grid Node Size' or 'Particle Factor'.\n\

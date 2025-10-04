@@ -159,4 +159,8 @@ impl SimulationReference {
             Ok(PyArray1::from_vec(py, flat_attribute))
         })
     }
+
+    fn stats(&self) -> Result<String> {
+        try_with_context(|context| Ok(to_string(&context.get_simulation(&self.0)?.stats()?)?))
+    }
 }

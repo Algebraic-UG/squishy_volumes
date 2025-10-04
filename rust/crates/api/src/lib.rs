@@ -56,6 +56,7 @@ pub trait Simulation {
     fn available_frames(&self) -> usize;
     fn available_attributes(&self, frame: usize) -> Result<Vec<Value>>;
     fn fetch_flat_attribute(&self, frame: usize, attribute: Value) -> Result<Vec<T>>;
+    fn stats(&self) -> Result<Value>;
 }
 
 #[derive(Serialize, Deserialize)]

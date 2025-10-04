@@ -29,6 +29,7 @@ from ..bridge import (
     context_exists,
     drop_context,
     load_simulation,
+    stats,
 )
 from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
@@ -291,6 +292,48 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 row.operator(
                     "object.squishy_volumes_remove_simulation", icon="TRASH"
                 ).uuid = simulation.uuid
+
+                if not context_exists(simulation):
+                    continue
+                json_stats = stats(simulation)
+                loaded_state = json_stats["loaded_state"]
+                compute = json_stats["compute"]
+                bytes_on_disk = json_stats["bytes_on_disk"]
+
+                body.label(text="Misc. Stats")
+                box = body.box()
+                grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
+                grid.label(text="Currently used Giga Bytes")
+                grid.label(text=f"{bytes_on_disk * 1e-9}")
+
+                if loaded_state is not None:
+                    total_particle_count = loaded_state["total_particle_count"]
+                    total_grid_node_count = loaded_state["total_grid_node_count"]
+                    per_object_count = loaded_state["per_object_count"]
+                    body.label(text="Loaded State Stats")
+                    box = body.box()
+                    grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
+                    grid.label(text="Total particles + samples")
+                    grid.label(text=f"{total_particle_count}")
+                    grid.label(text="Total active grid nodes")
+                    grid.label(text=f"{total_grid_node_count}")
+                    for name, count in per_object_count.items():
+                        grid.label(text=name)
+                        grid.label(text=f"{count}")
+
+                if compute is not None:
+                    body.label(text="Compute Stats")
+                    box = body.box()
+                    remaining_time_sec = compute["remaining_time_sec"]
+                    last_frame_time_sec = compute["last_frame_time_sec"]
+                    last_frame_substeps = compute["last_frame_substeps"]
+                    grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
+                    grid.label(text="Approx. remaining time (sec)")
+                    grid.label(text=f"{remaining_time_sec:0.2f}")
+                    grid.label(text="Last frame time (sec)")
+                    grid.label(text=f"{last_frame_time_sec:0.5f}")
+                    grid.label(text="Last frame substeps")
+                    grid.label(text=f"{last_frame_substeps}")
 
         tut = layout.column()
         tut.alert = (

@@ -24,7 +24,7 @@ use strum::{EnumIter, IntoEnumIterator};
 use tracing::info;
 
 use crate::{
-    api::{ObjectSettings, ObjectWithData, Setup},
+    api::{ObjectSettings, ObjectWithData, Setup, StateStats},
     report::{Report, ReportInfo},
     simulation::{
         collider::ColliderConstruction, fluid::FluidConstruction, solid::SolidConstruction,
@@ -319,8 +319,48 @@ impl State {
         self.phase
     }
 
+    fn grid_momentums(&self) -> impl Iterator<Item = &GridMomentum> {
+        once(&self.grid_momentum).chain(self.grid_collider_momentums.iter())
+    }
+
     fn grid_momentums_mut(&mut self) -> impl Iterator<Item = &mut GridMomentum> {
         once(&mut self.grid_momentum).chain(self.grid_collider_momentums.iter_mut())
+    }
+
+    pub fn stats(&self) -> StateStats {
+        let total_particle_count = self.particles.reverse_sort_map.len()
+            + self
+                .collider_objects
+                .iter()
+                .map(|collider| collider.surface_samples.len())
+                .sum::<usize>();
+        let total_grid_node_count = self.grid_momentums().map(|grid| grid.masses.len()).sum();
+        let per_object_count = self
+            .name_map
+            .iter()
+            .map(|(name, object_idx)| {
+                (
+                    name.clone(),
+                    match object_idx {
+                        ObjectIndex::Solid(solid_idx) => {
+                            self.solid_objects[*solid_idx].particles.len()
+                        }
+                        ObjectIndex::Fluid(fluid_idx) => {
+                            self.fluid_objects[*fluid_idx].particles.len()
+                        }
+                        ObjectIndex::Collider(collider_idx) => {
+                            self.collider_objects[*collider_idx].surface_samples.len()
+                        }
+                    },
+                )
+            })
+            .collect();
+
+        StateStats {
+            total_particle_count,
+            total_grid_node_count,
+            per_object_count,
+        }
     }
 }
 

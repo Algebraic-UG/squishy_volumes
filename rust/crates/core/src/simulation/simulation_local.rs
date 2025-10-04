@@ -13,7 +13,11 @@ use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{T, Task};
 use tracing::warn;
 
-use crate::{PhaseInput, Simulation, api::ObjectWithData, math::flat::Flat3};
+use crate::{
+    PhaseInput, Simulation,
+    api::{ComputeStats, ObjectWithData, Stats},
+    math::flat::Flat3,
+};
 
 use super::{
     cache::Cache,
@@ -24,6 +28,7 @@ use super::{
 pub struct SimulationLocal {
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
+    cached_compute_stats: Option<ComputeStats>,
 }
 
 impl SimulationLocal {
@@ -31,6 +36,7 @@ impl SimulationLocal {
         Self {
             cache: cache.into(),
             compute_thread: None,
+            cached_compute_stats: None,
         }
     }
 }
@@ -92,6 +98,10 @@ impl Simulation for SimulationLocal {
     }
 
     fn pause_compute(&mut self) {
+        self.cached_compute_stats = self
+            .compute_thread
+            .as_ref()
+            .and_then(|compute_thread| compute_thread.stats.lock().unwrap().clone());
         self.compute_thread = None
     }
 
@@ -149,5 +159,17 @@ impl Simulation for SimulationLocal {
             }
             attribute => self.cache.fetch_flat_attribute(frame, attribute),
         }
+    }
+
+    fn stats(&self) -> Result<Value> {
+        Ok(to_value(Stats {
+            loaded_state: self.cache.loaded_state_stats(),
+            compute: self
+                .compute_thread
+                .as_ref()
+                .and_then(|compute_thread| compute_thread.stats.lock().unwrap().clone())
+                .or(self.cached_compute_stats.clone()),
+            bytes_on_disk: self.cache.current_bytes_on_disk(),
+        })?)
     }
 }
