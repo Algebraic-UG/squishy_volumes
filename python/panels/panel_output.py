@@ -18,7 +18,7 @@
 
 import bpy
 
-from ..util import frame_to_load, tutorial_msg
+from ..util import copy_simple_property_group, frame_to_load, tutorial_msg
 
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
@@ -155,8 +155,9 @@ each frame."""
             )
             return {"CANCELLED"}
 
-        mesh_name = f"{self.output_type} - {self.object_name}"
-        obj = bpy.data.objects.new(self.object_name, bpy.data.meshes.new(mesh_name))
+        obj = bpy.data.objects.new(
+            self.object_name, bpy.data.meshes.new(self.object_name)
+        )
 
         obj.squishy_volumes_object.input_name = self.input_name
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
@@ -198,6 +199,76 @@ each frame."""
 
             So, you can just press OK.""",
         )
+
+
+class OBJECT_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_add_multiple_output_objects"
+    bl_label = "Add All"
+    bl_description = "TODO"
+    bl_options = {"REGISTER", "UNDO"}
+
+    output_type: bpy.props.StringProperty()  # type: ignore
+    optional_attributes: bpy.props.PointerProperty(type=Squishy_Volumes_Optional_Attributes)  # type: ignore
+
+    @classmethod
+    def poll(cls, context):
+        return not context.scene.squishy_volumes_scene.tutorial_active
+
+    def execute(self, context):
+        simulation = get_selected_simulation(context)
+
+        frame = frame_to_load(simulation, context.scene.frame_current)
+        if frame is None:
+            self.report(
+                {"ERROR"},
+                f"No frame ready for {simulation.name}.",
+            )
+            return {"CANCELLED"}
+
+        input_names = InputNames(simulation, frame)
+        num_colliders = len(input_names.collider_names)
+
+        def add_one_output(input_name):
+            object_name = f"{self.output_type} - {input_name}"
+
+            obj = bpy.data.objects.new(object_name, bpy.data.meshes.new(object_name))
+
+            obj.squishy_volumes_object.input_name = input_name
+            obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+            obj.squishy_volumes_object.output_type = self.output_type
+            obj.squishy_volumes_object.attributes = self.optional_attributes
+
+            create_output(simulation, obj, frame)
+            sync_output(simulation, obj, num_colliders, frame)
+
+            context.collection.objects.link(obj)
+
+            self.report(
+                {"INFO"},
+                f"Added {obj.name} to output objects of {simulation.name}.",
+            )
+
+        if self.output_type == SOLID_PARTICLES:
+            for input_name in input_names.solid_names:
+                add_one_output(input_name)
+        elif self.output_type == FLUID_PARTICLES:
+            for input_name in input_names.fluid_names:
+                add_one_output(input_name)
+        else:
+            self.report(
+                {"ERROR"},
+                f"Output type {self.output_type} is not supported for adding multiple outputs.",
+            )
+            return {"CANCELLED"}
+
+        return {"FINISHED"}
+
+    def invoke(self, context, _):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, _context):
+        self.layout.label(text=f"{self.output_type}")
+        draw_object_attributes(self.layout, self.output_type, self.optional_attributes)
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Output_Object(bpy.types.Operator):
@@ -311,14 +382,26 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
         if input_names.solid_names:
             box = self.layout.box()
-            box.label(text="Add Solid Output")
+            row = box.row()
+            row.label(text="Add Solid Output")
+            op = row.operator(
+                "object.squishy_volumes_add_multiple_output_objects",
+                icon="POINTCLOUD_DATA",
+            )
+            op.output_type = SOLID_PARTICLES
             for name in input_names.solid_names:
                 tut = box.column()
                 tut.alert = context.scene.squishy_volumes_scene.tutorial_active
                 create_operator(tut, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.fluid_names:
             box = self.layout.box()
-            box.label(text="Add Fluid Output")
+            row = box.row()
+            row.label(text="Add Fluid Output")
+            op = row.operator(
+                "object.squishy_volumes_add_multiple_output_objects",
+                icon="POINTCLOUD_DATA",
+            )
+            op.output_type = FLUID_PARTICLES
             for name in input_names.fluid_names:
                 create_operator(box, FLUID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.collider_names:
@@ -342,6 +425,7 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
 classes = [
     OBJECT_OT_Squishy_Volumes_Jump_To_Start,
     OBJECT_OT_Squishy_Volumes_Add_Output_Object,
+    OBJECT_OT_Squishy_Volumes_Add_Multiple_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
     OBJECT_UL_Squishy_Volumes_Output_Object_List,
     OBJECT_PT_Squishy_Volumes_Output,
