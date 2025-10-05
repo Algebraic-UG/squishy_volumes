@@ -155,8 +155,9 @@ each frame."""
             )
             return {"CANCELLED"}
 
-        mesh_name = f"{self.output_type} - {self.object_name}"
-        obj = bpy.data.objects.new(self.object_name, bpy.data.meshes.new(mesh_name))
+        obj = bpy.data.objects.new(
+            self.object_name, bpy.data.meshes.new(self.object_name)
+        )
 
         obj.squishy_volumes_object.input_name = self.input_name
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
