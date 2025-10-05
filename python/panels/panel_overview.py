@@ -303,7 +303,7 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 body.label(text="Misc. Stats")
                 box = body.box()
                 grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
-                grid.label(text="Currently used Giga Bytes")
+                grid.label(text="Currently used Gigabytes")
                 grid.label(text=f"{bytes_on_disk * 1e-9}")
 
                 if loaded_state is not None:
