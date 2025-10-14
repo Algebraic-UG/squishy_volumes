@@ -8,6 +8,9 @@
 
 use std::{
     collections::VecDeque,
+    env,
+    fs::File,
+    io::{BufWriter, Write},
     num::NonZero,
     sync::{
         Arc, Mutex,
@@ -72,6 +75,10 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
+                let mut timeline_data =
+                    BufWriter::new(File::create(env::var("RUST_TIME_LINE_DATA_FILE")?)?);
+                writeln!(&mut timeline_data, "seconds,values")?;
+
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
                     let start_compute_frame = Instant::now();
@@ -100,6 +107,12 @@ impl ComputeThread {
 
                             current_state = current_state.next(&mut phase_input)?;
                             phase_report.step();
+                            writeln!(
+                                &mut timeline_data,
+                                "{},{}",
+                                current_state.time(),
+                                phase_input.time_step,
+                            )?;
 
                             if !run.load(Ordering::Relaxed) {
                                 return Ok(());
