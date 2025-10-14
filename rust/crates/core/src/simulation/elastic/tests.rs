@@ -24,7 +24,8 @@ use super::{
     first_piola_stress_stable_neo_hookean, hessian_inviscid, hessian_neo_hookean, invariant_2,
     invariant_3, lambda, mu, partial_elastic_energy_inviscid_by_invariant_3,
     partial_elastic_energy_neo_hookean_by_invariant_3, partial_invariant_2_by_position_gradient,
-    partial_invariant_3_by_position_gradient,
+    partial_invariant_2_by_svd, partial_invariant_3_by_position_gradient,
+    partial_invariant_3_by_svd,
 };
 
 fn test_scalar_from_scalar<Value, Gradient>(
@@ -183,6 +184,23 @@ fn test_partial_invariant_2_by_position_gradient() {
 }
 
 #[test]
+fn test_partial_invariant_2_svd() {
+    run_with_random_position_gradients(1000, |position_gradient| {
+        let without_svd = partial_invariant_2_by_position_gradient(&position_gradient);
+        let mut svd = position_gradient.svd(true, true);
+        svd.singular_values = partial_invariant_2_by_svd(&svd.singular_values);
+        let with_svd = svd.recompose().unwrap();
+        check_iters(
+            [
+                ("without svd", without_svd.iter()),
+                ("with svd", with_svd.iter()),
+            ],
+            1e-5,
+        );
+    });
+}
+
+#[test]
 fn test_partial_invariant_3_by_position_gradient() {
     let h = 1e-5;
     let eps = 1e-3;
@@ -194,6 +212,23 @@ fn test_partial_invariant_3_by_position_gradient() {
             partial_invariant_3_by_position_gradient,
             position_gradient,
         )
+    });
+}
+
+#[test]
+fn test_partial_invariant_3_svd() {
+    run_with_random_position_gradients(1000, |position_gradient| {
+        let without_svd = partial_invariant_3_by_position_gradient(&position_gradient);
+        let mut svd = position_gradient.svd(true, true);
+        svd.singular_values = partial_invariant_3_by_svd(&svd.singular_values);
+        let with_svd = svd.recompose().unwrap();
+        check_iters(
+            [
+                ("without svd", without_svd.iter()),
+                ("with svd", with_svd.iter()),
+            ],
+            1e-5,
+        );
     });
 }
 
@@ -416,5 +451,19 @@ fn test_hessian_inviscid() {
                 position_gradient,
             );
         })
+    }
+}
+
+fn check_iters<'a>(
+    [(a_name, a_iter), (b_name, b_iter)]: [(&'static str, impl IntoIterator<Item = &'a T>); 2],
+    eps: T,
+) {
+    for (a, b) in a_iter.into_iter().zip(b_iter.into_iter()) {
+        eprintln!("{a_name}: {a}, {b_name}: {b}, diff: {}", a - b);
+        if a.abs() < 1e-2 {
+            assert!(b.abs() < 1e-2);
+        } else {
+            assert!((a - b).abs() / a.abs() < eps);
+        }
     }
 }

@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Result, ensure};
-use nalgebra::{Matrix3, stack};
+use nalgebra::{Matrix3, Normed, Vector3, stack};
 use squishy_volumes_api::T;
 
 use crate::{
@@ -48,15 +48,27 @@ pub fn invariant_2(position_gradient: &Matrix3<T>) -> T {
     position_gradient.norm_squared()
 }
 
+pub fn invariant_2_by_svd(singular_values: &Vector3<T>) -> T {
+    singular_values.norm_squared()
+}
+
 // Dynamic Deformables Implementation and Production Practicalities (B.20)
 #[allow(clippy::toplevel_ref_arg)]
 pub fn partial_invariant_2_by_position_gradient(position_gradient: &Matrix3<T>) -> Matrix3<T> {
     2. * position_gradient
 }
 
+pub fn partial_invariant_2_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
+    2. * *singular_values
+}
+
 // Dynamic Deformables Implementation and Production Practicalities (B.8)
 pub fn invariant_3(position_gradient: &Matrix3<T>) -> T {
     position_gradient.determinant()
+}
+
+pub fn invariant_3_by_svd(singular_values: &Vector3<T>) -> T {
+    singular_values.product()
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (B.23)
@@ -66,6 +78,14 @@ pub fn partial_invariant_3_by_position_gradient(position_gradient: &Matrix3<T>) 
     stack![
         c(1).cross(&c(2)), c(2).cross(&c(0)), c(0).cross(&c(1));
     ]
+}
+
+pub fn partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
+    Vector3::new(
+        singular_values.y * singular_values.z,
+        singular_values.x * singular_values.z,
+        singular_values.x * singular_values.y,
+    )
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (4.24)
