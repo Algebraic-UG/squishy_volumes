@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Result, ensure};
-use nalgebra::{Matrix3, Normed, Vector3, stack};
+use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};
 use squishy_volumes_api::T;
 
 use crate::{
@@ -133,6 +133,24 @@ pub fn first_piola_stress_stable_neo_hookean(
         ) * partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+pub fn first_piola_stress_stable_neo_hookean_svd(
+    mu: T,
+    lambda: T,
+    u: &Matrix3<T>,
+    s: &Vector3<T>,
+    v_t: &Matrix3<T>,
+) -> Matrix3<T> {
+    u * Matrix3::from_diagonal(
+        &(partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu)
+            * partial_invariant_2_by_svd(s)
+            + partial_elastic_energy_stable_neo_hookean_by_invariant_3(
+                mu,
+                lambda,
+                invariant_3_by_svd(s),
+            ) * partial_invariant_3_by_svd(s)),
+    ) * v_t
+}
+
 // The Material Point Method for Simulating Continuum Materials (46)
 pub fn elastic_energy_neo_hookean_old(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
     mu / 2. * ((position_gradient.transpose() * position_gradient).trace() - 3.)
@@ -223,6 +241,20 @@ pub fn first_piola_stress_neo_hookean(
             lambda,
             invariant_3(position_gradient),
         ) * partial_invariant_3_by_position_gradient(position_gradient)
+}
+
+pub fn first_piola_stress_neo_hookean_svd(
+    mu: T,
+    lambda: T,
+    u: &Matrix3<T>,
+    s: &Vector3<T>,
+    v_t: &Matrix3<T>,
+) -> Matrix3<T> {
+    u * Matrix3::from_diagonal(
+        &(partial_elastic_energy_neo_hookean_by_invariant_2(mu) * partial_invariant_2_by_svd(s)
+            + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3_by_svd(s))
+                * partial_invariant_3_by_svd(s)),
+    ) * v_t
 }
 
 // Dynamic Deformables Implementation and Production Practicalities 5.5.1

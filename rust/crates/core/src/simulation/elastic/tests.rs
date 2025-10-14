@@ -6,14 +6,19 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::Matrix3;
+use nalgebra::{Matrix3, SVD};
 #[cfg_attr(
     not(feature = "f64"),
     deny(The tests only work with double precision)
 )]
 use squishy_volumes_api::T;
 
-use crate::math::{Matrix9, Vector9, safe_inverse::SafeInverse};
+use crate::{
+    math::{Matrix9, Vector9, safe_inverse::SafeInverse},
+    simulation::elastic::{
+        first_piola_stress_neo_hookean_svd, first_piola_stress_stable_neo_hookean_svd,
+    },
+};
 
 use super::{
     double_partial_elastic_energy_inviscid_by_invariant_3,
@@ -254,6 +259,34 @@ fn test_first_piola_stress_neo_hookean() {
 }
 
 #[test]
+fn test_first_piola_stress_neo_hookean_svd() {
+    for [mu, lambda] in test_lame_parameters() {
+        run_with_random_position_gradients(1000, |position_gradient| {
+            if position_gradient.safe_inverse().is_none() {
+                return;
+            }
+            let without_svd = first_piola_stress_neo_hookean(mu, lambda, &position_gradient);
+            let SVD {
+                u,
+                v_t,
+                singular_values,
+            } = position_gradient.svd(true, true);
+            let u = u.unwrap();
+            let v_t = v_t.unwrap();
+            let with_svd =
+                first_piola_stress_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
+            check_iters(
+                [
+                    ("without svd", without_svd.iter()),
+                    ("with svd", with_svd.iter()),
+                ],
+                1e-5,
+            )
+        });
+    }
+}
+
+#[test]
 fn test_first_piola_stress_stable_neo_hookean() {
     let h = 1e-8;
     let eps = 1e-1;
@@ -272,6 +305,34 @@ fn test_first_piola_stress_stable_neo_hookean() {
                 position_gradient,
             );
         })
+    }
+}
+
+#[test]
+fn test_first_piola_stress_stable_neo_hookean_svd() {
+    for [mu, lambda] in test_lame_parameters() {
+        run_with_random_position_gradients(1000, |position_gradient| {
+            if position_gradient.safe_inverse().is_none() {
+                return;
+            }
+            let without_svd = first_piola_stress_stable_neo_hookean(mu, lambda, &position_gradient);
+            let SVD {
+                u,
+                v_t,
+                singular_values,
+            } = position_gradient.svd(true, true);
+            let u = u.unwrap();
+            let v_t = v_t.unwrap();
+            let with_svd =
+                first_piola_stress_stable_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
+            check_iters(
+                [
+                    ("without svd", without_svd.iter()),
+                    ("with svd", with_svd.iter()),
+                ],
+                1e-5,
+            )
+        });
     }
 }
 
