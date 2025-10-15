@@ -11,7 +11,7 @@ use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};
 use squishy_volumes_api::T;
 
 use crate::{
-    math::{Matrix9, Vector9, safe_inverse::SafeInverse},
+    math::{Matrix9, SINGULAR_VALUE_SEPARATION, Vector9, safe_inverse::SafeInverse},
     simulation::error_messages::INVERTED_PARTICLE,
 };
 
@@ -306,6 +306,160 @@ pub fn hessian_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> 
             * g.transpose()
         + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3)
             * double_partial_invariant_3_by_position_gradient(position_gradient)
+}
+
+// Practical course on computing derivatives in code 5.1
+pub fn hessian_neo_hookean_svd(
+    mu: T,
+    lambda: T,
+    u: &Matrix3<T>,
+    s: &Vector3<T>,
+    v_t: &Matrix3<T>,
+) -> Matrix9<T> {
+    // to map from/to "diagonal space"
+    let big_u = Vector9::from_iterator(u.iter().cloned());
+    let big_v = Vector9::from_iterator(v_t.transpose().iter().cloned());
+    let big_uv = big_u.kronecker(&big_v.transpose());
+
+    // first and second derivatives
+    let psi_by_s = first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, s);
+    let double_psi_by_s = second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, s);
+
+    // we need to use L'Hôpital in this case
+    let xy_close = (s.x - s.y).abs() < SINGULAR_VALUE_SEPARATION;
+    let yz_close = (s.y - s.z).abs() < SINGULAR_VALUE_SEPARATION;
+    let zx_close = (s.z - s.x).abs() < SINGULAR_VALUE_SEPARATION;
+
+    // intermediates, should all be symmetrical and we don't need xx, yy, zz
+    let a_xy = if xy_close {
+        double_psi_by_s.m11
+    } else {
+        (psi_by_s.x - psi_by_s.y) / (s.x - s.y)
+    };
+    let a_yz = if yz_close {
+        double_psi_by_s.m22
+    } else {
+        (psi_by_s.y - psi_by_s.z) / (s.y - s.z)
+    };
+    let a_zx = if zx_close {
+        double_psi_by_s.m33
+    } else {
+        (psi_by_s.z - psi_by_s.x) / (s.z - s.x)
+    };
+    let a_yx = a_xy;
+    let a_zy = a_yz;
+    let a_xz = a_zx;
+
+    let b_xy = (psi_by_s.x + psi_by_s.y) / (s.x + s.y);
+    let b_yz = (psi_by_s.y + psi_by_s.z) / (s.y + s.z);
+    let b_zx = (psi_by_s.z + psi_by_s.x) / (s.z + s.x);
+    let b_yx = b_xy;
+    let b_zy = b_yz;
+    let b_xz = b_zx;
+
+    let t_xxxx = double_psi_by_s.m11;
+    let t_xxxy = 0.;
+    let t_xxxz = 0.;
+    let t_xxyx = 0.;
+    let t_xxyy = double_psi_by_s.m12;
+    let t_xxyz = 0.;
+    let t_xxzx = 0.;
+    let t_xxzy = 0.;
+    let t_xxzz = double_psi_by_s.m13;
+
+    let t_xyxx = 0.;
+    let t_xyxy = (a_xy + b_xy) / 2.;
+    let t_xyxz = 0.;
+    let t_xyyx = (a_xy - b_xy) / 2.;
+    let t_xyyy = 0.;
+    let t_xyyz = 0.;
+    let t_xyzx = 0.;
+    let t_xyzy = 0.;
+    let t_xyzz = 0.;
+
+    let t_xzxx = 0.;
+    let t_xzxy = 0.;
+    let t_xzxz = (a_xz + b_xz) / 2.;
+    let t_xzyx = 0.;
+    let t_xzyy = 0.;
+    let t_xzyz = 0.;
+    let t_xzzx = (a_xz - b_xz) / 2.;
+    let t_xzzy = 0.;
+    let t_xzzz = 0.;
+
+    let t_yxxx = 0.;
+    let t_yxxy = (a_yx - b_yx) / 2.;
+    let t_yxxz = 0.;
+    let t_yxyx = (a_yx + b_yx) / 2.;
+    let t_yxyy = 0.;
+    let t_yxyz = 0.;
+    let t_yxzx = 0.;
+    let t_yxzy = 0.;
+    let t_yxzz = 0.;
+
+    let t_yyxx = double_psi_by_s.m21;
+    let t_yyxy = 0.;
+    let t_yyxz = 0.;
+    let t_yyyx = 0.;
+    let t_yyyy = double_psi_by_s.m22;
+    let t_yyyz = 0.;
+    let t_yyzx = 0.;
+    let t_yyzy = 0.;
+    let t_yyzz = double_psi_by_s.m23;
+
+    let t_yzxx = 0.;
+    let t_yzxy = 0.;
+    let t_yzxz = 0.;
+    let t_yzyx = 0.;
+    let t_yzyy = 0.;
+    let t_yzyz = (a_yz + b_yz) / 2.;
+    let t_yzzx = 0.;
+    let t_yzzy = (a_yz - b_yz) / 2.;
+    let t_yzzz = 0.;
+
+    let t_zxxx = 0.;
+    let t_zxxy = 0.;
+    let t_zxxz = (a_zx - b_zx) / 2.;
+    let t_zxyx = 0.;
+    let t_zxyy = 0.;
+    let t_zxyz = 0.;
+    let t_zxzx = (a_zx + b_zx) / 2.;
+    let t_zxzy = 0.;
+    let t_zxzz = 0.;
+
+    let t_zyxx = 0.;
+    let t_zyxy = 0.;
+    let t_zyxz = 0.;
+    let t_zyyx = 0.;
+    let t_zyyy = 0.;
+    let t_zyyz = (a_zy - b_zy) / 2.;
+    let t_zyzx = 0.;
+    let t_zyzy = (a_zy + a_zy) / 2.;
+    let t_zyzz = 0.;
+
+    let t_zzxx = double_psi_by_s.m31;
+    let t_zzxy = 0.;
+    let t_zzxz = 0.;
+    let t_zzyx = 0.;
+    let t_zzyy = double_psi_by_s.m32;
+    let t_zzyz = 0.;
+    let t_zzzx = 0.;
+    let t_zzzy = 0.;
+    let t_zzzz = double_psi_by_s.m33;
+
+    let singular_space_hessian = Matrix9::from_column_slice(&[
+        t_xxxx, t_xxxy, t_xxxz, t_xxyx, t_xxyy, t_xxyz, t_xxzx, t_xxzy, t_xxzz, //
+        t_xyxx, t_xyxy, t_xyxz, t_xyyx, t_xyyy, t_xyyz, t_xyzx, t_xyzy, t_xyzz, //
+        t_xzxx, t_xzxy, t_xzxz, t_xzyx, t_xzyy, t_xzyz, t_xzzx, t_xzzy, t_xzzz, //
+        t_yxxx, t_yxxy, t_yxxz, t_yxyx, t_yxyy, t_yxyz, t_yxzx, t_yxzy, t_yxzz, //
+        t_yyxx, t_yyxy, t_yyxz, t_yyyx, t_yyyy, t_yyyz, t_yyzx, t_yyzy, t_yyzz, //
+        t_yzxx, t_yzxy, t_yzxz, t_yzyx, t_yzyy, t_yzyz, t_yzzx, t_yzzy, t_yzzz, //
+        t_zxxx, t_zxxy, t_zxxz, t_zxyx, t_zxyy, t_zxyz, t_zxzx, t_zxzy, t_zxzz, //
+        t_zyxx, t_zyxy, t_zyxz, t_zyyx, t_zyyy, t_zyyz, t_zyzx, t_zyzy, t_zyzz, //
+        t_zzxx, t_zzxy, t_zzxz, t_zzyx, t_zzyy, t_zzyz, t_zzzx, t_zzzy, t_zzzz, //
+    ]);
+
+    big_uv * singular_space_hessian * big_uv.transpose()
 }
 
 // Something like

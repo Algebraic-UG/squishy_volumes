@@ -17,7 +17,7 @@ use crate::{
     math::{Matrix9, Vector9, safe_inverse::SafeInverse},
     simulation::elastic::{
         first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
-        first_piola_stress_stable_neo_hookean_svd,
+        first_piola_stress_stable_neo_hookean_svd, hessian_neo_hookean_svd,
         second_derivative_neo_hookean_svd_in_diagonal_space,
     },
 };
@@ -461,6 +461,33 @@ fn test_hessian_neo_hookean() {
                 position_gradient,
             );
         })
+    }
+}
+
+#[test]
+fn test_hessian_neo_hookean_svd() {
+    for [mu, lambda] in test_lame_parameters() {
+        run_with_random_position_gradients(1000, |position_gradient| {
+            if position_gradient.safe_inverse().is_none() {
+                return;
+            }
+            let without_svd = hessian_neo_hookean(mu, lambda, &position_gradient);
+            let SVD {
+                u,
+                v_t,
+                singular_values,
+            } = position_gradient.svd(true, true);
+            let u = u.unwrap();
+            let v_t = v_t.unwrap();
+            let with_svd = hessian_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
+            check_iters(
+                [
+                    ("without svd", without_svd.iter()),
+                    ("with svd", with_svd.iter()),
+                ],
+                1e-5,
+            )
+        });
     }
 }
 
