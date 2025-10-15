@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::{Matrix3, SVD};
+use nalgebra::{Matrix3, SVD, Vector3};
 #[cfg_attr(
     not(feature = "f64"),
     deny(The tests only work with double precision)
@@ -16,7 +16,9 @@ use squishy_volumes_api::T;
 use crate::{
     math::{Matrix9, Vector9, safe_inverse::SafeInverse},
     simulation::elastic::{
-        first_piola_stress_neo_hookean_svd, first_piola_stress_stable_neo_hookean_svd,
+        first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
+        first_piola_stress_stable_neo_hookean_svd,
+        second_derivative_neo_hookean_svd_in_diagonal_space,
     },
 };
 
@@ -96,6 +98,37 @@ fn test_scalar_from_matrix<Value, Gradient>(
             assert!((finite_difference - analytic_value).abs() / finite_difference.abs() < eps);
         }
     }
+}
+
+fn test_jacobian<Value, Jacobian>(
+    h: T,
+    eps: T,
+    value: Value,
+    jacobian: Jacobian,
+    sample: Vector3<T>,
+) where
+    Value: Fn(&Vector3<T>) -> Vector3<T>,
+    Jacobian: Fn(&Vector3<T>) -> Matrix3<T>,
+{
+    let finite_differences: Matrix3<T> = Matrix3::from_iterator((0..sample.len()).flat_map(|i| {
+        let mut a = sample;
+        let mut b = sample;
+        a[i] += h;
+        b[i] -= h;
+        let a = value(&a);
+        let b = value(&b);
+        ((a - b) / h / 2.).iter().cloned().collect::<Vec<_>>()
+    }));
+
+    let analytic_values = jacobian(&sample);
+
+    check_iters(
+        [
+            ("finite difference", finite_differences.iter()),
+            ("analytic value", analytic_values.iter()),
+        ],
+        eps,
+    );
 }
 
 fn test_hessian<Gradient, Hessian>(
@@ -332,6 +365,24 @@ fn test_first_piola_stress_stable_neo_hookean_svd() {
                 ],
                 1e-5,
             )
+        });
+    }
+}
+
+#[test]
+fn test_second_derivative_neo_hookean_svd_in_diagonal_space() {
+    let h = 1e-8;
+    let eps = 1e-6;
+    for [mu, lambda] in test_lame_parameters() {
+        run_with_random_position_gradients(1000, |position_gradient| {
+            let singular_values = position_gradient.svd(false, false).singular_values;
+            test_jacobian(
+                h,
+                eps,
+                |s| first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, s),
+                |s| second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, s),
+                singular_values,
+            );
         });
     }
 }

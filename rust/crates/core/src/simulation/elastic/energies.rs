@@ -88,6 +88,17 @@ pub fn partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
     )
 }
 
+pub fn double_partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Matrix3<T> {
+    let x = singular_values.x;
+    let y = singular_values.y;
+    let z = singular_values.z;
+    Matrix3::from_column_slice(&[
+        0., z, y, //
+        z, 0., x, //
+        y, x, 0., //
+    ])
+}
+
 // Dynamic Deformables Implementation and Production Practicalities (4.24)
 #[allow(clippy::toplevel_ref_arg)]
 pub fn double_partial_invariant_3_by_position_gradient(
@@ -243,6 +254,32 @@ pub fn first_piola_stress_neo_hookean(
         ) * partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+pub fn first_piola_stress_neo_hookean_svd_in_diagonal_space(
+    mu: T,
+    lambda: T,
+    s: &Vector3<T>,
+) -> Vector3<T> {
+    partial_elastic_energy_neo_hookean_by_invariant_2(mu) * partial_invariant_2_by_svd(s)
+        + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3_by_svd(s))
+            * partial_invariant_3_by_svd(s)
+}
+
+pub fn second_derivative_neo_hookean_svd_in_diagonal_space(
+    mu: T,
+    lambda: T,
+    s: &Vector3<T>,
+) -> Matrix3<T> {
+    Matrix3::from_diagonal_element(partial_elastic_energy_neo_hookean_by_invariant_2(mu) * 2.)
+        + double_partial_elastic_energy_neo_hookean_by_invariant_3(
+            mu,
+            lambda,
+            invariant_3_by_svd(s),
+        ) * partial_invariant_3_by_svd(s)
+            * partial_invariant_3_by_svd(s).transpose()
+        + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3_by_svd(s))
+            * double_partial_invariant_3_by_svd(s)
+}
+
 pub fn first_piola_stress_neo_hookean_svd(
     mu: T,
     lambda: T,
@@ -250,11 +287,9 @@ pub fn first_piola_stress_neo_hookean_svd(
     s: &Vector3<T>,
     v_t: &Matrix3<T>,
 ) -> Matrix3<T> {
-    u * Matrix3::from_diagonal(
-        &(partial_elastic_energy_neo_hookean_by_invariant_2(mu) * partial_invariant_2_by_svd(s)
-            + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3_by_svd(s))
-                * partial_invariant_3_by_svd(s)),
-    ) * v_t
+    u * Matrix3::from_diagonal(&first_piola_stress_neo_hookean_svd_in_diagonal_space(
+        mu, lambda, s,
+    )) * v_t
 }
 
 // Dynamic Deformables Implementation and Production Practicalities 5.5.1
