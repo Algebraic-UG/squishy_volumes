@@ -479,7 +479,22 @@ fn test_hessian_neo_hookean_svd() {
             } = position_gradient.svd(true, true);
             let u = u.unwrap();
             let v_t = v_t.unwrap();
+            println!("{u}");
+            println!("{v_t}");
+            println!("{singular_values}");
+            println!("{mu}, {lambda}");
             let with_svd = hessian_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
+
+            println!("with_svd: {with_svd}");
+            println!("wihtout_svd {without_svd}");
+
+            check_iters(
+                [
+                    ("without svd", without_svd.iter()),
+                    ("with svd", with_svd.iter()),
+                ],
+                1e-5,
+            );
 
             check_iters(
                 [
@@ -496,14 +511,6 @@ fn test_hessian_neo_hookean_svd() {
                 ],
                 1e-8,
             );
-
-            check_iters(
-                [
-                    ("without svd", without_svd.iter()),
-                    ("with svd", with_svd.iter()),
-                ],
-                1e-5,
-            )
         });
     }
 }

@@ -317,13 +317,16 @@ pub fn hessian_neo_hookean_svd(
     v_t: &Matrix3<T>,
 ) -> Matrix9<T> {
     // to map from/to "diagonal space"
-    let big_u = Vector9::from_iterator(u.iter().cloned());
-    let big_v = Vector9::from_iterator(v_t.transpose().iter().cloned());
-    let big_uv = big_u.kronecker(&big_v.transpose());
+    let big_uv = u.kronecker(&v_t.transpose());
+
+    println!("BIG_UV: {big_uv}");
+    println!("BIG_UV_ Det: {}", big_uv.determinant());
 
     // first and second derivatives
     let psi_by_s = first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, s);
     let double_psi_by_s = second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, s);
+
+    println!("{double_psi_by_s}");
 
     // we need to use L'Hôpital in this case
     let xy_close = (s.x - s.y).abs() < SINGULAR_VALUE_SEPARATION;
@@ -332,17 +335,17 @@ pub fn hessian_neo_hookean_svd(
 
     // intermediates, should all be symmetrical and we don't need xx, yy, zz
     let a_xy = if xy_close {
-        double_psi_by_s.m11
+        double_psi_by_s.m11 - double_psi_by_s.m21
     } else {
         (psi_by_s.x - psi_by_s.y) / (s.x - s.y)
     };
     let a_yz = if yz_close {
-        double_psi_by_s.m22
+        double_psi_by_s.m22 - double_psi_by_s.m32
     } else {
         (psi_by_s.y - psi_by_s.z) / (s.y - s.z)
     };
     let a_zx = if zx_close {
-        double_psi_by_s.m33
+        double_psi_by_s.m33 - double_psi_by_s.m13
     } else {
         (psi_by_s.z - psi_by_s.x) / (s.z - s.x)
     };
@@ -368,7 +371,10 @@ pub fn hessian_neo_hookean_svd(
     let t_xxzz = double_psi_by_s.m13;
 
     let t_xyxx = 0.;
+    println!("a_xy: {a_xy}");
+    println!("b_xy: {b_xy}");
     let t_xyxy = (a_xy + b_xy) / 2.;
+    println!("t_xyxy: {t_xyxy}");
     let t_xyxz = 0.;
     let t_xyyx = (a_xy - b_xy) / 2.;
     let t_xyyy = 0.;
@@ -434,7 +440,7 @@ pub fn hessian_neo_hookean_svd(
     let t_zyyy = 0.;
     let t_zyyz = (a_zy - b_zy) / 2.;
     let t_zyzx = 0.;
-    let t_zyzy = (a_zy + a_zy) / 2.;
+    let t_zyzy = (a_zy + b_zy) / 2.;
     let t_zyzz = 0.;
 
     let t_zzxx = double_psi_by_s.m31;
