@@ -480,6 +480,23 @@ fn test_hessian_neo_hookean_svd() {
             let u = u.unwrap();
             let v_t = v_t.unwrap();
             let with_svd = hessian_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
+
+            check_iters(
+                [
+                    ("wihtout svd", without_svd.iter()),
+                    ("wihtout svd transposed", without_svd.transpose().iter()),
+                ],
+                1e-8,
+            );
+
+            check_iters(
+                [
+                    ("with svd", with_svd.iter()),
+                    ("with svd transposed", with_svd.transpose().iter()),
+                ],
+                1e-8,
+            );
+
             check_iters(
                 [
                     ("without svd", without_svd.iter()),
