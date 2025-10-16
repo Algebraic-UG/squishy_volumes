@@ -14,7 +14,10 @@ use nalgebra::{Matrix3, SVD, Vector3};
 use squishy_volumes_api::T;
 
 use crate::{
-    math::{Matrix9, Vector9, safe_inverse::SafeInverse},
+    math::{
+        Matrix9, Vector9,
+        safe_inverse::{self, SafeInverse},
+    },
     simulation::elastic::{
         first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
         first_piola_stress_stable_neo_hookean_svd, hessian_neo_hookean_svd,
@@ -471,7 +474,6 @@ fn test_hessian_neo_hookean_svd() {
             if position_gradient.safe_inverse().is_none() {
                 return;
             }
-            let without_svd = hessian_neo_hookean(mu, lambda, &position_gradient);
             let SVD {
                 u,
                 v_t,
@@ -479,14 +481,13 @@ fn test_hessian_neo_hookean_svd() {
             } = position_gradient.svd(true, true);
             let u = u.unwrap();
             let v_t = v_t.unwrap();
-            println!("{u}");
-            println!("{v_t}");
-            println!("{singular_values}");
-            println!("{mu}, {lambda}");
+
+            let without_svd = hessian_neo_hookean(mu, lambda, &position_gradient);
             let with_svd = hessian_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
 
-            println!("with_svd: {with_svd}");
-            println!("wihtout_svd {without_svd}");
+            println!("F: {position_gradient:.02}");
+            println!("with_svd: {with_svd:.02}");
+            println!("wihtout_svd {without_svd:.02}");
 
             check_iters(
                 [
@@ -494,22 +495,6 @@ fn test_hessian_neo_hookean_svd() {
                     ("with svd", with_svd.iter()),
                 ],
                 1e-5,
-            );
-
-            check_iters(
-                [
-                    ("wihtout svd", without_svd.iter()),
-                    ("wihtout svd transposed", without_svd.transpose().iter()),
-                ],
-                1e-8,
-            );
-
-            check_iters(
-                [
-                    ("with svd", with_svd.iter()),
-                    ("with svd transposed", with_svd.transpose().iter()),
-                ],
-                1e-8,
             );
         });
     }

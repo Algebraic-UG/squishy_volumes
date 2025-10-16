@@ -6,14 +6,13 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::{Context, Result, ensure};
-use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};
-use squishy_volumes_api::T;
-
 use crate::{
     math::{Matrix9, SINGULAR_VALUE_SEPARATION, Vector9, safe_inverse::SafeInverse},
     simulation::error_messages::INVERTED_PARTICLE,
 };
+use anyhow::{Context, Result, ensure};
+use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};
+use squishy_volumes_api::T;
 
 // Wikipedia: Lamé parameters (this is the "second")
 pub fn mu(youngs_modulus: T, poissons_ratio: T) -> T {
@@ -317,16 +316,11 @@ pub fn hessian_neo_hookean_svd(
     v_t: &Matrix3<T>,
 ) -> Matrix9<T> {
     // to map from/to "diagonal space"
-    let big_uv = u.kronecker(&v_t.transpose());
-
-    println!("BIG_UV: {big_uv}");
-    println!("BIG_UV_ Det: {}", big_uv.determinant());
+    let big_uv = v_t.transpose().kronecker(u);
 
     // first and second derivatives
     let psi_by_s = first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, s);
     let double_psi_by_s = second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, s);
-
-    println!("{double_psi_by_s}");
 
     // we need to use L'Hôpital in this case
     let xy_close = (s.x - s.y).abs() < SINGULAR_VALUE_SEPARATION;
@@ -371,10 +365,7 @@ pub fn hessian_neo_hookean_svd(
     let t_xxzz = double_psi_by_s.m13;
 
     let t_xyxx = 0.;
-    println!("a_xy: {a_xy}");
-    println!("b_xy: {b_xy}");
     let t_xyxy = (a_xy + b_xy) / 2.;
-    println!("t_xyxy: {t_xyxy}");
     let t_xyxz = 0.;
     let t_xyyx = (a_xy - b_xy) / 2.;
     let t_xyyy = 0.;
