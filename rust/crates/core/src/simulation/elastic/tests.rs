@@ -176,8 +176,57 @@ fn run_with_random_position_gradients<Test>(n: usize, test: Test)
 where
     Test: Fn(Matrix3<T>),
 {
-    let mut position_gradient = Matrix3::identity();
-    test(position_gradient);
+    test(Matrix3::identity());
+
+    test(Matrix3::from_row_slice(&[
+        0., -1., 0., //
+        1., 0., 0., //
+        0., 0., 1., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        0., 0., -1., //
+        0., 1., 0., //
+        1., 0., 0., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        1., 0., 0., //
+        0., 0., -1., //
+        0., 1., 0., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        3., 0., 0., //
+        0., 2., 0., //
+        0., 0., 1., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        1., 0., 0., //
+        0., 2., 0., //
+        0., 0., 1., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        0., -1., 0., //
+        1., 0., 0., //
+        0., 0., 2., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        0., -1., 0., //
+        2., 0., 0., //
+        0., 0., 1., //
+    ]));
+
+    test(Matrix3::from_row_slice(&[
+        0., -2., 0., //
+        1., 0., 0., //
+        0., 0., 1., //
+    ]));
+
+    let mut position_gradient: Matrix3<T>;
     for _ in 0..n {
         loop {
             position_gradient = Matrix3::new_random();
