@@ -1,6 +1,7 @@
 [package]
 name = "squishy_volumes_wrap"
 version = "0.1.19"
+# XXX: manually keep the [lib.name] in sync and rebuild_api once
 edition = "2021"
 license = "MIT"
 
