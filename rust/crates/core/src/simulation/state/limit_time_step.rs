@@ -8,8 +8,10 @@ use crate::{
     math::SINGULAR_VALUE_SEPARATION,
     simulation::{
         elastic::{
+            double_partial_elastic_energy_inviscid_by_invariant_3,
             first_piola_stress_inviscid_svd_in_diagonal_space,
             first_piola_stress_neo_hookean_svd_in_diagonal_space,
+            partial_elastic_energy_inviscid_by_invariant_3,
             second_derivative_inviscid_svd_in_diagonal_space,
             second_derivative_neo_hookean_svd_in_diagonal_space,
         },
@@ -123,7 +125,6 @@ impl State {
             .min_by(T::total_cmp)
     }
 
-    // Stability analysis of explicit MPM, Technical document 3.12
     fn limit_time_step_by_isolated_particles(&self, phase_input: &mut PhaseInput) -> Option<T> {
         profile!("limit_time_step_by_isolated_particles");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
@@ -132,28 +133,56 @@ impl State {
             .iter()
             .zip(self.particles.masses.iter())
             .zip(self.particles.initial_volumes.iter())
-            .map(|((parameters, mass), initial_volume)| {
-                match parameters {
-                    ParticleParameters::Solid {
-                        mu,
-                        lambda,
-                        viscosity,     // viscosity is TODO
-                        sand_alpha: _, // this shouldn't lower the required timestep
-                    } => {
-                        let xi = 3. / grid_node_size / grid_node_size;
-                        const R: T = 1.; // APIC & CPIC
-                        const K: T = 1.; // CPIC
-                        const D: T = 3.; // 3D
-                        (mass / (initial_volume * xi * (R - K / 2.) * (mu + D / 2. * lambda)))
-                            .sqrt()
+            .zip(self.particles.position_gradients.iter())
+            .map(
+                |(((parameters, mass), initial_volume), position_gradient)| {
+                    match parameters {
+                        ParticleParameters::Solid {
+                            mu,
+                            lambda,
+                            viscosity,     // viscosity is TODO
+                            sand_alpha: _, // this shouldn't lower the required timestep
+                        } => {
+                            // Stability analysis of explicit MPM, Technical document 3.12
+                            let xi = 3. / grid_node_size / grid_node_size;
+                            const R: T = 1.; // APIC & CPIC
+                            const K: T = 1.; // CPIC
+                            const D: T = 3.; // 3D
+                            (mass / (initial_volume * xi * (R - K / 2.) * (mu + D / 2. * lambda)))
+                                .sqrt()
+                        }
+                        ParticleParameters::Fluid {
+                            exponent,
+                            bulk_modulus,
+                            viscosity, // viscosity is TODO
+                        } => {
+                            // Effective time step restrictions for explicit MPM simulation,
+                            // Technical document "Simple bounds"
+                            let initial_density = mass / initial_volume;
+                            let j = position_gradient.determinant();
+                            const K: T = 6.; // quadratic splines
+                            const D: T = 3.; // 3D
+                            let first = partial_elastic_energy_inviscid_by_invariant_3(
+                                *bulk_modulus,
+                                *exponent,
+                                j,
+                            );
+                            if (j - 1.).abs() > SINGULAR_VALUE_SEPARATION {
+                                return grid_node_size / j
+                                    * (initial_density * (j - 1.) / (K * first * D)).sqrt();
+                            }
+
+                            let second = double_partial_elastic_energy_inviscid_by_invariant_3(
+                                *bulk_modulus,
+                                *exponent,
+                                j,
+                            );
+
+                            grid_node_size * (initial_density / (K * second * D)).sqrt()
+                        }
                     }
-                    ParticleParameters::Fluid {
-                        exponent,
-                        bulk_modulus,
-                        viscosity, // viscosity is TODO
-                    } => T::MAX, // TODO
-                }
-            })
+                },
+            )
             .min_by(T::total_cmp)
     }
 
