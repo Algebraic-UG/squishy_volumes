@@ -59,7 +59,7 @@ impl State {
                         ParticleParameters::Solid {
                             mu,
                             lambda,
-                            viscosity,     // viscosity is TODO
+                            viscosity: _,  // viscosity is TODO
                             sand_alpha: _, // this shouldn't lower the required timestep
                         } => {
                             first = first_piola_stress_neo_hookean_svd_in_diagonal_space(
@@ -72,7 +72,7 @@ impl State {
                         ParticleParameters::Fluid {
                             exponent,
                             bulk_modulus,
-                            viscosity, // viscosity is TODO
+                            viscosity: _, // viscosity is TODO
                         } => {
                             first = first_piola_stress_inviscid_svd_in_diagonal_space(
                                 *bulk_modulus,
@@ -140,7 +140,7 @@ impl State {
                         ParticleParameters::Solid {
                             mu,
                             lambda,
-                            viscosity,     // viscosity is TODO
+                            viscosity: _,  // viscosity is TODO
                             sand_alpha: _, // this shouldn't lower the required timestep
                         } => {
                             // Stability analysis of explicit MPM, Technical document 3.12
@@ -154,7 +154,7 @@ impl State {
                         ParticleParameters::Fluid {
                             exponent,
                             bulk_modulus,
-                            viscosity, // viscosity is TODO
+                            viscosity: _, // viscosity is TODO
                         } => {
                             // Effective time step restrictions for explicit MPM simulation,
                             // Technical document "Simple bounds"

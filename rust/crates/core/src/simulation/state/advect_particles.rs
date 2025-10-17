@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Error, Result};
-use nalgebra::{Matrix3, Vector3};
+use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use squishy_volumes_api::T;
 
