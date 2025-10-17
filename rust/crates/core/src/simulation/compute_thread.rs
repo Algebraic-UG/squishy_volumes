@@ -8,9 +8,6 @@
 
 use std::{
     collections::VecDeque,
-    env,
-    fs::File,
-    io::{BufWriter, Write},
     num::NonZero,
     sync::{
         Arc, Mutex,
@@ -75,13 +72,6 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
-                let mut timeline_data =
-                    BufWriter::new(File::create(env::var("RUST_TIME_LINE_DATA_FILE")?)?);
-                writeln!(
-                    &mut timeline_data,
-                    "seconds,time_step_by_velocity,time_step_by_deformation,time_step_by_sound,time_step_by_sound_simple,time_step_by_isolated,time_step"
-                )?;
-
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
                     let start_compute_frame = Instant::now();
@@ -110,21 +100,6 @@ impl ComputeThread {
 
                             current_state = current_state.next(&mut phase_input)?;
                             phase_report.step();
-                            let displayable_value = |time_step: &Option<T>| {
-                                time_step.unwrap_or(T::MAX).min(phase_input.max_time_step)
-                            };
-                            writeln!(
-                                &mut timeline_data,
-                                "{},{},{},{},{},{},{}",
-                                current_state.time(),
-                                displayable_value(&phase_input.time_step_by_velocity),
-                                displayable_value(&phase_input.time_step_by_deformation),
-                                displayable_value(&phase_input.time_step_by_sound),
-                                displayable_value(&phase_input.time_step_by_sound_simple),
-                                displayable_value(&phase_input.time_step_by_isolated),
-                                phase_input.time_step,
-                            )?;
-
                             if !run.load(Ordering::Relaxed) {
                                 return Ok(());
                             }
