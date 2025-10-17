@@ -11,7 +11,7 @@ use anyhow::Result;
 use super::{PhaseInput, State};
 
 impl State {
-    pub(super) fn implicit_solve(self, _phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn implicit_solve(self, _phase_input: &mut PhaseInput) -> Result<Self> {
         panic!("This isn't ready yet :(");
     }
 }

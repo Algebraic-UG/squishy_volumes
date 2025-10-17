@@ -19,7 +19,7 @@ use crate::simulation::{
 use super::{PhaseInput, State, profile};
 
 impl State {
-    pub(super) fn advect_particles(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn advect_particles(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("advect_particles");
         let time_step = phase_input.time_step;
 
