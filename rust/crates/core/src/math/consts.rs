@@ -13,6 +13,8 @@ pub const NORMALIZATION_EPS: T = 1e-5;
 pub const SLERP_EPS: T = 1e-3;
 pub const INVERSE_EPS: T = 1e-3;
 
+pub const TIME_STEP_HISTORY_LENGTH: usize = 10;
+
 pub const SINGULAR_VALUE_SEPARATION: T = 1e-5;
 
 /*

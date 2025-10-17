@@ -89,7 +89,7 @@ impl Simulation for SimulationLocal {
                 time_step_by_velocity: time_step,
                 time_step_by_sound: time_step,
                 time_step_by_sound_simple: time_step,
-                time_step_inc: None,
+                time_step_prior: Default::default(),
                 time_step,
                 explicit,
                 debug_mode,

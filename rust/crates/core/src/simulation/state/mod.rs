@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     iter::once,
     num::NonZero,
     sync::{
@@ -25,7 +25,7 @@ use tracing::{info, warn};
 
 use crate::{
     api::{ObjectSettings, ObjectWithData, Setup, StateStats},
-    math::SINGULAR_VALUE_SEPARATION,
+    math::{SINGULAR_VALUE_SEPARATION, TIME_STEP_HISTORY_LENGTH},
     report::{Report, ReportInfo},
     simulation::{
         collider::ColliderConstruction,
@@ -95,7 +95,7 @@ pub struct PhaseInput {
     pub time_step_by_sound: T,
     pub time_step_by_sound_simple: T,
     pub time_step: T,
-    pub time_step_inc: Option<T>,
+    pub time_step_prior: VecDeque<T>,
     pub explicit: bool,
     pub debug_mode: bool,
     pub setup: Arc<Setup>,
@@ -371,25 +371,16 @@ impl State {
         .min_by(T::total_cmp)
         .unwrap();
 
-        if max_allowed < phase_input.time_step {
-            phase_input.time_step = max_allowed;
-            phase_input.time_step_inc = None;
-            warn!("lowering to {max_allowed}");
-            return;
+        phase_input.time_step_prior.push_back(max_allowed);
+        if phase_input.time_step_prior.len() > TIME_STEP_HISTORY_LENGTH {
+            phase_input.time_step_prior.pop_front();
         }
-
-        let time_step_inc = phase_input.time_step_inc.get_or_insert(max_allowed * 0.01);
-
-        let new_time_step = phase_input.time_step + *time_step_inc;
-        if new_time_step < max_allowed {
-            phase_input.time_step = new_time_step;
-            warn!("incrementing to {new_time_step}");
-            return;
-        }
-
-        warn!("reached {max_allowed}");
-        phase_input.time_step = max_allowed;
-        phase_input.time_step_inc = None;
+        phase_input.time_step = phase_input
+            .time_step_prior
+            .iter()
+            .cloned()
+            .min_by(T::total_cmp)
+            .unwrap();
     }
 
     pub fn next(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
