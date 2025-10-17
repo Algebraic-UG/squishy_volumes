@@ -15,7 +15,7 @@ pub fn build_info() -> BuildInfo {
     _build_info().clone()
 }
 
-pub use squishy_volumes_api::{Context, Simulation, Task};
+pub use squishy_volumes_api::{ComputeSettings, Context, Simulation, Task};
 use squishy_volumes_core::ContextImpl;
 
 #[unsafe(no_mangle)]

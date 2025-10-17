@@ -91,6 +91,7 @@ pub struct PhaseInput {
     pub time_step_by_sound_simple: Option<T>,
     pub time_step: T,
     pub time_step_prior: VecDeque<T>,
+    pub adaptive_time_steps: bool,
     pub explicit: bool,
     pub debug_mode: bool,
     pub setup: Arc<Setup>,

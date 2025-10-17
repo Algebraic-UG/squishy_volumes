@@ -42,21 +42,23 @@ pub trait Simulation {
 
     fn poll(&mut self) -> Result<Option<Task>>;
 
-    fn start_compute(
-        &mut self,
-        time_step: T,
-        explicit: bool,
-        debug_mode: bool,
-        next_frame: usize,
-        number_of_frames: usize,
-        max_bytes_on_disk: u64,
-    ) -> Result<()>;
+    fn start_compute(&mut self, settings: ComputeSettings) -> Result<()>;
     fn pause_compute(&mut self);
 
     fn available_frames(&self) -> usize;
     fn available_attributes(&self, frame: usize) -> Result<Vec<Value>>;
     fn fetch_flat_attribute(&self, frame: usize, attribute: Value) -> Result<Vec<T>>;
     fn stats(&self) -> Result<Value>;
+}
+
+pub struct ComputeSettings {
+    pub time_step: T,
+    pub explicit: bool,
+    pub debug_mode: bool,
+    pub adaptive_time_steps: bool,
+    pub next_frame: usize,
+    pub number_of_frames: usize,
+    pub max_bytes_on_disk: u64,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -102,6 +102,7 @@ def start_compute(simulation, from_frame):
         simulation.time_step,
         simulation.explicit,
         simulation.debug_mode,
+        simulation.adaptive_time_steps,
         from_frame,
         simulation.bake_frames,
         giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
