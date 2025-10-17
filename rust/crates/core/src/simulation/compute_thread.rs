@@ -18,7 +18,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use squishy_volumes_api::Task;
+use squishy_volumes_api::{T, Task};
 use strum::IntoEnumIterator;
 use tracing::{debug, info};
 
@@ -100,7 +100,6 @@ impl ComputeThread {
 
                             current_state = current_state.next(&mut phase_input)?;
                             phase_report.step();
-
                             if !run.load(Ordering::Relaxed) {
                                 return Ok(());
                             }

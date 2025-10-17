@@ -25,7 +25,10 @@ impl State {
     // Splat collider distances into the grid.
     // Each grid node then contains signed distance and normal information for each collider.
     // But only if it's close enough.
-    pub(super) fn scatter_collider_distances(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn scatter_collider_distances(
+        mut self,
+        phase_input: &mut PhaseInput,
+    ) -> Result<Self> {
         profile!("scatter_collider_distances");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
         self.scatter_collider_distances_create_entries(grid_node_size);

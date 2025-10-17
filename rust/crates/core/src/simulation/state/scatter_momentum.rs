@@ -28,7 +28,7 @@ impl State {
     // In explicit time integration the forces can be applied at the same time.
     pub(super) fn scatter_momentum<const EXPLICIT_FORCES: bool>(
         mut self,
-        phase_input: PhaseInput,
+        phase_input: &mut PhaseInput,
     ) -> Result<Self> {
         profile!("scatter_momentum");
         let grid_node_size = phase_input.setup.settings.grid_node_size;

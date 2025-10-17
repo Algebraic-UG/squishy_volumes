@@ -18,7 +18,7 @@ use super::{PhaseInput, State, check_shifted_quadratic, find_worst_incompatibili
 
 impl State {
     // Update the particles' velocity and velocity gradients to be transported.
-    pub(super) fn collect_velocity(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn collect_velocity(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("collect_velocity");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
         self.particles

@@ -12,7 +12,7 @@ use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use super::{PhaseInput, State, profile};
 
 impl State {
-    pub(super) fn external_force(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn external_force(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("external_force");
         let time_step = phase_input.time_step;
         let gravity = phase_input.setup.settings.gravity;

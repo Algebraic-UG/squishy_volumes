@@ -18,7 +18,7 @@ impl State {
     // To each grid node a number of particles can contribute.
     // We iterate over the particles since it's clear to which nodes a given particle will
     // contribute. Then just use Mutexes to avoid data races.
-    pub(super) fn register_contributors(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn register_contributors(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("register_contributors");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
 

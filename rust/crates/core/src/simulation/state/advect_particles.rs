@@ -7,8 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Error, Result};
-use nalgebra::{Matrix3, Vector3};
+use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
+use squishy_volumes_api::T;
 
 use crate::simulation::{
     elastic::{elastic_energy_inviscid, try_elastic_energy_neo_hookean},
@@ -18,7 +19,7 @@ use crate::simulation::{
 use super::{PhaseInput, State, profile};
 
 impl State {
-    pub(super) fn advect_particles(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn advect_particles(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("advect_particles");
         let time_step = phase_input.time_step;
 
@@ -48,7 +49,7 @@ impl State {
                         } => {
                             if let Some(alpha) = sand_alpha {
                                 let mut svd = position_gradient.svd(true, true);
-                                let e = svd.singular_values.map(f32::ln);
+                                let e = svd.singular_values.map(T::ln);
                                 let e_tr = e.sum();
                                 let e_hat = e - Vector3::repeat(e_tr / 3.);
                                 let e_hat_norm = e_hat.norm();
@@ -59,7 +60,7 @@ impl State {
                                             + (3. * lambda + 2. * mu) / 2. / mu * e_tr * alpha;
                                         if delta_gamma > 0. {
                                             let big_h = e - delta_gamma / e_hat_norm * e_hat;
-                                            svd.singular_values = big_h.map(f32::exp);
+                                            svd.singular_values = big_h.map(T::exp);
 
                                             *position_gradient =
                                                 svd.recompose().map_err(Error::msg)?;
@@ -78,9 +79,10 @@ impl State {
                             bulk_modulus,
                             ..
                         } => {
-                            *position_gradient = Matrix3::from_diagonal_element(
-                                position_gradient.determinant().powf(1. / 3.),
-                            );
+                            let mut svd = position_gradient.svd(true, true);
+                            svd.singular_values
+                                .fill(svd.singular_values.product().powf(1. / 3.));
+                            *position_gradient = svd.recompose().unwrap();
                             elastic_energy_inviscid(*bulk_modulus, *exponent, position_gradient)
                         }
                     };

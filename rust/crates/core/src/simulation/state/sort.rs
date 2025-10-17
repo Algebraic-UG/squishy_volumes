@@ -17,7 +17,7 @@ use super::{PhaseInput, State, profile};
 
 impl State {
     // This is only to optimize memory access.
-    pub(super) fn sort(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn sort(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("sort");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
 

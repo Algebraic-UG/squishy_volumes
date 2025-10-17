@@ -25,7 +25,7 @@ impl State {
     // Collect the splatted distance information from the grid to the particles.
     // The particles just store whether they are inside.
     // While the information is at hand, perform penalty velocity updates for penetration.
-    pub(super) fn collect_insides(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn collect_insides(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("collect_insides");
 
         let time_step = phase_input.time_step;

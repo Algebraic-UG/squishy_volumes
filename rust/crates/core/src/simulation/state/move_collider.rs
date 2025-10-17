@@ -13,7 +13,7 @@ use crate::simulation::kinematic::{Kinematic, ScriptedMovement};
 use super::{PhaseInput, State, profile};
 
 impl State {
-    pub(super) fn move_collider(mut self, _: PhaseInput) -> Result<Self> {
+    pub(super) fn move_collider(mut self, _: &mut PhaseInput) -> Result<Self> {
         profile!("move_collider");
         for collider in &mut self.collider_objects {
             let Some((from, to)) =

@@ -17,7 +17,7 @@ use super::{PhaseInput, State, profile};
 impl State {
     // Conform the collider's grids to their scripted velocity,
     // taking stickiness and friction into account.
-    pub(super) fn conform_to_colliders(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn conform_to_colliders(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("conform_to_colliders");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
 

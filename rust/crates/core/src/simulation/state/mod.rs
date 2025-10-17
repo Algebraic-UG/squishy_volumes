@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, VecDeque},
     iter::once,
     num::NonZero,
     sync::{
@@ -55,6 +55,7 @@ mod collect_velocity;
 mod conform_to_colliders;
 mod external_force;
 mod implicit_solve;
+mod limit_time_step;
 mod move_collider;
 mod register_contributors;
 mod scatter_collider_distances;
@@ -83,7 +84,13 @@ pub struct State {
 #[derive(Clone)]
 pub struct PhaseInput {
     pub max_time_step: T,
+    pub time_step_by_velocity: Option<T>,
+    pub time_step_by_deformation: Option<T>,
+    pub time_step_by_isolated: Option<T>,
+    pub time_step_by_sound: Option<T>,
+    pub time_step_by_sound_simple: Option<T>,
     pub time_step: T,
+    pub time_step_prior: VecDeque<T>,
     pub explicit: bool,
     pub debug_mode: bool,
     pub setup: Arc<Setup>,
@@ -98,30 +105,34 @@ pub enum Phase {
     CollectInsides,
     UpdateMomentumMaps,
     RegisterContributors,
+    LimitTimeStepBeforeForce,
     ScatterMomentum,
     ScatterMomentumExplicit,
     ExternalForce,
     ConformToColliders,
     ImplicitSolve,
     CollectVelocity,
+    LimitTimeStepBeforeIntegrate,
     AdvectParticles,
     MoveCollider,
 }
 
 impl Phase {
-    pub fn function(self) -> fn(State, PhaseInput) -> Result<State> {
+    pub fn function(self) -> fn(State, &mut PhaseInput) -> Result<State> {
         match self {
             Self::Sort => State::sort,
             Self::ScatterColliderDistances => State::scatter_collider_distances,
             Self::CollectInsides => State::collect_insides,
             Self::UpdateMomentumMaps => State::update_momentum_maps,
             Self::RegisterContributors => State::register_contributors,
+            Self::LimitTimeStepBeforeForce => State::limit_time_step_before_force,
             Self::ScatterMomentum => State::scatter_momentum::<false>,
             Self::ScatterMomentumExplicit => State::scatter_momentum::<true>,
             Self::ExternalForce => State::external_force,
             Self::ConformToColliders => State::conform_to_colliders,
             Self::ImplicitSolve => State::implicit_solve,
             Self::CollectVelocity => State::collect_velocity,
+            Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,
             Self::AdvectParticles => State::advect_particles,
             Self::MoveCollider => State::move_collider,
         }
@@ -261,28 +272,8 @@ impl State {
         })
     }
 
-    pub fn limit_time_step(&mut self, phase_input: &mut PhaseInput) {
-        let max_vel = self
-            .particles
-            .velocities
-            .iter()
-            .map(Vector3::norm)
-            .max_by(|a, b| a.total_cmp(b))
-            .unwrap_or(0.);
-        phase_input.time_step = if max_vel != 0. {
-            (0.5 * phase_input.setup.settings.grid_node_size / max_vel)
-                .min(phase_input.max_time_step)
-        } else {
-            phase_input.max_time_step
-        };
-    }
-
     pub fn next(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("next");
-
-        if self.phase == Default::default() {
-            self.limit_time_step(phase_input);
-        }
 
         ensure!(phase_input.time_step != 0.);
 
@@ -296,7 +287,7 @@ impl State {
             };
 
             if run_phase {
-                self.phase.function()(self, phase_input.clone())
+                self.phase.function()(self, phase_input)
                     .with_context(|| format!("Failed in phase: {phase:?}"))?
             } else {
                 self

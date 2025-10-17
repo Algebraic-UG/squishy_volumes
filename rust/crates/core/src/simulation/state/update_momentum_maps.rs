@@ -23,7 +23,7 @@ use super::{PhaseInput, State, profile};
 impl State {
     // Update the hash map that allows to index into all the vectors of each momentum grid
     // with the node's 3d integer position. The data vectors are effectively invalidated.
-    pub(super) fn update_momentum_maps(mut self, phase_input: PhaseInput) -> Result<Self> {
+    pub(super) fn update_momentum_maps(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("update_momentum_maps");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
 
