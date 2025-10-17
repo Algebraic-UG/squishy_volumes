@@ -86,6 +86,10 @@ impl Simulation for SimulationLocal {
             self.cache.setup.settings.frames_per_second as usize,
             PhaseInput {
                 max_time_step: time_step,
+                time_step_by_velocity: time_step,
+                time_step_by_sound: time_step,
+                time_step_by_sound_simple: time_step,
+                time_step_inc: None,
                 time_step,
                 explicit,
                 debug_mode,

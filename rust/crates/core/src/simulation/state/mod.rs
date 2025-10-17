@@ -21,13 +21,21 @@ use std::{
     },
 };
 use strum::{EnumIter, IntoEnumIterator};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     api::{ObjectSettings, ObjectWithData, Setup, StateStats},
+    math::SINGULAR_VALUE_SEPARATION,
     report::{Report, ReportInfo},
     simulation::{
-        collider::ColliderConstruction, fluid::FluidConstruction, solid::SolidConstruction,
+        collider::ColliderConstruction,
+        elastic::{
+            first_piola_stress_neo_hookean_svd_in_diagonal_space,
+            second_derivative_neo_hookean_svd_in_diagonal_space,
+        },
+        fluid::FluidConstruction,
+        particles::ParticleParameters,
+        solid::SolidConstruction,
     },
 };
 
@@ -83,7 +91,11 @@ pub struct State {
 #[derive(Clone)]
 pub struct PhaseInput {
     pub max_time_step: T,
+    pub time_step_by_velocity: T,
+    pub time_step_by_sound: T,
+    pub time_step_by_sound_simple: T,
     pub time_step: T,
+    pub time_step_inc: Option<T>,
     pub explicit: bool,
     pub debug_mode: bool,
     pub setup: Arc<Setup>,
@@ -262,6 +274,7 @@ impl State {
     }
 
     pub fn limit_time_step(&mut self, phase_input: &mut PhaseInput) {
+        let grid_node_size = phase_input.setup.settings.grid_node_size;
         let max_vel = self
             .particles
             .velocities
@@ -269,12 +282,114 @@ impl State {
             .map(Vector3::norm)
             .max_by(|a, b| a.total_cmp(b))
             .unwrap_or(0.);
-        phase_input.time_step = if max_vel != 0. {
-            (0.5 * phase_input.setup.settings.grid_node_size / max_vel)
-                .min(phase_input.max_time_step)
+        phase_input.time_step_by_velocity = if max_vel != 0. {
+            0.5 * grid_node_size / max_vel
         } else {
             phase_input.max_time_step
         };
+
+        for (((parameters, position_gradient), mass), initial_volume) in self
+            .particles
+            .parameters
+            .iter()
+            .zip(self.particles.position_gradients.iter())
+            .zip(self.particles.masses.iter())
+            .zip(self.particles.initial_volumes.iter())
+        {
+            match parameters {
+                ParticleParameters::Solid {
+                    mu,
+                    lambda,
+                    viscosity,
+                    sand_alpha,
+                } => {
+                    let s = position_gradient.svd(false, false).singular_values;
+                    let first =
+                        first_piola_stress_neo_hookean_svd_in_diagonal_space(*mu, *lambda, &s);
+                    let second =
+                        second_derivative_neo_hookean_svd_in_diagonal_space(*mu, *lambda, &s);
+
+                    let j = s.product();
+
+                    // we need to use L'Hôpital in this case
+                    let xy_close = (s.x - s.y).abs() < SINGULAR_VALUE_SEPARATION;
+                    let yz_close = (s.y - s.z).abs() < SINGULAR_VALUE_SEPARATION;
+                    let zx_close = (s.z - s.x).abs() < SINGULAR_VALUE_SEPARATION;
+
+                    let kappa = [
+                        s.x * s.x * second.m11,
+                        s.y * s.y * second.m22,
+                        s.z * s.z * second.m33,
+                        s.y * s.y
+                            * if xy_close {
+                                (first.x + s.x * second.m11 - s.y * second.m21) / 2. / s.x
+                            } else {
+                                (s.x * first.x - s.y * first.y) / (s.x * s.x - s.y * s.y)
+                            },
+                        s.y * s.z
+                            * if yz_close {
+                                (first.y + s.y * second.m22 - s.z * second.m32) / 2. / s.y
+                            } else {
+                                (s.y * first.y - s.z * first.z) / (s.y * s.y - s.z * s.z)
+                            },
+                        s.z * s.x
+                            * if zx_close {
+                                (first.z + s.x * second.m33 - s.x * second.m13) / 2. / s.z
+                            } else {
+                                (s.z * first.z - s.x * first.x) / (s.z * s.z - s.x * s.x)
+                            },
+                    ]
+                    .into_iter()
+                    .max_by(T::total_cmp)
+                    .unwrap()
+                        / j;
+                    let initial_density = mass / initial_volume;
+                    let current_density = initial_density / j;
+
+                    let c = (kappa / current_density).sqrt();
+
+                    phase_input.time_step_by_sound = grid_node_size / c;
+
+                    let bulk_modulus = lambda + 2. / 3. * mu;
+                    let c = (bulk_modulus / current_density).sqrt();
+
+                    phase_input.time_step_by_sound_simple = grid_node_size / c;
+                }
+                ParticleParameters::Fluid {
+                    exponent,
+                    bulk_modulus,
+                    viscosity,
+                } => todo!(),
+            }
+        }
+        let max_allowed = [
+            phase_input.time_step_by_velocity,
+            phase_input.time_step_by_sound,
+            phase_input.max_time_step,
+        ]
+        .into_iter()
+        .min_by(T::total_cmp)
+        .unwrap();
+
+        if max_allowed < phase_input.time_step {
+            phase_input.time_step = max_allowed;
+            phase_input.time_step_inc = None;
+            warn!("lowering to {max_allowed}");
+            return;
+        }
+
+        let time_step_inc = phase_input.time_step_inc.get_or_insert(max_allowed * 0.01);
+
+        let new_time_step = phase_input.time_step + *time_step_inc;
+        if new_time_step < max_allowed {
+            phase_input.time_step = new_time_step;
+            warn!("incrementing to {new_time_step}");
+            return;
+        }
+
+        warn!("reached {max_allowed}");
+        phase_input.time_step = max_allowed;
+        phase_input.time_step_inc = None;
     }
 
     pub fn next(mut self, phase_input: &mut PhaseInput) -> Result<Self> {

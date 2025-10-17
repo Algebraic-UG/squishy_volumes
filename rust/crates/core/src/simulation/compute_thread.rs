@@ -77,7 +77,10 @@ impl ComputeThread {
 
                 let mut timeline_data =
                     BufWriter::new(File::create(env::var("RUST_TIME_LINE_DATA_FILE")?)?);
-                writeln!(&mut timeline_data, "seconds,values")?;
+                writeln!(
+                    &mut timeline_data,
+                    "seconds,time_step_by_velocity,time_step_by_sound,time_step_by_sound_simple,time_step"
+                )?;
 
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
@@ -109,8 +112,11 @@ impl ComputeThread {
                             phase_report.step();
                             writeln!(
                                 &mut timeline_data,
-                                "{},{}",
+                                "{},{},{},{},{}",
                                 current_state.time(),
+                                phase_input.time_step_by_velocity,
+                                phase_input.time_step_by_sound,
+                                phase_input.time_step_by_sound_simple,
                                 phase_input.time_step,
                             )?;
 
