@@ -180,6 +180,7 @@ class OBJECT_PT_Squishy_Volumes_Bake(bpy.types.Panel):
             # TODO: make implicit viable
             # col.prop(simulation, "explicit")
             # col.prop(simulation, "debug_mode")
+            col.prop(simulation, "adaptive_time_steps")
             col.prop(simulation, "bake_frames")
 
             row = self.layout.row()

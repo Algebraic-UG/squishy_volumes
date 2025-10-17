@@ -217,6 +217,14 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
         default=False,
         options=set(),
     )  # type: ignore
+    adaptive_time_steps: bpy.props.BoolProperty(
+        name="Adaptive Time Steps",
+        description="""Automatically determine a good 'Time Step'.
+The manually set value is chosen if it is smaller than
+the automatic one.""",
+        default=True,
+        options=set(),
+    )  # type: ignore
     loaded_frame: bpy.props.IntProperty(
         name="Loaded Simulation Frame",
         description="""The index of the currently displayed simulation frame.

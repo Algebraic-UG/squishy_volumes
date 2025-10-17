@@ -10,7 +10,7 @@ use std::{num::NonZero, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, from_value, to_value};
-use squishy_volumes_api::{T, Task};
+use squishy_volumes_api::{ComputeSettings, T, Task};
 use tracing::warn;
 
 use crate::{
@@ -58,12 +58,15 @@ impl Simulation for SimulationLocal {
 
     fn start_compute(
         &mut self,
-        time_step: T,
-        explicit: bool,
-        debug_mode: bool,
-        next_frame: usize,
-        number_of_frames: usize,
-        max_bytes_on_disk: u64,
+        ComputeSettings {
+            time_step,
+            explicit,
+            debug_mode,
+            adaptive_time_steps,
+            next_frame,
+            number_of_frames,
+            max_bytes_on_disk,
+        }: ComputeSettings,
     ) -> Result<()> {
         self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
 
@@ -92,6 +95,7 @@ impl Simulation for SimulationLocal {
                 time_step_by_sound: Default::default(),
                 time_step_by_sound_simple: Default::default(),
                 time_step_prior: Default::default(),
+                adaptive_time_steps,
                 time_step,
                 explicit,
                 debug_mode,

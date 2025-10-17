@@ -18,7 +18,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use squishy_volumes_api::{T, Task};
+use squishy_volumes_api::Task;
 use strum::IntoEnumIterator;
 use tracing::{debug, info};
 

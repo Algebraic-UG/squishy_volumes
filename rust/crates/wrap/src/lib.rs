@@ -93,23 +93,30 @@ impl SimulationReference {
         })
     }
 
+    // TODO: not sure how to improve this (too_many_arguments)
+    // might need another #[pyclass]
+    #[allow(clippy::too_many_arguments)]
     fn start_compute(
         &self,
         time_step: f32,
         explicit: bool,
         debug_mode: bool,
-        start_frame: usize,
+        adaptive_time_steps: bool,
+        next_frame: usize,
         number_of_frames: usize,
         max_bytes_on_disk: u64,
     ) -> Result<()> {
         try_with_context(|context| {
             context.get_simulation_mut(&self.0)?.start_compute(
-                time_step,
-                explicit,
-                debug_mode,
-                start_frame,
-                number_of_frames,
-                max_bytes_on_disk,
+                squishy_volumes_hot::ComputeSettings {
+                    time_step,
+                    explicit,
+                    debug_mode,
+                    adaptive_time_steps,
+                    next_frame,
+                    number_of_frames,
+                    max_bytes_on_disk,
+                },
             )
         })
     }
