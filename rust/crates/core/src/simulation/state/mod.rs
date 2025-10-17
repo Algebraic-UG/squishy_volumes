@@ -285,7 +285,12 @@ impl State {
                 !matches!(phase, Phase::ScatterMomentum | Phase::ImplicitSolve)
             } else {
                 !matches!(phase, Phase::ScatterMomentumExplicit)
-            };
+            } && (phase_input.adaptive_time_steps || {
+                !matches!(
+                    phase,
+                    Phase::LimitTimeStepBeforeForce | Phase::LimitTimeStepBeforeIntegrate
+                )
+            });
 
             if run_phase {
                 self.phase.function()(self, phase_input)
