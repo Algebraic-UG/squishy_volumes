@@ -504,6 +504,20 @@ pub fn first_piola_stress_inviscid(
     ) * partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+pub fn first_piola_stress_inviscid_svd(
+    bulk_modulus: T,
+    exponent: i32,
+    u: &Matrix3<T>,
+    s: &Vector3<T>,
+    v_t: &Matrix3<T>,
+) -> Matrix3<T> {
+    u * Matrix3::from_diagonal(&first_piola_stress_inviscid_svd_in_diagonal_space(
+        bulk_modulus,
+        exponent,
+        s,
+    )) * v_t
+}
+
 // Dynamic Deformables Implementation and Production Practicalities 5.50
 pub fn hessian_inviscid(
     bulk_modulus: T,
@@ -521,4 +535,31 @@ pub fn hessian_inviscid(
         * g.transpose()
         + partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, invariant_3)
             * double_partial_invariant_3_by_position_gradient(position_gradient)
+}
+
+pub fn first_piola_stress_inviscid_svd_in_diagonal_space(
+    bulk_modulus: T,
+    exponent: i32,
+    s: &Vector3<T>,
+) -> Vector3<T> {
+    partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, invariant_3_by_svd(s))
+        * partial_invariant_3_by_svd(s)
+}
+
+pub fn second_derivative_inviscid_svd_in_diagonal_space(
+    bulk_modulus: T,
+    exponent: i32,
+    s: &Vector3<T>,
+) -> Matrix3<T> {
+    double_partial_elastic_energy_inviscid_by_invariant_3(
+        bulk_modulus,
+        exponent,
+        invariant_3_by_svd(s),
+    ) * partial_invariant_3_by_svd(s)
+        * partial_invariant_3_by_svd(s).transpose()
+        + partial_elastic_energy_inviscid_by_invariant_3(
+            bulk_modulus,
+            exponent,
+            invariant_3_by_svd(s),
+        ) * double_partial_invariant_3_by_svd(s)
 }

@@ -19,8 +19,10 @@ use crate::{
         safe_inverse::{self, SafeInverse},
     },
     simulation::elastic::{
+        first_piola_stress_inviscid_svd, first_piola_stress_inviscid_svd_in_diagonal_space,
         first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
         first_piola_stress_stable_neo_hookean_svd, hessian_neo_hookean_svd,
+        second_derivative_inviscid_svd_in_diagonal_space,
         second_derivative_neo_hookean_svd_in_diagonal_space,
     },
 };
@@ -656,6 +658,53 @@ fn test_hessian_inviscid() {
                 position_gradient,
             );
         })
+    }
+}
+
+#[test]
+fn test_first_piola_stress_inviscid_svd() {
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        run_with_random_position_gradients(1000, |position_gradient| {
+            if position_gradient.safe_inverse().is_none() {
+                return;
+            }
+            let without_svd =
+                first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient);
+            let SVD {
+                u,
+                v_t,
+                singular_values,
+            } = position_gradient.svd(true, true);
+            let u = u.unwrap();
+            let v_t = v_t.unwrap();
+            let with_svd =
+                first_piola_stress_inviscid_svd(bulk_modulus, exponent, &u, &singular_values, &v_t);
+            check_iters(
+                [
+                    ("without svd", without_svd.iter()),
+                    ("with svd", with_svd.iter()),
+                ],
+                1e-5,
+            )
+        });
+    }
+}
+
+#[test]
+fn test_first_piola_stress_inviscid_svd_in_diagonal_space() {
+    let h = 1e-8;
+    let eps = 1e-3;
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        run_with_random_position_gradients(1000, |position_gradient| {
+            let singular_values = position_gradient.svd(false, false).singular_values;
+            test_jacobian(
+                h,
+                eps,
+                |s| first_piola_stress_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, s),
+                |s| second_derivative_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, s),
+                singular_values,
+            );
+        });
     }
 }
 
