@@ -19,6 +19,7 @@ use super::{PhaseInput, State, profile};
 
 impl State {
     // Effective time step restrictions for explicit MPM simulation 4.1 Sound Speed
+    // Stability analysis of explicit MPM, Technical document 3.12
     pub(super) fn limit_time_step_before_force(self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("limit_time_step_before_force");
         let grid_node_size = phase_input.setup.settings.grid_node_size;
@@ -86,6 +87,39 @@ impl State {
                             let c = (kappa / current_density).sqrt();
 
                             grid_node_size / c
+                        }
+                        ParticleParameters::Fluid {
+                            exponent,
+                            bulk_modulus,
+                            viscosity,
+                        } => todo!(),
+                    }
+                },
+            )
+            .min_by(T::total_cmp);
+
+        phase_input.time_step_by_isolated = self
+            .particles
+            .parameters
+            .iter()
+            .zip(self.particles.position_gradients.iter())
+            .zip(self.particles.masses.iter())
+            .zip(self.particles.initial_volumes.iter())
+            .map(
+                |(((parameters, position_gradient), mass), initial_volume)| {
+                    match parameters {
+                        ParticleParameters::Solid {
+                            mu,
+                            lambda,
+                            viscosity,
+                            sand_alpha,
+                        } => {
+                            let xi = 3. / grid_node_size / grid_node_size;
+                            const R: T = 1.; // APIC & CPIC
+                            const K: T = 1.; // CPIC
+                            const D: T = 3.; // 3D
+                            (mass / (initial_volume * xi * (R - K / 2.) * (mu + D / 2. * lambda)))
+                                .sqrt()
                         }
                         ParticleParameters::Fluid {
                             exponent,
@@ -181,6 +215,7 @@ fn apply_limit(
         time_step_by_velocity,
         time_step_by_deformation,
         time_step_by_sound,
+        time_step_by_isolated,
         time_step,
         time_step_prior,
         ..
@@ -190,6 +225,7 @@ fn apply_limit(
         time_step_by_velocity.unwrap_or(T::MAX),
         time_step_by_deformation.unwrap_or(T::MAX),
         time_step_by_sound.unwrap_or(T::MAX),
+        time_step_by_isolated.unwrap_or(T::MAX),
         *max_time_step,
     ]
     .into_iter()

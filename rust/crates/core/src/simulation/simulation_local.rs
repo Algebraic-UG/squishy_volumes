@@ -88,6 +88,7 @@ impl Simulation for SimulationLocal {
                 max_time_step: time_step,
                 time_step_by_velocity: Default::default(),
                 time_step_by_deformation: Default::default(),
+                time_step_by_isolated: Default::default(),
                 time_step_by_sound: Default::default(),
                 time_step_by_sound_simple: Default::default(),
                 time_step_prior: Default::default(),

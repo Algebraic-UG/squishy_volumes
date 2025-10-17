@@ -86,6 +86,7 @@ pub struct PhaseInput {
     pub max_time_step: T,
     pub time_step_by_velocity: Option<T>,
     pub time_step_by_deformation: Option<T>,
+    pub time_step_by_isolated: Option<T>,
     pub time_step_by_sound: Option<T>,
     pub time_step_by_sound_simple: Option<T>,
     pub time_step: T,
