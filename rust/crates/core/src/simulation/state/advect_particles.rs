@@ -79,9 +79,10 @@ impl State {
                             bulk_modulus,
                             ..
                         } => {
-                            *position_gradient = Matrix3::from_diagonal_element(
-                                position_gradient.determinant().powf(1. / 3.),
-                            );
+                            let mut svd = position_gradient.svd(true, true);
+                            svd.singular_values
+                                .fill(svd.singular_values.product().powf(1. / 3.));
+                            *position_gradient = svd.recompose().unwrap();
                             elastic_energy_inviscid(*bulk_modulus, *exponent, position_gradient)
                         }
                     };
