@@ -21,7 +21,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use squishy_volumes_api::Task;
+use squishy_volumes_api::{T, Task};
 use strum::IntoEnumIterator;
 use tracing::{debug, info};
 
@@ -79,7 +79,7 @@ impl ComputeThread {
                     BufWriter::new(File::create(env::var("RUST_TIME_LINE_DATA_FILE")?)?);
                 writeln!(
                     &mut timeline_data,
-                    "seconds,time_step_by_velocity,time_step_by_sound,time_step_by_sound_simple,time_step"
+                    "seconds,time_step_by_velocity,time_step_by_deformation,time_step_by_sound,time_step_by_sound_simple,time_step"
                 )?;
 
                 let mut frame_times = VecDeque::new();
@@ -110,13 +110,17 @@ impl ComputeThread {
 
                             current_state = current_state.next(&mut phase_input)?;
                             phase_report.step();
+                            let displayable_value = |time_step: &Option<T>| {
+                                time_step.unwrap_or(T::MAX).min(phase_input.max_time_step)
+                            };
                             writeln!(
                                 &mut timeline_data,
-                                "{},{},{},{},{}",
+                                "{},{},{},{},{},{}",
                                 current_state.time(),
-                                phase_input.time_step_by_velocity,
-                                phase_input.time_step_by_sound,
-                                phase_input.time_step_by_sound_simple,
+                                displayable_value(&phase_input.time_step_by_velocity),
+                                displayable_value(&phase_input.time_step_by_deformation),
+                                displayable_value(&phase_input.time_step_by_sound),
+                                displayable_value(&phase_input.time_step_by_sound_simple),
                                 phase_input.time_step,
                             )?;
 

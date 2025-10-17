@@ -84,9 +84,10 @@ pub struct State {
 #[derive(Clone)]
 pub struct PhaseInput {
     pub max_time_step: T,
-    pub time_step_by_velocity: T,
-    pub time_step_by_sound: T,
-    pub time_step_by_sound_simple: T,
+    pub time_step_by_velocity: Option<T>,
+    pub time_step_by_deformation: Option<T>,
+    pub time_step_by_sound: Option<T>,
+    pub time_step_by_sound_simple: Option<T>,
     pub time_step: T,
     pub time_step_prior: VecDeque<T>,
     pub explicit: bool,
