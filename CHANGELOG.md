@@ -1,6 +1,6 @@
 # Change Log
 
-## [1.1.19] - 2025-10-18
+## [0.1.19] - 2025-10-18
 
 The prominent feature for this release is a *much* improved heuristic for safe time steps.
 For most scenes, we expect the time step size to require no further tuning.
