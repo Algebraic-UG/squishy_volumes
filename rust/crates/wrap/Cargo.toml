@@ -1,6 +1,7 @@
 [package]
 name = "squishy_volumes_wrap"
-version = "0.1.18"
+version = "0.1.19"
+# XXX: manually keep the [lib.name] in sync and rebuild_api once
 edition = "2021"
 license = "MIT"
 
@@ -10,7 +11,7 @@ hot_reload = ["dep:hot-lib-reloader"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "squishy_volumes_wrap_0_1_18"
+name = "squishy_volumes_wrap_0_1_19"
 crate-type = ["cdylib"]
 
 [dependencies]
