@@ -53,6 +53,7 @@ pub(super) mod attributes;
 mod collect_insides;
 mod collect_velocity;
 mod conform_to_colliders;
+mod cull_particles;
 mod external_force;
 mod implicit_solve;
 mod limit_time_step;
@@ -116,6 +117,7 @@ pub enum Phase {
     LimitTimeStepBeforeIntegrate,
     AdvectParticles,
     MoveCollider,
+    CullParticles,
 }
 
 impl Phase {
@@ -136,6 +138,7 @@ impl Phase {
             Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,
             Self::AdvectParticles => State::advect_particles,
             Self::MoveCollider => State::move_collider,
+            Self::CullParticles => State::cull_particles,
         }
     }
 

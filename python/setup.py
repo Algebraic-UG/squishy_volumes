@@ -245,6 +245,8 @@ def create_setup_json(simulation):
         "particle_size": simulation.to_cache.particle_size,
         "frames_per_second": simulation.to_cache.frames_per_second,
         "gravity": gravity,
+        "domain_min": [-10, -10, -10],
+        "domain_max": [10, 10, 10],
     }
 
     bulk_data = {
