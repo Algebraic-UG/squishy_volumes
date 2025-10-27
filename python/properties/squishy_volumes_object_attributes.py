@@ -47,6 +47,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.solid_energies = value
     optional_attributes.solid_collider_insides = value
     optional_attributes.fluid_states = value
+    optional_attributes.fluid_initial_positions = value
     optional_attributes.fluid_velocities = value
     optional_attributes.fluid_transformations = value
     optional_attributes.fluid_collider_insides = value

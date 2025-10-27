@@ -77,7 +77,7 @@ pub enum AttributeObject {
 
 #[derive(EnumIter, Serialize, Deserialize)]
 pub enum AttributeSolid {
-    State,
+    States,
     Masses,
     InitialVolumes,
     Positions,
@@ -91,7 +91,7 @@ pub enum AttributeSolid {
 
 #[derive(EnumIter, Serialize, Deserialize)]
 pub enum AttributeFluid {
-    State,
+    States,
     Positions,
     InitialPositions,
     Velocities,
@@ -183,7 +183,7 @@ impl State {
                             .iter()
                             .map(|idx| self.particles.reverse_sort_map[*idx]);
                         match attribute {
-                            AttributeSolid::State => is.map(|i| ps.states[i].to_float()).collect(),
+                            AttributeSolid::States => is.map(|i| ps.states[i].to_float()).collect(),
                             AttributeSolid::Masses => is.map(|i| ps.masses[i]).collect(),
                             AttributeSolid::InitialVolumes => {
                                 is.map(|i| ps.initial_volumes[i]).collect()
@@ -233,7 +233,7 @@ impl State {
                             .iter()
                             .map(|idx| self.particles.reverse_sort_map[*idx]);
                         match attribute {
-                            AttributeFluid::State => is.map(|i| ps.states[i].to_float()).collect(),
+                            AttributeFluid::States => is.map(|i| ps.states[i].to_float()).collect(),
                             AttributeFluid::Positions => {
                                 is.flat_map(|i| ps.positions[i].flat()).collect()
                             }
