@@ -162,7 +162,10 @@ each frame."""
         obj.squishy_volumes_object.input_name = self.input_name
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
         obj.squishy_volumes_object.output_type = self.output_type
-        obj.squishy_volumes_object.attributes = self.optional_attributes
+        copy_simple_property_group(
+            self.optional_attributes,
+            obj.squishy_volumes_object.optional_attributes,
+        )
 
         create_output(simulation, obj, frame)
         sync_output(simulation, obj, self.num_colliders, frame)
