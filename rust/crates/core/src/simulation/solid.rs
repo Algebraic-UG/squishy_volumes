@@ -113,6 +113,7 @@ impl Solid {
             let Particles {
                 sort_map,
                 reverse_sort_map,
+                states,
                 parameters,
                 masses,
                 initial_volumes,
@@ -132,6 +133,7 @@ impl Solid {
             sort_map.extend(first_idx..n);
             reverse_sort_map.extend(first_idx..n);
 
+            states.resize(n, Default::default());
             parameters.resize(
                 n,
                 ParticleParameters::Solid {
