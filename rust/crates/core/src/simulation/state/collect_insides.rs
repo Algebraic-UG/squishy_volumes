@@ -15,7 +15,7 @@ use std::{array::from_fn, collections::hash_map::Entry};
 
 use crate::{
     math::{NORMALIZATION_EPS, safe_inverse::SafeInverse},
-    simulation::weights::kernel_quadratic,
+    simulation::{particles::ParticleState, weights::kernel_quadratic},
     weights::KERNEL_QUADRATIC_LENGTH,
 };
 
@@ -52,6 +52,8 @@ impl State {
             .par_iter()
             .zip(&mut self.particles.velocities)
             .zip(&mut self.particles.collider_insides)
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .for_each(|((position, velocity), collider_inside)| {
                 let mut distance_helpers: FxHashMap<usize, DistanceHelper> = Default::default();
 

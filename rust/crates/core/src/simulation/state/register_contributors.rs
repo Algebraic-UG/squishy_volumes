@@ -10,7 +10,10 @@ use anyhow::Result;
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::weights::{kernel_quadratic_unrolled, position_to_shift_quadratic};
+use crate::{
+    simulation::particles::ParticleState,
+    weights::{kernel_quadratic_unrolled, position_to_shift_quadratic},
+};
 
 use super::{PhaseInput, State, find_worst_incompatibility, profile};
 
@@ -42,6 +45,8 @@ impl State {
             .par_iter()
             .zip(&self.particles.collider_insides)
             .enumerate()
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .for_each(|(idx, (position, collider_inside))| {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
                 kernel_quadratic_unrolled!(|grid_idx| {

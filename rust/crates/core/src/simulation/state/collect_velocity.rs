@@ -12,7 +12,10 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use squishy_volumes_api::T;
 use std::array::from_fn;
 
-use crate::{simulation::weights::kernel_quadratic, weights::KERNEL_QUADRATIC_LENGTH};
+use crate::{
+    simulation::{particles::ParticleState, weights::kernel_quadratic},
+    weights::KERNEL_QUADRATIC_LENGTH,
+};
 
 use super::{PhaseInput, State, check_shifted_quadratic, find_worst_incompatibility, profile};
 
@@ -27,6 +30,8 @@ impl State {
             .zip(&self.particles.collider_insides)
             .zip(&mut self.particles.velocities)
             .zip(&mut self.particles.velocity_gradients)
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .for_each(
                 |(((position, collider_inside), velocity), velocity_gradient)| {
                     *velocity = Vector3::zeros();

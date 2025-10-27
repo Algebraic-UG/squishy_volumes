@@ -23,7 +23,7 @@ use crate::{
             second_derivative_inviscid_svd_in_diagonal_space,
             second_derivative_neo_hookean_svd_in_diagonal_space,
         },
-        particles::ParticleParameters,
+        particles::{ParticleParameters, ParticleState},
     },
 };
 
@@ -49,6 +49,8 @@ impl State {
             .zip(self.particles.position_gradients.iter())
             .zip(self.particles.masses.iter())
             .zip(self.particles.initial_volumes.iter())
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(
                 |(((parameters, position_gradient), mass), initial_volume)| {
                     let s = position_gradient.svd(false, false).singular_values;
@@ -142,6 +144,8 @@ impl State {
             .zip(self.particles.masses.iter())
             .zip(self.particles.initial_volumes.iter())
             .zip(self.particles.position_gradients.iter())
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(
                 |(((parameters, mass), initial_volume), position_gradient)| {
                     match parameters {
@@ -206,6 +210,8 @@ impl State {
             .particles
             .velocities
             .iter()
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(Vector3::norm)
             .max_by(|a, b| a.total_cmp(b))
             .map(|max_vel| {
@@ -221,6 +227,8 @@ impl State {
             .particles
             .velocity_gradients
             .iter()
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(|velocity_gradient| {
                 velocity_gradient
                     .iter()
