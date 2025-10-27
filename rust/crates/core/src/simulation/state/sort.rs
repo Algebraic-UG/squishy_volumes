@@ -63,6 +63,7 @@ impl State {
                 profile!("apply permutation");
                 let Particles {
                     // These need to be moved with the particles
+                    states,
                     positions,
                     initial_positions,
                     sort_map,
@@ -96,6 +97,7 @@ impl State {
                 }
 
                 scope(|s| {
+                    permute(s, &permutation, states);
                     permute(s, &permutation, positions);
                     permute(s, &permutation, initial_positions);
                     permute(s, &permutation, sort_map);

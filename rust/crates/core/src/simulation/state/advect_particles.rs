@@ -13,7 +13,7 @@ use squishy_volumes_api::T;
 
 use crate::simulation::{
     elastic::{elastic_energy_inviscid, try_elastic_energy_neo_hookean},
-    particles::ParticleParameters,
+    particles::{ParticleParameters, ParticleState},
 };
 
 use super::{PhaseInput, State, profile};
@@ -31,6 +31,8 @@ impl State {
             .zip(&mut self.particles.position_gradients)
             .zip(&self.particles.velocities)
             .zip(&self.particles.velocity_gradients)
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .try_for_each(
                 |(
                     ((((elastic_energy, parameters), position), position_gradient), velocity),

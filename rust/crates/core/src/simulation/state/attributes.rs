@@ -17,7 +17,7 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
     math::flat::{Flat3, Flat9, Flat16},
-    simulation::grids::GridMomentum,
+    simulation::{grids::GridMomentum, particles::ParticleState},
 };
 
 use super::{ObjectIndex, State};
@@ -77,6 +77,7 @@ pub enum AttributeObject {
 
 #[derive(EnumIter, Serialize, Deserialize)]
 pub enum AttributeSolid {
+    States,
     Masses,
     InitialVolumes,
     Positions,
@@ -90,6 +91,7 @@ pub enum AttributeSolid {
 
 #[derive(EnumIter, Serialize, Deserialize)]
 pub enum AttributeFluid {
+    States,
     Positions,
     InitialPositions,
     Velocities,
@@ -181,6 +183,7 @@ impl State {
                             .iter()
                             .map(|idx| self.particles.reverse_sort_map[*idx]);
                         match attribute {
+                            AttributeSolid::States => is.map(|i| ps.states[i].to_float()).collect(),
                             AttributeSolid::Masses => is.map(|i| ps.masses[i]).collect(),
                             AttributeSolid::InitialVolumes => {
                                 is.map(|i| ps.initial_volumes[i]).collect()
@@ -230,6 +233,7 @@ impl State {
                             .iter()
                             .map(|idx| self.particles.reverse_sort_map[*idx]);
                         match attribute {
+                            AttributeFluid::States => is.map(|i| ps.states[i].to_float()).collect(),
                             AttributeFluid::Positions => {
                                 is.flat_map(|i| ps.positions[i].flat()).collect()
                             }
@@ -370,5 +374,14 @@ impl State {
             }
         };
         Ok(flat_attribute)
+    }
+}
+
+impl ParticleState {
+    fn to_float(&self) -> T {
+        match self {
+            Self::Active => 0.,
+            Self::Tombstoned => 1.,
+        }
     }
 }

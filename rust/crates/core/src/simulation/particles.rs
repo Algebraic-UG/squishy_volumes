@@ -11,6 +11,13 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
+#[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ParticleState {
+    #[default]
+    Active,
+    Tombstoned,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ParticleParameters {
     Solid {
@@ -30,6 +37,8 @@ pub enum ParticleParameters {
 pub struct Particles {
     pub sort_map: Vec<usize>,
     pub reverse_sort_map: Vec<usize>,
+
+    pub states: Vec<ParticleState>,
 
     pub parameters: Vec<ParticleParameters>,
 

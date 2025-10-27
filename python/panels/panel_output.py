@@ -73,6 +73,8 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.prop(optional_attributes, "grid_momentum_velocities")
         grid.label(text="FLOAT_VECTOR")
     if output_type == SOLID_PARTICLES:
+        grid.prop(optional_attributes, "solid_states")
+        grid.label(text="FLOAT")
         grid.prop(optional_attributes, "solid_masses")
         grid.label(text="FLOAT")
         grid.prop(optional_attributes, "solid_initial_volumes")
@@ -88,6 +90,8 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.prop(optional_attributes, "solid_collider_insides")
         grid.label(text="FLOAT")
     if output_type == FLUID_PARTICLES:
+        grid.prop(optional_attributes, "fluid_states")
+        grid.label(text="FLOAT")
         grid.prop(optional_attributes, "fluid_initial_positions")
         grid.label(text="FLOAT_VECTOR")
         grid.prop(optional_attributes, "fluid_velocities")
@@ -162,7 +166,10 @@ each frame."""
         obj.squishy_volumes_object.input_name = self.input_name
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
         obj.squishy_volumes_object.output_type = self.output_type
-        obj.squishy_volumes_object.attributes = self.optional_attributes
+        copy_simple_property_group(
+            self.optional_attributes,
+            obj.squishy_volumes_object.optional_attributes,
+        )
 
         create_output(simulation, obj, frame)
         sync_output(simulation, obj, self.num_colliders, frame)

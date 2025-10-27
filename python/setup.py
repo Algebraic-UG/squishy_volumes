@@ -240,11 +240,25 @@ def create_setup_json(simulation):
         simulation.to_cache.gravity[2] * simulation_scale,
     ]
 
+    domain_min = [
+        simulation.to_cache.domain_min[0],
+        simulation.to_cache.domain_min[1],
+        simulation.to_cache.domain_min[2],
+    ]
+
+    domain_max = [
+        simulation.to_cache.domain_max[0],
+        simulation.to_cache.domain_max[1],
+        simulation.to_cache.domain_max[2],
+    ]
+
     settings = {
         "grid_node_size": simulation.to_cache.grid_node_size,
         "particle_size": simulation.to_cache.particle_size,
         "frames_per_second": simulation.to_cache.frames_per_second,
         "gravity": gravity,
+        "domain_min": domain_min,
+        "domain_max": domain_max,
     }
 
     bulk_data = {

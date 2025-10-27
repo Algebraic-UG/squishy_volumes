@@ -14,7 +14,7 @@ use rayon::iter::{
 use std::{mem::take, sync::mpsc::channel, thread::spawn};
 
 use crate::{
-    simulation::state::find_worst_incompatibility,
+    simulation::{particles::ParticleState, state::find_worst_incompatibility},
     weights::{kernel_quadratic_unrolled, position_to_shift_quadratic},
 };
 
@@ -66,6 +66,8 @@ impl State {
             .positions
             .par_iter()
             .zip(&self.particles.collider_insides)
+            .zip(&self.particles.states)
+            .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .flat_map_iter(|(position, collider_inside)| {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
                 kernel_quadratic_unrolled!(|grid_idx| {

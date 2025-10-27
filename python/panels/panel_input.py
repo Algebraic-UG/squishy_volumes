@@ -341,6 +341,8 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
             to_cache.prop(simulation.to_cache, "frames_per_second")
             to_cache.prop(simulation.to_cache, "gravity")
             to_cache.prop(simulation.to_cache, "simulation_scale")
+            to_cache.prop(simulation.to_cache, "domain_min")
+            to_cache.prop(simulation.to_cache, "domain_max")
 
             if context_exists(simulation):
                 from_cache = row.column()

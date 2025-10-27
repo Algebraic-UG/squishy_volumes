@@ -20,6 +20,7 @@ import bpy
 
 from ..magic_consts import (
     SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_STATE,
     SQUISHY_VOLUMES_TRANSFORM,
     SQUISHY_VOLUMES_COLLIDER_INSIDE,
     SQUISHY_VOLUMES_INITIAL_POSITION,
@@ -37,6 +38,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.grid_collider_normals = value
     optional_attributes.grid_momentum_masses = value
     optional_attributes.grid_momentum_velocities = value
+    optional_attributes.solid_states = value
     optional_attributes.solid_masses = value
     optional_attributes.solid_initial_volumes = value
     optional_attributes.solid_initial_positions = value
@@ -44,6 +46,8 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.solid_transformations = value
     optional_attributes.solid_energies = value
     optional_attributes.solid_collider_insides = value
+    optional_attributes.fluid_states = value
+    optional_attributes.fluid_initial_positions = value
     optional_attributes.fluid_velocities = value
     optional_attributes.fluid_transformations = value
     optional_attributes.fluid_collider_insides = value
@@ -78,6 +82,13 @@ class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
         name="Velocities",
         description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
+        options=set(),
+    )  # type: ignore
+
+    solid_states: bpy.props.BoolProperty(
+        name="States",
+        description=f"Attribute name: {SQUISHY_VOLUMES_STATE}",
+        default=False,
         options=set(),
     )  # type: ignore
 
@@ -127,6 +138,13 @@ class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
         name="Collider Insides",
         description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
         default=True,
+        options=set(),
+    )  # type: ignore
+
+    fluid_states: bpy.props.BoolProperty(
+        name="States",
+        description=f"Attribute name: {SQUISHY_VOLUMES_STATE}",
+        default=False,
         options=set(),
     )  # type: ignore
 

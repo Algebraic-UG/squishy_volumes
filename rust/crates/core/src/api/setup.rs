@@ -74,6 +74,8 @@ pub struct GlobalSettings {
     pub particle_size: T,
     pub frames_per_second: u32,
     pub gravity: Vector3<T>,
+    pub domain_min: Vector3<T>,
+    pub domain_max: Vector3<T>,
 }
 
 pub struct Setup {
