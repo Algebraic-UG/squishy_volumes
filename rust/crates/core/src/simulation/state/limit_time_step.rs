@@ -46,9 +46,9 @@ impl State {
         self.particles
             .parameters
             .iter()
-            .zip(self.particles.position_gradients.iter())
-            .zip(self.particles.masses.iter())
-            .zip(self.particles.initial_volumes.iter())
+            .zip(&self.particles.position_gradients)
+            .zip(&self.particles.masses)
+            .zip(&self.particles.initial_volumes)
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(
@@ -141,9 +141,9 @@ impl State {
         self.particles
             .parameters
             .iter()
-            .zip(self.particles.masses.iter())
-            .zip(self.particles.initial_volumes.iter())
-            .zip(self.particles.position_gradients.iter())
+            .zip(&self.particles.masses)
+            .zip(&self.particles.initial_volumes)
+            .zip(&self.particles.position_gradients)
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(
