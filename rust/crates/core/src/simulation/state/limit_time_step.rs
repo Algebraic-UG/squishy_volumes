@@ -8,6 +8,7 @@
 
 use anyhow::Result;
 use nalgebra::{Matrix3, Vector3};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_api::T;
 
 const TIME_STEP_HISTORY_LENGTH: usize = 10;
@@ -45,7 +46,7 @@ impl State {
         let grid_node_size = phase_input.setup.settings.grid_node_size;
         self.particles
             .parameters
-            .iter()
+            .par_iter()
             .zip(&self.particles.position_gradients)
             .zip(&self.particles.masses)
             .zip(&self.particles.initial_volumes)
@@ -140,7 +141,7 @@ impl State {
         let grid_node_size = phase_input.setup.settings.grid_node_size;
         self.particles
             .parameters
-            .iter()
+            .par_iter()
             .zip(&self.particles.masses)
             .zip(&self.particles.initial_volumes)
             .zip(&self.particles.position_gradients)
@@ -209,7 +210,7 @@ impl State {
         phase_input.time_step_by_velocity = self
             .particles
             .velocities
-            .iter()
+            .par_iter()
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(Vector3::norm)
@@ -226,7 +227,7 @@ impl State {
         phase_input.time_step_by_deformation = self
             .particles
             .velocity_gradients
-            .iter()
+            .par_iter()
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .map(|velocity_gradient| {
