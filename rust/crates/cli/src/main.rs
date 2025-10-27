@@ -37,6 +37,9 @@ struct Cli {
     #[arg(long)]
     debug_mode: bool,
 
+    #[arg(long)]
+    adaptive_time_steps: bool,
+
     #[arg(long, value_name = "CHECK_POINT")]
     start_frame: Option<usize>,
 
@@ -57,6 +60,7 @@ fn main() -> Result<()> {
         time_step,
         explicit,
         debug_mode,
+        adaptive_time_steps,
         start_frame,
         number_of_sub_frames,
         number_of_frames,
@@ -124,17 +128,26 @@ fn main() -> Result<()> {
     };
     let start_simulation_time = current_state.time();
 
+    let mut phase_input = PhaseInput {
+        time_step,
+        max_time_step: time_step,
+        time_step_by_velocity: Default::default(),
+        time_step_by_deformation: Default::default(),
+        time_step_by_isolated: Default::default(),
+        time_step_by_sound: Default::default(),
+        time_step_by_sound_simple: Default::default(),
+        time_step_prior: Default::default(),
+        adaptive_time_steps,
+        explicit,
+        debug_mode,
+        setup: cache.setup.clone(),
+    };
+
     while run.load(Ordering::Relaxed)
         && number_of_sub_frames.is_none_or(|n| n > completed_sub_frames)
         && number_of_frames.is_none_or(|n| n > completed_frames)
     {
-        current_state = current_state.next(&mut PhaseInput {
-            time_step,
-            max_time_step: time_step,
-            explicit,
-            debug_mode,
-            setup: cache.setup.clone(),
-        })?;
+        current_state = current_state.next(&mut phase_input)?;
         if current_state.phase() != Phase::default() {
             continue;
         }
