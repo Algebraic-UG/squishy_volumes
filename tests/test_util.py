@@ -47,7 +47,7 @@ def fetch_available_versions():
 
 
 def extension_repo_index(remote_url):
-    next(
+    return next(
         i
         for i, repo in enumerate(bpy.context.preferences.extensions.repos)
         if repo.remote_url == remote_url
@@ -56,7 +56,14 @@ def extension_repo_index(remote_url):
 
 def extension_repo_add(remote_url):
     bpy.ops.preferences.extension_repo_add(remote_url=remote_url)
-    bpy.ops.extensions.repo_sync(repo_index=extension_repo_index(remote_url))
+
+
+def extension_repo_update_url(url_old, url_new):
+    next(
+        repo
+        for repo in bpy.context.preferences.extensions.repos
+        if repo.remote_url == url_old
+    ).remote_url = url_new
 
 
 def extension_repo_remove(remote_url):
@@ -67,6 +74,7 @@ def extension_repo_remove(remote_url):
 
 
 def extension_install(remote_url):
+    bpy.ops.extensions.repo_sync(repo_index=extension_repo_index(remote_url))
     bpy.ops.extensions.package_install(
         repo_index=extension_repo_index(remote_url),
         pkg_id=PKG_ID,
@@ -135,3 +143,7 @@ def get_platform():
     if name == "Windows":
         return "windows_x64"
     raise RuntimeError(f"Unknown platform: {name}")
+
+
+def test_factory_clean():
+    assert not installed_addons()

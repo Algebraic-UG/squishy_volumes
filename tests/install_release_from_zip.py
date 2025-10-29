@@ -10,11 +10,8 @@ from test_util import (
     installed_addons,
     temp_dir_cleanup,
     temp_dir_create,
+    test_factory_clean,
 )
-
-
-def test_factory_clean():
-    assert not installed_addons()
 
 
 def test_install(path):
