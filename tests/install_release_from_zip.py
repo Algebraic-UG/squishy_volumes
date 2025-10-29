@@ -40,6 +40,7 @@ if __name__ == "__main__":
     versions = fetch_available_versions()
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--local-zip")
     parser.add_argument(
         "--version-new",
         choices=versions,
@@ -54,16 +55,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tmpdir = temp_dir_create()
-    filename_new, url_new = addon_filename_and_url(args.version_new)
+
+    if args.local_zip:
+        url_new = None  # pylint: disable=invalid-name
+        path_new = args.local_zip
+    else:
+        filename_new, url_new = addon_filename_and_url(args.version_new)
+        path_new = tmpdir / filename_new
+
     filename_old, url_old = addon_filename_and_url(args.version_old)
-    path_new = tmpdir / filename_new
     path_old = tmpdir / filename_old
 
     try:
         test_factory_clean()
 
         # do this just once, we need to cleanup later
-        download_from_git(url_new, path_new)
+        if not args.local_zip:
+            download_from_git(url_new, path_new)
         download_from_git(url_old, path_old)
 
         # just normal install of both old and new
