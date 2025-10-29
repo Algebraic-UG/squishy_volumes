@@ -17,9 +17,12 @@ def test_factory_clean():
     assert not installed_addons()
 
 
-def test_install_uninstall(path):
+def test_install(path):
     bpy.ops.extensions.package_install_files(repo="user_default", filepath=str(path))
     assert len(installed_addons()) == 1
+
+
+def test_uninstall():
     bpy.ops.extensions.package_uninstall(
         repo_index=next(
             i
@@ -58,9 +61,27 @@ if __name__ == "__main__":
 
     try:
         test_factory_clean()
+
+        # do this just once, we need to cleanup later
         download_from_git(url_new, path_new)
         download_from_git(url_old, path_old)
-        test_install_uninstall(path_new)
-        test_install_uninstall(path_old)
+
+        # just normal install of both old and new
+        test_install(path_old)
+        test_uninstall()
+        test_install(path_new)
+        test_uninstall()
+
+        # update old -> new
+        test_install(path_old)
+        test_install(path_new)
+        test_uninstall()
+
+        # update new -> old -> new
+        test_install(path_new)
+        test_install(path_old)
+        test_install(path_new)
+        test_uninstall()
+
     finally:
         temp_dir_cleanup(tmpdir)
