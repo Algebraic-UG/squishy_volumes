@@ -1,16 +1,15 @@
 import bpy
 import argparse
+import logging
 
 from test_util import (
     PKG_ID,
-    LogBuffer,
     addon_filename_and_url,
     download_from_git,
     fetch_available_versions,
     installed_addons,
     temp_dir_cleanup,
     temp_dir_create,
-    get_platform,
 )
 
 
@@ -33,7 +32,8 @@ def test_install_uninstall(path):
 
 
 if __name__ == "__main__":
-    PLATFORM = get_platform()
+    logging.getLogger().setLevel(logging.DEBUG)
+
     versions = fetch_available_versions()
 
     parser = argparse.ArgumentParser()
@@ -50,20 +50,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    log_buffer = LogBuffer()
-
     tmpdir = temp_dir_create()
-
-    filename_new, url_new = addon_filename_and_url(PLATFORM, args.version_new)
-    filename_old, url_old = addon_filename_and_url(PLATFORM, args.version_old)
+    filename_new, url_new = addon_filename_and_url(args.version_new)
+    filename_old, url_old = addon_filename_and_url(args.version_old)
     path_new = tmpdir / filename_new
     path_old = tmpdir / filename_old
 
     try:
-        log_buffer.run(test_factory_clean)
-        log_buffer.run(lambda: download_from_git(url_new, path_new))
-        log_buffer.run(lambda: download_from_git(url_old, path_old))
-        log_buffer.run(lambda: test_install_uninstall(path_new))
-        log_buffer.run(lambda: test_install_uninstall(path_old))
+        test_factory_clean()
+        download_from_git(url_new, path_new)
+        download_from_git(url_old, path_old)
+        test_install_uninstall(path_new)
+        test_install_uninstall(path_old)
     finally:
-        log_buffer.run(lambda: temp_dir_cleanup(tmpdir))
+        temp_dir_cleanup(tmpdir)
