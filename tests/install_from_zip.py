@@ -10,6 +10,7 @@ from test_util import (
     installed_addons,
     temp_dir_cleanup,
     temp_dir_create,
+    get_platform,
 )
 
 
@@ -32,14 +33,10 @@ def test_install_uninstall(path):
 
 
 if __name__ == "__main__":
+    PLATFORM = get_platform()
     versions = fetch_available_versions()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--platform",
-        choices=["windows_x64", "macos_arm64", "linux_x64"],
-        required=True,
-    )
     parser.add_argument(
         "--version-new",
         choices=versions,
@@ -57,8 +54,8 @@ if __name__ == "__main__":
 
     tmpdir = temp_dir_create()
 
-    filename_new, url_new = addon_filename_and_url(args.platform, args.version_new)
-    filename_old, url_old = addon_filename_and_url(args.platform, args.version_old)
+    filename_new, url_new = addon_filename_and_url(PLATFORM, args.version_new)
+    filename_old, url_old = addon_filename_and_url(PLATFORM, args.version_old)
     path_new = tmpdir / filename_new
     path_old = tmpdir / filename_old
 

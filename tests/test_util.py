@@ -5,6 +5,7 @@ import requests
 import tempfile
 from pathlib import Path
 import logging
+import platform
 
 
 PKG_ID = "squishy_volumes_extension"
@@ -159,3 +160,14 @@ class LogBuffer:
             print("")
             self.print()
             raise e
+
+
+def get_platform():
+    name = platform.system()
+    if name == "Linux":
+        return "linux_x64"
+    if name == "Darwin":
+        return "macos_arm64"
+    if name == "Windows":
+        return "windows_x64"
+    raise RuntimeError(f"Unknown platform: {name}")
