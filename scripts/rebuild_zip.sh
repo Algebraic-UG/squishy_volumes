@@ -20,3 +20,4 @@ test -f ./scripts/blender_ext.py || wget https://raw.githubusercontent.com/blend
 
 cd python
 uv run --python 3.11 ../scripts/blender_ext.py build
+uv run --python 3.11 ../scripts/blender_ext.py server-generate --repo-dir=./
