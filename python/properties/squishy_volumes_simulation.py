@@ -88,11 +88,13 @@ def update_cache_directory(self, context):
 
 
 class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(
+    NAME_PROP_BASE = dict(
         name="Name",
-        description="It is just the name wihtout any semantic implications.",
+        description="It is just the name without any semantic implications.",
         default="My Simulation",
-        options=set(),
+    )
+    name: bpy.props.StringProperty(
+        **NAME_PROP_BASE,
         update=update_name,
     )  # type: ignore
 
@@ -111,7 +113,8 @@ class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
         default="unassigned",
         options=set(),
     )  # type: ignore
-    cache_directory: bpy.props.StringProperty(
+
+    CACHE_DIRECTORY_PROP_BASE = dict(
         name="Cache",
         description="""Directory that holds the relevant simulation data.
 This includes settings, meshes, animations and simulated frames.
@@ -120,11 +123,15 @@ If there exists a cache at the location it can be loaded.
 The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
 The latter being a temporary file indicating ownership.""",
         default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
+        subtype="DIR_PATH",
+    )
+    cache_directory: bpy.props.StringProperty(
+        **CACHE_DIRECTORY_PROP_BASE,
         options=set(),
         update=update_cache_directory,
-        subtype="DIR_PATH",
     )  # type: ignore
-    max_giga_bytes_on_disk: bpy.props.FloatProperty(
+
+    MAX_GIGA_BYTES_ON_DISK_PROP_BASE = dict(
         name="Max Diskspace (Gigabytes)",
         description="""Simulations can use a lot of disk space!
 
@@ -137,6 +144,9 @@ Changes have *no effect* on *already running* bakes.""",
         default=10.0,
         min=0.0,
         precision=2,
+    )
+    max_giga_bytes_on_disk: bpy.props.FloatProperty(
+        **MAX_GIGA_BYTES_ON_DISK_PROP_BASE,
         options=set(),
     )  # type: ignore
 
