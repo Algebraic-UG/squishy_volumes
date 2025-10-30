@@ -1,6 +1,8 @@
 import bpy
 import argparse
 import logging
+import urllib
+from pathlib import Path
 
 from test_util import (
     extension_install,
@@ -36,6 +38,7 @@ if __name__ == "__main__":
     versions = fetch_available_versions()
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--local-json")
     parser.add_argument(
         "--version-new",
         choices=versions,
@@ -48,7 +51,13 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    URL_NEW = extension_url(args.version_new)
+    if args.local_json:
+        path = Path(args.local_json).expanduser().resolve()
+        file_url = urllib.parse.urljoin("file:", urllib.request.pathname2url(str(path)))
+        URL_NEW = file_url
+    else:
+        URL_NEW = extension_url(args.version_new)
+
     URL_OLD = extension_url(args.version_old)
 
     test_factory_clean()
