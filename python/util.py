@@ -104,6 +104,7 @@ def attribute_to_base64(collection, attribute_name, dtype, per_count):
     return array_to_base64(array)
 
 
+# TODO: pass the scene
 def get_simulation_idx_by_uuid(uuid):
     return [
         idx
@@ -114,6 +115,7 @@ def get_simulation_idx_by_uuid(uuid):
     ][0]
 
 
+# TODO: pass the scene
 def get_simulation_by_uuid(uuid):
     for simulation in bpy.context.scene.squishy_volumes_scene.simulations:
         if simulation.uuid == uuid:
