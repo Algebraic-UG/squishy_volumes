@@ -87,7 +87,7 @@ def update_cache_directory(self, context):
     drop_context(self)
 
 
-class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
+class Squishy_Volumes_Simulation_Props:
     name: bpy.props.StringProperty(
         name="Name",
         description="It is just the name without any semantic implications.",
@@ -256,3 +256,9 @@ This only changes the display of simulation results and can be changed anytime."
         default=1,
         options=set(),
     )  # type: ignore
+
+
+class Squishy_Volumes_Simulation(
+    bpy.types.PropertyGroup, Squishy_Volumes_Simulation_Props
+):
+    pass
