@@ -96,3 +96,20 @@ def get_selected_output_object(context):
 
 def is_some_and(x, f):
     return x is not None and f(x)
+
+
+def add_fields_from(source_cls, prefix=""):
+    def decorator(target_cls):
+        source_annotations = getattr(source_cls, "__annotations__", {})
+        new_annotations = {f"{prefix}{k}": v for k, v in source_annotations.items()}
+
+        existing_annotations = getattr(target_cls, "__annotations__", {})
+        existing_annotations.update(new_annotations)
+        target_cls.__annotations__ = existing_annotations
+
+        for name in new_annotations:
+            setattr(target_cls, name, None)
+
+        return target_cls
+
+    return decorator
