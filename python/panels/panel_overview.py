@@ -35,7 +35,7 @@ from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation_Props
 from ..properties.util import (
     get_input_objects,
     get_output_objects,
@@ -53,7 +53,9 @@ from ..util import (
 )
 
 
-class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Add_Simulation(
+    bpy.types.Operator, Squishy_Volumes_Simulation_Props
+):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
     bl_description = """Create a new Squishy Volumes simulation.
@@ -62,8 +64,6 @@ There can be multiple simulations at once
 and they can share input geometries, but the physics
 are completely separate from each other."""
     bl_options = {"REGISTER", "UNDO"}
-
-    simulation: bpy.props.PointerProperty(type=Squishy_Volumes_Simulation)  # type: ignore
 
     @classmethod
     def poll(cls, context):
@@ -77,9 +77,9 @@ are completely separate from each other."""
 
         new_simulation = simulations.add()
         new_simulation.uuid = str(uuid.uuid4())
-        new_simulation.name = self.simulation.name
-        new_simulation.cache_directory = self.simulation.cache_directory
-        new_simulation.max_giga_bytes_on_disk = self.simulation.max_giga_bytes_on_disk
+        new_simulation.name = self.name
+        new_simulation.cache_directory = self.cache_directory
+        new_simulation.max_giga_bytes_on_disk = self.max_giga_bytes_on_disk
 
         force_ui_redraw()
         return {"FINISHED"}
@@ -90,9 +90,9 @@ are completely separate from each other."""
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
-        self.layout.prop(self.simulation, "name")
-        self.layout.prop(self.simulation, "cache_directory")
-        self.layout.prop(self.simulation, "max_giga_bytes_on_disk")
+        self.layout.prop(self, "name")
+        self.layout.prop(self, "cache_directory")
+        self.layout.prop(self, "max_giga_bytes_on_disk")
         tutorial_msg(
             self.layout,
             context,
