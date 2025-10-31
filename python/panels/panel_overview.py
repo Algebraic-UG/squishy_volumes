@@ -35,11 +35,12 @@ from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation_Props
+from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
 from ..properties.util import (
     get_input_objects,
     get_output_objects,
     get_selected_simulation,
+    add_fields_from,
 )
 from ..util import (
     force_ui_redraw,
@@ -53,9 +54,8 @@ from ..util import (
 )
 
 
-class SCENE_OT_Squishy_Volumes_Add_Simulation(
-    bpy.types.Operator, Squishy_Volumes_Simulation_Props
-):
+@add_fields_from(Squishy_Volumes_Simulation)
+class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
     bl_description = """Create a new Squishy Volumes simulation.
