@@ -36,6 +36,7 @@ from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
 from .couple_utils import register_couple_utils, unregister_couple_utils
 from .view_utils import register_view_utils, unregister_view_utils
+from .script_utils import register_script_utils, unregister_script_utils
 
 
 bl_info = {
@@ -85,9 +86,11 @@ def register():
     register_skin_utils()
     register_couple_utils()
     register_view_utils()
+    register_script_utils()
 
 
 def unregister():
+    unregister_script_utils()
     unregister_view_utils()
     unregister_couple_utils()
     unregister_skin_utils()
