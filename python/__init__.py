@@ -34,7 +34,6 @@ from .bridge import cleanup_native, build_info
 from .frame_change import register_frame_handler, unregister_frame_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
-from .reload_utils import register_reload_utils, unregister_reload_utils
 from .couple_utils import register_couple_utils, unregister_couple_utils
 from .view_utils import register_view_utils, unregister_view_utils
 
@@ -85,13 +84,11 @@ def register():
     register_progress_update_toggle()
     register_skin_utils()
     register_couple_utils()
-    register_reload_utils()
     register_view_utils()
 
 
 def unregister():
     unregister_view_utils()
-    unregister_reload_utils()
     unregister_couple_utils()
     unregister_skin_utils()
     unregister_progress_update_toggle()

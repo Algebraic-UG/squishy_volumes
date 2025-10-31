@@ -24,7 +24,7 @@ import numpy as np
 import bpy
 import mathutils
 
-from .bridge import available_frames
+from .bridge import available_frames, context_exists
 
 
 def remove_marker(marker_name):
@@ -199,3 +199,19 @@ def frame_to_load(simulation, frame):
     frame = max(0, min(max_frame, frame))
 
     return frame
+
+
+def locked_simulations(context):
+    return [
+        simulation
+        for simulation in context.scene.squishy_volumes_scene.simulations
+        if not context_exists(simulation) and simulation_cache_locked(simulation)
+    ]
+
+
+def unloaded_simulations(context):
+    return [
+        simulation
+        for simulation in context.scene.squishy_volumes_scene.simulations
+        if not context_exists(simulation) and simulation_cache_exists(simulation)
+    ]
