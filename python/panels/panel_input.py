@@ -208,8 +208,8 @@ Note that this does not delete the object."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Squishy_Volumes_Write_Input_To_Cache(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_write_input_to_cache"
+class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_write_input_to_cache"
     bl_label = "Write to Cache"
     bl_description = """(Over)Write the cache with the new input.
 
@@ -289,7 +289,9 @@ Note that this also discards all computed frames in the cache."""
         )
 
 
-class OBJECT_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
+class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
+    bl_idname = "scene.squishy_volumes_input_object_list"
+
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
@@ -314,7 +316,7 @@ class OBJECT_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
         layout.label(text=obj.name)
 
 
-class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
+class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
     bl_label = "Input"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -355,7 +357,7 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
 
         row = self.layout.row()
         row.column().template_list(
-            "OBJECT_UL_Squishy_Volumes_Input_Object_List",
+            SCENE_UL_Squishy_Volumes_Input_Object_List.bl_idname,
             "",
             bpy.data,
             "objects",
@@ -367,9 +369,15 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
         tut.alert = context.scene.squishy_volumes_scene.tutorial_active and (
             not get_input_solids(simulation) or not get_input_colliders(simulation)
         )
-        tut.operator("object.squishy_volumes_add_input_object", text="", icon="ADD")
+        tut.operator(
+            OBJECT_OT_Squishy_Volumes_Add_Input_Object.bl_idname,
+            text="",
+            icon="ADD",
+        )
         list_controls.operator(
-            "object.squishy_volumes_remove_input_object", text="", icon="REMOVE"
+            OBJECT_OT_Squishy_Volumes_Remove_Input_Object.bl_idname,
+            text="",
+            icon="REMOVE",
         )
 
         obj = get_selected_input_object(context)
@@ -397,7 +405,7 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
             and not context_exists(simulation)
         )
         tut.operator(
-            "object.squishy_volumes_write_input_to_cache",
+            SCENE_OT_Squishy_Volumes_Write_Input_To_Cache.bl_idname,
             text=(
                 "Overwrite Cache"
                 if simulation_cache_exists(simulation)
@@ -413,9 +421,9 @@ class OBJECT_PT_Squishy_Volumes_Input(bpy.types.Panel):
 classes = [
     OBJECT_OT_Squishy_Volumes_Add_Input_Object,
     OBJECT_OT_Squishy_Volumes_Remove_Input_Object,
-    OBJECT_OT_Squishy_Volumes_Write_Input_To_Cache,
-    OBJECT_UL_Squishy_Volumes_Input_Object_List,
-    OBJECT_PT_Squishy_Volumes_Input,
+    SCENE_OT_Squishy_Volumes_Write_Input_To_Cache,
+    SCENE_UL_Squishy_Volumes_Input_Object_List,
+    SCENE_PT_Squishy_Volumes_Input,
 ]
 
 
