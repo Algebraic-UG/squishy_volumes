@@ -114,8 +114,8 @@ are completely separate from each other."""
         )
 
 
-class OBJECT_OT_Squishy_Volumes_Reload(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_reload"
+class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_reload"
     bl_label = "Reload"
     bl_description = "Reloads the cache"
     bl_options = {"REGISTER"}
@@ -132,8 +132,8 @@ class OBJECT_OT_Squishy_Volumes_Reload(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class OBJECT_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_reload_all"
+class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_reload_all"
     bl_label = "Reload All"
     bl_description = """Reloads all simulation caches.
 This is useful when reloading a Blender filer with multiple simulations."""
@@ -169,8 +169,8 @@ This is useful when reloading a Blender filer with multiple simulations."""
             self.layout.label(text="Confirm to remove them.")
 
 
-class OBJECT_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_remove_simulation"
+class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_remove_simulation"
     bl_label = "Remove"
     bl_description = """Remove the simulation from the scene.
 
@@ -219,8 +219,8 @@ please use your OS's file browser."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Squishy_Volumes_Remove_Lock_File(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_remove_lock_file"
+class SCENE_OT_Squishy_Volumes_Remove_Lock_File(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_remove_lock_file"
     bl_label = "Remove Lock"
     bl_description = """Use with care!
 
@@ -241,8 +241,8 @@ However, the lock file can remain after a crash, in which case it must be delete
         return {"FINISHED"}
 
 
-class OBJECT_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_show_message"
+class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_show_message"
     bl_label = "Show"
 
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -252,7 +252,7 @@ class OBJECT_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
+class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
     bl_label = "Overview"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -266,7 +266,7 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         layout = self.layout
 
         if len(unloaded_simulations(context)) > 1:
-            layout.operator("object.squishy_volumes_reload_all")
+            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
         for simulation in context.scene.squishy_volumes_scene.simulations:
             (header, body) = layout.panel(
                 simulation.uuid, default_closed=not simulation_cache_exists(simulation)
@@ -275,9 +275,9 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 col = header.column()
                 col.alert = True
                 col.label(text=f"{simulation.name}: Message")
-                header.operator("object.squishy_volumes_show_message").uuid = (
-                    simulation.uuid
-                )
+                header.operator(
+                    SCENE_OT_Squishy_Volumes_Show_Message.bl_idname
+                ).uuid = simulation.uuid
             else:
                 progress_text = f"{simulation.name}: "
                 factor = 0.0
@@ -325,7 +325,8 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     simulation
                 ):
                     row.operator(
-                        "object.squishy_volumes_remove_lock_file", icon="WARNING_LARGE"
+                        SCENE_OT_Squishy_Volumes_Remove_Lock_File.bl_idname,
+                        icon="WARNING_LARGE",
                     ).uuid = simulation.uuid
                 elif simulation_cache_exists(simulation):
                     tut = row.column()
@@ -333,10 +334,12 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                         not context.scene.squishy_volumes_scene.tutorial_active
                     )
                     tut.operator(
-                        "object.squishy_volumes_reload", icon="FILE_CACHE"
+                        SCENE_OT_Squishy_Volumes_Reload.bl_idname,
+                        icon="FILE_CACHE",
                     ).uuid = simulation.uuid
                 row.operator(
-                    "object.squishy_volumes_remove_simulation", icon="TRASH"
+                    SCENE_OT_Squishy_Volumes_Remove_Simulation.bl_idname,
+                    icon="TRASH",
                 ).uuid = simulation.uuid
 
                 if not context_exists(simulation):
@@ -399,12 +402,12 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
 classes = [
     SCENE_OT_Squishy_Volumes_Add_Simulation,
-    OBJECT_OT_Squishy_Volumes_Reload,
-    OBJECT_OT_Squishy_Volumes_Reload_All,
-    OBJECT_OT_Squishy_Volumes_Remove_Simulation,
-    OBJECT_OT_Squishy_Volumes_Remove_Lock_File,
-    OBJECT_OT_Squishy_Volumes_Show_Message,
-    OBJECT_PT_Squishy_Volumes_Overview,
+    SCENE_OT_Squishy_Volumes_Reload,
+    SCENE_OT_Squishy_Volumes_Reload_All,
+    SCENE_OT_Squishy_Volumes_Remove_Simulation,
+    SCENE_OT_Squishy_Volumes_Remove_Lock_File,
+    SCENE_OT_Squishy_Volumes_Show_Message,
+    SCENE_PT_Squishy_Volumes_Overview,
 ]
 
 
