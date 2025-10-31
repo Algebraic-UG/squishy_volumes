@@ -290,8 +290,6 @@ Note that this also discards all computed frames in the cache."""
 
 
 class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
-    bl_idname = "scene.squishy_volumes_input_object_list"
-
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
@@ -357,7 +355,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
 
         row = self.layout.row()
         row.column().template_list(
-            SCENE_UL_Squishy_Volumes_Input_Object_List.bl_idname,
+            "SCENE_UL_Squishy_Volumes_Input_Object_List",
             "",
             bpy.data,
             "objects",
