@@ -31,7 +31,7 @@ from ..properties.squishy_volumes_object_settings import (
 
 from .panel_input import selection_eligible_for_input
 from .panel_overview import (
-    OBJECT_OT_Squishy_Volumes_Add_Simulation,
+    SCENE_OT_Squishy_Volumes_Add_Simulation,
 )
 
 
@@ -75,7 +75,7 @@ def current_instructions(layout, context):
             and text instructions.
 
             Please start by adding a new simulation.
-            Press {OBJECT_OT_Squishy_Volumes_Add_Simulation.bl_label}!"""
+            Press {SCENE_OT_Squishy_Volumes_Add_Simulation.bl_label}!"""
         )
         return
 

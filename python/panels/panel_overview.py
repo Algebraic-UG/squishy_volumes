@@ -53,8 +53,8 @@ from ..util import (
 )
 
 
-class OBJECT_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_add_simulation"
+class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
     bl_description = """Create a new Squishy Volumes simulation.
 
@@ -134,13 +134,13 @@ class OBJECT_OT_Squishy_Volumes_Reload(bpy.types.Operator):
 
 class OBJECT_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_reload_all"
-    bl_label = "Squishy Volumes Reload All Caches"
+    bl_label = "Reload All"
     bl_description = """Reloads all simulation caches.
 This is useful when reloading a Blender filer with multiple simulations."""
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        for simulation in context.scene.squishy_volumes_scene.simulations:
+        for simulation in unloaded_simulations(context):
             lock_file = Path(simulation.cache_directory) / "lock"
             if os.path.exists(lock_file):
                 os.remove(lock_file)
@@ -386,7 +386,7 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
             context.scene.squishy_volumes_scene.tutorial_active
             and not context.scene.squishy_volumes_scene.simulations
         )
-        tut.operator("object.squishy_volumes_add_simulation", icon="ADD")
+        tut.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
 
         if len(context.scene.squishy_volumes_scene.simulations) > 1:
             layout.separator()
@@ -398,7 +398,7 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
 
 classes = [
-    OBJECT_OT_Squishy_Volumes_Add_Simulation,
+    SCENE_OT_Squishy_Volumes_Add_Simulation,
     OBJECT_OT_Squishy_Volumes_Reload,
     OBJECT_OT_Squishy_Volumes_Reload_All,
     OBJECT_OT_Squishy_Volumes_Remove_Simulation,
