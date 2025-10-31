@@ -63,15 +63,7 @@ and they can share input geometries, but the physics
 are completely separate from each other."""
     bl_options = {"REGISTER", "UNDO"}
 
-    name: bpy.props.StringProperty(
-        **Squishy_Volumes_Simulation.NAME_PROP_BASE
-    )  # type: ginore
-    cache_directory: bpy.props.StringProperty(
-        **Squishy_Volumes_Simulation.CACHE_DIRECTORY_PROP_BASE,
-    )
-    max_giga_bytes_on_disk: bpy.props.FloatProperty(
-        **Squishy_Volumes_Simulation.MAX_GIGA_BYTES_ON_DISK_PROP_BASE,
-    )
+    simulation: bpy.props.PointerProperty(type=Squishy_Volumes_Simulation)  # type: ignore
 
     @classmethod
     def poll(cls, context):
@@ -85,9 +77,9 @@ are completely separate from each other."""
 
         new_simulation = simulations.add()
         new_simulation.uuid = str(uuid.uuid4())
-        new_simulation.name = self.name
-        new_simulation.cache_directory = self.cache_directory
-        new_simulation.max_giga_bytes_on_disk = self.max_giga_bytes_on_disk
+        new_simulation.name = self.simulation.name
+        new_simulation.cache_directory = self.simulation.cache_directory
+        new_simulation.max_giga_bytes_on_disk = self.simulation.max_giga_bytes_on_disk
 
         force_ui_redraw()
         return {"FINISHED"}
@@ -96,9 +88,9 @@ are completely separate from each other."""
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
-        self.layout.prop(self, "name")
-        self.layout.prop(self, "cache_directory")
-        self.layout.prop(self, "max_giga_bytes_on_disk")
+        self.layout.prop(self.simulation, "name")
+        self.layout.prop(self.simulation, "cache_directory")
+        self.layout.prop(self.simulation, "max_giga_bytes_on_disk")
         tutorial_msg(
             self.layout,
             context,
