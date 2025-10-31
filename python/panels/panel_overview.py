@@ -85,6 +85,8 @@ are completely separate from each other."""
         return {"FINISHED"}
 
     def invoke(self, context, _):
+        if not context.scene.squishy_volumes_scene.tutorial_active:
+            return self.execute(context)
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
