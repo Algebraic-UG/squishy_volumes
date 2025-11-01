@@ -1033,18 +1033,20 @@ def create_geometry_nodes_particles():
             "GeometryNodePointsToVolume"
         )
         points_to_volume.name = "Points to Volume"
-        points_to_volume.resolution_mode = "VOXEL_SIZE"
         # Density
         points_to_volume.inputs[1].default_value = 1.0
+        # Resolution Mode
+        points_to_volume.inputs[2].default_value = "Size"
 
         # Node Volume to Mesh
         volume_to_mesh = squishy_volumes_reconstruct.nodes.new(
             "GeometryNodeVolumeToMesh"
         )
         volume_to_mesh.name = "Volume to Mesh"
-        volume_to_mesh.resolution_mode = "VOXEL_SIZE"
+        # Resolution Mode
+        volume_to_mesh.inputs[1].default_value = "Size"
         # Adaptivity
-        volume_to_mesh.inputs[4].default_value = 0.0
+        volume_to_mesh.inputs[5].default_value = 0.0
 
         # Node Set Material
         set_material_1 = squishy_volumes_reconstruct.nodes.new(
@@ -1172,11 +1174,11 @@ def create_geometry_nodes_particles():
         )
         # group_input_6.Particle Size -> points_to_volume.Voxel Size
         squishy_volumes_reconstruct.links.new(
-            group_input_6.outputs[1], points_to_volume.inputs[2]
+            group_input_6.outputs[1], points_to_volume.inputs[3]
         )
         # math_4.Value -> points_to_volume.Radius
         squishy_volumes_reconstruct.links.new(
-            math_4.outputs[0], points_to_volume.inputs[4]
+            math_4.outputs[0], points_to_volume.inputs[5]
         )
         # points_to_volume.Volume -> volume_to_mesh.Volume
         squishy_volumes_reconstruct.links.new(
@@ -1184,11 +1186,11 @@ def create_geometry_nodes_particles():
         )
         # group_input_6.Particle Size -> volume_to_mesh.Voxel Size
         squishy_volumes_reconstruct.links.new(
-            group_input_6.outputs[1], volume_to_mesh.inputs[1]
+            group_input_6.outputs[1], volume_to_mesh.inputs[2]
         )
         # group_input_6.Threshold -> volume_to_mesh.Threshold
         squishy_volumes_reconstruct.links.new(
-            group_input_6.outputs[2], volume_to_mesh.inputs[3]
+            group_input_6.outputs[2], volume_to_mesh.inputs[4]
         )
         # set_shade_smooth.Geometry -> group_output_6.Geometry
         squishy_volumes_reconstruct.links.new(
