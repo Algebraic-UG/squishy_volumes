@@ -19,6 +19,7 @@
 import bpy
 
 from ..properties.util import (
+    add_fields_from,
     get_input_objects,
     get_selected_input_object,
     get_selected_simulation,
@@ -111,6 +112,7 @@ def selection_eligible_for_input(context):
     )
 
 
+@add_fields_from(Squishy_Volumes_Object_Settings)
 class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_add_input_object"
     bl_label = "Add Input Object"
@@ -124,8 +126,6 @@ An active output object cannot be used as input.
 Note that an eligible object must be selected."""
     bl_options = {"REGISTER", "UNDO"}
 
-    settings: bpy.props.PointerProperty(type=Squishy_Volumes_Object_Settings)  # type: ignore
-
     @classmethod
     def poll(cls, context):
         return selection_eligible_for_input(context)
@@ -134,7 +134,7 @@ Note that an eligible object must be selected."""
         settings = (
             context.object.squishy_volumes_object.simulation_specific_settings.add()
         )
-        copy_simple_property_group(self.settings, settings)
+        copy_simple_property_group(self, settings)
 
         simulation = get_selected_simulation(context)
         settings.simulation_uuid = simulation.uuid
@@ -153,7 +153,7 @@ Note that an eligible object must be selected."""
     def draw(self, context):
         simulation = get_selected_simulation(context)
         self.layout.label(text=context.object.name)
-        draw_object_settings(self.layout, self.settings)
+        draw_object_settings(self.layout, self)
 
         # tutorial
         msg = "You're about to register the selected object as input."

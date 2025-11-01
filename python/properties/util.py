@@ -104,6 +104,10 @@ def add_fields_from(source_cls, prefix=""):
         new_annotations = {f"{prefix}{k}": v for k, v in source_annotations.items()}
 
         existing_annotations = getattr(target_cls, "__annotations__", {})
+
+        if new_annotations.keys() & existing_annotations.keys():
+            raise RuntimeError("Clobbering annotations")
+
         existing_annotations.update(new_annotations)
         target_cls.__annotations__ = existing_annotations
 
