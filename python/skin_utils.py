@@ -269,13 +269,15 @@ classes = [
 
 def menu_func_move_with_particles(self, _context):
     self.layout.operator(
-        OBJECT_OT_Squishy_Volumes_Move_With_Particles.bl_idname, icon="MODIFIER"
+        OBJECT_OT_Squishy_Volumes_Move_With_Particles.bl_idname,
+        icon="MODIFIER",
     )
 
 
 def menu_func_break_edges(self, _context):
     self.layout.operator(
-        OBJECT_OT_Squishy_Volumes_Break_Edges.bl_idname, icon="MODIFIER"
+        OBJECT_OT_Squishy_Volumes_Break_Edges.bl_idname,
+        icon="MODIFIER",
     )
 
 
