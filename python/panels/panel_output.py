@@ -40,6 +40,7 @@ from ..output import (
     sync_output,
 )
 from ..properties.util import (
+    add_fields_from,
     get_output_objects,
     get_selected_output_object,
     get_selected_simulation,
@@ -127,6 +128,7 @@ in the loaded cache."""
         return {"FINISHED"}
 
 
+@add_fields_from(Squishy_Volumes_Optional_Attributes)
 class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_output_object"
     bl_label = "Add Output Object"
@@ -146,7 +148,6 @@ each frame."""
     output_type: bpy.props.StringProperty()  # type: ignore
     input_name: bpy.props.StringProperty()  # type: ignore
     num_colliders: bpy.props.IntProperty()  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(type=Squishy_Volumes_Optional_Attributes)  # type: ignore
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
@@ -167,7 +168,7 @@ each frame."""
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
         obj.squishy_volumes_object.output_type = self.output_type
         copy_simple_property_group(
-            self.optional_attributes,
+            self,
             obj.squishy_volumes_object.optional_attributes,
         )
 
@@ -188,7 +189,7 @@ each frame."""
     def draw(self, context):
         self.layout.label(text=f"{self.output_type}")
         self.layout.prop(self, "object_name")
-        draw_object_attributes(self.layout, self.output_type, self.optional_attributes)
+        draw_object_attributes(self.layout, self.output_type, self)
         tutorial_msg(
             self.layout,
             context,
