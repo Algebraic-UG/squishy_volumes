@@ -154,9 +154,9 @@ def dialog_info(message):
 
 # https://blenderartists.org/t/duplicating-pointerproperty-propertygroup-and-collectionproperty/1419096/2?
 def copy_simple_property_group(source, target):
-    if not hasattr(source, "__annotations__"):
+    if not hasattr(target, "__annotations__"):
         return
-    for prop_name in source.__annotations__.keys():
+    for prop_name in target.__annotations__.keys():
         try:
             setattr(target, prop_name, getattr(source, prop_name))
         except (AttributeError, TypeError):
