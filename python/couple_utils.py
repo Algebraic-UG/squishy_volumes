@@ -88,7 +88,8 @@ classes = [
 
 def menu_func_recouple_output(self, _context):
     self.layout.operator(
-        OBJECT_OT_Squishy_Volumes_Recouple_Output.bl_idname, icon="MODIFIER"
+        OBJECT_OT_Squishy_Volumes_Recouple_Output.bl_idname,
+        icon="MODIFIER",
     )
 
 

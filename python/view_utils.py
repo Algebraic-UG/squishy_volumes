@@ -96,7 +96,8 @@ classes = [
 
 def menu_func_restrict_view(self, _context):
     self.layout.operator(
-        OBJECT_OT_Squishy_Volumes_Restrict_View.bl_idname, icon="MODIFIER"
+        OBJECT_OT_Squishy_Volumes_Restrict_View.bl_idname,
+        icon="MODIFIER",
     )
 
 
