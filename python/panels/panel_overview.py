@@ -48,11 +48,13 @@ from ..util import (
     simulation_cache_exists,
     simulation_cache_locked,
     tutorial_msg,
+    locked_simulations,
+    unloaded_simulations,
 )
 
 
-class OBJECT_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_add_simulation"
+class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
     bl_description = """Create a new Squishy Volumes simulation.
 
@@ -123,6 +125,43 @@ class OBJECT_OT_Squishy_Volumes_Reload(bpy.types.Operator):
         sync_simulation(simulation, context.scene.frame_current)
         self.report({"INFO"}, "Reloaded simulation.")
         return {"FINISHED"}
+
+
+class OBJECT_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_reload_all"
+    bl_label = "Reload All"
+    bl_description = """Reloads all simulation caches.
+This is useful when reloading a Blender filer with multiple simulations."""
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        for simulation in unloaded_simulations(context):
+            lock_file = Path(simulation.cache_directory) / "lock"
+            if os.path.exists(lock_file):
+                os.remove(lock_file)
+                self.report({"INFO"}, "Removed lock file.")
+
+            simulation.last_exception = ""
+            simulation.loaded_frame = -1
+            load_simulation(simulation)
+            sync_simulation(simulation, context.scene.frame_current)
+            self.report({"INFO"}, "Reloaded simulation.")
+
+        return {"FINISHED"}
+
+    def invoke(self, context, _event):
+        if locked_simulations(context):
+            return context.window_manager.invoke_props_dialog(self)
+        else:
+            return self.execute(context)
+
+    def draw(self, context):
+        locked = locked_simulations(context)
+        if locked:
+            self.layout.label(text="WARNING: these caches contain lock files:")
+            for simulation in locked:
+                self.layout.label(text=f"{simulation.name}")
+            self.layout.label(text="Confirm to remove them.")
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
@@ -221,6 +260,8 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
+        if len(unloaded_simulations(context)) > 1:
+            layout.operator("object.squishy_volumes_reload_all")
         for simulation in context.scene.squishy_volumes_scene.simulations:
             (header, body) = layout.panel(
                 simulation.uuid, default_closed=not simulation_cache_exists(simulation)
@@ -340,7 +381,7 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
             context.scene.squishy_volumes_scene.tutorial_active
             and not context.scene.squishy_volumes_scene.simulations
         )
-        tut.operator("object.squishy_volumes_add_simulation", icon="ADD")
+        tut.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
 
         if len(context.scene.squishy_volumes_scene.simulations) > 1:
             layout.separator()
@@ -352,8 +393,9 @@ class OBJECT_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
 
 classes = [
-    OBJECT_OT_Squishy_Volumes_Add_Simulation,
+    SCENE_OT_Squishy_Volumes_Add_Simulation,
     OBJECT_OT_Squishy_Volumes_Reload,
+    OBJECT_OT_Squishy_Volumes_Reload_All,
     OBJECT_OT_Squishy_Volumes_Remove_Simulation,
     OBJECT_OT_Squishy_Volumes_Remove_Lock_File,
     OBJECT_OT_Squishy_Volumes_Show_Message,
