@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 # Change Log
 
+# Change Log
+
+## [0.1.21] - 2025-11-04
+
+Fix refactoring error and add default visualization to fluids.
+
+### Features
+- Default fluid visualization
+
+### Fixes
+- Broken fluid output
+
 ## [0.1.20] - 2025-11-03
 
 We're getting close to automated testing and general scripting from within Blender. Known blockers for Blender 5 support are gone, and we have a simple domain check.

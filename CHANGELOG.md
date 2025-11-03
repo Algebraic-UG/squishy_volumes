@@ -1,15 +1,11 @@
 # Change Log
 
-## [0.1.20] - 2025-11-03
+## [0.1.21] - 2025-11-04
 
-We're getting close to automated testing and general scripting from within Blender. Known blockers for Blender 5 support are gone, and we have a simple domain check.
+Fix refactoring error and add default visualization to fluids.
 
 ### Features
-- Local testing
-- Blender 5 tentative support
-- AABB domain to catch escaping particles
-- Multi cache reload
-- Streamlined adding simulations
+- Default fluid visualization
 
-### Performance
-- Parallel time step heuristic
+### Fixes
+- Broken fluid output
