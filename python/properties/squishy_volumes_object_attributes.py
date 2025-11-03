@@ -51,7 +51,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.fluid_velocities = value
     optional_attributes.fluid_transformations = value
     optional_attributes.fluid_collider_insides = value
-    optional_attributes.fluid_pressures = value
+    optional_attributes.fluid_energies = value
     optional_attributes.collider_normals = value
     optional_attributes.collider_velocities = value
 
@@ -176,9 +176,9 @@ class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    fluid_pressures: bpy.props.BoolProperty(
-        name="Pressures",
-        description=f"Attribute name: {SQUISHY_VOLUMES_PRESSURE}",
+    fluid_energies: bpy.props.BoolProperty(
+        name="Energies",
+        description=f"Attribute name: {SQUISHY_VOLUMES_ELASTIC_ENERGY}",
         default=True,
         options=set(),
     )  # type: ignore

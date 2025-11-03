@@ -72,9 +72,6 @@ def create_output(simulation, obj, frame):
         obj.rotation_quaternion = fix_quaternion_order(ffa("Orientation"))
         return
 
-    if mpm.output_type == FLUID_PARTICLES:
-        return  # TODO create
-
     modifier = obj.modifiers.new("Squishy Volumes Default", type="NODES")
 
     if mpm.output_type == GRID_COLLIDER_DISTANCE:
@@ -83,6 +80,9 @@ def create_output(simulation, obj, frame):
         modifier.node_group = create_geometry_nodes_grid_momentum()
     if mpm.output_type == GRID_MOMENTUM_CONFORMED:
         modifier.node_group = create_geometry_nodes_grid_momentum()
+    if mpm.output_type == FLUID_PARTICLES:
+        modifier.node_group = create_geometry_nodes_particles()
+        modifier["Socket_10"] = create_material_display_uvw()
     if mpm.output_type == SOLID_PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
         modifier["Socket_10"] = create_material_display_uvw()
@@ -312,11 +312,11 @@ def sync_output(simulation, obj, num_colliders, frame):
                     f"{SQUISHY_VOLUMES_COLLIDER_INSIDE}_{collider_idx}",
                     "FLOAT",
                 )
-        if mpm.optional_attributes.fluid_pressures:
+        if mpm.optional_attributes.fluid_energies:
             add_attribute(
                 obj.data,
-                ffa("Pressures"),
-                SQUISHY_VOLUMES_PRESSURE,
+                ffa("ElasticEnergies"),
+                SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
 

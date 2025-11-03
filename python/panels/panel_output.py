@@ -101,7 +101,7 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.label(text="FLOAT4X4")
         grid.prop(optional_attributes, "fluid_collider_insides")
         grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "fluid_pressures")
+        grid.prop(optional_attributes, "fluid_energies")
         grid.label(text="FLOAT")
     if output_type == COLLIDER_SAMPLES:
         grid.prop(optional_attributes, "collider_normals")
@@ -410,7 +410,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             row = box.row()
             row.label(text="Add Fluid Output")
             op = row.operator(
-                "object.squishy_volumes_add_multiple_output_objects",
+                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
                 icon="POINTCLOUD_DATA",
             )
             op.output_type = FLUID_PARTICLES
