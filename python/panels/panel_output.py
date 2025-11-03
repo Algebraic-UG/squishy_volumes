@@ -410,7 +410,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             row = box.row()
             row.label(text="Add Fluid Output")
             op = row.operator(
-                "object.squishy_volumes_add_multiple_output_objects",
+                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
                 icon="POINTCLOUD_DATA",
             )
             op.output_type = FLUID_PARTICLES
