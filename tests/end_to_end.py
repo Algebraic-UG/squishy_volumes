@@ -99,7 +99,9 @@ if __name__ == "__main__":
 
     bpy.ops.scene.squishy_volumes_write_input_to_cache()
 
-    bpy.ops.scene.squishy_volumes_wait_until_finished(simulation_uuid=simulation_uuid)
+    bpy.ops.scene.squishy_volumes_wait_until_finished(
+        simulation_uuid=simulation_uuid, timeout_sec=10
+    )
 
     bpy.ops.scene.squishy_volumes_add_output_object(
         object_name="SOLID_PARTICLES - Cube",
