@@ -465,7 +465,9 @@ pub fn hessian_neo_hookean_svd(
 pub fn elastic_energy_inviscid_by_invariant(bulk_modulus: T, exponent: i32, invariant_3: T) -> T {
     assert!(bulk_modulus >= 0.);
     assert!(exponent > 1);
-    bulk_modulus * (invariant_3 - invariant_3.powi(1 - exponent) / (1. - exponent as T))
+    // https://github.com/Algebraic-UG/squishy_volumes/issues/125
+    let at_rest = bulk_modulus * (1. - 1. / (1. - exponent as T));
+    bulk_modulus * (invariant_3 - invariant_3.powi(1 - exponent) / (1. - exponent as T)) - at_rest
 }
 
 pub fn partial_elastic_energy_inviscid_by_invariant_3(
