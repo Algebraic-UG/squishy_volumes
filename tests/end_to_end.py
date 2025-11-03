@@ -112,8 +112,10 @@ if __name__ == "__main__":
     bpy.context.scene.render.resolution_percentage = 20
 
     bpy.context.scene.render.filepath = test_dir
-    bpy.context.scene.render.image_settings.media_type = "VIDEO"
-    bpy.context.scene.render.image_settings.file_format = "FFMPEG"
+    if bpy.app.version >= (5, 0, 0):
+        bpy.context.scene.render.image_settings.media_type = "VIDEO"
+    else:
+        bpy.context.scene.render.image_settings.file_format = "FFMPEG"
     bpy.context.scene.render.ffmpeg.format = "MPEG4"
     bpy.context.scene.render.ffmpeg.codec = "H264"
     bpy.context.scene.render.ffmpeg.constant_rate_factor = "MEDIUM"
