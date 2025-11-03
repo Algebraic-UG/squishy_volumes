@@ -1,21 +1,15 @@
 # Change Log
 
-## [0.1.19] - 2025-10-18
+## [0.1.20] - 2025-11-03
 
-The prominent feature for this release is a *much* improved heuristic for safe time steps.
-For most scenes, we expect the time step size to require no further tuning.
-Expect a (slight) performance regression when it's activated.
-It's possible to opt out.
+We're getting close to automated testing and general scripting from within Blender. Known blockers for Blender 5 support are gone, and we have a simple domain check.
 
 ### Features
-- Time step heuristic
-- Add multiple outputs at once
-- Simulation stats and remaining time estimate
-- Material coordinates in default mesh reconstruction
-- Improved error messages
-
-### Fixed Bugs
-- The tutorial logic was looking at the wrong settings
+- Local testing
+- Blender 5 tentative support
+- AABB domain to catch escaping particles
+- Multi cache reload
+- Streamlined adding simulations
 
 ### Performance
-- A Regression due to unoptimized code in the time step heuristic
+- Parallel time step heuristic
