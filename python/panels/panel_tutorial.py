@@ -35,8 +35,8 @@ from .panel_overview import (
 )
 
 
-class OBJECT_OT_Squishy_Volumes_Start_Tutorial(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_start_tutorial"
+class SCENE_OT_Squishy_Volumes_Start_Tutorial(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_start_tutorial"
     bl_label = "Start Tutorial"
     bl_description = """The tutorial helps you to execute a basic workflow.
 
@@ -50,8 +50,8 @@ that is dropped onto a plane."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Squishy_Volumes_Stop_Tutorial(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_stop_tutorial"
+class SCENE_OT_Squishy_Volumes_Stop_Tutorial(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_stop_tutorial"
     bl_label = "Stop Tutorial"
     bl_description = "Removes the hints and highlighting."
     bl_options = {"REGISTER", "UNDO"}
@@ -241,7 +241,7 @@ def current_instructions(layout, context):
     )
 
 
-class OBJECT_PT_Squishy_Volumes_Tutorial(bpy.types.Panel):
+class SCENE_PT_Squishy_Volumes_Tutorial(bpy.types.Panel):
     bl_label = "Tutorial"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -257,15 +257,15 @@ class OBJECT_PT_Squishy_Volumes_Tutorial(bpy.types.Panel):
     def draw(self, context):
         if context.scene.squishy_volumes_scene.tutorial_active:
             current_instructions(self.layout.box(), context)
-            self.layout.operator("object.squishy_volumes_stop_tutorial")
+            self.layout.operator(SCENE_OT_Squishy_Volumes_Stop_Tutorial.bl_idname)
         else:
-            self.layout.operator("object.squishy_volumes_start_tutorial")
+            self.layout.operator(SCENE_OT_Squishy_Volumes_Start_Tutorial.bl_idname)
 
 
 classes = [
-    OBJECT_OT_Squishy_Volumes_Start_Tutorial,
-    OBJECT_OT_Squishy_Volumes_Stop_Tutorial,
-    OBJECT_PT_Squishy_Volumes_Tutorial,
+    SCENE_OT_Squishy_Volumes_Start_Tutorial,
+    SCENE_OT_Squishy_Volumes_Stop_Tutorial,
+    SCENE_PT_Squishy_Volumes_Tutorial,
 ]
 
 

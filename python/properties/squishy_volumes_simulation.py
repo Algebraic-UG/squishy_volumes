@@ -90,9 +90,8 @@ def update_cache_directory(self, context):
 class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
     name: bpy.props.StringProperty(
         name="Name",
-        description="It is just the name wihtout any semantic implications.",
+        description="It is just the name without any semantic implications.",
         default="My Simulation",
-        options=set(),
         update=update_name,
     )  # type: ignore
 
@@ -111,6 +110,7 @@ class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
         default="unassigned",
         options=set(),
     )  # type: ignore
+
     cache_directory: bpy.props.StringProperty(
         name="Cache",
         description="""Directory that holds the relevant simulation data.
@@ -120,10 +120,11 @@ If there exists a cache at the location it can be loaded.
 The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
 The latter being a temporary file indicating ownership.""",
         default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
+        subtype="DIR_PATH",
         options=set(),
         update=update_cache_directory,
-        subtype="DIR_PATH",
     )  # type: ignore
+
     max_giga_bytes_on_disk: bpy.props.FloatProperty(
         name="Max Diskspace (Gigabytes)",
         description="""Simulations can use a lot of disk space!

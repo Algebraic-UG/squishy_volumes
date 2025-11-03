@@ -27,8 +27,8 @@ from .util import get_simulation_by_uuid
 simulation_uuid = None
 
 
-class OBJECT_OT_Squishy_Volumes_Popup(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_popup"
+class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_popup"
     bl_label = "Squishy Volumes Message"
 
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -57,7 +57,7 @@ class OBJECT_OT_Squishy_Volumes_Popup(bpy.types.Operator):
 
 
 classes = [
-    OBJECT_OT_Squishy_Volumes_Popup,
+    SCENE_OT_Squishy_Volumes_Popup,
 ]
 
 
@@ -76,7 +76,7 @@ def popup(uuid):
         return
     global simulation_uuid
     simulation_uuid = uuid
-    bpy.ops.object.squishy_volumes_popup("INVOKE_DEFAULT")
+    bpy.ops.scene.squishy_volumes_popup("INVOKE_DEFAULT")
 
 
 def with_popup(simulation, f):

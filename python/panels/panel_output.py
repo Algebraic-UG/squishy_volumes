@@ -40,6 +40,7 @@ from ..output import (
     sync_output,
 )
 from ..properties.util import (
+    add_fields_from,
     get_output_objects,
     get_selected_output_object,
     get_selected_simulation,
@@ -109,8 +110,8 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.label(text="FLOAT_VECTOR")
 
 
-class OBJECT_OT_Squishy_Volumes_Jump_To_Start(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_jump_to_start"
+class SCENE_OT_Squishy_Volumes_Jump_To_Start(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_jump_to_start"
     bl_label = "Jump to First Frame"
     bl_description = """Jump to the first frame that is available
 in the loaded cache."""
@@ -127,8 +128,9 @@ in the loaded cache."""
         return {"FINISHED"}
 
 
-class OBJECT_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_add_output_object"
+@add_fields_from(Squishy_Volumes_Optional_Attributes)
+class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_output_object"
     bl_label = "Add Output Object"
     bl_description = """Create a new active output object from the simulation cache.
 
@@ -146,7 +148,6 @@ each frame."""
     output_type: bpy.props.StringProperty()  # type: ignore
     input_name: bpy.props.StringProperty()  # type: ignore
     num_colliders: bpy.props.IntProperty()  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(type=Squishy_Volumes_Optional_Attributes)  # type: ignore
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
@@ -167,7 +168,7 @@ each frame."""
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
         obj.squishy_volumes_object.output_type = self.output_type
         copy_simple_property_group(
-            self.optional_attributes,
+            self,
             obj.squishy_volumes_object.optional_attributes,
         )
 
@@ -188,7 +189,7 @@ each frame."""
     def draw(self, context):
         self.layout.label(text=f"{self.output_type}")
         self.layout.prop(self, "object_name")
-        draw_object_attributes(self.layout, self.output_type, self.optional_attributes)
+        draw_object_attributes(self.layout, self.output_type, self)
         tutorial_msg(
             self.layout,
             context,
@@ -208,8 +209,8 @@ each frame."""
         )
 
 
-class OBJECT_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_add_multiple_output_objects"
+class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_multiple_output_objects"
     bl_label = "Add All"
     bl_description = "TODO"
     bl_options = {"REGISTER", "UNDO"}
@@ -304,7 +305,7 @@ Note that this does not delete the object."""
         return {"FINISHED"}
 
 
-class OBJECT_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
+class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
         simulation = get_selected_simulation(context)
         if simulation is None:
@@ -329,7 +330,7 @@ class OBJECT_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
         layout.label(text=obj.name)
 
 
-class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
+class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
     bl_label = "Output"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -352,7 +353,7 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
         if simulation.loaded_frame == -1:
             tut = self.layout.column()
             tut.alert = context.scene.squishy_volumes_scene.tutorial_active
-            tut.operator("object.squishy_volumes_jump_to_start")
+            tut.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)
             return
 
         col = self.layout.column()
@@ -361,7 +362,7 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
         row = self.layout.row()
         row.column().template_list(
-            "OBJECT_UL_Squishy_Volumes_Output_Object_List",
+            "SCENE_UL_Squishy_Volumes_Output_Object_List",
             "",
             bpy.data,
             "objects",
@@ -370,7 +371,9 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
         )
         list_controls = row.column(align=True)
         list_controls.operator(
-            "object.squishy_volumes_remove_output_object", text="", icon="REMOVE"
+            OBJECT_OT_Squishy_Volumes_Remove_Output_Object.bl_idname,
+            text="",
+            icon="REMOVE",
         )
 
         input_names = InputNames(
@@ -380,7 +383,9 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
         def create_operator(layout, output_type, icon, input_name):
             op = layout.operator(
-                "object.squishy_volumes_add_output_object", text=input_name, icon=icon
+                SCENE_OT_Squishy_Volumes_Add_Output_Object.bl_idname,
+                text=input_name,
+                icon=icon,
             )
             op.object_name = f"{output_type} - {input_name}"
             op.output_type = output_type
@@ -392,7 +397,7 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
             row = box.row()
             row.label(text="Add Solid Output")
             op = row.operator(
-                "object.squishy_volumes_add_multiple_output_objects",
+                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
                 icon="POINTCLOUD_DATA",
             )
             op.output_type = SOLID_PARTICLES
@@ -430,12 +435,12 @@ class OBJECT_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
 
 classes = [
-    OBJECT_OT_Squishy_Volumes_Jump_To_Start,
-    OBJECT_OT_Squishy_Volumes_Add_Output_Object,
-    OBJECT_OT_Squishy_Volumes_Add_Multiple_Output_Objects,
+    SCENE_OT_Squishy_Volumes_Jump_To_Start,
+    SCENE_OT_Squishy_Volumes_Add_Output_Object,
+    SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
-    OBJECT_UL_Squishy_Volumes_Output_Object_List,
-    OBJECT_PT_Squishy_Volumes_Output,
+    SCENE_UL_Squishy_Volumes_Output_Object_List,
+    SCENE_PT_Squishy_Volumes_Output,
 ]
 
 
