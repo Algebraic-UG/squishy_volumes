@@ -97,7 +97,7 @@ pub enum AttributeFluid {
     Velocities,
     Transformations,
     ColliderInsides(usize),
-    Pressures,
+    ElasticEnergies,
 }
 
 #[derive(EnumIter, Serialize, Deserialize)]
@@ -263,7 +263,7 @@ impl State {
                                         .unwrap_or(0.)
                                 })
                                 .collect(),
-                            AttributeFluid::Pressures => {
+                            AttributeFluid::ElasticEnergies => {
                                 is.map(|i| ps.elastic_energies[i]).collect()
                             }
                         }

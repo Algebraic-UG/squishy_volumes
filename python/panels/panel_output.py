@@ -101,7 +101,7 @@ def draw_object_attributes(layout, output_type, optional_attributes):
         grid.label(text="FLOAT4X4")
         grid.prop(optional_attributes, "fluid_collider_insides")
         grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "fluid_pressures")
+        grid.prop(optional_attributes, "fluid_energies")
         grid.label(text="FLOAT")
     if output_type == COLLIDER_SAMPLES:
         grid.prop(optional_attributes, "collider_normals")

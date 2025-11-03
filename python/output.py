@@ -312,11 +312,11 @@ def sync_output(simulation, obj, num_colliders, frame):
                     f"{SQUISHY_VOLUMES_COLLIDER_INSIDE}_{collider_idx}",
                     "FLOAT",
                 )
-        if mpm.optional_attributes.fluid_pressures:
+        if mpm.optional_attributes.fluid_energies:
             add_attribute(
                 obj.data,
-                ffa("Pressures"),
-                SQUISHY_VOLUMES_PRESSURE,
+                ffa("ElasticEnergies"),
+                SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
 
