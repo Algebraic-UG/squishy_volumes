@@ -40,9 +40,11 @@ This is only useful for scripting."""
 
         simulation = get_simulation_by_uuid(self.simulation_uuid)
 
-        while computing(simulation) and (timeit.timeit() - start) < self.timeout_sec:
+        while computing(simulation):
+            if (timeit.timeit() - start) > self.timeout_sec:
+                raise RuntimeError("Timed out")
             time.sleep(0.01)
-
+        self.report({"INFO"}, f"Simulation no longer computing: {simulation.name}")
         return {"FINISHED"}
 
 
