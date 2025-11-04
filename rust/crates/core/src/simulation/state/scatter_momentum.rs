@@ -14,8 +14,12 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use squishy_volumes_api::T;
 
 use crate::{
+    api::ViscosityParameters,
     simulation::{
-        elastic::{first_piola_stress_inviscid, first_piola_stress_neo_hookean},
+        elastic::{
+            cauchy_stress_general_viscosity, first_piola_stress_inviscid,
+            first_piola_stress_neo_hookean,
+        },
         particles::ParticleParameters,
     },
     weights::kernel_quadratic,
@@ -85,12 +89,12 @@ impl State {
                                 }
                             };
 
-                            if let Some(common_viscosity) = common_viscosity {
-                                let velocity_gradient =
-                                    &self.particles.velocity_gradients[particle_idx];
-                                let strain_rate =
-                                    (velocity_gradient + velocity_gradient.transpose()).scale(0.5);
-                                let cauchy_stress = 2. * common_viscosity * strain_rate;
+                            if let Some(ViscosityParameters { dynamic, bulk }) = common_viscosity {
+                                let cauchy_stress = cauchy_stress_general_viscosity(
+                                    dynamic,
+                                    bulk,
+                                    &self.particles.velocity_gradients[particle_idx],
+                                );
 
                                 imparted_momentum -= cauchy_stress
                                     * (to_grid_node

@@ -19,12 +19,18 @@ pub enum ObjectSettings {
     Collider(ObjectSettingsCollider),
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ViscosityParameters {
+    pub dynamic: T,
+    pub bulk: T,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ObjectSettingsSolid {
     pub density: T,
     pub youngs_modulus: T,
     pub poissons_ratio: T,
-    pub viscosity: Option<T>,
+    pub viscosity: Option<ViscosityParameters>,
     pub dilation: T,
     pub randomness: T,
     pub sand_alpha: Option<T>,
@@ -34,7 +40,7 @@ pub struct ObjectSettingsSolid {
 pub struct ObjectSettingsFluid {
     pub density: T,
     pub exponent: i32,
-    pub viscosity: Option<T>,
+    pub viscosity: Option<ViscosityParameters>,
     pub bulk_modulus: T,
     pub dilation: T,
     pub randomness: T,

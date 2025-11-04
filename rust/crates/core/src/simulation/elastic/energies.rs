@@ -565,3 +565,21 @@ pub fn second_derivative_inviscid_svd_in_diagonal_space(
             invariant_3_by_svd(s),
         ) * double_partial_invariant_3_by_svd(s)
 }
+
+pub fn rate_of_strain(velocity_gradient: &Matrix3<T>) -> Matrix3<T> {
+    0.5 * (velocity_gradient + velocity_gradient.transpose())
+}
+
+pub fn velocity_divergence(velocity_gradient: &Matrix3<T>) -> T {
+    velocity_gradient.trace()
+}
+
+// Fluid Mechanics, Second Edition, L. D. Landau and E. M. Lifshitz (15.3)
+pub fn cauchy_stress_general_viscosity(
+    dynamic_viscosity: T,
+    bulk_viscosity: T,
+    velocity_gradient: &Matrix3<T>,
+) -> Matrix3<T> {
+    2. * dynamic_viscosity * rate_of_strain(velocity_gradient)
+        + bulk_viscosity * Matrix3::from_diagonal_element(velocity_divergence(velocity_gradient))
+}
