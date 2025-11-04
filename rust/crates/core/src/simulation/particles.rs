@@ -11,6 +11,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
+use crate::api::ViscosityParameters;
+
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ParticleState {
     #[default]
@@ -23,13 +25,13 @@ pub enum ParticleParameters {
     Solid {
         mu: T,
         lambda: T,
-        viscosity: Option<T>,
+        viscosity: Option<ViscosityParameters>,
         sand_alpha: Option<T>,
     },
     Fluid {
         exponent: i32,
         bulk_modulus: T,
-        viscosity: Option<T>,
+        viscosity: Option<ViscosityParameters>,
     },
 }
 

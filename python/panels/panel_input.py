@@ -66,7 +66,8 @@ def draw_object_settings(layout, settings):
             viscosity.prop(settings, "use_viscosity", text="")
             col = viscosity.column()
             col.enabled = settings.use_viscosity
-            col.prop(settings, "viscosity")
+            col.prop(settings, "dynamic_viscosity")
+            col.prop(settings, "bulk_viscosity")
 
             sand_alpha = layout.row()
             sand_alpha.prop(settings, "use_sand_alpha", text="")
@@ -87,7 +88,8 @@ def draw_object_settings(layout, settings):
             viscosity.prop(settings, "use_viscosity", text="")
             col = viscosity.column()
             col.enabled = settings.use_viscosity
-            col.prop(settings, "viscosity")
+            col.prop(settings, "dynamic_viscosity")
+            col.prop(settings, "bulk_viscosity")
 
             layout.prop(settings, "dilation")
             layout.prop(settings, "randomness")

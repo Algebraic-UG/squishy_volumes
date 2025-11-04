@@ -117,13 +117,22 @@ With 7 it's more like an incompressible fluid like water.""",
         default=False,
         options=set(),
     )  # type: ignore
-    viscosity: bpy.props.FloatProperty(
+    dynamic_viscosity: bpy.props.FloatProperty(
         name="Dynamic Viscosity",
         description="""TODO""",
         default=0.0,
         min=0.0,
-        max=1000.0,
-        precision=3,
+        max=10.0,
+        precision=2,
+        options=set(),
+    )  # type: ignore
+    bulk_viscosity: bpy.props.FloatProperty(
+        name="Bulk Viscosity",
+        description="""TODO""",
+        default=0.0,
+        min=0.0,
+        max=10.0,
+        precision=2,
         options=set(),
     )  # type: ignore
 
