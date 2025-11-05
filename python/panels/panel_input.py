@@ -246,7 +246,6 @@ Note that this also discards all computed frames in the cache."""
         simulation.last_exception = ""
         simulation.loaded_frame = -1
 
-        # TODO: why with_popup?
         if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
             return {"FINISHED"}
 
