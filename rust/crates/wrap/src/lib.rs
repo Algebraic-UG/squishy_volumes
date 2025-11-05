@@ -81,31 +81,24 @@ impl SimulationReference {
             I32(PyReadonlyArray1<'py, i32>),
         }
 
-        fn try_unzip<I, C, T, E>(iter: I) -> Result<C, E>
-        where
-            I: IntoIterator<Item = Result<T, E>>,
-            C: Extend<T> + Default,
-        {
-            iter.into_iter().try_fold(C::default(), |mut c, r| {
-                c.extend([r?]);
-                Ok(c)
-            })
-        }
-
         try_with_context(|context| {
-            let (keys, arrays): (Vec<_>, Vec<_>) = try_unzip(dict.iter().map(|(key, value)| {
-                let key: String = key.extract()?;
+            let mut keys = Vec::new();
+            let mut arrays = Vec::new();
+            for (key, value) in dict.iter() {
+                keys.push(key.extract()?);
                 if let Ok(array) = value.extract::<PyReadonlyArray1<f32>>() {
-                    return Ok((key, Array::F32(array)));
+                    arrays.push(Array::F32(array));
+                    continue;
                 }
                 if let Ok(array) = value.extract::<PyReadonlyArray1<i32>>() {
-                    return Ok((key, Array::I32(array)));
+                    arrays.push(Array::I32(array));
+                    continue;
                 }
                 bail!(
                     "Expected numpy array, 1D, float32 or int32, but got: {}",
                     value.get_type()
                 )
-            }))?;
+            }
             let bulk = keys
                 .into_iter()
                 .zip(&arrays)
