@@ -6,11 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{num::NonZero, sync::Arc};
+use std::{collections::BTreeMap, num::NonZero, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, from_value, to_value};
-use squishy_volumes_api::{ComputeSettings, T, Task};
+use squishy_volumes_api::{ComputeSettings, InputBulk, T, Task};
 use tracing::warn;
 
 use crate::{
@@ -42,6 +42,10 @@ impl SimulationLocal {
 }
 
 impl Simulation for SimulationLocal {
+    fn record_input(&mut self, frame: usize, bulk: BTreeMap<String, InputBulk>) -> Result<()> {
+        todo!()
+    }
+
     fn computing(&self) -> bool {
         self.compute_thread
             .as_ref()

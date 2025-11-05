@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -16,6 +16,11 @@ use serde_json::Value;
 pub type T = f64;
 #[cfg(not(feature = "f64"))]
 pub type T = f32;
+
+pub enum InputBulk<'a> {
+    F32(&'a [f32]),
+    I32(&'a [i32]),
+}
 
 pub trait Context: Send + Sync {
     fn new_simulation(
@@ -38,6 +43,8 @@ pub trait Context: Send + Sync {
 }
 
 pub trait Simulation {
+    fn record_input(&mut self, frame: usize, bulk: BTreeMap<String, InputBulk>) -> Result<()>;
+
     fn computing(&self) -> bool;
 
     fn poll(&mut self) -> Result<Option<Task>>;

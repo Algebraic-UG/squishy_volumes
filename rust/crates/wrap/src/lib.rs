@@ -6,11 +6,14 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::{Context, Result};
-use numpy::PyArray1;
-use pyo3::{prelude::*, types::PyList};
+use anyhow::{bail, Context, Result};
+use numpy::{PyArray1, PyReadonlyArray1};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+};
 use serde_json::{from_str, to_string};
-use squishy_volumes_api::ComputeSettings;
+use squishy_volumes_api::{ComputeSettings, InputBulk};
 use std::path::PathBuf;
 
 mod shim;
@@ -72,6 +75,23 @@ fn load(uuid: String, cache_dir: String, max_bytes_on_disk: u64) -> Result<Simul
 
 #[pymethods]
 impl SimulationReference {
+    fn record_input<'py>(&self, frame: usize, dict: &Bound<'py, PyDict>) -> Result<()> {
+        try_with_context(|context| {
+            dict.iter().map(|(key, value)| {
+                let key: String = key.extract()?;
+                if let Ok(array) = value.extract::<PyReadonlyArray1<f32>>() {
+                    return Ok((key, array, InputBulk::F32(array.as_slice()?)));
+                }
+                if let Ok(array) = value.extract::<PyReadonlyArray1<i32>>() {
+                    return Ok((key, array, InputBulk::I32(array.as_slice()?)));
+                }
+                bail!("{}", value.get_type())
+            });
+            todo!()
+            //context.get_simulation_mut(&self.0)?;
+        })
+    }
+
     fn drop(&self) -> Result<()> {
         try_with_context(|context| context.drop_simulation(&self.0))
     }
