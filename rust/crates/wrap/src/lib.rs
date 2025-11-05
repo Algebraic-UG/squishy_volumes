@@ -101,7 +101,10 @@ impl SimulationReference {
                 if let Ok(array) = value.extract::<PyReadonlyArray1<i32>>() {
                     return Ok((key, Array::I32(array)));
                 }
-                bail!("{}", value.get_type())
+                bail!(
+                    "Expected numpy array, 1D, float32 or int32, but got: {}",
+                    value.get_type()
+                )
             }))?;
             let bulk = keys
                 .into_iter()
