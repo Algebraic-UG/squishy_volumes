@@ -2011,6 +2011,7 @@ dependencies = [
  "pyo3",
  "serde",
  "serde_json",
+ "squishy_volumes_api",
  "squishy_volumes_hot",
 ]
 

@@ -10,6 +10,7 @@ use anyhow::{Context, Result};
 use numpy::PyArray1;
 use pyo3::{prelude::*, types::PyList};
 use serde_json::{from_str, to_string};
+use squishy_volumes_api::ComputeSettings;
 use std::path::PathBuf;
 
 mod shim;
@@ -107,8 +108,9 @@ impl SimulationReference {
         max_bytes_on_disk: u64,
     ) -> Result<()> {
         try_with_context(|context| {
-            context.get_simulation_mut(&self.0)?.start_compute(
-                squishy_volumes_hot::ComputeSettings {
+            context
+                .get_simulation_mut(&self.0)?
+                .start_compute(ComputeSettings {
                     time_step,
                     explicit,
                     debug_mode,
@@ -116,8 +118,7 @@ impl SimulationReference {
                     next_frame,
                     number_of_frames,
                     max_bytes_on_disk,
-                },
-            )
+                })
         })
     }
 

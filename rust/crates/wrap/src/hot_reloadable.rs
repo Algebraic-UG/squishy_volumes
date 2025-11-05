@@ -43,7 +43,7 @@ pub mod squishy_volumes_hot_reload {
 }
 
 lazy_static! {
-    static ref LOCK: Mutex<Option<Box<dyn squishy_volumes_hot_reload::Context>>> =
+    static ref LOCK: Mutex<Option<Box<dyn squishy_volumes_api::Context>>> =
         Mutex::new(Default::default());
 }
 
@@ -75,7 +75,7 @@ pub fn initialize() {
     }
 }
 
-pub fn try_with_context<R, F: FnOnce(&mut dyn squishy_volumes_hot_reload::Context) -> Result<R>>(
+pub fn try_with_context<R, F: FnOnce(&mut dyn squishy_volumes_api::Context) -> Result<R>>(
     f: F,
 ) -> Result<R> {
     if let Ok(mut guard) = LOCK.lock() {
@@ -84,9 +84,7 @@ pub fn try_with_context<R, F: FnOnce(&mut dyn squishy_volumes_hot_reload::Contex
     bail!(BUG)
 }
 
-pub fn with_context<R, F: FnOnce(&mut dyn squishy_volumes_hot_reload::Context) -> R>(
-    f: F,
-) -> Result<R> {
+pub fn with_context<R, F: FnOnce(&mut dyn squishy_volumes_api::Context) -> R>(f: F) -> Result<R> {
     try_with_context(|c| Ok(f(c)))
 }
 
