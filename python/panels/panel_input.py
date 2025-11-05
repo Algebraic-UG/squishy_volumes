@@ -36,6 +36,7 @@ from ..bridge import (
     available_frames,
     context_exists,
     new_simulation,
+    record_input,
     start_compute,
 )
 from ..setup import create_setup_json, is_scripted
@@ -234,7 +235,7 @@ Note that this also discards all computed frames in the cache."""
         unregister_frame_handler()
         frame_current = context.scene.frame_current
 
-        setup_json = with_popup(simulation, lambda: create_setup_json(simulation))
+        bulk, setup_json = with_popup(simulation, lambda: create_setup_json(simulation))
 
         context.scene.frame_set(frame_current)
         register_frame_handler()
@@ -245,8 +246,11 @@ Note that this also discards all computed frames in the cache."""
         simulation.last_exception = ""
         simulation.loaded_frame = -1
 
+        # TODO: why with_popup?
         if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
             return {"FINISHED"}
+
+        record_input(simulation, 0, bulk)
 
         self.report({"INFO"}, f"Updating cache of {simulation.name}")
 

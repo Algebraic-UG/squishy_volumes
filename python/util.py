@@ -96,12 +96,17 @@ def array_to_base64(array):
     return {"dtype": str(array.dtype), "data": base64_str}
 
 
-def attribute_to_base64(collection, attribute_name, dtype, per_count):
+def attribute_to_numpy(collection, attribute_name, dtype, per_count):
     n = len(collection) * per_count
     array = np.empty(n, dtype=dtype)
     collection.foreach_get(attribute_name, array)
+    return array
 
-    return array_to_base64(array)
+
+def attribute_to_base64(collection, attribute_name, dtype, per_count):
+    return array_to_base64(
+        attribute_to_numpy(collection, attribute_name, dtype, per_count)
+    )
 
 
 # TODO: pass the scene

@@ -26,7 +26,7 @@ from .properties.squishy_volumes_object_settings import (
     OBJECT_ENUM_SOLID,
 )
 from .properties.util import get_input_objects, get_simulation_specific_settings
-from .util import array_to_base64, attribute_to_base64
+from .util import array_to_base64, attribute_to_base64, attribute_to_numpy
 
 
 def is_scripted(simulation, obj):
@@ -38,6 +38,7 @@ def create_setup_json(simulation):
     scene = bpy.context.scene
 
     input_objects = []
+    bulk = {}
     serialized_vectors = {}
 
     simulation_scale = simulation.to_cache.simulation_scale
@@ -162,6 +163,14 @@ def create_setup_json(simulation):
             }
         )
 
+        bulk[vertices] = attribute_to_numpy(obj.data.vertices, "co", "float32", 3)
+        bulk[triangles] = attribute_to_numpy(
+            obj.data.loop_triangles, "vertices", "int32", 3
+        )
+        bulk[triangle_normals] = attribute_to_numpy(
+            obj.data.loop_triangles, "normal", "float32", 3
+        )
+
         serialized_vectors[vertices] = attribute_to_base64(
             obj.data.vertices, "co", "float32", 3
         )
@@ -227,6 +236,9 @@ def create_setup_json(simulation):
         scripted_positions_array,
         scripted_orientations_array,
     ) in per_object_scripted_data.items():
+        bulk[name + "_scripted_positions"] = scripted_positions_array
+        bulk[name + "_scripted_orientations"] = scripted_orientations_array
+
         serialized_vectors[name + "_scripted_positions"] = array_to_base64(
             scripted_positions_array
         )
@@ -265,7 +277,7 @@ def create_setup_json(simulation):
         "serialized_vectors": serialized_vectors,
     }
 
-    return json.dumps(
+    return bulk, json.dumps(
         {
             "settings": settings,
             "objects": input_objects,

@@ -75,6 +75,9 @@ def context_exists(simulation):
 def poll(simulation):
     return squishy_volumes_context_dict[simulation.uuid].poll()
 
+@hint_at_info
+def record_input(simulation, frame, bulk):
+    return squishy_volumes_context_dict[simulation.uuid].record_input(frame, bulk)
 
 @hint_at_info
 def computing(simulation):
