@@ -14,7 +14,7 @@ use pyo3::{
 };
 use serde_json::{from_str, to_string};
 use squishy_volumes_api::{ComputeSettings, InputBulk};
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 mod shim;
 pub use shim::*;
@@ -76,19 +76,49 @@ fn load(uuid: String, cache_dir: String, max_bytes_on_disk: u64) -> Result<Simul
 #[pymethods]
 impl SimulationReference {
     fn record_input<'py>(&self, frame: usize, dict: &Bound<'py, PyDict>) -> Result<()> {
+        enum Array<'py> {
+            F32(PyReadonlyArray1<'py, f32>),
+            I32(PyReadonlyArray1<'py, i32>),
+        }
+
+        fn try_unzip<I, C, T, E>(iter: I) -> Result<C, E>
+        where
+            I: IntoIterator<Item = Result<T, E>>,
+            C: Extend<T> + Default,
+        {
+            iter.into_iter().try_fold(C::default(), |mut c, r| {
+                c.extend([r?]);
+                Ok(c)
+            })
+        }
+
         try_with_context(|context| {
-            dict.iter().map(|(key, value)| {
+            let (keys, arrays): (Vec<_>, Vec<_>) = try_unzip(dict.iter().map(|(key, value)| {
                 let key: String = key.extract()?;
                 if let Ok(array) = value.extract::<PyReadonlyArray1<f32>>() {
-                    return Ok((key, array, InputBulk::F32(array.as_slice()?)));
+                    return Ok((key, Array::F32(array)));
                 }
                 if let Ok(array) = value.extract::<PyReadonlyArray1<i32>>() {
-                    return Ok((key, array, InputBulk::I32(array.as_slice()?)));
+                    return Ok((key, Array::I32(array)));
                 }
                 bail!("{}", value.get_type())
-            });
-            todo!()
-            //context.get_simulation_mut(&self.0)?;
+            }))?;
+            let bulk = keys
+                .into_iter()
+                .zip(&arrays)
+                .map(|(key, array)| {
+                    Ok((
+                        key,
+                        match array {
+                            Array::F32(array) => InputBulk::F32(array.as_slice()?),
+                            Array::I32(array) => InputBulk::I32(array.as_slice()?),
+                        },
+                    ))
+                })
+                .collect::<Result<BTreeMap<String, InputBulk>>>()?;
+            context
+                .get_simulation_mut(&self.0)?
+                .record_input(frame, bulk)
         })
     }
 
