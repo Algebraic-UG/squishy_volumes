@@ -11,7 +11,7 @@ use std::{collections::BTreeMap, num::NonZero, sync::Arc};
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, InputBulk, T, Task};
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::{
     PhaseInput, Simulation,
@@ -43,7 +43,8 @@ impl SimulationLocal {
 
 impl Simulation for SimulationLocal {
     fn record_input(&mut self, frame: usize, bulk: BTreeMap<String, InputBulk>) -> Result<()> {
-        todo!()
+        info!("{frame}: {:?}", bulk.keys().collect::<Vec<_>>());
+        Ok(())
     }
 
     fn computing(&self) -> bool {
