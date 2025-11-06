@@ -20,6 +20,7 @@ mod math;
 mod report;
 mod setup;
 mod simulation;
+mod stats;
 
 pub use report::{Report, ReportInfo};
 pub use simulation::{Phase, PhaseInput, State, cache::Cache, weights};

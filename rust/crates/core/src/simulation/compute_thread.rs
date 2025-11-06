@@ -25,8 +25,8 @@ use tracing::{debug, info};
 use crate::{
     State,
     report::{Report, ReportInfo},
-    setup::ComputeStats,
     simulation::state::{Phase, PhaseInput},
+    stats::ComputeStats,
 };
 
 use super::cache::Cache;

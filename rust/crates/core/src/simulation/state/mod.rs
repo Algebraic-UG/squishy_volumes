@@ -24,11 +24,12 @@ use strum::{EnumIter, IntoEnumIterator};
 use tracing::info;
 
 use crate::{
-    setup::{ObjectSettings, ObjectWithData, Setup, StateStats},
     report::{Report, ReportInfo},
+    setup::{ObjectSettings, ObjectWithData, Setup},
     simulation::{
         collider::ColliderConstruction, fluid::FluidConstruction, solid::SolidConstruction,
     },
+    stats::StateStats,
 };
 
 use super::{

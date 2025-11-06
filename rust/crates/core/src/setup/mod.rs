@@ -10,10 +10,8 @@ pub mod mesh;
 pub mod serialization;
 pub mod serialized_vector;
 pub mod setup;
-pub mod stats;
 
 pub use mesh::*;
 pub use serialization::*;
 pub use serialized_vector::*;
 pub use setup::*;
-pub use stats::*;
