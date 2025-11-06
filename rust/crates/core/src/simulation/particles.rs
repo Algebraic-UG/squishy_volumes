@@ -11,7 +11,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
-use crate::api::ViscosityParameters;
+use crate::setup::ViscosityParameters;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ParticleState {

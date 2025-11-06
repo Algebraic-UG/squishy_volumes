@@ -15,8 +15,8 @@ use tracing::{info, warn};
 
 use crate::{
     PhaseInput, Simulation,
-    api::{ComputeStats, ObjectWithData, Stats},
     math::flat::Flat3,
+    setup::{ComputeStats, ObjectWithData, Stats},
 };
 
 use super::{

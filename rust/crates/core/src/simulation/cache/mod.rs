@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::api::{SerializedSetup, Setup, StateStats};
+use crate::setup::{SerializedSetup, Setup, StateStats};
 use anyhow::{Context, Result, ensure};
 use bincode::deserialize;
 use lock::CacheLock;

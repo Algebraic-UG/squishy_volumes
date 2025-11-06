@@ -13,7 +13,7 @@ use squishy_volumes_api::T;
 use std::collections::hash_map::Entry;
 
 use crate::{
-    api::SurfaceSample,
+    setup::SurfaceSample,
     math::SURFACE_DISK_SIZE_FACTOR,
     simulation::grids::WeightedDistance,
     weights::{kernel_quadratic_unrolled, position_to_shift_quadratic},

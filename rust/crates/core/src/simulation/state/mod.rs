@@ -24,7 +24,7 @@ use strum::{EnumIter, IntoEnumIterator};
 use tracing::info;
 
 use crate::{
-    api::{ObjectSettings, ObjectWithData, Setup, StateStats},
+    setup::{ObjectSettings, ObjectWithData, Setup, StateStats},
     report::{Report, ReportInfo},
     simulation::{
         collider::ColliderConstruction, fluid::FluidConstruction, solid::SolidConstruction,

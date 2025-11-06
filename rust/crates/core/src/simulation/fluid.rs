@@ -18,7 +18,7 @@ use tracing::info;
 
 use crate::{
     Report,
-    api::{GlobalSettings, Mesh, ObjectSettingsFluid},
+    setup::{GlobalSettings, Mesh, ObjectSettingsFluid},
     simulation::{
         error_messages::SAMPLING_FAILED,
         particles::{ParticleParameters, Particles},

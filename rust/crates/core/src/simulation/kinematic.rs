@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
 use crate::{
-    api::Object,
+    setup::Object,
     math::{NORMALIZATION_EPS, SLERP_EPS},
 };
 

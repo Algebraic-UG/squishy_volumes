@@ -12,8 +12,8 @@ use std::{
 };
 
 use crate::{
-    api::{GlobalSettings, Mesh, ObjectSettingsSolid},
     report::Report,
+    setup::{GlobalSettings, Mesh, ObjectSettingsSolid},
     simulation::{
         elastic::{
             lambda_stable_neo_hookean, mu_stable_neo_hookean, try_elastic_energy_neo_hookean,

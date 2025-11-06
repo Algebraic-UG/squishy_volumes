@@ -24,8 +24,8 @@ use tracing::{debug, info};
 
 use crate::{
     State,
-    api::ComputeStats,
     report::{Report, ReportInfo},
+    setup::ComputeStats,
     simulation::state::{Phase, PhaseInput},
 };
 

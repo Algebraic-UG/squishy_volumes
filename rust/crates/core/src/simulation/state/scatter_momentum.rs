@@ -14,7 +14,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use squishy_volumes_api::T;
 
 use crate::{
-    api::ViscosityParameters,
+    setup::ViscosityParameters,
     simulation::{
         elastic::{
             cauchy_stress_general_viscosity, first_piola_stress_inviscid,
