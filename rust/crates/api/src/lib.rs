@@ -43,7 +43,7 @@ pub trait Context: Send + Sync {
 }
 
 pub trait Simulation {
-    fn record_input(&mut self, frame: usize, bulk: BTreeMap<String, InputBulk>) -> Result<()>;
+    fn record_input(&mut self, meta: Value, bulk: BTreeMap<String, InputBulk>) -> Result<()>;
 
     fn computing(&self) -> bool;
 
