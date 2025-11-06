@@ -58,7 +58,7 @@ fn new(
         context.new_simulation(
             uuid.clone(),
             PathBuf::from(cache_dir),
-            from_str(json).context("Setup string isn't valid JSON")?,
+            from_str(json).context("String isn't valid JSON")?,
             max_bytes_on_disk,
         )?;
         Ok(SimulationReference(uuid))
@@ -75,7 +75,7 @@ fn load(uuid: String, cache_dir: String, max_bytes_on_disk: u64) -> Result<Simul
 
 #[pymethods]
 impl SimulationReference {
-    fn record_input<'py>(&self, frame: usize, dict: &Bound<'py, PyDict>) -> Result<()> {
+    fn record_input<'py>(&self, json: &str, dict: &Bound<'py, PyDict>) -> Result<()> {
         enum Array<'py> {
             F32(PyReadonlyArray1<'py, f32>),
             I32(PyReadonlyArray1<'py, i32>),
@@ -114,7 +114,7 @@ impl SimulationReference {
                 .collect::<Result<BTreeMap<String, InputBulk>>>()?;
             context
                 .get_simulation_mut(&self.0)?
-                .record_input(frame, bulk)
+                .record_input(from_str(json).context("String isn't valid JSON")?, bulk)
         })
     }
 
