@@ -43,7 +43,9 @@ impl SimulationLocal {
 
 impl Simulation for SimulationLocal {
     fn record_input(&mut self, meta: Value, bulk: BTreeMap<String, InputBulk>) -> Result<()> {
-        info!("{frame}: {:?}", bulk.keys().collect::<Vec<_>>());
+        info!("recording additional input");
+        info!("{meta}");
+        info!("bulk keys: {:?}", bulk.keys().collect::<Vec<_>>());
         Ok(())
     }
 
