@@ -7,8 +7,13 @@
 // https://opensource.org/licenses/MIT.
 
 // The input is a binary file that contains a mix of parameters and bulk geometry.
+//
+// The file is meant to be filled quickly, so there is minimal processing done on the bulk.
+// At some point before the input is used in the simulation, additional processing must happen.
+//
 // The structure is simple, there are a few things that should remain stable across versions
-// and then a bunch of things that are completely handled by serde and are version dependent.
+// followed by a bunch of things that are completely handled by serde and are version dependent.
+// (there might be migration paths later)
 //
 // Stable ===========
 //
@@ -19,9 +24,9 @@
 //
 // Header: this contains everything that is known from the start of input recoring
 //
-// Frame000: Potentially bulky input from frame 0
-// Frame001: Potentially bulky input from frame 1
-// Frame002: Potentially bulky input from frame 2
+// Frame: Potentially bulky input from frame 0
+// Frame: Potentially bulky input from frame 1
+// Frame: Potentially bulky input from frame 2
 // ...
 //
 // Index: contains all the frame offsets and is constructed in memory while recording
@@ -30,7 +35,8 @@
 
 use std::{
     array::from_fn,
-    io::{Read, Write},
+    fs::File,
+    io::{BufWriter, Read, Write},
 };
 
 use thiserror::Error;
@@ -49,6 +55,25 @@ pub enum InputError {
     VersionMismatch(String),
     #[error("Unknown read/write error")]
     IoError(#[from] std::io::Error),
+}
+
+pub struct InputWriting {
+    writer: BufWriter<File>,
+    frame_offsets: Vec<usize>,
+}
+
+impl InputWriting {
+    pub fn new() -> Result<Self, InputError> {
+        todo!()
+    }
+
+    pub fn record_frame(&mut self) -> Result<(), InputError> {
+        todo!()
+    }
+
+    pub fn flush(self) -> Result<(), InputError> {
+        todo!()
+    }
 }
 
 const MAGIC_LEN: usize = 32;
