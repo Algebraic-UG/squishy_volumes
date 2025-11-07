@@ -12,8 +12,8 @@
 // At some point before the input is used in the simulation, additional processing must happen.
 //
 // The structure is simple, there are a few things that should remain stable across versions
-// followed by a bunch of things that are completely handled by serde and are version dependent.
-// (there might be migration paths later)
+// followed by a bunch of things that are almost completely handled by serde.
+// So those typically break between versions, but there might be migration paths later.
 //
 // =============================================================================
 // Stable:
@@ -35,7 +35,7 @@
 //
 // Index: contains all the frame offsets and is constructed in memory while recording
 //
-// 8 Index length bytes: so one can jump to the start of the index.
+// 8 Index length bytes: so one can jump to the start of the index (not handled by serde!)
 
 mod common;
 mod frame;

@@ -8,7 +8,7 @@
 
 use std::{
     fs::File,
-    io::{BufWriter, Read, Seek, Write},
+    io::{BufWriter, Seek, Write},
     iter::once,
     path::Path,
 };
@@ -62,9 +62,10 @@ impl InputWriter {
                 .collect(),
         );
 
-        let current_offset = writer.stream_position()?;
+        let index_offset = writer.stream_position()?;
         serialize_into(&mut writer, &index)?;
-        writer.write(&current_offset.to_le_bytes())?;
+
+        writer.write(&index_offset.to_le_bytes())?;
         writer.flush()?;
 
         Ok(())
