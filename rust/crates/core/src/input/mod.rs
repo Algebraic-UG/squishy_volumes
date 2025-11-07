@@ -15,18 +15,22 @@
 // followed by a bunch of things that are completely handled by serde and are version dependent.
 // (there might be migration paths later)
 //
-// Stable ===========
+// =============================================================================
+// Stable:
+// =============================================================================
 //
 // 32 Magic bytes: binary of "Squishy Volumes Input File Magic"
 // 64 Version Bytes: any version string like "10.1337.42-alpha" should fit this
 //
-// Unstable =========
+// =============================================================================
+// Unstable:
+// =============================================================================
 //
-// Header: this contains everything that is known from the start of input recoring
+// InputHeader: contains everything that is known from the start of input recording
 //
-// Frame: Potentially bulky input from frame 0
-// Frame: Potentially bulky input from frame 1
-// Frame: Potentially bulky input from frame 2
+// InputFrame: Potentially bulky input from frame 0
+// InputFrame: Potentially bulky input from frame 1
+// InputFrame: Potentially bulky input from frame 2
 // ...
 //
 // Index: contains all the frame offsets and is constructed in memory while recording
@@ -36,14 +40,20 @@
 use std::{
     array::from_fn,
     fs::File,
-    io::{BufWriter, Read, Write},
+    io::{BufWriter, Read, Seek, Write},
+    iter::once,
+    path::Path,
 };
 
+use bincode::serialize_into;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 mod frame;
 mod header;
-mod index;
+
+pub use frame::InputFrame;
+pub use header::InputHeader;
 
 build_info::build_info!(fn build_info);
 
@@ -55,24 +65,69 @@ pub enum InputError {
     VersionMismatch(String),
     #[error("Unknown read/write error")]
     IoError(#[from] std::io::Error),
+    #[error("Unknown bincode error")]
+    BincodeError(#[from] bincode::Error),
 }
 
 pub struct InputWriting {
     writer: BufWriter<File>,
-    frame_offsets: Vec<usize>,
+    frame_offsets: Vec<u64>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct Frame {
+    offset: u64,
+    size: u64,
+}
+#[derive(Debug, Serialize, Deserialize)]
+struct Index(Vec<Frame>);
+
 impl InputWriting {
-    pub fn new() -> Result<Self, InputError> {
-        todo!()
+    pub fn new<P: AsRef<Path>>(path: P, header: InputHeader) -> Result<Self, InputError> {
+        let mut writer = BufWriter::new(File::create(path)?);
+        writer.write(&magic_bytes())?;
+        writer.write(&version_bytes())?;
+        serialize_into(&mut writer, &header)?;
+        Ok(Self {
+            writer,
+            frame_offsets: Default::default(),
+        })
     }
 
-    pub fn record_frame(&mut self) -> Result<(), InputError> {
-        todo!()
+    pub fn record_frame(&mut self, frame: InputFrame) -> Result<(), InputError> {
+        let current_offset = self.writer.stream_position()?;
+        self.frame_offsets.push(current_offset);
+        serialize_into(&mut self.writer, &frame)?;
+        Ok(())
     }
 
     pub fn flush(self) -> Result<(), InputError> {
-        todo!()
+        let Self {
+            mut writer,
+            frame_offsets,
+        } = self;
+        let current_offset = writer.stream_position()?;
+        let offsets = frame_offsets.into_iter();
+        let index = Index(
+            offsets
+                .clone()
+                .zip(offsets.skip(1).chain(once(current_offset)))
+                .map(|(frame_start, frame_end)| {
+                    assert!(frame_start <= frame_end);
+                    Frame {
+                        offset: frame_start,
+                        size: frame_end - frame_start,
+                    }
+                })
+                .collect(),
+        );
+
+        let current_offset = writer.stream_position()?;
+        serialize_into(&mut writer, &index)?;
+        writer.write(&current_offset.to_le_bytes())?;
+        writer.flush()?;
+
+        Ok(())
     }
 }
 
@@ -95,16 +150,6 @@ fn version_bytes() -> [u8; VERSION_LEN] {
     let bytes = version_string.as_bytes();
     assert!(bytes.len() <= VERSION_LEN, "Version string too long");
     from_fn(|i| if i < VERSION_LEN { bytes[i] } else { 0 })
-}
-
-fn write_magic<W: Write>(mut w: W) -> Result<(), InputError> {
-    w.write(&magic_bytes())?;
-    Ok(())
-}
-
-fn write_version<W: Write>(mut w: W) -> Result<(), InputError> {
-    w.write(&version_bytes())?;
-    Ok(())
 }
 
 fn read_magic<R: Read>(mut r: R) -> Result<(), InputError> {
