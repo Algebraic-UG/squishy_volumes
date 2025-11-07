@@ -6,12 +6,19 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs::OpenOptions,
+    io::{Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+};
 
 use rand::{SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::{Builder, TempDir};
 
-use crate::input::{InputFrame, InputHeader, InputReader, InputWriter};
+use crate::input::{
+    InputFrame, InputHeader, InputReader, InputWriter,
+    common::{InputError, MAGIC_LEN},
+};
 
 fn test_file() -> (PathBuf, TempDir) {
     let tmp_dir = Builder::new()
@@ -116,3 +123,80 @@ fn test_read_header_and_random_frames() {
         assert!(frame == reader.read_frame(idx).unwrap());
     }
 }
+
+#[test]
+fn test_wrong_magic_number() {
+    let (path, _guard) = test_file();
+    write_full(&path);
+    {
+        let mut f = OpenOptions::new().write(true).open(&path).unwrap();
+        f.seek(SeekFrom::Start(5)).unwrap();
+        let _ = f.write(&[1, 2, 3, 4]).unwrap();
+    }
+    assert!(matches!(
+        InputReader::new(path),
+        Err(InputError::MagicMismatch)
+    ));
+}
+
+#[test]
+fn test_wrong_version() {
+    let (path, _guard) = test_file();
+    write_full(&path);
+    {
+        let mut f = OpenOptions::new().write(true).open(&path).unwrap();
+        f.seek(SeekFrom::Start((MAGIC_LEN + 5).try_into().unwrap()))
+            .unwrap();
+        let _ = f.write(&[1, 2, 3, 4]).unwrap();
+    }
+    assert!(matches!(
+        InputReader::new(path),
+        Err(InputError::VersionMismatch(_))
+    ));
+}
+
+#[test]
+fn test_frame_not_available() {
+    let (path, _guard) = test_file();
+    write_full(&path);
+    let mut reader = InputReader::new(path).unwrap();
+    assert!(matches!(
+        reader.read_frame(test_frames().len()),
+        Err(InputError::FrameNotAvailable { .. },)
+    ));
+}
+
+#[test]
+fn test_index_offset_mishap_io() {
+    let (path, _guard) = test_file();
+    write_full(&path);
+    {
+        let mut f = OpenOptions::new().write(true).open(&path).unwrap();
+        f.seek(SeekFrom::End(-8)).unwrap();
+        let _ = f.write(&[u8::MAX; 8]).unwrap();
+    }
+    assert!(matches!(
+        InputReader::new(path),
+        Err(InputError::OffsetReading(
+            crate::input::common::InputOffsetReadingError::IoError(_)
+        ))
+    ));
+}
+
+#[test]
+fn test_index_offset_mishap_bincode() {
+    let (path, _guard) = test_file();
+    write_full(&path);
+    {
+        let mut f = OpenOptions::new().write(true).open(&path).unwrap();
+        f.seek(SeekFrom::End(-8)).unwrap();
+        let _ = f.write(&[0; 8]).unwrap();
+    }
+    assert!(matches!(
+        InputReader::new(path),
+        Err(InputError::OffsetReading(
+            crate::input::common::InputOffsetReadingError::BincodeError(_)
+        ))
+    ));
+}
+

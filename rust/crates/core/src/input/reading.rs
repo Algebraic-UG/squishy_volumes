@@ -14,7 +14,10 @@ use std::{
 
 use bincode::deserialize_from;
 
-use crate::input::{InputFrame, InputHeader, common::HEADER_OFFSET};
+use crate::input::{
+    InputFrame, InputHeader,
+    common::{HEADER_OFFSET, InputOffsetReadingError},
+};
 
 use super::{InputError, MAGIC_LEN, VERSION_LEN, magic_bytes, version_bytes};
 
@@ -77,17 +80,12 @@ fn read_version<R: Read>(mut r: R) -> Result<(), InputError> {
     }
 }
 
-fn read_frame_offsets<R: Read + Seek>(mut r: R) -> Result<Vec<u64>, InputError> {
-    // this feels like it's more likely to go wrong, so it gets a special error
-    (|| {
-        let mut bytes: [u8; 8] = [0; 8];
-        r.seek(SeekFrom::End(-8))?;
-        r.read_exact(&mut bytes)?;
-        let index_offset = u64::from_le_bytes(bytes);
-        r.seek(SeekFrom::Start(index_offset))?;
-        Ok(())
-    })()
-    .map_err(InputError::IndexOffset)?;
+fn read_frame_offsets<R: Read + Seek>(mut r: R) -> Result<Vec<u64>, InputOffsetReadingError> {
+    let mut bytes: [u8; 8] = [0; 8];
+    r.seek(SeekFrom::End(-8))?;
+    r.read_exact(&mut bytes)?;
+    let index_offset = u64::from_le_bytes(bytes);
+    r.seek(SeekFrom::Start(index_offset))?;
 
     Ok(deserialize_from(&mut r)?)
 }

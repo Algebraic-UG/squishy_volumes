@@ -18,7 +18,15 @@ pub enum InputError {
     #[error("Requested frame {requested} but there are only {available}")]
     FrameNotAvailable { requested: usize, available: usize },
     #[error("Index offset mishap: {0:?}")]
-    IndexOffset(io::Error),
+    OffsetReading(#[from] InputOffsetReadingError),
+    #[error("Unknown read/write error")]
+    IoError(#[from] std::io::Error),
+    #[error("Unknown bincode error")]
+    BincodeError(#[from] bincode::Error),
+}
+
+#[derive(Error, Debug)]
+pub enum InputOffsetReadingError {
     #[error("Unknown read/write error")]
     IoError(#[from] std::io::Error),
     #[error("Unknown bincode error")]
