@@ -6,9 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::array::from_fn;
-
-use serde::{Deserialize, Serialize};
+use std::{array::from_fn, io};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -17,19 +15,15 @@ pub enum InputError {
     MagicMismatch,
     #[error("The version didn't match, this file needs version \"{0}\"")]
     VersionMismatch(String),
+    #[error("Requested frame {requested} but there are only {available}")]
+    FrameNotAvailable { requested: usize, available: usize },
+    #[error("Index offset mishap: {0:?}")]
+    IndexOffset(io::Error),
     #[error("Unknown read/write error")]
     IoError(#[from] std::io::Error),
     #[error("Unknown bincode error")]
     BincodeError(#[from] bincode::Error),
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Frame {
-    pub offset: u64,
-    pub size: u64,
-}
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Index(pub Vec<Frame>);
 
 pub const MAGIC_LEN: usize = 32;
 pub const VERSION_LEN: usize = 64;

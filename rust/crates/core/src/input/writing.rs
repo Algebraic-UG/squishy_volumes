@@ -9,13 +9,12 @@
 use std::{
     fs::File,
     io::{BufWriter, Seek, Write},
-    iter::once,
     path::Path,
 };
 
 use bincode::serialize_into;
 
-use super::{Frame, Index, InputError, InputFrame, InputHeader, magic_bytes, version_bytes};
+use super::{InputError, InputFrame, InputHeader, magic_bytes, version_bytes};
 
 pub struct InputWriter {
     writer: BufWriter<File>,
@@ -46,25 +45,11 @@ impl InputWriter {
             mut writer,
             frame_offsets,
         } = self;
-        let current_offset = writer.stream_position()?;
-        let offsets = frame_offsets.into_iter();
-        let index = Index(
-            offsets
-                .clone()
-                .zip(offsets.skip(1).chain(once(current_offset)))
-                .map(|(frame_start, frame_end)| {
-                    assert!(frame_start <= frame_end);
-                    Frame {
-                        offset: frame_start,
-                        size: frame_end - frame_start,
-                    }
-                })
-                .collect(),
-        );
 
         let index_offset = writer.stream_position()?;
-        serialize_into(&mut writer, &index)?;
+        serialize_into(&mut writer, &frame_offsets)?;
 
+        assert!(index_offset.to_le_bytes().len() == 8);
         writer.write(&index_offset.to_le_bytes())?;
         writer.flush()?;
 
