@@ -27,6 +27,8 @@ anyhow.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 bincode.workspace = true
+thiserror.workspace = true
+build-info.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
@@ -34,3 +36,6 @@ itertools = "0.14.0"
 roots = "0.0.8"
 
 squishy_volumes_api.path = "../api"
+
+[build-dependencies]
+build-info-build.workspace = true
