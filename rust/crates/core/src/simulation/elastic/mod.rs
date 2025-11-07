@@ -12,7 +12,7 @@ mod tests;
 #[cfg(all(test, not(feature = "f64")))]
 #[test]
 fn automatic_fail() {
-    panic!("!!! ---> Run tests with 'f64' feature enabled <--- !!!")
+    panic!("!!! ---> Run elastic tests with 'f64' feature enabled <--- !!!")
 }
 
 pub use energies::*;

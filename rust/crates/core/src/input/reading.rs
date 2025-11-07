@@ -14,7 +14,7 @@ use std::{
 
 use bincode::deserialize_from;
 
-use crate::input::{InputFrame, InputHeader};
+use crate::input::{InputFrame, InputHeader, common::HEADER_OFFSET};
 
 use super::{InputError, MAGIC_LEN, VERSION_LEN, magic_bytes, version_bytes};
 
@@ -36,9 +36,8 @@ impl InputReader {
     }
 
     pub fn read_header(&mut self) -> Result<InputHeader, InputError> {
-        self.reader.seek(SeekFrom::Start(
-            (MAGIC_LEN + VERSION_LEN).try_into().unwrap(),
-        ))?;
+        self.reader
+            .seek(SeekFrom::Start(HEADER_OFFSET.try_into().unwrap()))?;
         Ok(deserialize_from(&mut self.reader)?)
     }
 
@@ -50,7 +49,7 @@ impl InputReader {
             });
         };
 
-        self.reader.seek(SeekFrom::Start(*offset));
+        self.reader.seek(SeekFrom::Start(*offset))?;
         Ok(deserialize_from(&mut self.reader)?)
     }
 }
@@ -88,7 +87,7 @@ fn read_frame_offsets<R: Read + Seek>(mut r: R) -> Result<Vec<u64>, InputError> 
         r.seek(SeekFrom::Start(index_offset))?;
         Ok(())
     })()
-    .map_err(|e| InputError::IndexOffset(e))?;
+    .map_err(InputError::IndexOffset)?;
 
     Ok(deserialize_from(&mut r)?)
 }

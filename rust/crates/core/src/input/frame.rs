@@ -8,5 +8,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InputFrame {}
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct InputFrame {
+    pub test_data: Vec<f32>,
+}

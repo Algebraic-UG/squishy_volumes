@@ -8,5 +8,9 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InputHeader {}
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct InputHeader {
+    pub test_param_a: String,
+    pub test_param_b: String,
+    pub test_param_c: String,
+}

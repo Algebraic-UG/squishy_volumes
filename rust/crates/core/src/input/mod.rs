@@ -43,6 +43,9 @@ mod header;
 mod reading;
 mod writing;
 
+#[cfg(test)]
+mod tests;
+
 use common::*;
 
 pub use frame::InputFrame;
