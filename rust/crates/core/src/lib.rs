@@ -29,6 +29,16 @@ mod stats;
 pub use report::{Report, ReportInfo};
 pub use simulation::{Phase, PhaseInput, State, cache::Cache, weights};
 
+// TODO: this might be better somewhere else.
+#[macro_export]
+macro_rules! ensure_err {
+    ($cond:expr, $err:expr $(,)?) => {
+        if !$cond {
+            return Err($err);
+        }
+    };
+}
+
 pub struct ContextImpl(BTreeMap<String, SimulationLocal>);
 
 impl Default for ContextImpl {

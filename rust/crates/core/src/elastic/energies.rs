@@ -7,12 +7,21 @@
 // https://opensource.org/licenses/MIT.
 
 use crate::{
+    ensure_err,
     error_messages::INVERTED_PARTICLE,
     math::{Matrix9, SINGULAR_VALUE_SEPARATION, Vector9, safe_inverse::SafeInverse},
 };
-use anyhow::{Context, Result, ensure};
 use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};
 use squishy_volumes_api::T;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum EnergyError {
+    #[error("The position gradient is not invertable")]
+    PositionGradientNotInvertable,
+    #[error("The position gradient has negative determinant")]
+    PositionGradientNonPositive,
+}
 
 // Wikipedia: Lamé parameters (this is the "second")
 pub fn mu(youngs_modulus: T, poissons_ratio: T) -> T {
@@ -173,10 +182,10 @@ pub fn first_piola_stress_neo_hookean_old(
     mu: T,
     lambda: T,
     position_gradient: &Matrix3<T>,
-) -> Result<Matrix3<T>> {
+) -> Result<Matrix3<T>, EnergyError> {
     let position_gradient_inv = position_gradient
         .safe_inverse()
-        .context("position gradient isn't invertible")?;
+        .ok_or(EnergyError::PositionGradientNotInvertable)?;
     let position_gradient_inv_t = position_gradient_inv.transpose();
     Ok((position_gradient - position_gradient_inv_t) * mu
         + position_gradient_inv_t * lambda * position_gradient.determinant().ln())
@@ -207,9 +216,9 @@ pub fn try_elastic_energy_neo_hookean(
     mu: T,
     lambda: T,
     position_gradient: &Matrix3<T>,
-) -> Result<T> {
+) -> Result<T, EnergyError> {
     let invariant_3 = invariant_3(position_gradient);
-    ensure!(invariant_3 > 0., INVERTED_PARTICLE);
+    ensure_err!(invariant_3 > 0., EnergyError::PositionGradientNonPositive);
     Ok(elastic_energy_neo_hookean_by_invariants(
         mu,
         lambda,
