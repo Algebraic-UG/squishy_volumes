@@ -15,17 +15,19 @@ use std::{
     },
 };
 
-use anyhow::{Result, bail, ensure};
-
 use iter_enumeration::{IntoIterEnum2, IntoIterEnum3};
 use nalgebra::{Matrix3, Vector2, Vector3};
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
+use thiserror::Error;
 use tracing::{info, warn};
 
-use crate::math::{Aabb, basis_from_direction_3d};
 use crate::{Report, ReportInfo, report::REPORT_STRIDE};
+use crate::{
+    ensure_err,
+    math::{Aabb, basis_from_direction_3d},
+};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Mesh {
@@ -45,66 +47,95 @@ pub struct SurfaceSample {
     pub normal: Vector3<T>,
 }
 
+#[derive(Debug)]
+pub enum MeshElement {
+    VertexPosition,
+    VertexNormal,
+    EdgeIndices,
+    EdgeNormal,
+    TriangleIndices,
+    TriangleNormal,
+}
+
+#[derive(Error, Debug)]
+pub enum MeshError {
+    #[error("Operation was cancelled")]
+    Cancelled,
+    #[error("The mesh is empty")]
+    Empty,
+    #[error("These should have the same count {0:?} and {1:?}")]
+    CountMismatch(MeshElement, MeshElement),
+    #[error("Input was NaN for {0:?}")]
+    NaN(MeshElement),
+    #[error("Index out of bounds for {0:?}")]
+    OutOfBounds(MeshElement),
+    #[error("The sampling spacing must be strictly postive")]
+    SamplingSpacing,
+}
+
 impl Mesh {
-    pub fn verify(&self, name: &str) -> Result<()> {
-        ensure!(
+    pub fn verify(&self, name: &str) -> Result<(), MeshError> {
+        ensure_err!(
             self.vertices.len() == self.vertex_normals.len(),
-            "vertex count vs vertex normal count"
+            MeshError::CountMismatch(MeshElement::VertexPosition, MeshElement::VertexNormal)
         );
-        ensure!(
+        ensure_err!(
             self.vertices
                 .iter()
                 .all(|v| v.iter().all(|x| x.is_finite())),
-            "vertex coordinate nan/inf"
+            MeshError::NaN(MeshElement::VertexPosition),
         );
-        ensure!(
+        ensure_err!(
             self.vertex_normals
                 .iter()
                 .filter_map(|n| *n)
                 .all(|v| v.iter().all(|x| x.is_finite())),
-            "vertex normal nan/inf"
+            MeshError::NaN(MeshElement::VertexNormal),
         );
         let invalid =
             self.vertex_normals.len() - self.vertex_normals.iter().filter_map(|n| *n).count();
         if invalid != 0 {
-            warn!(name, invalid, "invalid vertex normals");
+            warn!(name, invalid, "invalid {:?}", MeshElement::VertexNormal);
         }
 
-        ensure!(self.edges.len() == self.edge_normals.len());
-        ensure!(
+        ensure_err!(
+            self.edges.len() == self.edge_normals.len(),
+            MeshError::CountMismatch(MeshElement::EdgeIndices, MeshElement::EdgeNormal)
+        );
+        ensure_err!(
             self.edge_normals
                 .iter()
                 .filter_map(|n| *n)
                 .all(|v| v.iter().all(|x| x.is_finite())),
-            "edge normal nan/inf"
+            MeshError::NaN(MeshElement::EdgeNormal)
         );
-        ensure!(
+        ensure_err!(
             self.edges.iter().all(|indices| indices
                 .iter()
                 .all(|idx| (*idx as usize) < self.vertices.len())),
-            "edge vertex idx out of bounds",
+            MeshError::OutOfBounds(MeshElement::EdgeIndices)
         );
         let invalid = self.edge_normals.len() - self.edge_normals.iter().filter_map(|n| *n).count();
         if invalid != 0 {
             warn!(name, invalid, "invalid edge normals");
         }
 
-        ensure!(
+        ensure_err!(
             self.triangles.len() == self.triangle_normals.len(),
-            "triangle count vs triangle normal count"
+            MeshError::CountMismatch(MeshElement::TriangleIndices, MeshElement::TriangleNormal)
         );
-        ensure!(
+        ensure_err!(
             self.triangles.iter().all(|indices| indices
                 .iter()
                 .all(|idx| (*idx as usize) < self.vertices.len())),
-            "triangle vertex idx out of bounds",
+            MeshError::OutOfBounds(MeshElement::TriangleIndices)
         );
-        ensure!(
+        ensure_err!(
             self.triangle_normals
                 .iter()
                 .filter_map(|n| *n)
                 .all(|v| v.iter().all(|x| x.is_finite())),
-            "triangle normal nan/inf"
+            MeshError::NaN(MeshElement::TriangleNormal)
         );
         let invalid =
             self.triangle_normals.len() - self.triangle_normals.iter().filter_map(|n| *n).count();
@@ -115,8 +146,12 @@ impl Mesh {
         Ok(())
     }
 
-    pub fn sample_surface(&self, run: Arc<AtomicBool>, spacing: T) -> Result<Vec<SurfaceSample>> {
-        ensure!(spacing != 0.);
+    pub fn sample_surface(
+        &self,
+        run: Arc<AtomicBool>,
+        spacing: T,
+    ) -> Result<Vec<SurfaceSample>, MeshError> {
+        ensure_err!(spacing > 0., MeshError::SamplingSpacing);
 
         let vertex_samples = self
             .vertices
@@ -217,10 +252,10 @@ impl Mesh {
             .chain(triangle_samples)
             .par_bridge()
             .map(|sample| {
-                ensure!(run.load(Ordering::Relaxed), "Cancelled");
+                ensure_err!(run.load(Ordering::Relaxed), MeshError::Cancelled);
                 Ok(sample)
             })
-            .collect::<Result<_>>()
+            .collect::<Result<_, _>>()
     }
 
     pub fn sample_inside(
@@ -229,13 +264,14 @@ impl Mesh {
         report: Report,
         spacing: T,
         randomness: T,
-    ) -> Result<Vec<Vector3<T>>> {
-        ensure!(spacing != 0.);
+    ) -> Result<Vec<Vector3<T>>, MeshError> {
+        ensure_err!(spacing > 0., MeshError::SamplingSpacing);
 
         let mut aabb = Aabb::new(self.vertices.iter().cloned());
-        if aabb == Default::default() || self.vertices.is_empty() || self.triangles.is_empty() {
-            bail!("empty mesh")
-        }
+        ensure_err!(
+            aabb != Default::default() && !self.vertices.is_empty() && !self.triangles.is_empty(),
+            MeshError::Empty
+        );
 
         // hack to avoid perfect alignment with cubes
         aabb.min += aabb.extents() * 0.001;
@@ -286,7 +322,7 @@ impl Mesh {
             .enumerate()
             .par_bridge()
             .map(|(i, center)| {
-                ensure!(run.load(Ordering::Relaxed), "Cancelled");
+                ensure_err!(run.load(Ordering::Relaxed), MeshError::Cancelled);
                 if i % REPORT_STRIDE == 0 {
                     acceleration_report.step();
                 }
@@ -312,7 +348,7 @@ impl Mesh {
                 );
                 Ok(cell)
             })
-            .collect::<Result<_>>()?;
+            .collect::<Result<_, _>>()?;
         let average_ratio = cells
             .par_iter()
             .map(|cell| cell.close_triangles.len() as T / self.triangles.len() as T)
@@ -365,10 +401,10 @@ impl Mesh {
                 winding > 0.5
             })
             .map(|candidate| {
-                ensure!(run.load(Ordering::Relaxed), "Cancelled");
+                ensure_err!(run.load(Ordering::Relaxed), MeshError::Cancelled);
                 Ok(candidate)
             })
-            .collect::<Result<_>>()?;
+            .collect::<Result<_, _>>()?;
 
         Ok(samples)
     }
