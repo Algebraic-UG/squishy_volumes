@@ -9,9 +9,9 @@
 use anyhow::Result;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::simulation::particles::ParticleState;
+use crate::{profile, simulation::particles::ParticleState};
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     pub(super) fn cull_particles(mut self, phase_input: &mut PhaseInput) -> Result<Self> {

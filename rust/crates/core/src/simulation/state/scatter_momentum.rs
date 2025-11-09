@@ -18,12 +18,13 @@ use crate::{
         cauchy_stress_general_viscosity, first_piola_stress_inviscid,
         first_piola_stress_neo_hookean,
     },
+    profile,
     setup::ViscosityParameters,
     simulation::particles::ParticleParameters,
     weights::kernel_quadratic,
 };
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     // Mass and velocity transported by particles is scattered to the grids.

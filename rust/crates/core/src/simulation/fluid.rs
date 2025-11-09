@@ -19,11 +19,9 @@ use tracing::info;
 use crate::{
     Report,
     error_messages::SAMPLING_FAILED,
+    profile,
     setup::{GlobalSettings, Mesh, ObjectSettingsFluid},
-    simulation::{
-        particles::{ParticleParameters, Particles},
-        state::profile,
-    },
+    simulation::particles::{ParticleParameters, Particles},
 };
 
 use super::kinematic::Kinematic;

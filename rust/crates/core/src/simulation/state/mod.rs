@@ -24,6 +24,7 @@ use strum::{EnumIter, IntoEnumIterator};
 use tracing::info;
 
 use crate::{
+    profile,
     report::{Report, ReportInfo},
     setup::{ObjectSettings, ObjectWithData, Setup},
     simulation::{
@@ -39,15 +40,6 @@ use super::{
     particles::Particles,
     solid::Solid,
 };
-
-#[cfg(feature = "profile")]
-pub use coarse_prof::profile;
-#[cfg(not(feature = "profile"))]
-macro_rules! profile {
-    ($name:expr) => {};
-}
-#[cfg(not(feature = "profile"))]
-pub(crate) use profile;
 
 mod advect_particles;
 pub(super) mod attributes;

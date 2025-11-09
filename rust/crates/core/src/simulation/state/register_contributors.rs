@@ -11,11 +11,12 @@ use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::{
+    profile,
     simulation::particles::ParticleState,
     weights::{kernel_quadratic_unrolled, position_to_shift_quadratic},
 };
 
-use super::{PhaseInput, State, find_worst_incompatibility, profile};
+use super::{PhaseInput, State, find_worst_incompatibility};
 
 impl State {
     // To each grid node a number of particles can contribute.

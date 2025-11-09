@@ -9,7 +9,8 @@
 use anyhow::Result;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
+use crate::profile;
 
 impl State {
     pub(super) fn external_force(mut self, phase_input: &mut PhaseInput) -> Result<Self> {

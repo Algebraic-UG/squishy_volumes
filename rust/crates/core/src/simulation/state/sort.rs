@@ -11,9 +11,9 @@ use nalgebra::Vector3;
 use rayon::{Scope, scope, slice::ParallelSliceMut};
 use squishy_volumes_api::T;
 
-use crate::simulation::particles::Particles;
+use crate::{profile, simulation::particles::Particles};
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     // This is only to optimize memory access.

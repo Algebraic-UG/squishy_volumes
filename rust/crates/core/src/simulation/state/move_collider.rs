@@ -8,9 +8,12 @@
 
 use anyhow::{Context, Result};
 
-use crate::simulation::kinematic::{Kinematic, ScriptedMovement};
+use crate::{
+    profile,
+    simulation::kinematic::{Kinematic, ScriptedMovement},
+};
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     pub(super) fn move_collider(mut self, _: &mut PhaseInput) -> Result<Self> {

@@ -23,10 +23,11 @@ use crate::{
         second_derivative_neo_hookean_svd_in_diagonal_space,
     },
     math::SINGULAR_VALUE_SEPARATION,
+    profile,
     simulation::particles::{ParticleParameters, ParticleState},
 };
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     pub(super) fn limit_time_step_before_force(self, phase_input: &mut PhaseInput) -> Result<Self> {

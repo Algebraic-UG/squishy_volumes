@@ -13,10 +13,11 @@ use squishy_volumes_api::T;
 
 use crate::{
     elastic::{elastic_energy_inviscid, try_elastic_energy_neo_hookean},
+    profile,
     simulation::particles::{ParticleParameters, ParticleState},
 };
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     pub(super) fn advect_particles(mut self, phase_input: &mut PhaseInput) -> Result<Self> {

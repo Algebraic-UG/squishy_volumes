@@ -14,11 +14,12 @@ use rayon::iter::{
 use std::{mem::take, sync::mpsc::channel, thread::spawn};
 
 use crate::{
+    profile,
     simulation::{particles::ParticleState, state::find_worst_incompatibility},
     weights::{kernel_quadratic_unrolled, position_to_shift_quadratic},
 };
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     // Update the hash map that allows to index into all the vectors of each momentum grid

@@ -15,11 +15,12 @@ use std::{array::from_fn, collections::hash_map::Entry};
 
 use crate::{
     math::{NORMALIZATION_EPS, safe_inverse::SafeInverse},
+    profile,
     simulation::{particles::ParticleState, weights::kernel_quadratic},
     weights::KERNEL_QUADRATIC_LENGTH,
 };
 
-use super::{PhaseInput, State, check_shifted_quadratic, profile};
+use super::{PhaseInput, State, check_shifted_quadratic};
 
 impl State {
     // Collect the splatted distance information from the grid to the particles.

@@ -13,13 +13,14 @@ use squishy_volumes_api::T;
 use std::collections::hash_map::Entry;
 
 use crate::{
-    setup::SurfaceSample,
     math::SURFACE_DISK_SIZE_FACTOR,
+    profile,
+    setup::SurfaceSample,
     simulation::grids::WeightedDistance,
     weights::{kernel_quadratic_unrolled, position_to_shift_quadratic},
 };
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     // Splat collider distances into the grid.

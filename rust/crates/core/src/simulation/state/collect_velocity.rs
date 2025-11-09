@@ -13,11 +13,12 @@ use squishy_volumes_api::T;
 use std::array::from_fn;
 
 use crate::{
+    profile,
     simulation::{particles::ParticleState, weights::kernel_quadratic},
     weights::KERNEL_QUADRATIC_LENGTH,
 };
 
-use super::{PhaseInput, State, check_shifted_quadratic, find_worst_incompatibility, profile};
+use super::{PhaseInput, State, check_shifted_quadratic, find_worst_incompatibility};
 
 impl State {
     // Update the particles' velocity and velocity gradients to be transported.

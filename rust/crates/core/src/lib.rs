@@ -38,6 +38,14 @@ macro_rules! ensure_err {
         }
     };
 }
+#[cfg(feature = "profile")]
+use coarse_prof::profile;
+#[cfg(not(feature = "profile"))]
+macro_rules! profile {
+    ($name:expr) => {};
+}
+#[cfg(not(feature = "profile"))]
+use profile;
 
 pub struct ContextImpl(BTreeMap<String, SimulationLocal>);
 

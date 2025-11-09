@@ -10,9 +10,9 @@ use anyhow::Result;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use squishy_volumes_api::T;
 
-use crate::simulation::grids::Boundary;
+use crate::{profile, simulation::grids::Boundary};
 
-use super::{PhaseInput, State, profile};
+use super::{PhaseInput, State};
 
 impl State {
     // Conform the collider's grids to their scripted velocity,

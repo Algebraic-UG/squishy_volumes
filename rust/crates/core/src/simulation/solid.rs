@@ -14,9 +14,10 @@ use std::{
 use crate::{
     elastic::{lambda_stable_neo_hookean, mu_stable_neo_hookean, try_elastic_energy_neo_hookean},
     error_messages::SAMPLING_FAILED,
+    profile,
     report::Report,
     setup::{GlobalSettings, Mesh, ObjectSettingsSolid},
-    simulation::{particles::ParticleParameters, state::profile},
+    simulation::particles::ParticleParameters,
 };
 use anyhow::{Result, ensure};
 use nalgebra::{Matrix3, Vector3};
