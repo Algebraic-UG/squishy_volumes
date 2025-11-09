@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use crate::{
+    error_messages::INVERTED_PARTICLE,
     math::{Matrix9, SINGULAR_VALUE_SEPARATION, Vector9, safe_inverse::SafeInverse},
-    simulation::error_messages::INVERTED_PARTICLE,
 };
 use anyhow::{Context, Result, ensure};
 use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};

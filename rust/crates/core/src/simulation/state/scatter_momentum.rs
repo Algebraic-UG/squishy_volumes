@@ -14,14 +14,12 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterato
 use squishy_volumes_api::T;
 
 use crate::{
-    setup::ViscosityParameters,
-    simulation::{
-        elastic::{
-            cauchy_stress_general_viscosity, first_piola_stress_inviscid,
-            first_piola_stress_neo_hookean,
-        },
-        particles::ParticleParameters,
+    elastic::{
+        cauchy_stress_general_viscosity, first_piola_stress_inviscid,
+        first_piola_stress_neo_hookean,
     },
+    setup::ViscosityParameters,
+    simulation::particles::ParticleParameters,
     weights::kernel_quadratic,
 };
 

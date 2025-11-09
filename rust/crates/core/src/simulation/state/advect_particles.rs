@@ -11,9 +11,9 @@ use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use squishy_volumes_api::T;
 
-use crate::simulation::{
+use crate::{
     elastic::{elastic_energy_inviscid, try_elastic_energy_neo_hookean},
-    particles::{ParticleParameters, ParticleState},
+    simulation::particles::{ParticleParameters, ParticleState},
 };
 
 use super::{PhaseInput, State, profile};

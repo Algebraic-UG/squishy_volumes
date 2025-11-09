@@ -16,6 +16,9 @@ use squishy_volumes_api::{Context, Simulation};
 use tracing::{error, info, subscriber::set_global_default};
 use tracing_subscriber::FmtSubscriber;
 
+#[allow(unused)]
+mod elastic;
+mod error_messages;
 mod input;
 mod math;
 mod report;
