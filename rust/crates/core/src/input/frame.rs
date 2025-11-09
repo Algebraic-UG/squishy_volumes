@@ -6,9 +6,17 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum BulkData {
+    F32(Vec<f32>),
+    I32(Vec<i32>),
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputFrame {
-    pub test_data: Vec<f32>,
+    pub bulk: BTreeMap<String, BulkData>,
 }

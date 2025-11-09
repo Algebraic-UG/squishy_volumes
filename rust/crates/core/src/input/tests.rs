@@ -15,8 +15,8 @@ use std::{
 use rand::{SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::{Builder, TempDir};
 
-use crate::input::{
-    InputFrame, InputHeader, InputReader, InputWriter,
+use super::{
+    BulkData, InputFrame, InputHeader, InputReader, InputWriter,
     common::{InputError, MAGIC_LEN},
 };
 
@@ -39,16 +39,26 @@ fn test_header() -> InputHeader {
 fn test_frames() -> Vec<InputFrame> {
     vec![
         InputFrame {
-            test_data: Default::default(),
+            bulk: Default::default(),
         },
         InputFrame {
-            test_data: vec![1., 2., 3., 42.],
+            bulk: [(
+                "Some float attribute".to_string(),
+                BulkData::F32(vec![1., 2., 3., 42.]),
+            )]
+            .into_iter()
+            .collect(),
         },
         InputFrame {
-            test_data: Default::default(),
+            bulk: Default::default(),
         },
         InputFrame {
-            test_data: vec![1., 2., 3., 42.],
+            bulk: [(
+                "Some int attribute".to_string(),
+                BulkData::I32(vec![1, 2, 3, 42]),
+            )]
+            .into_iter()
+            .collect(),
         },
     ]
 }
@@ -199,4 +209,3 @@ fn test_index_offset_mishap_bincode() {
         ))
     ));
 }
-

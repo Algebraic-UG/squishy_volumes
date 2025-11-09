@@ -48,7 +48,7 @@ mod tests;
 
 use common::*;
 
-pub use frame::InputFrame;
+pub use frame::{BulkData, InputFrame};
 pub use header::InputHeader;
 pub use reading::InputReader;
 pub use writing::InputWriter;
