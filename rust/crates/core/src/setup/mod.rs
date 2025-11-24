@@ -6,6 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+// The setup is processed input ready to be used in the simulation.
+//
+// Because there can be animated inputs,
+// the setup needs to store two frames worth of input.
+
 pub mod animatable;
 pub mod constant;
 pub mod mesh;

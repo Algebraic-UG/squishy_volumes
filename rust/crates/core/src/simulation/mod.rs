@@ -19,5 +19,6 @@ mod solid;
 mod state;
 
 pub use interpolate::weights;
+pub use kinematic::Kinematic;
 pub use simulation_local::SimulationLocal;
 pub use state::{Phase, PhaseInput, State};

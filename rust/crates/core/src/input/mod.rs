@@ -39,6 +39,7 @@
 
 mod common;
 mod frame;
+mod generation;
 mod header;
 mod reading;
 mod writing;

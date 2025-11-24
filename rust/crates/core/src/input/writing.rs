@@ -14,8 +14,6 @@ use std::{
 
 use bincode::serialize_into;
 
-use crate::input::common::{MAGIC_LEN, VERSION_LEN};
-
 use super::{InputError, InputFrame, InputHeader, magic_bytes, version_bytes};
 
 pub struct InputWriter {
@@ -26,8 +24,8 @@ pub struct InputWriter {
 impl InputWriter {
     pub fn new<P: AsRef<Path>>(path: P, header: InputHeader) -> Result<Self, InputError> {
         let mut writer = BufWriter::new(File::create(path)?);
-        assert!(writer.write(&magic_bytes())? == MAGIC_LEN);
-        assert!(writer.write(&version_bytes())? == VERSION_LEN);
+        writer.write_all(&magic_bytes())?;
+        writer.write_all(&version_bytes())?;
         serialize_into(&mut writer, &header)?;
         Ok(Self {
             writer,
@@ -51,7 +49,7 @@ impl InputWriter {
         let index_offset = writer.stream_position()?;
         serialize_into(&mut writer, &frame_offsets)?;
 
-        assert!(writer.write(&index_offset.to_le_bytes())? == 8);
+        writer.write_all(&index_offset.to_le_bytes())?;
         writer.flush()?;
 
         Ok(())

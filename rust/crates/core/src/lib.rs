@@ -33,6 +33,7 @@ pub use simulation::{Phase, PhaseInput, State, cache::Cache, weights};
 #[macro_export]
 macro_rules! ensure_err {
     ($cond:expr, $err:expr $(,)?) => {
+        #[allow(clippy::neg_cmp_op_on_partial_ord)]
         if !$cond {
             return Err($err);
         }
