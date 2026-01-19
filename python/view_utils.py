@@ -21,7 +21,7 @@ import numpy as np
 import mathutils
 
 from .util import local_bounding_box
-from .nodes.geometry_nodes_restrict_view import create_geometry_nodes_restrict_view
+from .nodes import create_geometry_nodes_restrict_view
 
 
 class OBJECT_OT_Squishy_Volumes_Restrict_View(bpy.types.Operator):

@@ -16,16 +16,54 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# The code in this module has been mostly generated with https://github.com/BrendanParmer/NodeToPython
-# NodeToPython is licensed under the GPLv3 License.
 
-# XXX: reminder for maintainer!
-#
-# place code inside the function and return the top group
-#
-# change the fixed attribute strings to python constants use this
-#
-#     %s/\"squishy_volumes_([^"]*)\"/SQUISHY_VOLUMES_\U\1/gc
-#
-# any custom node groups referenced through strings must be recreated and not looked up
-# (search for "Squishy Volumes <...>" lookups)
+def create_geometry_nodes_grid_distance():
+    pass
+
+
+def create_geometry_nodes_grid_momentum():
+    pass
+
+
+def create_geometry_nodes_grid_momentum():
+    pass
+
+
+def create_geometry_nodes_particles():
+    pass
+
+
+def create_material_display_uvw():
+    pass
+
+
+def create_geometry_nodes_particles():
+    pass
+
+
+def create_material_display_uvw():
+    pass
+
+
+def create_geometry_nodes_surface_samples():
+    pass
+
+
+def create_geometry_nodes_store_reference():
+    pass
+
+
+def create_geometry_nodes_move_with_reference():
+    pass
+
+
+def create_geometry_nodes_store_breaking_frame():
+    pass
+
+
+def create_geometry_nodes_remove_broken():
+    pass
+
+
+def create_geometry_nodes_restrict_view():
+    pass
