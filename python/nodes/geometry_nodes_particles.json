@@ -2877,7 +2877,7 @@
         {
             "id": 192,
             "data": {
-                "name": "Squishy Volumes Color Instance.002",
+                "name": "Squishy Volumes Color Instance",
                 "use_fake_user": false,
                 "use_extra_user": false,
                 "is_runtime_data": false,
@@ -4356,7 +4356,7 @@
         {
             "id": 290,
             "data": {
-                "name": "Squishy Volumes Vector.002",
+                "name": "Squishy Volumes Vector",
                 "use_fake_user": false,
                 "use_extra_user": false,
                 "is_runtime_data": false,
@@ -9626,7 +9626,7 @@
     ],
     "external": {
         "636": {
-            "description": "Hint for Import",
+            "description": "Squishy Volumes Colored Instances",
             "fixed_type_name": "Material",
             "scene_id": null
         }

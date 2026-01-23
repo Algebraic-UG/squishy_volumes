@@ -5,7 +5,7 @@
         {
             "id": 0,
             "data": {
-                "name": "Squishy Volumes Change of Basis.001",
+                "name": "Squishy Volumes Change of Basis",
                 "use_fake_user": false,
                 "use_extra_user": false,
                 "is_runtime_data": false,
@@ -2039,7 +2039,7 @@
                                     ],
                                     "width": 300.0,
                                     "height": 100.0,
-                                    "name": "Squishy Volumes Change of Basis.001",
+                                    "name": "Squishy Volumes Change of Basis",
                                     "label": "",
                                     "warning_propagation": "ALL",
                                     "use_custom_color": false,
