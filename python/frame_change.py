@@ -37,7 +37,7 @@ from .bridge import (
 
 def sync(scene):
     for simulation in scene.squishy_volumes_scene.simulations.values():
-        if context_exists(simulation):
+        if simulation.sync and context_exists(simulation):
             sync_simulation(simulation, scene.frame_current)
 
 

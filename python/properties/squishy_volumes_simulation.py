@@ -125,6 +125,16 @@ The latter being a temporary file indicating ownership.""",
         update=update_cache_directory,
     )  # type: ignore
 
+    sync: bpy.props.BoolProperty(
+        name="Sync",
+        description="""Disable to stop Squishy Volumes from loading and syncing.
+
+For large scenes, frame changes are expensive even if no output is present.
+It is then convenient to temporarily disable syncing for the simulation.""",
+        default=True,
+        options=set(),
+    )  # type: ignore
+
     max_giga_bytes_on_disk: bpy.props.FloatProperty(
         name="Max Diskspace (Gigabytes)",
         description="""Simulations can use a lot of disk space!

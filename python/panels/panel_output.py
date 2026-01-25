@@ -343,6 +343,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         return (
             context.mode == "OBJECT"
             and simulation is not None
+            and simulation.sync
             and context_exists(simulation)
             and available_frames(simulation) > 0
         )
