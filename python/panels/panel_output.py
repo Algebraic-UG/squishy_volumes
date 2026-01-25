@@ -216,7 +216,9 @@ class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     output_type: bpy.props.StringProperty()  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(type=Squishy_Volumes_Optional_Attributes)  # type: ignore
+    optional_attributes: bpy.props.PointerProperty(
+        type=Squishy_Volumes_Optional_Attributes
+    )  # type: ignore
 
     @classmethod
     def poll(cls, context):

@@ -28,7 +28,7 @@ from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Sett
 
 
 def duplicate_simulation_name(simulation):
-    simulations = bpy.context.scene.squishy_volumes_scene.simulations
+    simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
             simulation.name == other.name
@@ -39,7 +39,7 @@ def duplicate_simulation_name(simulation):
 
 
 def duplicate_simulation_cache_directory(simulation):
-    simulations = bpy.context.scene.squishy_volumes_scene.simulations
+    simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
             simulation.cache_directory == other.cache_directory
