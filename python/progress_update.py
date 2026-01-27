@@ -40,7 +40,7 @@ def update_progress():
             simulation.capture_start_frame + simulation.capture_frames - 1,
         )
 
-        if not context_exists(simulation):
+        if not simulation.sync or not context_exists(simulation):
             continue
 
         progress_json_string = with_popup(simulation, lambda: poll(simulation))

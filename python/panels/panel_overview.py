@@ -311,6 +311,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 col.prop(simulation, "uuid")
 
                 col = body.column()
+                col.prop(simulation, "sync")
                 col.enabled = not computing(simulation)
                 col.prop(simulation, "max_giga_bytes_on_disk")
 

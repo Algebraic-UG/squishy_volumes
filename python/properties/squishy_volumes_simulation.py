@@ -28,7 +28,7 @@ from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Sett
 
 
 def duplicate_simulation_name(simulation):
-    simulations = bpy.context.scene.squishy_volumes_scene.simulations
+    simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
             simulation.name == other.name
@@ -39,7 +39,7 @@ def duplicate_simulation_name(simulation):
 
 
 def duplicate_simulation_cache_directory(simulation):
-    simulations = bpy.context.scene.squishy_volumes_scene.simulations
+    simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
             simulation.cache_directory == other.cache_directory
@@ -123,6 +123,16 @@ The latter being a temporary file indicating ownership.""",
         subtype="DIR_PATH",
         options=set(),
         update=update_cache_directory,
+    )  # type: ignore
+
+    sync: bpy.props.BoolProperty(
+        name="Sync",
+        description="""Disable to stop Squishy Volumes from loading and syncing.
+
+For large scenes, frame changes are expensive even if no output is present.
+It is then convenient to temporarily disable syncing for the simulation.""",
+        default=True,
+        options=set(),
     )  # type: ignore
 
     max_giga_bytes_on_disk: bpy.props.FloatProperty(
