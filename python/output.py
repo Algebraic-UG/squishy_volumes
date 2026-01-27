@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 import json
 import mathutils
 import numpy as np
@@ -40,12 +41,15 @@ from .magic_consts import (
     INPUT_MESH,
     SOLID_PARTICLES,
 )
+
+from .nodes import (
+    create_geometry_nodes_surface_samples,
+    create_geometry_nodes_grid_distance,
+    create_geometry_nodes_grid_momentum,
+    create_geometry_nodes_particles,
+    create_material_display_uvw,
+)
 from .nodes.drivers import add_drivers
-from .nodes.geometry_nodes_grid_momentum import create_geometry_nodes_grid_momentum
-from .nodes.geometry_nodes_surface_samples import create_geometry_nodes_surface_samples
-from .nodes.geometry_nodes_grid_distance import create_geometry_nodes_grid_distance
-from .nodes.geometry_nodes_particles import create_geometry_nodes_particles
-from .nodes.material_display_uvw import create_material_display_uvw
 from .util import (
     fill_mesh_with_positions,
     fill_mesh_with_vertices_and_triangles,

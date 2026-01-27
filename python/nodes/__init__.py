@@ -16,16 +16,103 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# The code in this module has been mostly generated with https://github.com/BrendanParmer/NodeToPython
-# NodeToPython is licensed under the GPLv3 License.
+import bpy
 
-# XXX: reminder for maintainer!
-#
-# place code inside the function and return the top group
-#
-# change the fixed attribute strings to python constants use this
-#
-#     %s/\"squishy_volumes_([^"]*)\"/SQUISHY_VOLUMES_\U\1/gc
-#
-# any custom node groups referenced through strings must be recreated and not looked up
-# (search for "Squishy Volumes <...>" lookups)
+
+from pathlib import Path
+
+from .._vendor.tree_clipper.specific_handlers import BUILT_IN_IMPORTER
+from .._vendor.tree_clipper.import_nodes import (
+    ImportReport,
+    ImportIntermediate,
+    ImportParameters,
+)
+
+
+def _load_tree_clipper(
+    name: str,
+    externals: list[tuple[int, bpy.types.ID]],
+) -> ImportReport:
+    file_path = Path(__file__).parent / name
+    intermediate = ImportIntermediate(file_path=file_path)
+    intermediate.set_external(iter(externals))
+    report = intermediate.import_all(
+        ImportParameters(
+            specific_handlers=BUILT_IN_IMPORTER,
+            debug_prints=False,
+        )
+    )
+    for warning in report.warnings:
+        print(f"Tree Clipper: {name}, warning: {warning}")
+    return report
+
+
+def _load_tree_clipper_tree(
+    name: str,
+    externals: list[tuple[int, bpy.types.ID]] = [],
+) -> bpy.types.NodeTree:
+    return _load_tree_clipper(name, externals).last_getter()  # ty:ignore[call-non-callable, invalid-return-type]
+
+
+def _load_tree_clipper_material(
+    name: str,
+    externals: list[tuple[int, bpy.types.ID]] = [],
+) -> bpy.types.Material:
+    report = _load_tree_clipper(name, externals)
+    return bpy.data.materials[report.rename_material[1]]  # ty:ignore[not-subscriptable]
+
+
+def create_material_colored_instances() -> bpy.types.Material:
+    return _load_tree_clipper_material("material_colored_instances.json")
+
+
+def create_material_display_uvw() -> bpy.types.Material:
+    return _load_tree_clipper_material("material_display_uvw.json")
+
+
+def create_geometry_nodes_grid_distance() -> bpy.types.NodeTree:
+    colored_instances = create_material_colored_instances()
+    return _load_tree_clipper_tree(
+        "geometry_nodes_grid_distance.json",
+        [(389, colored_instances)],
+    )
+
+
+def create_geometry_nodes_grid_momentum() -> bpy.types.NodeTree:
+    colored_instances = create_material_colored_instances()
+    return _load_tree_clipper_tree(
+        "geometry_nodes_grid_momentum.json",
+        [(331, colored_instances)],
+    )
+
+
+def create_geometry_nodes_particles() -> bpy.types.NodeTree:
+    colored_instances = create_material_colored_instances()
+    return _load_tree_clipper_tree(
+        "geometry_nodes_particles.json",
+        [(636, colored_instances)],
+    )
+
+
+def create_geometry_nodes_surface_samples() -> bpy.types.NodeTree:
+    return _load_tree_clipper_tree("geometry_nodes_surface_samples.json")
+
+
+def create_geometry_nodes_store_reference() -> bpy.types.NodeTree:
+    return _load_tree_clipper_tree("geometry_nodes_store_reference.json")
+
+
+def create_geometry_nodes_move_with_reference() -> bpy.types.NodeTree:
+    return _load_tree_clipper_tree("geometry_nodes_move_with_reference.json")
+
+
+def create_geometry_nodes_store_breaking_frame():
+    raise RuntimeError("Not implemented yet")
+
+
+def create_geometry_nodes_remove_broken():
+    raise RuntimeError("Not implemented yet")
+
+
+def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:
+    return _load_tree_clipper_tree("geometry_nodes_restrict_view.json")

@@ -29,15 +29,12 @@ from .magic_consts import (
     SOLID_PARTICLES,
     SQUISHY_VOLUMES_TRANSFORM,
 )
-
-from .nodes.geometry_nodes_move_with_reference import (
+from .nodes import (
+    create_geometry_nodes_store_reference,
     create_geometry_nodes_move_with_reference,
-)
-from .nodes.geometry_nodes_store_reference import create_geometry_nodes_store_reference
-from .nodes.geometry_nodes_store_breaking_frame import (
     create_geometry_nodes_store_breaking_frame,
+    create_geometry_nodes_remove_broken,
 )
-from .nodes.geometry_nodes_remove_broken import create_geometry_nodes_remove_broken
 
 
 def selectable_driving_objects(_, context):
@@ -109,9 +106,7 @@ Set the actually displayed frame, but it's stored as simulation 0-indexed frame.
             optional_attributes_set_all(
                 output_obj.squishy_volumes_object.optional_attributes, False
             )
-            output_obj.squishy_volumes_object.optional_attributes.solid_transformations = (
-                True
-            )
+            output_obj.squishy_volumes_object.optional_attributes.solid_transformations = True
 
             context.collection.objects.link(output_obj)
 
