@@ -18,6 +18,8 @@
 
 import bpy
 
+from typing import Any
+
 from ..properties.util import (
     add_fields_from,
     get_input_objects,
@@ -26,11 +28,7 @@ from ..properties.util import (
     get_simulation_specific_settings,
 )
 from ..properties.squishy_volumes_object_settings import (
-    OBJECT_ENUM_COLLIDER,
-    OBJECT_ENUM_FLUID,
-    OBJECT_ENUM_SOLID,
     Squishy_Volumes_Object_Settings,
-    get_input_solids,
 )
 from ..bridge import (
     available_frames,
@@ -51,54 +49,7 @@ from ..util import (
     tutorial_msg,
 )
 from ..popup import with_popup
-
-from ..properties.squishy_volumes_object_settings import get_input_colliders
-
-
-def draw_object_settings(layout, settings):
-    layout.prop(settings, "object_enum")
-    match settings.object_enum:
-        case e if e == OBJECT_ENUM_SOLID:
-            layout.prop(settings, "density")
-            layout.prop(settings, "youngs_modulus")
-            layout.prop(settings, "poissons_ratio")
-
-            viscosity = layout.row()
-            viscosity.prop(settings, "use_viscosity", text="")
-            col = viscosity.column()
-            col.enabled = settings.use_viscosity
-            col.prop(settings, "dynamic_viscosity")
-            col.prop(settings, "bulk_viscosity")
-
-            sand_alpha = layout.row()
-            sand_alpha.prop(settings, "use_sand_alpha", text="")
-            col = sand_alpha.column()
-            col.enabled = settings.use_sand_alpha
-            col.prop(settings, "sand_alpha")
-
-            layout.prop(settings, "dilation")
-            layout.prop(settings, "randomness")
-            layout.prop(settings, "initial_linear_velocity")
-            layout.prop(settings, "initial_angular_velocity")
-        case e if e == OBJECT_ENUM_FLUID:
-            layout.prop(settings, "density")
-            layout.prop(settings, "exponent")
-            layout.prop(settings, "bulk_modulus")
-
-            viscosity = layout.row()
-            viscosity.prop(settings, "use_viscosity", text="")
-            col = viscosity.column()
-            col.enabled = settings.use_viscosity
-            col.prop(settings, "dynamic_viscosity")
-            col.prop(settings, "bulk_viscosity")
-
-            layout.prop(settings, "dilation")
-            layout.prop(settings, "randomness")
-            layout.prop(settings, "initial_linear_velocity")
-            layout.prop(settings, "initial_angular_velocity")
-        case e if e == OBJECT_ENUM_COLLIDER:
-            layout.prop(settings, "sticky_factor")
-            layout.prop(settings, "friction_factor")
+from ..nodes import create_geometry_nodes_generate_particles
 
 
 def selection_eligible_for_input(context):
@@ -119,14 +70,7 @@ def selection_eligible_for_input(context):
 class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_add_input_object"
     bl_label = "Add Input Object"
-    bl_description = """Add the selected mesh object to the list of inputs.
-
-If the input is not a collider, it will be sampled with particles
-when the initial state is constructed.
-To this end, it is important that the mesh is somewhat closed and oriented.
-
-An active output object cannot be used as input.
-Note that an eligible object must be selected."""
+    bl_description = """TODO"""
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -142,6 +86,10 @@ Note that an eligible object must be selected."""
         simulation = get_selected_simulation(context)
         settings.simulation_uuid = simulation.uuid
 
+        # TODO make this configurable
+        modifier = context.object.modifiers.new("Squishy Volumes Input", type="NODES")
+        modifier.node_group = create_geometry_nodes_generate_particles()
+
         force_ui_redraw()
 
         self.report(
@@ -150,30 +98,14 @@ Note that an eligible object must be selected."""
         )
         return {"FINISHED"}
 
-    def invoke(self, context, _):
-        return context.window_manager.invoke_props_dialog(self)
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
+        return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
 
     def draw(self, context):
-        simulation = get_selected_simulation(context)
-        self.layout.label(text=context.object.name)
-        draw_object_settings(self.layout, self)
+        self.layout.label(text=context.object.name)  # ty:ignore[possibly-missing-attribute]
+        self.layout.prop(self, "object_enum")  # ty:ignore[possibly-missing-attribute]
 
-        # tutorial
-        msg = "You're about to register the selected object as input."
-
-        added_solid = bool(get_input_solids(simulation))
-        added_collider = bool(get_input_colliders(simulation))
-        if not added_solid or not added_collider:
-            msg = (
-                msg
-                + f"""
-
-                For the *Type* select *{"Collider" if added_solid else "Solid"}*.
-
-                You can leave the settings default
-                and press OK!"""
-            )
-        tutorial_msg(self.layout, context, msg)
+        # TODO: fix tutorial
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
@@ -181,7 +113,7 @@ class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
     bl_label = "Remove"
     bl_description = """Remove the selected object from the list of inputs.
 
-Note that this does not delete the object."""
+Note that this does not delete the object or remove the input modifier."""
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -222,20 +154,24 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
-    @classmethod
-    def poll(cls, context):
-        simulation = get_selected_simulation(context)
-        return not context.scene.squishy_volumes_scene.tutorial_active or (
-            get_input_solids(simulation) and get_input_colliders(simulation)
-        )
+    # TODO: fix tutorial
+    # @classmethod
+    # def poll(cls, context):
+    #    simulation = get_selected_simulation(context)
+    #    return not context.scene.squishy_volumes_scene.tutorial_active or (
+    #        get_input_solids(simulation) and get_input_colliders(simulation)
+    #    )
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
 
+        setup_json = with_popup(simulation, lambda: create_setup_json(simulation))
+
+        if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
+            return {"FINISHED"}
+
         unregister_frame_handler()
         frame_current = context.scene.frame_current
-
-        bulk, setup_json = with_popup(simulation, lambda: create_setup_json(simulation))
 
         context.scene.frame_set(frame_current)
         register_frame_handler()
@@ -245,9 +181,6 @@ Note that this also discards all computed frames in the cache."""
 
         simulation.last_exception = ""
         simulation.loaded_frame = -1
-
-        if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
-            return {"FINISHED"}
 
         record_input(simulation, 0, bulk)
 
@@ -295,7 +228,7 @@ Note that this also discards all computed frames in the cache."""
 
 
 class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
-    def filter_items(self, context, _data, _property):
+    def filter_items(self, context: bpy.types.Context, data: Any | None, property: str):
         simulation = get_selected_simulation(context)
         if simulation is None:
             return [0] * len(bpy.data.objects), []
@@ -308,15 +241,18 @@ class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
 
     def draw_item(
         self,
-        _context,
-        layout,
-        _data,
-        obj,
-        _icon,
-        _active_data,
-        _active_property,
+        context: bpy.types.Context,
+        layout: bpy.types.UILayout,
+        data: Any | None,
+        item: Any | None,
+        icon: int | None,
+        active_data: Any,
+        active_property: str | None,
+        index: int | None,
+        flt_flag: int | None,
     ):
-        layout.label(text=obj.name)
+        assert isinstance(item, bpy.types.Object)
+        layout.label(text=item.name)
 
 
 class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):

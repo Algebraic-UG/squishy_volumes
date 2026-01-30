@@ -116,3 +116,7 @@ def create_geometry_nodes_remove_broken():
 
 def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:
     return _load_tree_clipper_tree("geometry_nodes_restrict_view.json")
+
+
+def create_geometry_nodes_generate_particles() -> bpy.types.NodeTree:
+    return _load_tree_clipper_tree("geometry_nodes_generate_particles.json")

@@ -33,7 +33,7 @@ def get_output_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if obj.squishy_volumes_object.simulation_uuid == simulation.uuid
+        if obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
     ]
 
 

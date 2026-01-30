@@ -16,13 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import bpy
+
+import mathutils
+
 import base64
 import os
 from pathlib import Path
 
-import numpy as np
-import bpy
-import mathutils
+import numpy as np  # ty:ignore[unresolved-import]
 
 from .bridge import available_frames, context_exists
 
@@ -53,8 +55,8 @@ def get_simulation_obj(simulation, name):
     collection = bpy.data.collections.get(collection_name)
     if collection is None:
         collection = bpy.data.collections.new(collection_name)
-        bpy.context.scene.collection.children.link(collection)
-        collection.squishy_volumes_collection.simulation_uuid = simulation.uuid
+        bpy.context.scene.collection.children.link(collection)  # ty:ignore[possibly-missing-attribute]
+        collection.squishy_volumes_collection.simulation_uuid = simulation.uuid  # ty:ignore[unresolved-attribute]
 
     mesh = bpy.data.meshes.get(mesh_name)
     if mesh is None:
@@ -63,8 +65,8 @@ def get_simulation_obj(simulation, name):
     obj = bpy.data.objects.get(object_name)
     if obj is None:
         obj = bpy.data.objects.new(object_name, mesh)
-        obj.squishy_volumes_object.input_name = name
-        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+        obj.squishy_volumes_object.input_name = name  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes_object.simulation_uuid = simulation.uuid  # ty:ignore[unresolved-attribute]
 
     if obj.name not in collection.all_objects:
         collection.objects.link(obj)

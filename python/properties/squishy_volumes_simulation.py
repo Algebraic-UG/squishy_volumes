@@ -152,19 +152,71 @@ Changes have *no effect* on *already running* bakes.""",
     )  # type: ignore
 
     # ----------------------------------------------------------------
-    # from_cache is read-only but can be overwritten with to_cache
+    # These are constant
     # ----------------------------------------------------------------
-    from_cache: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Simulation_Settings,
-        name="From Cache",
-        description="The currently active set of settings (readonly).",
-        options=set(),
+    grid_node_size: bpy.props.FloatProperty(
+        name="Grid Node Size",
+        description="""The major discrete space resolution of the simulation.
+Can be tricky to get right: Lower values grant higher fidelity
+in the simulation but impacts performance and stability.
+
+Overwrite the cache to manifest changes.""",
+        default=0.5,
+        min=0.001,
+        precision=5,
+        options=set(),  # can't be animated
     )  # type: ignore
-    to_cache: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Simulation_Settings,
-        name="To Cache",
-        description="The modifiable set of settings.",
-        options=set(),
+    frames_per_second: bpy.props.IntProperty(
+        name="Frames per Second",
+        description="""Controls how many simulation steps end up as viewable frames per simulated second.
+If blender's native FPS differs from this setting you'll get 'artifical' speedup or slowdown.
+
+For example:
+Given that blender's native FPS is set to 24 (default),
+to achieve a 4x 'slowmotion' effect, you need to set this to 96.
+
+Note that this also effects the interpretation of captured animations from input objects.
+
+Overwrite the cache to manifest changes.""",
+        default=24,
+        min=1,
+        options=set(),  # can't be animated
+    )  # type: ignore
+    simulation_scale: bpy.props.FloatProperty(
+        name="Simulation Scale",
+        description="""Use this to simulate things as if they were bigger or smaller.
+
+For example, if your scene is 10 meters long but should behave as if it were 10 centimeters,
+you can set this to 100.""",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        precision=6,
+        options=set(),  # can't be animated
+    )  # type: ignore
+    domain_min: bpy.props.FloatVectorProperty(
+        name="Domain Min",
+        description="""The min corner of the domain AABB.
+Particles that fall below this are deactivated.""",
+        default=(-100.0, -100.0, -100.0),
+        options=set(),  # can't be animated
+    )  # type: ignore
+    domain_max: bpy.props.FloatVectorProperty(
+        name="Domain Max",
+        description="""The max corner of the domain AABB
+Particles that rise above this are deactivated.""",
+        default=(100.0, 100.0, 100.0),
+        options=set(),  # can't be animated
+    )  # type: ignore
+
+    # ----------------------------------------------------------------
+    # These can be animated over time
+    # ----------------------------------------------------------------
+    gravity: bpy.props.FloatVectorProperty(
+        name="Gravity",
+        description="It is currently the only volumetric force and it is constant.",
+        default=(0.0, 0.0, -9.8),
+        options={"ANIMATABLE"},
     )  # type: ignore
 
     # ----------------------------------------------------------------

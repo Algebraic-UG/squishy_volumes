@@ -32,9 +32,9 @@ def add_drivers(simulation, modifier):
         var = driver.variables.new()
         var.name = "grid_node_size"
         var.type = "CONTEXT_PROP"
-        var.targets[0].data_path = (
-            f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.grid_node_size"
-        )
+        var.targets[
+            0
+        ].data_path = f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.grid_node_size"
 
     if "Particle Size" in tree:
         identifier = tree["Particle Size"].identifier
@@ -43,9 +43,9 @@ def add_drivers(simulation, modifier):
         var = driver.variables.new()
         var.name = "particle_size"
         var.type = "CONTEXT_PROP"
-        var.targets[0].data_path = (
-            f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.particle_size"
-        )
+        var.targets[
+            0
+        ].data_path = f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.particle_size"
 
 
 DRIVER_PATTERN = r"^(squishy_volumes_scene\.simulations\[)(\d+)(\].*)"
@@ -75,7 +75,7 @@ def update_drivers(removed_simulation_idx):
         if not obj.animation_data:
             continue
         for driver in obj.animation_data.drivers:
-            for variable in driver.driver.variables:
+            for variable in driver.driver.variables:  # ty:ignore[possibly-missing-attribute]
                 for target in variable.targets:
                     re_match = re.match(DRIVER_PATTERN, target.data_path)
                     if re_match:
