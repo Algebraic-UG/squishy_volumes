@@ -18,7 +18,7 @@
 
 import bpy
 
-from ..util import copy_simple_property_group, frame_to_load, tutorial_msg
+from ..util import copy_simple_property_group, frame_to_load
 
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
@@ -190,23 +190,6 @@ each frame."""
         self.layout.label(text=f"{self.output_type}")
         self.layout.prop(self, "object_name")
         draw_object_attributes(self.layout, self.output_type, self)
-        tutorial_msg(
-            self.layout,
-            context,
-            """\
-            You're about to add an output for the simulation.
-
-            This creates a new object that is a receiver
-            of the simulation results.
-            As you play the animation in Blender,
-            the receiver's data is loaded from the cache.
-
-            A default visualization is provided as a
-            geometry nodes modifier and it'll use the
-            attributes that are selected by default.
-
-            So, you can just press OK.""",
-        )
 
 
 class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
@@ -219,10 +202,6 @@ class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
     optional_attributes: bpy.props.PointerProperty(
         type=Squishy_Volumes_Optional_Attributes
     )  # type: ignore
-
-    @classmethod
-    def poll(cls, context):
-        return not context.scene.squishy_volumes_scene.tutorial_active
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
@@ -354,9 +333,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         simulation = get_selected_simulation(context)
         self.layout.prop(simulation, "display_start_frame")
         if simulation.loaded_frame == -1:
-            tut = self.layout.column()
-            tut.alert = context.scene.squishy_volumes_scene.tutorial_active
-            tut.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)
+            self.layout.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)
             return
 
         col = self.layout.column()
@@ -405,9 +382,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             )
             op.output_type = SOLID_PARTICLES
             for name in input_names.solid_names:
-                tut = box.column()
-                tut.alert = context.scene.squishy_volumes_scene.tutorial_active
-                create_operator(tut, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
+                create_operator(box, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
         if input_names.fluid_names:
             box = self.layout.box()
             row = box.row()

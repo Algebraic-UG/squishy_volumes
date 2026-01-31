@@ -37,7 +37,7 @@ from ..bridge import (
     record_input,
     start_compute,
 )
-from ..setup import create_setup_json, is_scripted
+from ..setup import create_setup_json
 from ..frame_change import (
     register_frame_handler,
     unregister_frame_handler,
@@ -46,7 +46,6 @@ from ..util import (
     copy_simple_property_group,
     force_ui_redraw,
     simulation_cache_exists,
-    tutorial_msg,
 )
 from ..popup import with_popup
 from ..nodes import create_geometry_nodes_generate_particles
@@ -105,8 +104,6 @@ class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
         self.layout.label(text=context.object.name)  # ty:ignore[possibly-missing-attribute]
         self.layout.prop(self, "object_enum")  # ty:ignore[possibly-missing-attribute]
 
-        # TODO: fix tutorial
-
 
 class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_remove_input_object"
@@ -154,14 +151,6 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
-    # TODO: fix tutorial
-    # @classmethod
-    # def poll(cls, context):
-    #    simulation = get_selected_simulation(context)
-    #    return not context.scene.squishy_volumes_scene.tutorial_active or (
-    #        get_input_solids(simulation) and get_input_colliders(simulation)
-    #    )
-
     def execute(self, context):
         simulation = get_selected_simulation(context)
 
@@ -193,14 +182,8 @@ Note that this also discards all computed frames in the cache."""
 
         return {"FINISHED"}
 
-    def invoke(self, context, _):
-        if (
-            context.scene.squishy_volumes_scene.tutorial_active
-            or simulation_cache_exists(get_selected_simulation(context))
-        ):
-            return context.window_manager.invoke_props_dialog(self)
-        else:
-            return self.execute(context)
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
+        return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
 
     def draw(self, context):
         simulation = get_selected_simulation(context)
@@ -209,22 +192,6 @@ Note that this also discards all computed frames in the cache."""
             self.layout.label(
                 text=f"The previous cache will be overwritten: {available_frames(simulation)} frames"
             )
-        tutorial_msg(
-            self.layout,
-            context,
-            """\
-            You're about to write your input to cache and
-            complete preparations to get simulating!
-
-            From this step onwards, the simulation is going to
-            remember this *current* input state.
-
-            So, if you wish to change the simulation, any
-            changes to settings, animation, geometry, etc.
-            mandate to *Overwrite Cache* again.
-
-            Please keep this in mind and press OK.""",
-        )
 
 
 class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
@@ -304,11 +271,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             "selected_input_object",
         )
         list_controls = row.column(align=True)
-        tut = list_controls.column()
-        tut.alert = context.scene.squishy_volumes_scene.tutorial_active and (
-            not get_input_solids(simulation) or not get_input_colliders(simulation)
-        )
-        tut.operator(
+        list_controls.operator(
             OBJECT_OT_Squishy_Volumes_Add_Input_Object.bl_idname,
             text="",
             icon="ADD",
@@ -326,9 +289,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             )
             header.label(text=f"Settings for {obj.name}")
             if body is not None:
-                draw_object_settings(
-                    body, get_simulation_specific_settings(simulation, obj)
-                )
+                self.layout.prop(self, "object_enum")
 
         if any([is_scripted(simulation, obj) for obj in get_input_objects(simulation)]):
             self.layout.prop(simulation, "capture_start_frame")
@@ -336,14 +297,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             self.layout.separator()
 
         row = self.layout.row()
-        tut = row.column()
-        tut.alert = bool(
-            context.scene.squishy_volumes_scene.tutorial_active
-            and get_input_solids(simulation)
-            and get_input_colliders(simulation)
-            and not context_exists(simulation)
-        )
-        tut.operator(
+        row.operator(
             SCENE_OT_Squishy_Volumes_Write_Input_To_Cache.bl_idname,
             text=(
                 "Overwrite Cache"
@@ -352,9 +306,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             ),
             icon="FILE_CACHE",
         )
-        col = row.column()
-        col.enabled = not context.scene.squishy_volumes_scene.tutorial_active
-        col.prop(simulation, "immediately_start_baking")
+        row.prop(simulation, "immediately_start_baking")
 
 
 classes = [

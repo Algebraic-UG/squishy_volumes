@@ -23,12 +23,10 @@ from .squishy_volumes_object import Squishy_Volumes_Object
 from .squishy_volumes_object_settings import Squishy_Volumes_Object_Settings
 from .squishy_volumes_scene import Squishy_Volumes_Scene
 from .squishy_volumes_simulation import Squishy_Volumes_Simulation
-from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Settings
 from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
 
 
 classes = [
-    Squishy_Volumes_Simulation_Settings,
     Squishy_Volumes_Simulation,
     Squishy_Volumes_Scene,
     Squishy_Volumes_Collection,
@@ -41,13 +39,13 @@ classes = [
 def register_properties():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(
+    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Object
     )
-    bpy.types.Collection.squishy_volumes_collection = bpy.props.PointerProperty(
+    bpy.types.Collection.squishy_volumes_collection = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Collection
     )
-    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(
+    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Scene
     )
 

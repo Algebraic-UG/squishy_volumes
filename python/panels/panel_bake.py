@@ -172,9 +172,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         col = self.layout.column()
         col.enabled = not computing(simulation)
         if available_frames(simulation) == 0:
-            tut = col.column()
-            tut.alert = context.scene.squishy_volumes_scene.tutorial_active
-            tut.operator(
+            col.operator(
                 SCENE_OT_Squishy_Volumes_Bake_Initial_Frame.bl_idname,
                 icon="PHYSICS",
             )

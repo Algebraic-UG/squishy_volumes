@@ -48,13 +48,11 @@ from ..util import (
     get_simulation_idx_by_uuid,
     simulation_cache_exists,
     simulation_cache_locked,
-    tutorial_msg,
     locked_simulations,
     unloaded_simulations,
 )
 
 
-@add_fields_from(Squishy_Volumes_Simulation)
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
@@ -65,47 +63,14 @@ and they can share input geometries, but the physics
 are completely separate from each other."""
     bl_options = {"REGISTER", "UNDO"}
 
-    @classmethod
-    def poll(cls, context):
-        return (
-            not context.scene.squishy_volumes_scene.tutorial_active
-            or not context.scene.squishy_volumes_scene.simulations
-        )
-
     def execute(self, context):
         simulations = context.scene.squishy_volumes_scene.simulations
 
         new_simulation = simulations.add()
         new_simulation.uuid = str(uuid.uuid4())
-        new_simulation.name = self.name
-        new_simulation.cache_directory = self.cache_directory
-        new_simulation.max_giga_bytes_on_disk = self.max_giga_bytes_on_disk
 
         force_ui_redraw()
         return {"FINISHED"}
-
-    def invoke(self, context, _):
-        if not context.scene.squishy_volumes_scene.tutorial_active:
-            return self.execute(context)
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, context):
-        self.layout.prop(self, "name")
-        self.layout.prop(self, "cache_directory")
-        self.layout.prop(self, "max_giga_bytes_on_disk")
-        tutorial_msg(
-            self.layout,
-            context,
-            """\
-            You're about to add a new simulation.
-
-            That means you are creating a *cache* directory
-            where all the inputs and outputs of
-            your simulation are stored!
-
-            You can leave everything as default for now
-            and press OK.""",
-        )
 
 
 class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
@@ -324,11 +289,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                         icon="WARNING_LARGE",
                     ).uuid = simulation.uuid
                 elif simulation_cache_exists(simulation):
-                    tut = row.column()
-                    tut.enabled = (
-                        not context.scene.squishy_volumes_scene.tutorial_active
-                    )
-                    tut.operator(
+                    row.operator(
                         SCENE_OT_Squishy_Volumes_Reload.bl_idname,
                         icon="FILE_CACHE",
                     ).uuid = simulation.uuid
@@ -379,12 +340,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
 
-        tut = layout.column()
-        tut.alert = (
-            context.scene.squishy_volumes_scene.tutorial_active
-            and not context.scene.squishy_volumes_scene.simulations
-        )
-        tut.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
+        layout.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
 
         if len(context.scene.squishy_volumes_scene.simulations) > 1:
             layout.separator()

@@ -170,15 +170,6 @@ def copy_simple_property_group(source, target):
             pass
 
 
-def tutorial_msg(layout, context, msg):
-    if not context.scene.squishy_volumes_scene.tutorial_active:
-        return
-    box = layout.box()
-    box.label(text="Tutorial:")
-    for line in msg.splitlines():
-        box.label(text=line.strip())
-
-
 def local_bounding_box(obj: bpy.types.Object):
     if obj.type != "MESH":
         raise TypeError(f"Object {obj.name!r} is not a mesh")

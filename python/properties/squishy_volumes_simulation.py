@@ -24,8 +24,6 @@ import bpy
 from ..bridge import drop_context
 from ..progress_update import cleanup_markers
 
-from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Settings
-
 
 def duplicate_simulation_name(simulation):
     simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
