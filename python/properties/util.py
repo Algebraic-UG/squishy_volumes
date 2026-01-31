@@ -71,7 +71,7 @@ def get_selected_simulation(context):
     return get_simulation_by_uuid(selected_uuid)
 
 
-def get_selected_input_object(context):
+def get_selected_input_object_and_settings(context):
     simulation = get_selected_simulation(context)
     if simulation is None:
         return None
@@ -79,9 +79,17 @@ def get_selected_input_object(context):
     if selected_input_object >= len(bpy.data.objects):
         return None
     obj = bpy.data.objects[selected_input_object]
-    if not get_simulation_specific_settings(simulation, obj):
+    settings = get_simulation_specific_settings(simulation, obj)
+    if settings is None:
         return None
-    return obj
+    return obj, settings
+
+
+def get_selected_input_object(context):
+    obj_and_settings = get_selected_input_object_and_settings(context)
+    if obj_and_settings is None:
+        return None
+    return obj_and_settings[0]
 
 
 def get_selected_output_object(context):

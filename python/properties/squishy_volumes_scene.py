@@ -31,8 +31,9 @@ def selectable_simulations(_, context):
 
 
 def update_object_selection(_, context):
-    obj = get_selected_input_object(context)
-    if obj is not None:
+    obj_and_settings = get_selected_input_object(context)
+    if obj_and_settings is not None:
+        obj = obj_and_settings[0]
         if obj.name in context.view_layer.objects:
             context.view_layer.objects.active = obj
             obj.select_set(True)

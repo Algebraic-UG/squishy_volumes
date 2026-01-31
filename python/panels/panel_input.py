@@ -26,6 +26,7 @@ from ..properties.util import (
     get_selected_input_object,
     get_selected_simulation,
     get_simulation_specific_settings,
+    get_selected_input_object_and_settings,
 )
 from ..properties.squishy_volumes_object_settings import (
     Squishy_Volumes_Object_Settings,
@@ -236,30 +237,19 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
     def draw(self, context):
         simulation = get_selected_simulation(context)
 
-        (header, body) = self.layout.panel("settings", default_closed=True)
-        header.label(text="Settings")
+        (header, body) = self.layout.panel("constants", default_closed=True)
+        header.label(text="Constant Globals")
         if body is not None:
-            row = body.row()
-            to_cache = row.column()
-            to_cache.prop(simulation.to_cache, "grid_node_size")
-            to_cache.prop(simulation.to_cache, "particle_factor")
-            particle_size = to_cache.column()
-            particle_size.enabled = False
-            particle_size.prop(simulation.to_cache, "particle_size")
-            to_cache.prop(simulation.to_cache, "frames_per_second")
-            to_cache.prop(simulation.to_cache, "gravity")
-            to_cache.prop(simulation.to_cache, "simulation_scale")
-            to_cache.prop(simulation.to_cache, "domain_min")
-            to_cache.prop(simulation.to_cache, "domain_max")
+            body.prop(simulation, "grid_node_size")
+            body.prop(simulation, "frames_per_second")
+            body.prop(simulation, "simulation_scale")
+            body.prop(simulation, "domain_min")
+            body.prop(simulation, "domain_max")
 
-            if context_exists(simulation):
-                from_cache = row.column()
-                from_cache.enabled = False
-                from_cache.prop(simulation.from_cache, "grid_node_size")
-                from_cache.prop(simulation.from_cache, "particle_factor")
-                from_cache.prop(simulation.from_cache, "particle_size")
-                from_cache.prop(simulation.from_cache, "frames_per_second")
-                from_cache.prop(simulation.from_cache, "gravity")
+        (header, body) = self.layout.panel("animatables", default_closed=True)
+        header.label(text="Animatable Globals")
+        if body is not None:
+            body.prop(simulation, "gravity")
 
         row = self.layout.row()
         row.column().template_list(
@@ -282,19 +272,19 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             icon="REMOVE",
         )
 
-        obj = get_selected_input_object(context)
-        if obj is not None:
+        obj_and_settings = get_selected_input_object_and_settings(context)
+        if obj_and_settings is not None:
+            obj, settings = obj_and_settings
             (header, body) = self.layout.panel(
                 "input_object_settings", default_closed=True
             )
             header.label(text=f"Settings for {obj.name}")
             if body is not None:
-                self.layout.prop(self, "object_enum")
+                body.prop(settings, "object_enum")
 
-        if any([is_scripted(simulation, obj) for obj in get_input_objects(simulation)]):
-            self.layout.prop(simulation, "capture_start_frame")
-            self.layout.prop(simulation, "capture_frames")
-            self.layout.separator()
+        self.layout.prop(simulation, "capture_start_frame")
+        self.layout.prop(simulation, "capture_frames")
+        self.layout.separator()
 
         row = self.layout.row()
         row.operator(
