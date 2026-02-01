@@ -215,3 +215,7 @@ def obj_by_index(index):
     if index < 0 or index >= len(bpy.data.objects):
         return None
     return bpy.data.objects[index]
+
+
+def index_by_object(obj):
+    return next(i for i, other in enumerate(bpy.data.objects) if other.name == obj.name)

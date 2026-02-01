@@ -50,6 +50,7 @@ from ..util import (
     copy_simple_property_group,
     force_ui_redraw,
     simulation_cache_exists,
+    index_by_object,
 )
 from ..popup import with_popup
 from ..nodes import create_geometry_nodes_generate_particles
@@ -86,6 +87,8 @@ class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
         # TODO make this configurable
         modifier = context.object.modifiers.new("Squishy Volumes Input", type="NODES")
         modifier.node_group = create_geometry_nodes_generate_particles()
+
+        context.scene.squishy_volumes_scene.selected_input_object = index_by_object(obj)
 
         force_ui_redraw()
 

@@ -52,6 +52,7 @@ from ..properties.squishy_volumes_scene import (
 from ..properties.squishy_volumes_object import (
     get_input_objects,
     get_output_objects,
+    OBJECT_TYPE_UNASSINGED,
 )
 from ..util import (
     force_ui_redraw,
@@ -150,19 +151,14 @@ please use your OS's file browser."""
     def execute(self, context):
         simulation = get_simulation_by_uuid(context.scene, self.uuid)
         idx = get_simulation_idx_by_uuid(self.uuid)
-        selected_uuid = get_selected_simulation(context).uuid
+        selected_uuid = get_selected_simulation(context.scene).uuid
 
         for obj in get_input_objects(simulation):
-            all_settings = obj.squishy_volumes_object.simulation_specific_settings
-            all_settings.remove(
-                next(
-                    i
-                    for i, settings in enumerate(all_settings)
-                    if settings.simulation_uuid == simulation.uuid
-                )
-            )
+            obj.squishy_volumes_object.simulation_uuid = "unassigned"
+            obj.squishy_volumes_object.object_type = OBJECT_TYPE_UNASSINGED
         for obj in get_output_objects(simulation):
-            obj.squishy_volumes_object.simulation_uuid = ""
+            obj.squishy_volumes_object.simulation_uuid = "unassigned"
+            obj.squishy_volumes_object.object_type = OBJECT_TYPE_UNASSINGED
 
         update_drivers(idx)
         cleanup_markers(simulation)
