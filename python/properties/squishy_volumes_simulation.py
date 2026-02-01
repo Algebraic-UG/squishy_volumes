@@ -22,7 +22,11 @@ import tempfile
 import bpy
 
 from ..bridge import drop_context
-from ..progress_update import cleanup_markers
+
+
+def reset_simulation(simulation):
+    simulation.has_loaded_frame = False
+    simulation.last_exception = ""
 
 
 def duplicate_simulation_name(simulation):
@@ -61,9 +65,6 @@ def update_name(self, context):
         self.name = make_unique(
             self.name, [s.name for s in context.scene.squishy_volumes_scene.simulations]
         )
-        return  # we'll re-enter anyway
-
-    cleanup_markers(self)
 
 
 def update_cache_directory(self, context):
@@ -81,7 +82,6 @@ def update_cache_directory(self, context):
         )
         return  # we'll re-enter anyway
 
-    cleanup_markers(self)
     drop_context(self)
 
 
@@ -286,6 +286,7 @@ the automatic one.""",
         default=True,
         options=set(),
     )  # type: ignore
+    has_loaded_frame: bpy.props.BoolProperty(default=False)  # type: ignore
     loaded_frame: bpy.props.IntProperty(
         name="Loaded Simulation Frame",
         description="""The index of the currently displayed simulation frame.

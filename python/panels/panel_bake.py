@@ -19,7 +19,7 @@
 import json
 import bpy
 
-from ..properties.util import get_selected_simulation
+from ..properties.squishy_volumes_scene import get_selected_simulation
 from ..bridge import (
     computing,
     available_frames,
@@ -160,7 +160,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         return (
             context.mode == "OBJECT"
             and simulation is not None
@@ -168,7 +168,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         )
 
     def draw(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         col = self.layout.column()
         col.enabled = not computing(simulation)
         if available_frames(simulation) == 0:

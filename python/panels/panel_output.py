@@ -18,6 +18,9 @@
 
 import bpy
 
+from typing import Any
+
+
 from ..util import copy_simple_property_group, frame_to_load
 
 from ..nodes.drivers import remove_drivers
@@ -32,6 +35,9 @@ from ..magic_consts import (
     SOLID_PARTICLES,
 )
 
+
+from ..properties.squishy_volumes_object import get_output_objects
+from ..properties.squishy_volumes_scene import get_selected_simulation
 from ..properties.squishy_volumes_object_attributes import (
     Squishy_Volumes_Optional_Attributes,
 )
@@ -41,9 +47,6 @@ from ..output import (
 )
 from ..properties.util import (
     add_fields_from,
-    get_output_objects,
-    get_selected_output_object,
-    get_selected_simulation,
 )
 from ..bridge import InputNames, available_frames, context_exists
 
@@ -118,7 +121,7 @@ in the loaded cache."""
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         context.scene.frame_set(simulation.display_start_frame)
 
         self.report(
@@ -150,7 +153,7 @@ each frame."""
     num_colliders: bpy.props.IntProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
 
         frame = frame_to_load(simulation, context.scene.frame_current)
         if frame is None:
@@ -204,7 +207,7 @@ class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
     )  # type: ignore
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
 
         frame = frame_to_load(simulation, context.scene.frame_current)
         if frame is None:
@@ -288,7 +291,7 @@ Note that this does not delete the object."""
 
 class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
     def filter_items(self, context, _data, _property):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         if simulation is None:
             return [0] * len(bpy.data.objects), []
 
@@ -300,15 +303,18 @@ class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
 
     def draw_item(
         self,
-        _context,
-        layout,
-        _data,
-        obj,
-        _icon,
-        _active_data,
-        _active_property,
+        context: bpy.types.Context,
+        layout: bpy.types.UILayout,
+        data: Any | None,
+        item: Any | None,
+        icon: int | None,
+        active_data: Any,
+        active_property: str | None,
+        index: int | None,
+        flt_flag: int | None,
     ):
-        layout.label(text=obj.name)
+        assert isinstance(item, bpy.types.Object)
+        layout.label(text=item.name)
 
 
 class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
@@ -320,7 +326,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         return (
             context.mode == "OBJECT"
             and simulation is not None
@@ -330,7 +336,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         )
 
     def draw(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         self.layout.prop(simulation, "display_start_frame")
         if simulation.loaded_frame == -1:
             self.layout.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)

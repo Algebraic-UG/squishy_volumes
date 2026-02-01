@@ -21,24 +21,53 @@ import bpy
 from ..magic_consts import OUTPUT_TYPES
 
 from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
-from .squishy_volumes_object_settings import Squishy_Volumes_Object_Settings
+
+OBJECT_TYPE_UNASSINGED = "Unassigned"
+OBJECT_TYPE_INPUT = "Input"
+OBJECT_TYPE_OUTPUT = "Output"
+
+
+def get_input_objects(simulation):
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.squishy_volumes_object.object_type == OBJECT_TYPE_INPUT  # ty:ignore[unresolved-attribute]
+        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
+    ]
+
+
+def get_output_objects(simulation):
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.squishy_volumes_object.object_type == OBJECT_TYPE_OUTPUT  # ty:ignore[unresolved-attribute]
+        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
+    ]
 
 
 class Squishy_Volumes_Object(bpy.types.PropertyGroup):
-    simulation_specific_settings: bpy.props.CollectionProperty(
-        type=Squishy_Volumes_Object_Settings,
-        name="Settings per Simulation",
-        description="For each simulation an input can have different meanings.",
+    simulation_uuid: bpy.props.StringProperty(
+        name="Simulation UUID",
+        description="Reference to the Simulation.",
+        default="unassigned",
         options=set(),
     )  # type: ignore
+
+    object_type: bpy.props.EnumProperty(
+        items=[
+            (OBJECT_TYPE_UNASSINGED,) * 3,
+            (OBJECT_TYPE_INPUT,) * 3,
+            (OBJECT_TYPE_OUTPUT,) * 3,
+        ],  # ty:ignore[invalid-argument-type]
+        name="Object Type",
+        description="""TODO""",
+        default=OBJECT_TYPE_UNASSINGED,
+        options=set(),
+    )  # type: ignore
+
     input_name: bpy.props.StringProperty(
         name="Original Input Name",
         description="Referenced for retrieving outputs.",
-        options=set(),
-    )  # type: ignore
-    simulation_uuid: bpy.props.StringProperty(
-        name="Simulation UUID",
-        description="The UUID of the simulation driving this",
         options=set(),
     )  # type: ignore
     output_type: bpy.props.StringProperty(

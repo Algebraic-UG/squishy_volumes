@@ -20,28 +20,31 @@ import bpy
 
 from typing import Any
 
-from ..properties.util import (
-    add_fields_from,
-    get_input_objects,
-    get_selected_input_object,
+from ..properties.util import add_fields_from
+
+from ..properties.squishy_volumes_simulation import reset_simulation
+from ..properties.squishy_volumes_scene import (
     get_selected_simulation,
-    get_simulation_specific_settings,
-    get_selected_input_object_and_settings,
+    get_selected_input_object,
 )
-from ..properties.squishy_volumes_object_settings import (
-    Squishy_Volumes_Object_Settings,
+from ..properties.squishy_volumes_object import (
+    OBJECT_TYPE_UNASSINGED,
+    OBJECT_TYPE_INPUT,
+    get_input_objects,
 )
+
 from ..bridge import (
     available_frames,
     context_exists,
     new_simulation,
     record_input,
     start_compute,
+    P,
 )
 from ..setup import create_setup_json
 from ..frame_change import (
-    register_frame_handler,
-    unregister_frame_handler,
+    register_handler,
+    unregister_handler,
 )
 from ..util import (
     copy_simple_property_group,
@@ -54,19 +57,15 @@ from ..nodes import create_geometry_nodes_generate_particles
 
 def selection_eligible_for_input(context):
     return (
-        get_selected_simulation(context) is not None
+        get_selected_simulation(context.scene) is not None
         and context.active_object is not None
         and context.active_object.select_get()
         and context.active_object.type == "MESH"
-        # This could be allowed?
-        and not context.active_object.squishy_volumes_object.simulation_uuid
-        and not get_simulation_specific_settings(
-            get_selected_simulation(context), context.active_object
-        )
+        and context.active_object.squishy_volumes_object.object_type
+        == OBJECT_TYPE_UNASSINGED
     )
 
 
-@add_fields_from(Squishy_Volumes_Object_Settings)
 class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_add_input_object"
     bl_label = "Add Input Object"
@@ -78,13 +77,11 @@ class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
         return selection_eligible_for_input(context)
 
     def execute(self, context):
-        settings = (
-            context.object.squishy_volumes_object.simulation_specific_settings.add()
-        )
-        copy_simple_property_group(self, settings)
+        obj = context.active_object
 
-        simulation = get_selected_simulation(context)
-        settings.simulation_uuid = simulation.uuid
+        simulation = get_selected_simulation(context.scene)
+        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+        obj.squishy_volumes_object.object_type = OBJECT_TYPE_INPUT
 
         # TODO make this configurable
         modifier = context.object.modifiers.new("Squishy Volumes Input", type="NODES")
@@ -103,7 +100,7 @@ class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
 
     def draw(self, context):
         self.layout.label(text=context.object.name)  # ty:ignore[possibly-missing-attribute]
-        self.layout.prop(self, "object_enum")  # ty:ignore[possibly-missing-attribute]
+        self.layout.prop(self, "object_type")  # ty:ignore[possibly-missing-attribute]
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
@@ -116,28 +113,22 @@ Note that this does not delete the object or remove the input modifier."""
 
     @classmethod
     def poll(cls, context):
+        simulation = get_selected_simulation(context.scene)
         return (
-            context.mode == "OBJECT"
-            and get_selected_simulation(context) is not None
-            and get_selected_input_object(context) is not None
+            simulation is not None
+            and context.active_object is not None
+            and context.active_object.select_get()
+            and context.active_object.squishy_volumes_object.object_type
+            == OBJECT_TYPE_INPUT
+            and context.active_object.squishy_volumes_object.simulation_uuid
+            == simulation.uuid
         )
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
-        obj = get_selected_input_object(context)
-        simulation_specific_settings = (
-            obj.squishy_volumes_object.simulation_specific_settings
-        )
-        simulation_specific_settings.remove(
-            next(
-                idx
-                for idx, settings in enumerate(simulation_specific_settings)
-                if settings.simulation_uuid == simulation.uuid
-            )
-        )
-        self.report(
-            {"INFO"}, f"Removed {obj.name} from input objects of {simulation.name}."
-        )
+        obj = context.active_object.squishy_volumes_object
+        obj.simulation_uuid = "unassigned"
+        obj.object_type = OBJECT_TYPE_UNASSINGED
+        self.report({"INFO"}, f"Removed {obj.name} from inputs.")
         return {"FINISHED"}
 
 
@@ -154,33 +145,22 @@ Note that this also discards all computed frames in the cache."""
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
+        reset_simulation(simulation)
+
+        self.report({"INFO"}, f"Resetting {simulation.name}")
 
         setup_json = with_popup(simulation, lambda: create_setup_json(simulation))
-
-        if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
-            return {"FINISHED"}
-
-        unregister_frame_handler()
-        frame_current = context.scene.frame_current
-
-        context.scene.frame_set(frame_current)
-        register_frame_handler()
-
         if not setup_json:
             return {"CANCELLED"}
 
-        simulation.last_exception = ""
-        simulation.loaded_frame = -1
+        self.report({"INFO"}, f"Collected meta info for {simulation.name}")
 
-        record_input(simulation, 0, bulk)
+        if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
+            return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Updating cache of {simulation.name}")
+        self.report({"INFO"}, f"(Re)Created {simulation.name}")
 
-        if simulation.immediately_start_baking:
-            simulation.last_exception = ""
-            start_compute(simulation, available_frames(simulation))
-            self.report({"INFO"}, f"Commence baking of {simulation.name}.")
-
+        bpy.ops.scene.squishy_volumes_write_input_to_cache_modal("INVOKE_DEFAULT")  # ty: ignore[unresolved-attribute]
         return {"FINISHED"}
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
@@ -195,9 +175,58 @@ Note that this also discards all computed frames in the cache."""
             )
 
 
+class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_write_input_to_cache_modal"
+    bl_options = {"REGISTER"}
+
+    _timer = None
+
+    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
+        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+
+        context.scene.frame_set(simulation.capture_start_frame)  # ty:ignore[possibly-missing-attribute]
+
+        self._timer = context.window_manager.event_timer_add(  # ty:ignore[possibly-missing-attribute]
+            time_step=0, window=context.window
+        )
+        context.window_manager.progress_begin(0, simulation.capture_frames)  # ty:ignore[possibly-missing-attribute]
+        context.window_manager.modal_handler_add(self)  # ty:ignore[possibly-missing-attribute]
+
+        return {"RUNNING_MODAL"}
+
+    def modal(self, context: bpy.types.Context, event: bpy.types.Event):
+        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+
+        if event.type in {"RIGHTMOUSE", "ESC"}:
+            context.window_manager.event_timer_remove(self._timer)  # ty:ignore[possibly-missing-attribute, invalid-argument-type]
+            self.report(
+                {"WARNING"},
+                f"Capture of {simulation.name} incomplete due to user cancellation.",
+            )
+            return {"CANCELLED"}
+
+        captured_frames = context.scene.frame_current - simulation.capture_start_frame  # ty:ignore[possibly-missing-attribute]
+        assert captured_frames > 0
+        if captured_frames < simulation.capture_frames:
+            # TODO: capture input
+
+            context.window_manager.progress_update(captured_frames)  # ty:ignore[possibly-missing-attribute]
+            return {"RUNNING_MODAL"}
+        context.window_manager.progress_end()  # ty:ignore[possibly-missing-attribute]
+
+        self.report({"INFO"}, f"Finished capturing input for {simulation.name}")
+
+        if simulation.immediately_start_baking:
+            simulation.last_exception = ""
+            start_compute(simulation, 0)
+            self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+
+        return {"FINISHED"}
+
+
 class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
     def filter_items(self, context: bpy.types.Context, data: Any | None, property: str):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
         if simulation is None:
             return [0] * len(bpy.data.objects), []
 
@@ -232,10 +261,13 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.mode == "OBJECT" and get_selected_simulation(context) is not None
+        return (
+            context.mode == "OBJECT"
+            and get_selected_simulation(context.scene) is not None
+        )
 
     def draw(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
 
         (header, body) = self.layout.panel("constants", default_closed=True)
         header.label(text="Constant Globals")
@@ -272,15 +304,14 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             icon="REMOVE",
         )
 
-        obj_and_settings = get_selected_input_object_and_settings(context)
-        if obj_and_settings is not None:
-            obj, settings = obj_and_settings
+        obj = get_selected_input_object(context.scene)
+        if obj is not None:
             (header, body) = self.layout.panel(
                 "input_object_settings", default_closed=True
             )
             header.label(text=f"Settings for {obj.name}")
             if body is not None:
-                body.prop(settings, "object_enum")
+                body.prop(obj.squishy_volumes_object, "object_type")
 
         self.layout.prop(simulation, "capture_start_frame")
         self.layout.prop(simulation, "capture_frames")

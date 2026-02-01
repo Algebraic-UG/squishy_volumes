@@ -20,10 +20,8 @@ import json
 import time
 import bpy
 
-from .util import frame_to_load, get_simulation_by_uuid
 from .nodes.drivers import remove_drivers
 from .popup import with_popup
-from .properties.util import get_output_objects
 from .output import (
     sync_output,
 )
@@ -33,6 +31,8 @@ from .bridge import (
     context_exists,
     fetch_flat_attribute,
 )
+from .util import frame_to_load
+from .properties.squishy_volumes_object import get_output_objects
 
 
 def sync(scene):
@@ -41,37 +41,8 @@ def sync(scene):
             sync_simulation(simulation, scene.frame_current)
 
 
-# this is needed since the scene data block is sometimes (?)
-# write protected in the frame handler.
-def deferred_update(uuid, frame):
-    simulation = get_simulation_by_uuid(uuid)
-
-    if frame is None:
-        simulation.loaded_frame = -1
-    else:
-        simulation.loaded_frame = frame
-
-        def ffa(attribute):
-            return fetch_flat_attribute(
-                simulation,
-                frame,
-                json.dumps({"Setting": attribute}),
-            )
-
-        simulation.from_cache.grid_node_size = ffa("GridNodeSize")[0]
-        simulation.from_cache.particle_size = ffa("ParticleSize")[0]
-        simulation.from_cache.frames_per_second = int(ffa("FramesPerSecond")[0])
-        simulation.from_cache.gravity = ffa("Gravity")
-
-    return None  # unregister
-
-
 def sync_simulation(simulation, frame):
     frame = frame_to_load(simulation, frame)
-    bpy.app.timers.register(
-        lambda: deferred_update(simulation.uuid, frame),
-        first_interval=0.0,
-    )
 
     if frame is None:
         return
@@ -120,17 +91,17 @@ def check_interface_locked(scene):
         )
 
 
-def register_frame_handler():
+def register_handler():
     if check_interface_locked not in bpy.app.handlers.render_pre:
-        bpy.app.handlers.render_pre.append(check_interface_locked)
+        bpy.app.handlers.render_pre.append(check_interface_locked)  # ty:ignore[invalid-argument-type]
         print("Squishy Volumes render pre check registered.")
 
     if frame_change_handler not in bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(frame_change_handler)
+        bpy.app.handlers.frame_change_pre.append(frame_change_handler)  # ty:ignore[invalid-argument-type]
         print("Squishy Volumes frame change handler registered.")
 
 
-def unregister_frame_handler():
+def unregister_handler():
     if frame_change_handler in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.remove(frame_change_handler)
         print("Squishy Volumes frame change handler unregistered.")

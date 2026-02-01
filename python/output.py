@@ -19,7 +19,7 @@
 
 import json
 import mathutils
-import numpy as np
+import numpy as np  # ty:ignore[unresolved-import]
 
 from .magic_consts import (
     SQUISHY_VOLUMES_COLLIDER_INSIDE,

@@ -123,12 +123,6 @@ def get_simulation_idx_by_uuid(uuid):
 
 
 # TODO: pass the scene
-def get_simulation_by_uuid(uuid):
-    for simulation in bpy.context.scene.squishy_volumes_scene.simulations:
-        if simulation.uuid == uuid:
-            return simulation
-    raise RuntimeError(f"There is no simulation with UUID {uuid}")
-
 
 DEBUG_VISUALS = "Squishy Volumes Debug Visuals"
 
@@ -215,3 +209,9 @@ def unloaded_simulations(context):
         for simulation in context.scene.squishy_volumes_scene.simulations
         if not context_exists(simulation) and simulation_cache_exists(simulation)
     ]
+
+
+def obj_by_index(index):
+    if index < 0 or index >= len(bpy.data.objects):
+        return None
+    return bpy.data.objects[index]

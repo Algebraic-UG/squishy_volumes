@@ -15,13 +15,16 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import re
+
+import bpy
+
 
 import json
 import os
 import uuid
 from pathlib import Path
 
-import bpy
 
 from ..bridge import (
     available_frames,
@@ -35,16 +38,23 @@ from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from ..properties.squishy_volumes_simulation import (
+    Squishy_Volumes_Simulation,
+    reset_simulation,
+)
 from ..properties.util import (
+    add_fields_from,
+)
+from ..properties.squishy_volumes_scene import (
+    get_simulation_by_uuid,
+    get_selected_simulation,
+)
+from ..properties.squishy_volumes_object import (
     get_input_objects,
     get_output_objects,
-    get_selected_simulation,
-    add_fields_from,
 )
 from ..util import (
     force_ui_redraw,
-    get_simulation_by_uuid,
     get_simulation_idx_by_uuid,
     simulation_cache_exists,
     simulation_cache_locked,
@@ -82,9 +92,8 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(self.uuid)
-        simulation.last_exception = ""
-        simulation.loaded_frame = -1
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
+        reset_simulation(simulation)
         load_simulation(simulation)
         sync_simulation(simulation, context.scene.frame_current)
         self.report({"INFO"}, "Reloaded simulation.")
@@ -105,15 +114,14 @@ This is useful when reloading a Blender filer with multiple simulations."""
                 os.remove(lock_file)
                 self.report({"INFO"}, "Removed lock file.")
 
-            simulation.last_exception = ""
-            simulation.loaded_frame = -1
+            reset_simulation(simulation)
             load_simulation(simulation)
             sync_simulation(simulation, context.scene.frame_current)
             self.report({"INFO"}, "Reloaded simulation.")
 
         return {"FINISHED"}
 
-    def invoke(self, context, _event):
+    def invoke(self, context, event):
         if locked_simulations(context):
             return context.window_manager.invoke_props_dialog(self)
         else:
@@ -140,7 +148,7 @@ please use your OS's file browser."""
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(self.uuid)
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
         idx = get_simulation_idx_by_uuid(self.uuid)
         selected_uuid = get_selected_simulation(context).uuid
 
@@ -189,8 +197,8 @@ However, the lock file can remain after a crash, in which case it must be delete
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
-    def execute(self, _context):
-        simulation = get_simulation_by_uuid(self.uuid)
+    def execute(self, context):
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
         lock_file = Path(simulation.cache_directory) / "lock"
         if os.path.exists(lock_file):
             os.remove(lock_file)
@@ -206,7 +214,7 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
-    def execute(self, _context):
+    def execute(self, context):
         popup(self.uuid)
         return {"FINISHED"}
 

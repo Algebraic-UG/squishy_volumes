@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     default_cube.select_set(True)
     bpy.context.view_layer.objects.active = default_cube
-    bpy.ops.object.squishy_volumes_add_input_object(object_enum="Solid")
+    bpy.ops.object.squishy_volumes_add_input_object(object_type="Solid")
 
     bpy.ops.mesh.primitive_uv_sphere_add(
         radius=1,
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         location=(0, 0, 3),
         scale=(1, 1, 1),
     )
-    bpy.ops.object.squishy_volumes_add_input_object(object_enum="Fluid")
+    bpy.ops.object.squishy_volumes_add_input_object(object_type="Fluid")
     bpy.context.active_object.hide_render = True
 
     bpy.ops.mesh.primitive_plane_add(
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    bpy.ops.object.squishy_volumes_add_input_object(object_enum="Collider")
+    bpy.ops.object.squishy_volumes_add_input_object(object_type="Collider")
 
     bpy.ops.scene.squishy_volumes_write_input_to_cache()
 

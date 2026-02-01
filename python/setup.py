@@ -19,7 +19,7 @@
 import bpy
 import json
 
-from .properties.util import get_input_objects, get_simulation_specific_settings
+from .properties.squishy_volumes_object import get_input_objects
 
 
 def create_setup_json(simulation):
@@ -51,8 +51,7 @@ def create_setup_json(simulation):
 
     for obj in get_input_objects(simulation):
         name = obj.name
-        obj_settings = get_simulation_specific_settings(simulation, obj)
-        ty = obj_settings.object_enum
+        ty = obj.squishy_volumes_object.object_type
         objects.append(
             {
                 "name": name,
