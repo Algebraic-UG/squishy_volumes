@@ -6,15 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod context;
-mod simulation;
-mod simulation_input;
+use serde::{Deserialize, Serialize};
 
-pub use context::*;
-pub use simulation::*;
-pub use simulation_input::*;
-
-#[cfg(feature = "f64")]
-pub type T = f64;
-#[cfg(not(feature = "f64"))]
-pub type T = f32;
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ObjectParticles {
+    pub particles: Vec<usize>,
+}

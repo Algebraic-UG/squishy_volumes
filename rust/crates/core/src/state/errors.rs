@@ -6,15 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod context;
-mod simulation;
-mod simulation_input;
+use thiserror::Error;
 
-pub use context::*;
-pub use simulation::*;
-pub use simulation_input::*;
-
-#[cfg(feature = "f64")]
-pub type T = f64;
-#[cfg(not(feature = "f64"))]
-pub type T = f32;
+#[derive(Error, Debug)]
+pub enum AttributeError {
+    #[error("Failed to deserialize key: {0}")]
+    KeyDeserialization(#[from] serde_json::Error),
+}

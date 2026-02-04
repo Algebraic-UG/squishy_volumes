@@ -147,7 +147,7 @@ Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
         reset_simulation(simulation)
 
         self.report({"INFO"}, f"Resetting {simulation.name}")
@@ -167,15 +167,18 @@ Note that this also discards all computed frames in the cache."""
         return {"FINISHED"}
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
+        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+        if simulation_cache_exists(simulation):
+            return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
+        else:
+            return self.execute(context)
 
     def draw(self, context):
-        simulation = get_selected_simulation(context)
-        if simulation_cache_exists(simulation):
-            self.layout.label(text="WARNING: This is a destructive operation!")
-            self.layout.label(
-                text=f"The previous cache will be overwritten: {available_frames(simulation)} frames"
-            )
+        simulation = get_selected_simulation(context.scene)
+        self.layout.label(text="WARNING: This is a destructive operation!")
+        self.layout.label(
+            text=f"The previous cache will be overwritten: {available_frames(simulation)} frames"
+        )
 
 
 class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):

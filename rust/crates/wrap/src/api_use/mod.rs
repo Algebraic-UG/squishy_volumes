@@ -6,15 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod context;
-mod simulation;
-mod simulation_input;
-
-pub use context::*;
-pub use simulation::*;
-pub use simulation_input::*;
-
-#[cfg(feature = "f64")]
-pub type T = f64;
-#[cfg(not(feature = "f64"))]
-pub type T = f32;
+pub mod context;
+pub mod simulation;
+pub mod simulation_input;

@@ -6,15 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod context;
-mod simulation;
-mod simulation_input;
+use anyhow::Result;
 
-pub use context::*;
-pub use simulation::*;
-pub use simulation_input::*;
+use super::{PhaseInput, State};
 
-#[cfg(feature = "f64")]
-pub type T = f64;
-#[cfg(not(feature = "f64"))]
-pub type T = f32;
+impl State {
+    pub fn implicit_solve(self, _phase_input: &mut PhaseInput) -> Result<Self> {
+        panic!("This isn't ready yet :(");
+    }
+}

@@ -29,14 +29,14 @@ def create_setup_json(simulation):
     simulation_scale = simulation.simulation_scale
     frames_per_second = simulation.frames_per_second
     domain_min = [
-        simulation.to_cache.domain_min[0],
-        simulation.to_cache.domain_min[1],
-        simulation.to_cache.domain_min[2],
+        simulation.domain_min[0],
+        simulation.domain_min[1],
+        simulation.domain_min[2],
     ]
     domain_max = [
-        simulation.to_cache.domain_max[0],
-        simulation.to_cache.domain_max[1],
-        simulation.to_cache.domain_max[2],
+        simulation.domain_max[0],
+        simulation.domain_max[1],
+        simulation.domain_max[2],
     ]
 
     consts = {
