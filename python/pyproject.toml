@@ -1,0 +1,27 @@
+[project]
+name = "squishy-volumes"
+version = "0.0.0" # not used
+requires-python = ">=3.11"
+dependencies = [
+  "tree-clipper",
+  "numpy==1.26.4", # should match what blender uses
+]
+classifiers = ["Private :: Do Not Upload"]
+
+[dependency-groups]
+dev = [
+  "fake-bpy-module>=20251003",
+  "ruff>=0.14.10",
+  "ty>=0.0.3",
+  "vendorize",
+  "pip>=25.3",
+]
+
+[tool.uv.sources]
+# to get support for pyproject.toml (which isn't released) and to upgrade on changes (only in the fork)
+vendorize = { git = "https://github.com/Vollkornaffe/python-vendorize.git", rev = "f284834c558483542ba0886f992ae2b918c22ab3" }
+
+[tool.vendorize]
+target = "_vendor"
+packages = ["tree-clipper"]
+
