@@ -21,12 +21,7 @@ import re
 import tempfile
 import bpy
 
-from ..bridge import drop_context
-
-
-def reset_simulation(simulation):
-    simulation.has_loaded_frame = False
-    simulation.last_exception = ""
+from ..bridge import Simulation
 
 
 def duplicate_simulation_name(simulation):
@@ -40,11 +35,11 @@ def duplicate_simulation_name(simulation):
     )
 
 
-def duplicate_simulation_cache_directory(simulation):
+def duplicate_simulation_directory(simulation):
     simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
-            simulation.cache_directory == other.cache_directory
+            simulation.directory == other.directory
             for other in simulations
             if other.uuid != simulation.uuid
         ]
@@ -67,18 +62,15 @@ def update_name(self, context):
         )
 
 
-def update_cache_directory(self, context):
-    if self.cache_directory != str(Path(self.cache_directory)):
-        self.cache_directory = str(Path(self.cache_directory))
+def update_directory(self, context):
+    if self.directory != str(Path(self.directory)):
+        self.directory = str(Path(self.directory))
         return  # we'll re-enter anyway
 
-    if duplicate_simulation_cache_directory(self):
-        self.cache_directory = make_unique(
-            self.cache_directory,
-            [
-                s.cache_directory
-                for s in context.scene.squishy_volumes_scene.simulations
-            ],
+    if duplicate_simulation_directory(self):
+        self.directory = make_unique(
+            self.directory,
+            [s.directory for s in context.scene.squishy_volumes_scene.simulations],
         )
         return  # we'll re-enter anyway
 
@@ -109,7 +101,7 @@ class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    cache_directory: bpy.props.StringProperty(
+    directory: bpy.props.StringProperty(
         name="Cache",
         description="""Directory that holds the relevant simulation data.
 This includes settings, meshes, animations and simulated frames.
@@ -120,7 +112,7 @@ The latter being a temporary file indicating ownership.""",
         default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
         subtype="DIR_PATH",
         options=set(),
-        update=update_cache_directory,
+        update=update_directory,
     )  # type: ignore
 
     sync: bpy.props.BoolProperty(

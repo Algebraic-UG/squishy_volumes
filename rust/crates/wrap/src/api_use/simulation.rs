@@ -35,6 +35,10 @@ impl Simulation {
         })
     }
 
+    pub fn uuid(&self) -> String {
+        self.0.clone()
+    }
+
     pub fn poll(&self) -> Result<String> {
         try_with_context(|context| {
             Ok(context

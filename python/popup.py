@@ -18,6 +18,7 @@
 
 import bpy
 from .properties.squishy_volumes_scene import get_simulation_by_uuid
+from .bridge import Simulation
 
 
 # As far as I know there isn't a way to set operator's properties
@@ -33,13 +34,14 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)
+        sim = Simulation.get(uuid=self.uuid)
+        assert sim is not None, f"No simulation context for {self.uuid}"
+
         self.report(
             {"INFO"},
-            message="Squishy Volumes clearing last message:\n"
-            + simulation.last_exception,
+            message="Squishy Volumes clearing last message:\n" + sim.last_error,
         )
-        simulation.last_exception = ""
+        sim.last_error = ""
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -50,9 +52,10 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
         )
 
     def draw(self, context):
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)
-        for line in simulation.last_exception.splitlines():
-            self.layout.label(text=line)
+        sim = Simulation.get(uuid=self.uuid)
+        assert sim is not None, f"No simulation context for {self.uuid}"
+        for line in sim.last_error.splitlines():
+            self.layout.label(text=line)  # ty:ignore[possibly-missing-attribute]
 
 
 classes = [
@@ -78,12 +81,16 @@ def popup(uuid):
     bpy.ops.scene.squishy_volumes_popup("INVOKE_DEFAULT")  # ty:ignore[unresolved-attribute]
 
 
-def with_popup(simulation, f):
+def with_popup(*, uuid, f):
     try:
         return f()
     except RuntimeError as e:
         s = f"""{e}
 (Please 'Clear Message' to print to 'Info')"""
-        if simulation.last_exception != s:
-            simulation.last_exception = s
-            popup(simulation.uuid)
+
+        sim = Simulation.get(uuid=uuid)
+        assert sim is not None, f"No simulation context for {uuid}"
+
+        if sim.last_error != s:
+            sim.last_error = s
+            popup(uuid)

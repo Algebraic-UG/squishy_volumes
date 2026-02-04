@@ -35,11 +35,8 @@ from ..properties.squishy_volumes_object import (
 
 from ..bridge import (
     available_frames,
-    context_exists,
     new_simulation,
-    record_input,
     start_compute,
-    P,
 )
 from ..setup import create_setup_json
 from ..frame_change import (
@@ -49,7 +46,7 @@ from ..frame_change import (
 from ..util import (
     copy_simple_property_group,
     force_ui_redraw,
-    simulation_cache_exists,
+    simulation_input_exists,
     index_by_object,
 )
 from ..popup import with_popup
@@ -168,7 +165,7 @@ Note that this also discards all computed frames in the cache."""
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
-        if simulation_cache_exists(simulation):
+        if simulation_input_exists(simulation):
             return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
         else:
             return self.execute(context)
@@ -328,7 +325,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             SCENE_OT_Squishy_Volumes_Write_Input_To_Cache.bl_idname,
             text=(
                 "Overwrite Cache"
-                if simulation_cache_exists(simulation)
+                if simulation_input_exists(simulation)
                 else "Initialize Cache"
             ),
             icon="FILE_CACHE",

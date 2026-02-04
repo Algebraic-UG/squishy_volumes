@@ -133,12 +133,12 @@ def force_ui_redraw():
             area.tag_redraw()
 
 
-def simulation_cache_locked(simulation):
-    return os.path.exists(Path(simulation.cache_directory) / "lock")
+def simulation_locked(simulation):
+    return os.path.exists(Path(simulation.directory) / "lock")
 
 
-def simulation_cache_exists(simulation):
-    return os.path.exists(Path(simulation.cache_directory) / "setup.json")
+def simulation_input_exists(simulation):
+    return os.path.exists(Path(simulation.directory) / "simulation_input.bin")
 
 
 def fix_quaternion_order(quaternion):
@@ -199,7 +199,7 @@ def locked_simulations(context):
     return [
         simulation
         for simulation in context.scene.squishy_volumes_scene.simulations
-        if not context_exists(simulation) and simulation_cache_locked(simulation)
+        if not context_exists(simulation) and simulation_locked(simulation)
     ]
 
 
@@ -207,7 +207,7 @@ def unloaded_simulations(context):
     return [
         simulation
         for simulation in context.scene.squishy_volumes_scene.simulations
-        if not context_exists(simulation) and simulation_cache_exists(simulation)
+        if not context_exists(simulation) and simulation_input_exists(simulation)
     ]
 
 
@@ -219,3 +219,7 @@ def obj_by_index(index):
 
 def index_by_object(obj):
     return next(i for i, other in enumerate(bpy.data.objects) if other.name == obj.name)
+
+
+def giga_f32_to_u64(giga_float):
+    return int(float(giga_float) * 1e9)

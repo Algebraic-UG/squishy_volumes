@@ -70,6 +70,8 @@ class Simulation:
     def __init__(self, *, handle: squishy_volumes_wrap.Simulation):
         _simulations[handle.uuid()] = self
         self.handle = handle
+        self.last_error = ""
+        self.progress = None
 
     @staticmethod
     def exists(*, uuid: str) -> bool:
@@ -90,8 +92,8 @@ class Simulation:
         return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))
 
     @hint_at_info
-    def poll(self) -> dict[str, Any]:
-        return self.handle.poll()
+    def poll(self):
+        self.progress = json.loads(self.handle.poll())
 
     @hint_at_info
     def computing(self) -> bool:

@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     test_install(URL)
 
-    bpy.ops.scene.squishy_volumes_add_simulation(cache_directory=test_dir)
+    bpy.ops.scene.squishy_volumes_add_simulation(directory=test_dir)
     simulation_uuid = bpy.context.scene.squishy_volumes_scene.simulations[0].uuid
 
     default_cube = bpy.data.objects["Cube"]
