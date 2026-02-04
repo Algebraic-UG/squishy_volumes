@@ -276,7 +276,6 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
                 col = body.column()
                 col.prop(simulation, "sync")
-                col.enabled = simulation
                 col.prop(simulation, "max_giga_bytes_on_disk")
 
                 row = body.row()

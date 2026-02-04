@@ -36,12 +36,12 @@ Outputs become available as the initial state is created."""
     @classmethod
     def poll(cls, context):
         simulation = get_selected_simulation(context)
-        return (
-            simulation is not None
-            and context_exists(simulation)
-            and not computing(simulation)
-            and available_frames(simulation) == 0
-        )
+        if simulation is None:
+            return False
+        sim = Simulation.get(uuid=simulation.uuid)
+        if sim is None:
+            return False
+        return not sim.computing() and sim.available_frames() == 0
 
     def execute(self, context):
         simulation = get_selected_simulation(context)
@@ -153,12 +153,10 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
+        if context.mode != "OBJECT":
+            return False
         simulation = get_selected_simulation(context.scene)
-        return (
-            context.mode == "OBJECT"
-            and simulation is not None
-            and context_exists(simulation)
-        )
+        return simulation is not None and Simulation.exists(uuid=simulation.uuid)
 
     def draw(self, context):
         simulation = get_selected_simulation(context.scene)

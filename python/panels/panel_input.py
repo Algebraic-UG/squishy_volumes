@@ -100,7 +100,6 @@ class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
 
     def draw(self, context):
         self.layout.label(text=context.object.name)  # ty:ignore[possibly-missing-attribute]
-        self.layout.prop(self, "object_type")  # ty:ignore[possibly-missing-attribute]
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
@@ -341,7 +340,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             )
             header.label(text=f"Settings for {obj.name}")
             if body is not None:
-                body.prop(obj.squishy_volumes_object, "object_type")
+                pass
 
         self.layout.prop(simulation, "capture_start_frame")
         self.layout.prop(simulation, "capture_frames")
