@@ -62,9 +62,21 @@ class SimulationInput:
         self.handle.finish_frame()
 
 
+_simulations: dict[str, "Simulation"] = {}
+
+
 class Simulation:
     def __init__(self, handle: squishy_volumes_wrap.Simulation):
+        _simulations[handle.uuid()] = self
         self.handle = handle
+
+    @staticmethod
+    def exists(uuid: str) -> bool:
+        return uuid in _simulations
+
+    @staticmethod
+    def get(uuid: str) -> None | "Simulation":
+        return _simulations.get(uuid)
 
     @hint_at_info
     @staticmethod
@@ -129,4 +141,5 @@ class Simulation:
 
     @hint_at_info
     def drop(self):
+        _simulations.pop(self.handle.uuid())
         self.handle.drop()
