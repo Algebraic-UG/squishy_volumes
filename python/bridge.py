@@ -25,19 +25,20 @@ from .hint_at_info import *
 
 
 class SimulationInput:
-    def __init__(self, handle: squishy_volumes_wrap.SimulationInput):
+    def __init__(self, *, handle: squishy_volumes_wrap.SimulationInput):
         self.handle = handle
 
     @hint_at_info
     @staticmethod
     def new(
+        *,
         uuid: str,
         directory: str,
         input_header: dict[str, Any],
         max_bytes_on_disk: int,
     ) -> "SimulationInput":
         return SimulationInput(
-            squishy_volumes_wrap.SimulationInput.new_simulation_input(
+            handle=squishy_volumes_wrap.SimulationInput.new_simulation_input(
                 uuid,
                 directory,
                 json.dumps(input_header),
@@ -46,15 +47,15 @@ class SimulationInput:
         )
 
     @hint_at_info
-    def start_frame(self, frame_start: dict[str, Any]):
+    def start_frame(self, *, frame_start: dict[str, Any]):
         self.handle.start_frame(json.dumps(frame_start))
 
     @hint_at_info
-    def record_input_float(self, meta: dict[str, Any], bulk: numpy.ndarray):
+    def record_input_float(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
         self.handle.record_input_float(json.dumps(meta), bulk)
 
     @hint_at_info
-    def record_input_int(self, meta: dict[str, Any], bulk: numpy.ndarray):
+    def record_input_int(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
         self.handle.record_input_int(json.dumps(meta), bulk)
 
     @hint_at_info
@@ -66,27 +67,27 @@ _simulations: dict[str, "Simulation"] = {}
 
 
 class Simulation:
-    def __init__(self, handle: squishy_volumes_wrap.Simulation):
+    def __init__(self, *, handle: squishy_volumes_wrap.Simulation):
         _simulations[handle.uuid()] = self
         self.handle = handle
 
     @staticmethod
-    def exists(uuid: str) -> bool:
+    def exists(*, uuid: str) -> bool:
         return uuid in _simulations
 
     @staticmethod
-    def get(uuid: str) -> None | "Simulation":
+    def get(*, uuid: str) -> None | "Simulation":
         return _simulations.get(uuid)
 
     @hint_at_info
     @staticmethod
     def new() -> "Simulation":
-        return Simulation(squishy_volumes_wrap.Simulation.new())
+        return Simulation(handle=squishy_volumes_wrap.Simulation.new())
 
     @hint_at_info
     @staticmethod
-    def load(uuid: str, directory: str) -> "Simulation":
-        return Simulation(squishy_volumes_wrap.Simulation.load(uuid, directory))
+    def load(*, uuid: str, directory: str) -> "Simulation":
+        return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))
 
     @hint_at_info
     def poll(self) -> dict[str, Any]:
@@ -99,6 +100,7 @@ class Simulation:
     @hint_at_info
     def start_compute(
         self,
+        *,
         time_step: float,
         explicit: bool,
         debug_mode: bool,
@@ -126,12 +128,12 @@ class Simulation:
         return self.handle.available_frames()
 
     @hint_at_info
-    def available_attributes(self, frame: int) -> list[dict[str, Any]]:
+    def available_attributes(self, *, frame: int) -> list[dict[str, Any]]:
         return [json.loads(s) for s in self.handle.available_attributes(frame)]
 
     @hint_at_info
     def fetch_flat_attribute(
-        self, frame: int, attribute: dict[str, Any]
+        self, *, frame: int, attribute: dict[str, Any]
     ) -> numpy.ndarray:
         return self.handle.fetch_flat_attribute(frame, json.dumps(attribute))
 
