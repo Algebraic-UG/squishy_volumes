@@ -6,6 +6,5 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-pub mod context;
 pub mod simulation;
 pub mod simulation_input;

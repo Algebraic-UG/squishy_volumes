@@ -19,7 +19,7 @@ use hot_reloadable::{initialize, CombinedBuildInfo};
 use hot_reloadable::handle_reload;
 
 mod api_use;
-use crate::api_use::{context, simulation, simulation_input};
+use crate::api_use::{simulation::Simulation, simulation_input::SimulationInput};
 
 fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize();
@@ -29,24 +29,8 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(build_info_as_json, m)?)?;
 
-    m.add_function(wrap_pyfunction!(context::new_simulation_input, m)?)?;
-    m.add_function(wrap_pyfunction!(context::new_simulation, m)?)?;
-    m.add_function(wrap_pyfunction!(context::load_simulation, m)?)?;
-    m.add_function(wrap_pyfunction!(context::drop_simulation, m)?)?;
-
-    m.add_function(wrap_pyfunction!(simulation::poll, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::computing, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::start_compute, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::pause_compute, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::available_frames, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::available_attributes, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::fetch_flat_attribute, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation::stats, m)?)?;
-
-    m.add_function(wrap_pyfunction!(simulation_input::start_frame, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation_input::record_input_float, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation_input::record_input_int, m)?)?;
-    m.add_function(wrap_pyfunction!(simulation_input::finish_frame, m)?)?;
+    m.add_class::<Simulation>()?;
+    m.add_class::<SimulationInput>()?;
 
     Ok(())
 }

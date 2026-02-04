@@ -65,7 +65,7 @@ impl Context for ContextImpl {
             .map(|r| r as &mut dyn SimulationInput)
     }
 
-    fn new_simulation(&mut self) -> Result<()> {
+    fn new_simulation(&mut self) -> Result<String> {
         let Some(simulation_input) = self.simulation_input.take() else {
             bail!("No input prepared.");
         };
@@ -73,11 +73,11 @@ impl Context for ContextImpl {
         let uuid = simulation_input.directory_lock.uuid().to_string();
         let simulation = SimulationImpl::new(simulation_input)?;
 
-        if self.simulations.insert(uuid, simulation).is_some() {
+        if self.simulations.insert(uuid.clone(), simulation).is_some() {
             warn!("Overwriting old simulation");
         }
 
-        Ok(())
+        Ok(uuid)
     }
 
     fn load_simulation(&mut self, uuid: String, directory: PathBuf) -> Result<()> {

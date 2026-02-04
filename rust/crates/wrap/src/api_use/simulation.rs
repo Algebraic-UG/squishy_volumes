@@ -14,122 +14,140 @@ use squishy_volumes_api::ComputeSettings;
 
 use crate::hot_reloadable::{try_with_context, with_context};
 
-#[pyfunction]
-pub fn poll(uuid: &str) -> Result<String> {
-    try_with_context(|context| {
-        Ok(context
-            .get_simulation_mut(uuid)
-            .context("No simulation found")?
-            .poll()?
-            .map(|task| to_string(&task).unwrap())
-            .unwrap_or_default())
-    })
-}
+#[pyclass]
+pub struct Simulation(pub String);
 
-#[pyfunction]
-pub fn computing(uuid: &str) -> Result<bool> {
-    with_context(|context| {
-        context
-            .get_simulation(uuid)
-            .is_some_and(|simulation| simulation.computing())
-    })
-}
+#[pymethods]
+impl Simulation {
+    #[staticmethod]
+    pub fn new() -> Result<Self> {
+        try_with_context(|context| {
+            let uuid = context.new_simulation()?;
+            Ok(Self(uuid))
+        })
+    }
 
-// TODO: not sure how to improve this (too_many_arguments)
-// might need another #[pyclass]
-#[pyfunction]
-#[allow(clippy::too_many_arguments)]
-pub fn start_compute(
-    uuid: &str,
-    time_step: f32,
-    explicit: bool,
-    debug_mode: bool,
-    adaptive_time_steps: bool,
-    next_frame: usize,
-    number_of_frames: usize,
-    max_bytes_on_disk: u64,
-) -> Result<()> {
-    try_with_context(|context| {
-        context
-            .get_simulation_mut(uuid)
-            .context("No simulation found")?
-            .start_compute(ComputeSettings {
-                time_step,
-                explicit,
-                debug_mode,
-                adaptive_time_steps,
-                next_frame,
-                number_of_frames,
-                max_bytes_on_disk,
-            })
-    })
-}
+    #[staticmethod]
+    pub fn load(uuid: String, directory: String) -> Result<Self> {
+        try_with_context(move |context| {
+            context.load_simulation(uuid.clone(), directory.into())?;
+            Ok(Self(uuid))
+        })
+    }
 
-#[pyfunction]
-pub fn pause_compute(uuid: &str) -> Result<()> {
-    try_with_context(|context| {
-        context
-            .get_simulation_mut(uuid)
-            .context("No simulation found")?
-            .pause_compute();
-        Ok(())
-    })
-}
+    pub fn poll(&self) -> Result<String> {
+        try_with_context(|context| {
+            Ok(context
+                .get_simulation_mut(&self.0)
+                .context("No simulation found for {self.0}")?
+                .poll()?
+                .map(|task| to_string(&task).unwrap())
+                .unwrap_or_default())
+        })
+    }
 
-#[pyfunction]
-pub fn available_frames(uuid: &str) -> Result<usize> {
-    with_context(|context| {
-        context
-            .get_simulation(uuid)
-            .map_or(0, |simulation| simulation.available_frames())
-    })
-}
+    pub fn computing(&self) -> Result<bool> {
+        with_context(|context| {
+            context
+                .get_simulation(&self.0)
+                .is_some_and(|simulation| simulation.computing())
+        })
+    }
 
-#[pyfunction]
-pub fn available_attributes<'py>(
-    uuid: &str,
-    py: Python<'py>,
-    frame: usize,
-) -> Result<Bound<'py, PyList>> {
-    try_with_context(|context| {
-        let attributes = context
-            .get_simulation(uuid)
-            .context("No simulation found")?
-            .available_attributes(frame)?
-            .into_iter()
-            .map(|attribute| Ok(to_string(&attribute)?))
-            .collect::<Result<Vec<_>>>()?;
-        Ok(PyList::new(py, attributes)?)
-    })
-}
+    // TODO: not sure how to improve this (too_many_arguments)
+    // might need another #[pyclass]
+    #[allow(clippy::too_many_arguments)]
+    pub fn start_compute(
+        &self,
+        time_step: f32,
+        explicit: bool,
+        debug_mode: bool,
+        adaptive_time_steps: bool,
+        next_frame: usize,
+        number_of_frames: usize,
+        max_bytes_on_disk: u64,
+    ) -> Result<()> {
+        try_with_context(|context| {
+            context
+                .get_simulation_mut(&self.0)
+                .context("No simulation found for {self.0}")?
+                .start_compute(ComputeSettings {
+                    time_step,
+                    explicit,
+                    debug_mode,
+                    adaptive_time_steps,
+                    next_frame,
+                    number_of_frames,
+                    max_bytes_on_disk,
+                })
+        })
+    }
 
-#[pyfunction]
-pub fn fetch_flat_attribute<'py>(
-    uuid: &str,
-    py: Python<'py>,
-    frame: usize,
-    attribute: &str,
-) -> Result<Bound<'py, PyArray1<f32>>> {
-    try_with_context(|context| {
-        let flat_attribute = context
-            .get_simulation(uuid)
-            .context("No simulation found")?
-            .fetch_flat_attribute(
-                frame,
-                from_str(attribute).context("Attribute string isn't valid json")?,
-            )?;
-        Ok(PyArray1::from_vec(py, flat_attribute))
-    })
-}
+    pub fn pause_compute(&self) -> Result<()> {
+        try_with_context(|context| {
+            context
+                .get_simulation_mut(&self.0)
+                .context("No simulation found for {self.0}")?
+                .pause_compute();
+            Ok(())
+        })
+    }
 
-#[pyfunction]
-pub fn stats(uuid: &str) -> Result<String> {
-    try_with_context(|context| {
-        Ok(to_string(
-            &context
-                .get_simulation(uuid)
-                .context("No simulation found")?
-                .stats()?,
-        )?)
-    })
+    pub fn available_frames(&self) -> Result<usize> {
+        with_context(|context| {
+            context
+                .get_simulation(&self.0)
+                .map_or(0, |simulation| simulation.available_frames())
+        })
+    }
+
+    pub fn available_attributes<'py>(
+        &self,
+        py: Python<'py>,
+        frame: usize,
+    ) -> Result<Bound<'py, PyList>> {
+        try_with_context(|context| {
+            let attributes = context
+                .get_simulation(&self.0)
+                .context("No simulation found for {self.0}")?
+                .available_attributes(frame)?
+                .into_iter()
+                .map(|attribute| Ok(to_string(&attribute)?))
+                .collect::<Result<Vec<_>>>()?;
+            Ok(PyList::new(py, attributes)?)
+        })
+    }
+
+    pub fn fetch_flat_attribute<'py>(
+        &self,
+        py: Python<'py>,
+        frame: usize,
+        attribute: &str,
+    ) -> Result<Bound<'py, PyArray1<f32>>> {
+        try_with_context(|context| {
+            let flat_attribute = context
+                .get_simulation(&self.0)
+                .context("No simulation found for {self.0}")?
+                .fetch_flat_attribute(
+                    frame,
+                    from_str(attribute).context("Attribute string isn't valid json")?,
+                )?;
+            Ok(PyArray1::from_vec(py, flat_attribute))
+        })
+    }
+
+    pub fn stats(&self) -> Result<String> {
+        try_with_context(|context| {
+            Ok(to_string(
+                &context
+                    .get_simulation(&self.0)
+                    .context("No simulation found for {self.0}")?
+                    .stats()?,
+            )?)
+        })
+    }
+
+    pub fn drop(&self) -> Result<()> {
+        with_context(move |context| context.drop_simulation(&self.0))
+    }
 }
