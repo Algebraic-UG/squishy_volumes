@@ -2,10 +2,7 @@
 name = "squishy-volumes"
 version = "0.0.0" # not used
 requires-python = ">=3.11"
-dependencies = [
-  "tree-clipper",
-  "numpy==1.26.4", # should match what blender uses
-]
+dependencies = []
 classifiers = ["Private :: Do Not Upload"]
 
 [dependency-groups]
@@ -15,6 +12,8 @@ dev = [
   "ty>=0.0.3",
   "vendorize",
   "pip>=25.3",
+  "tree-clipper",
+  "numpy==1.26.4", # should match what blender uses
 ]
 
 [tool.uv.sources]
