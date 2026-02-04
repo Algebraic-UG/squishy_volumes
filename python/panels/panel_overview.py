@@ -31,7 +31,11 @@ from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from ..properties.squishy_volumes_simulation import (
+    Squishy_Volumes_Simulation,
+    update_name,
+    update_directory,
+)
 from ..properties.util import (
     add_fields_from,
 )
@@ -68,6 +72,9 @@ are completely separate from each other."""
 
         new_simulation = simulations.add()
         new_simulation.uuid = str(uuid.uuid4())
+
+        update_name(new_simulation, context)
+        update_directory(new_simulation, context)
 
         force_ui_redraw()
         return {"FINISHED"}

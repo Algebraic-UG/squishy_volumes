@@ -74,7 +74,9 @@ def update_directory(self, context):
         )
         return  # we'll re-enter anyway
 
-    drop_context(self)
+    sim = Simulation.get(uuid=self.uuid)
+    if sim is not None:
+        sim.drop()
 
 
 class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
