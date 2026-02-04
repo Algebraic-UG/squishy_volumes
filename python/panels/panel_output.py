@@ -48,7 +48,7 @@ from ..output import (
 from ..properties.util import (
     add_fields_from,
 )
-from ..bridge import InputNames, available_frames, context_exists
+from ..bridge import Simulation
 
 
 def draw_object_attributes(layout, output_type, optional_attributes):
@@ -290,7 +290,7 @@ Note that this does not delete the object."""
 
 
 class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
-    def filter_items(self, context, _data, _property):
+    def filter_items(self, context, data, property):
         simulation = get_selected_simulation(context.scene)
         if simulation is None:
             return [0] * len(bpy.data.objects), []
@@ -326,27 +326,31 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
+        if context.mode != "OBJECT":
+            return False
+
         simulation = get_selected_simulation(context.scene)
-        return (
-            context.mode == "OBJECT"
-            and simulation is not None
-            and simulation.sync
-            and context_exists(simulation)
-            and available_frames(simulation) > 0
-        )
+        if simulation is None or not simulation.sync:
+            return False
+
+        sim = Simulation.get(uuid=simulation.uuid)
+        if sim is None:
+            return False
+
+        return sim.available_frames() > 0
 
     def draw(self, context):
         simulation = get_selected_simulation(context.scene)
-        self.layout.prop(simulation, "display_start_frame")
+        self.layout.prop(simulation, "display_start_frame")  # ty:ignore[possibly-missing-attribute]
         if simulation.loaded_frame == -1:
-            self.layout.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)
+            self.layout.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)  # ty:ignore[possibly-missing-attribute]
             return
 
-        col = self.layout.column()
+        col = self.layout.column()  # ty:ignore[possibly-missing-attribute]
         col.enabled = False
         col.prop(simulation, "loaded_frame")
 
-        row = self.layout.row()
+        row = self.layout.row()  # ty:ignore[possibly-missing-attribute]
         row.column().template_list(
             "SCENE_UL_Squishy_Volumes_Output_Object_List",
             "",

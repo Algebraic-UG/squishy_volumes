@@ -20,14 +20,7 @@ import json
 import bpy
 
 from ..properties.squishy_volumes_scene import get_selected_simulation
-from ..bridge import (
-    computing,
-    available_frames,
-    context_exists,
-    pause_compute,
-    start_compute,
-    start_compute_initial_frame,
-)
+from ..bridge import Simulation
 
 
 class SCENE_OT_Squishy_Volumes_Bake_Initial_Frame(bpy.types.Operator):

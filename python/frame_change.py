@@ -26,22 +26,23 @@ from .output import (
     sync_output,
 )
 
-from .bridge import (
-    InputNames,
-    context_exists,
-    fetch_flat_attribute,
-)
+from .bridge import Simulation
 from .util import frame_to_load
 from .properties.squishy_volumes_object import get_output_objects
+from .properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
 
 
 def sync(scene):
     for simulation in scene.squishy_volumes_scene.simulations.values():
-        if simulation.sync and context_exists(simulation):
-            sync_simulation(simulation, scene.frame_current)
+        if not simulation.sync:
+            continue
+        sim = Simulation.get(uuid=simulation.uuid)
+        if sim is None:
+            continue
+        sync_simulation(sim, simulation, scene.frame_current)
 
 
-def sync_simulation(simulation, frame):
+def sync_simulation(sim: Simulation, simulation: Squishy_Volumes_Simulation, frame):
     frame = frame_to_load(simulation, frame)
 
     if frame is None:
@@ -73,7 +74,7 @@ is now incompatible or gone.)
 
             raise RuntimeError(message)
 
-        with_popup(simulation, raise_)
+        with_popup(uuid=simulation.uuid, f=raise_)
 
 
 def frame_change_handler(scene):

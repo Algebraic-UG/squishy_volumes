@@ -20,7 +20,7 @@ import bpy
 
 from .popup import with_popup
 from .frame_change import sync_simulation
-from .bridge import available_frames, context_exists, poll
+from .bridge import Simulation
 from .util import add_or_update_marker, force_ui_redraw, remove_marker, frame_to_load
 
 
@@ -29,7 +29,7 @@ PROGRESS_INTERVAL = 0.25
 
 def update_progress():
     should_redraw = False
-    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():
+    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():  # ty:ignore[unresolved-attribute]
         cleanup_markers(simulation)
 
         add_or_update_marker(
@@ -40,24 +40,27 @@ def update_progress():
             simulation.capture_start_frame + simulation.capture_frames - 1,
         )
 
-        if not simulation.sync or not context_exists(simulation):
+        if not simulation.sync:
             continue
 
-        progress_json_string = with_popup(simulation, lambda: poll(simulation))
-        if simulation.progress_json_string != progress_json_string:
+        sim = Simulation.get(uuid=simulation.uuid)
+        if sim is None:
+            continue
+
+        progess = dict(sim.progress)
+        with_popup(uuid=simulation.uuid, f=lambda: sim.poll())
+
+        if progess != sim.progress:
             should_redraw = True
-        simulation.progress_json_string = (
-            progress_json_string if progress_json_string is not None else ""
-        )
-
-        computed_frames = available_frames(simulation)
-        if not computed_frames:
-            continue
 
         add_or_update_marker(
             f"{simulation.name} Bake Start",
             simulation.display_start_frame,
         )
+
+        computed_frames = sim.available_frames()
+        if computed_frames == 0:
+            continue
 
         latest_frame = simulation.display_start_frame + computed_frames - 1
         end_frame = simulation.display_start_frame + simulation.bake_frames - 1
@@ -68,9 +71,10 @@ def update_progress():
             add_or_update_marker(f"{simulation.name} Bake Latest & End", end_frame)
 
         if simulation.loaded_frame != frame_to_load(
-            simulation, bpy.context.scene.frame_current
+            simulation,
+            bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
         ):
-            sync_simulation(simulation, bpy.context.scene.frame_current)
+            sync_simulation(sim, simulation, bpy.context.scene.frame_current)  # ty:ignore[possibly-missing-attribute]
 
     if should_redraw:
         force_ui_redraw()
@@ -98,7 +102,7 @@ def register_progress_update(*_scene):
 
 
 def unregister_progress_update(*_scene):
-    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():
+    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():  # ty:ignore[unresolved-attribute]
         cleanup_markers(simulation)
 
     if bpy.app.timers.is_registered(update_progress):
@@ -108,11 +112,11 @@ def unregister_progress_update(*_scene):
 
 def register_progress_update_toggle():
     if unregister_progress_update not in bpy.app.handlers.render_init:
-        bpy.app.handlers.render_init.append(unregister_progress_update)
+        bpy.app.handlers.render_init.append(unregister_progress_update)  # ty:ignore[invalid-argument-type]
     if register_progress_update not in bpy.app.handlers.render_complete:
-        bpy.app.handlers.render_complete.append(register_progress_update)
+        bpy.app.handlers.render_complete.append(register_progress_update)  # ty:ignore[invalid-argument-type]
     if register_progress_update not in bpy.app.handlers.render_cancel:
-        bpy.app.handlers.render_cancel.append(register_progress_update)
+        bpy.app.handlers.render_cancel.append(register_progress_update)  # ty:ignore[invalid-argument-type]
     print("Squishy Volumes progress update toggle on render registered.")
 
 

@@ -167,10 +167,11 @@ please use your OS's file browser."""
         # It's UB to continue using simulation
         simulations.remove(idx)
 
-        if simulations and self.uuid == selected_uuid:
-            context.scene.squishy_volumes_scene.selected_simulation = simulations[
-                0
-            ].uuid
+        if self.uuid == selected_uuid:
+            if simulations:
+                context.scene.squishy_volumes_scene.selected_simulation = simulations[
+                    0
+                ].uuid
             self.report({"INFO"}, "Updated simulation selection.")
 
         self.report({"INFO"}, "Removed simulation")

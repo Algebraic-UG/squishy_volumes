@@ -22,10 +22,10 @@ from typing import Any
 
 from ..properties.util import add_fields_from
 
-from ..properties.squishy_volumes_simulation import reset_simulation
 from ..properties.squishy_volumes_scene import (
     get_selected_simulation,
     get_selected_input_object,
+    get_selected_uuid,
 )
 from ..properties.squishy_volumes_object import (
     OBJECT_TYPE_UNASSINGED,
@@ -34,11 +34,10 @@ from ..properties.squishy_volumes_object import (
 )
 
 from ..bridge import (
-    available_frames,
-    new_simulation,
-    start_compute,
+    SimulationInput,
+    Simulation,
 )
-from ..setup import create_setup_json
+from ..input_capture import create_input_header, capture_input_frame
 from ..frame_change import (
     register_handler,
     unregister_handler,
@@ -48,6 +47,7 @@ from ..util import (
     force_ui_redraw,
     simulation_input_exists,
     index_by_object,
+    giga_f32_to_u64,
 )
 from ..popup import with_popup
 from ..nodes import create_geometry_nodes_generate_particles
@@ -132,6 +132,9 @@ Note that this does not delete the object or remove the input modifier."""
         return {"FINISHED"}
 
 
+SIMULATION_INPUT = None
+
+
 class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_write_input_to_cache"
     bl_label = "Write to Cache"
@@ -145,17 +148,28 @@ Note that this also discards all computed frames in the cache."""
 
     def execute(self, context):
         simulation = get_selected_simulation(context.scene)
-        reset_simulation(simulation)
+        simulation.has_loaded_frame = False
 
         self.report({"INFO"}, f"Resetting {simulation.name}")
 
-        setup_json = with_popup(simulation, lambda: create_setup_json(simulation))
-        if not setup_json:
+        input_header = with_popup(
+            uuid=simulation.uuid, f=lambda: create_input_header(simulation)
+        )
+        if not input_header:
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Collected meta info for {simulation.name}")
+        self.report({"INFO"}, f"Collected input header for {simulation.name}")
 
-        if not with_popup(simulation, lambda: new_simulation(simulation, setup_json)):
+        SIMULATION_INPUT = with_popup(
+            uuid=simulation.uuid,
+            f=lambda: SimulationInput.new(
+                uuid=simulation.uuid,
+                directory=simulation.directory,
+                input_header=input_header,
+                max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
+            ),
+        )
+        if not SIMULATION_INPUT:
             return {"CANCELLED"}
 
         self.report({"INFO"}, f"(Re)Created {simulation.name}")
@@ -171,10 +185,17 @@ Note that this also discards all computed frames in the cache."""
             return self.execute(context)
 
     def draw(self, context):
-        simulation = get_selected_simulation(context.scene)
+        uuid = get_selected_uuid(context.scene)
+
+        sim = Simulation.get(uuid=uuid)
+        if sim is None:
+            prior_frames = 0
+        else:
+            prior_frames = sim.available_frames()
+
         self.layout.label(text="WARNING: This is a destructive operation!")
         self.layout.label(
-            text=f"The previous cache will be overwritten: {available_frames(simulation)} frames"
+            text=f"The previous cache will be overwritten: {prior_frames} frames"
         )
 
 
@@ -198,6 +219,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event):
+        assert isinstance(SIMULATION_INPUT, SimulationInput)
         simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
 
         if event.type in {"RIGHTMOUSE", "ESC"}:
@@ -209,10 +231,15 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
             return {"CANCELLED"}
 
         captured_frames = context.scene.frame_current - simulation.capture_start_frame  # ty:ignore[possibly-missing-attribute]
-        assert captured_frames > 0
-        if captured_frames < simulation.capture_frames:
-            # TODO: capture input
+        assert captured_frames >= 0
 
+        if captured_frames < simulation.capture_frames:
+            capture_input_frame(
+                simulation=simulation,
+                simulation_input=SIMULATION_INPUT,
+            )
+
+            context.scene.frame_set(context.scene.frame_current + 1)  # ty:ignore[possibly-missing-attribute]
             context.window_manager.progress_update(captured_frames)  # ty:ignore[possibly-missing-attribute]
             return {"RUNNING_MODAL"}
         context.window_manager.progress_end()  # ty:ignore[possibly-missing-attribute]

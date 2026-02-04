@@ -29,7 +29,7 @@ from .progress_update import (
     unregister_progress_update,
     unregister_progress_update_toggle,
 )
-from .bridge import cleanup_native, build_info
+from .bridge import Simulation, build_info
 from .frame_change import register_handler, unregister_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
@@ -98,7 +98,7 @@ def unregister():
     unregister_properties()
     unregister_blend_file_change_handler()
     unregister_popup()
-    cleanup_native()
+    Simulation.drop_all()
 
 
 if __name__ == "__main__":

@@ -18,10 +18,15 @@
 
 import json
 import numpy
-from typing import Any
+from typing import Any, Self
 
 from .shim import *
 from .hint_at_info import *
+
+
+@hint_at_info
+def build_info() -> dict[str, Any]:
+    return json.loads(squishy_volumes_wrap.build_info_as_json())
 
 
 class SimulationInput:
@@ -36,7 +41,7 @@ class SimulationInput:
         directory: str,
         input_header: dict[str, Any],
         max_bytes_on_disk: int,
-    ) -> "SimulationInput":
+    ) -> Self:
         return SimulationInput(
             handle=squishy_volumes_wrap.SimulationInput.new_simulation_input(
                 uuid,
@@ -44,7 +49,7 @@ class SimulationInput:
                 json.dumps(input_header),
                 max_bytes_on_disk,
             )
-        )
+        )  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     def start_frame(self, *, frame_start: dict[str, Any]):
@@ -78,17 +83,17 @@ class Simulation:
         return uuid in _simulations
 
     @staticmethod
-    def get(*, uuid: str) -> None | "Simulation":
+    def get(*, uuid: str) -> None | Self:
         return _simulations.get(uuid)
 
     @hint_at_info
     @staticmethod
-    def new() -> "Simulation":
+    def new() -> Self:
         return Simulation(handle=squishy_volumes_wrap.Simulation.new())
 
     @hint_at_info
     @staticmethod
-    def load(*, uuid: str, directory: str) -> "Simulation":
+    def load(*, uuid: str, directory: str) -> Self:
         return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))
 
     @hint_at_info
@@ -147,3 +152,9 @@ class Simulation:
     def drop(self):
         _simulations.pop(self.handle.uuid())
         self.handle.drop()
+
+    @hint_at_info
+    @staticmethod
+    def drop_all():
+        for simulation in _simulations.values():
+            simulation.handle.drop()

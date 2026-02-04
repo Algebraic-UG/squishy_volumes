@@ -35,6 +35,10 @@ def get_simulation_by_uuid(scene: bpy.types.Scene, uuid: str):
     raise RuntimeError(f"There is no simulation with UUID {uuid}")
 
 
+def get_selected_uuid(scene: bpy.types.Scene) -> None | str:
+    return scene.squishy_volumes_scene.selected_simulation  # ty:ignore[unresolved-attribute]
+
+
 def get_selected_simulation(scene: bpy.types.Scene):
     simulations = scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     if not simulations:
@@ -43,8 +47,8 @@ def get_selected_simulation(scene: bpy.types.Scene):
     if len(simulations) == 1:
         return simulations[0]
 
-    selected_uuid = scene.squishy_volumes_scene.selected_simulation  # ty:ignore[unresolved-attribute]
-    if not selected_uuid:
+    selected_uuid = get_selected_uuid(scene)
+    if selected_uuid is None:
         return None
 
     return get_simulation_by_uuid(scene, selected_uuid)

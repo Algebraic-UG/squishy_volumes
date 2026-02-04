@@ -19,7 +19,7 @@
 
 import json
 import mathutils
-import numpy as np  # ty:ignore[unresolved-import]
+import numpy as np
 
 from .magic_consts import (
     SQUISHY_VOLUMES_COLLIDER_INSIDE,
@@ -55,7 +55,7 @@ from .util import (
     fill_mesh_with_vertices_and_triangles,
     fix_quaternion_order,
 )
-from .bridge import fetch_flat_attribute
+from .bridge import Simulation
 
 
 def create_output(simulation, obj, frame):

@@ -26,7 +26,7 @@ from pathlib import Path
 
 import numpy as np  # ty:ignore[unresolved-import]
 
-from .bridge import available_frames, context_exists
+from .bridge import Simulation
 
 
 def remove_marker(marker_name):
@@ -116,7 +116,7 @@ def get_simulation_idx_by_uuid(uuid):
     return [
         idx
         for idx, simulation in enumerate(
-            bpy.context.scene.squishy_volumes_scene.simulations
+            bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
         )
         if simulation.uuid == uuid
     ][0]
@@ -184,7 +184,10 @@ def local_bounding_box(obj: bpy.types.Object):
 def frame_to_load(simulation, frame):
     frame = frame - simulation.display_start_frame
 
-    simulated_frames = available_frames(simulation)
+    sim = Simulation.get(uuid=simulation.uuid)
+    assert sim is not None
+
+    simulated_frames = sim.available_frames()
     if simulated_frames < 1:
         return None
     max_frame = min(simulation.bake_frames, simulated_frames - 1)
@@ -199,7 +202,7 @@ def locked_simulations(context):
     return [
         simulation
         for simulation in context.scene.squishy_volumes_scene.simulations
-        if not context_exists(simulation) and simulation_locked(simulation)
+        if not Simulation.exists(uuid=simulation.uuid) and simulation_locked(simulation)
     ]
 
 
@@ -207,7 +210,8 @@ def unloaded_simulations(context):
     return [
         simulation
         for simulation in context.scene.squishy_volumes_scene.simulations
-        if not context_exists(simulation) and simulation_input_exists(simulation)
+        if not Simulation.exists(uuid=simulation.uuid)
+        and simulation_input_exists(simulation)
     ]
 
 

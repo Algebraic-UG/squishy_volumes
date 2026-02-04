@@ -20,7 +20,7 @@ import bpy
 import time
 import timeit
 
-from .bridge import computing
+from .bridge import Simulation
 from .properties.squishy_volumes_scene import get_simulation_by_uuid
 
 
@@ -39,8 +39,10 @@ This is only useful for scripting."""
         start = timeit.timeit()
 
         simulation = get_simulation_by_uuid(context.scene, self.simulation_uuid)
+        sim = Simulation.get(uuid=self.simulation_uuid)
+        assert isinstance(sim, Simulation)
 
-        while computing(simulation):
+        while sim.computing():
             if (timeit.timeit() - start) > self.timeout_sec:
                 raise RuntimeError("Timed out")
             time.sleep(0.01)
