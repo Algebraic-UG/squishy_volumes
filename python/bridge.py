@@ -43,7 +43,7 @@ class SimulationInput:
         max_bytes_on_disk: int,
     ) -> Self:
         return SimulationInput(
-            handle=squishy_volumes_wrap.SimulationInput.new_simulation_input(
+            handle=squishy_volumes_wrap.SimulationInput.new(
                 uuid,
                 directory,
                 json.dumps(input_header),
