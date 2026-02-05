@@ -98,7 +98,11 @@ class Simulation:
 
     @hint_at_info
     def poll(self):
-        self.progress = json.loads(self.handle.poll())
+        progress = self.handle.poll()
+        if progress is None:
+            self.progress = None
+        else:
+            self.progress = json.loads(progress)
 
     @hint_at_info
     def computing(self) -> bool:

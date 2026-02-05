@@ -39,14 +39,13 @@ impl Simulation {
         self.0.clone()
     }
 
-    pub fn poll(&self) -> Result<String> {
+    pub fn poll(&self) -> Result<Option<String>> {
         try_with_context(|context| {
             Ok(context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
                 .poll()?
-                .map(|task| to_string(&task).unwrap())
-                .unwrap_or_default())
+                .map(|task| to_string(&task).unwrap()))
         })
     }
 
