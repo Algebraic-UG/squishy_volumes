@@ -146,7 +146,7 @@ class Simulation:
 
     @hint_at_info
     def stats(self) -> dict[str, Any]:
-        return self.stats()
+        return json.loads(self.handle.stats())
 
     @hint_at_info
     def drop(self):
