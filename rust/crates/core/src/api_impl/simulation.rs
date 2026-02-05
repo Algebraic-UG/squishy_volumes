@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{num::NonZero, path::PathBuf, sync::Arc, u64};
+use std::{num::NonZero, path::PathBuf, sync::Arc};
 
 use anyhow::{Result, ensure};
 use serde_json::{Value, from_value, to_value};
