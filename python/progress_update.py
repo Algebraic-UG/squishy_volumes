@@ -47,7 +47,7 @@ def update_progress():
         if sim is None:
             continue
 
-        progess = dict(sim.progress)
+        progess = sim.progress
         with_popup(uuid=simulation.uuid, f=lambda: sim.poll())
 
         if progess != sim.progress:
