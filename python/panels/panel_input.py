@@ -227,7 +227,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         captured_frames = context.scene.frame_current - simulation.capture_start_frame  # ty:ignore[possibly-missing-attribute]
         assert captured_frames >= 0
 
-        if captured_frames < simulation.capture_frames:
+        if captured_frames + 1 < simulation.capture_frames:
             capture_input_frame(
                 simulation=simulation,
                 simulation_input=SIMULATION_INPUT,
