@@ -156,6 +156,7 @@ Note that this also discards all computed frames in the cache."""
 
         self.report({"INFO"}, f"Collected input header for {simulation.name}")
 
+        global SIMULATION_INPUT
         SIMULATION_INPUT = SimulationInput.new(
             uuid=simulation.uuid,
             directory=simulation.directory,
