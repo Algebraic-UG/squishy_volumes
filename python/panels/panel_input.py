@@ -148,6 +148,10 @@ Note that this also discards all computed frames in the cache."""
 
         self.report({"INFO"}, f"Resetting {simulation.name}")
 
+        sim = Simulation.get(uuid=simulation.uuid)
+        if sim is not None:
+            sim.drop()
+
         input_header = create_input_header(simulation)
 
         self.report({"INFO"}, f"Collected input header for {simulation.name}")
