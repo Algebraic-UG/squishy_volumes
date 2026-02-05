@@ -178,17 +178,17 @@ Note that this also discards all computed frames in the cache."""
 
     def draw(self, context):
         uuid = get_selected_uuid(context.scene)
+        assert uuid is not None
 
         sim = Simulation.get(uuid=uuid)
         if sim is None:
             prior_frames = 0
         else:
             prior_frames = sim.available_frames()
-
-        self.layout.label(text="WARNING: This is a destructive operation!")
-        self.layout.label(
-            text=f"The previous cache will be overwritten: {prior_frames} frames"
-        )
+            self.layout.label(text="WARNING: This is a destructive operation!")
+            self.layout.label(
+                text=f"The previous cache will be overwritten: {prior_frames} frames"
+            )
 
 
 class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
