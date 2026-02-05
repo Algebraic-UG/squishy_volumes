@@ -193,7 +193,8 @@ Note that this also discards all computed frames in the cache."""
 
 class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_write_input_to_cache_modal"
-    bl_options = {"REGISTER"}
+    bl_label = "Write to Cache Modal"
+    bl_options = set()
 
     _timer = None
 
@@ -355,6 +356,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
 classes = [
     OBJECT_OT_Squishy_Volumes_Add_Input_Object,
     OBJECT_OT_Squishy_Volumes_Remove_Input_Object,
+    SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal,
     SCENE_OT_Squishy_Volumes_Write_Input_To_Cache,
     SCENE_UL_Squishy_Volumes_Input_Object_List,
     SCENE_PT_Squishy_Volumes_Input,
