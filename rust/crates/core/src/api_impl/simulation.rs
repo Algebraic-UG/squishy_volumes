@@ -63,7 +63,7 @@ impl SimulationImpl {
     fn load_with_lock(directory_lock: DirectoryLock, max_bytes_on_disk: u64) -> Result<Self> {
         let mut input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))?;
         let input_header = input_reader.read_header()?;
-        let cache = Arc::new(Cache::new(
+        let cache = Arc::new(Cache::load(
             directory_lock.directory().to_path_buf(),
             input_reader.size(),
             max_bytes_on_disk,
