@@ -43,7 +43,7 @@ impl Simulation {
         try_with_context(|context| {
             Ok(context
                 .get_simulation_mut(&self.0)
-                .context("No simulation found for {self.0}")?
+                .with_context(|| format!("No simulation found for {}", self.0))?
                 .poll()?
                 .map(|task| to_string(&task).unwrap())
                 .unwrap_or_default())
@@ -74,7 +74,7 @@ impl Simulation {
         try_with_context(|context| {
             context
                 .get_simulation_mut(&self.0)
-                .context("No simulation found for {self.0}")?
+                .with_context(|| format!("No simulation found for {}", self.0))?
                 .start_compute(ComputeSettings {
                     time_step,
                     explicit,
@@ -91,7 +91,7 @@ impl Simulation {
         try_with_context(|context| {
             context
                 .get_simulation_mut(&self.0)
-                .context("No simulation found for {self.0}")?
+                .with_context(|| format!("No simulation found for {}", self.0))?
                 .pause_compute();
             Ok(())
         })
@@ -113,7 +113,7 @@ impl Simulation {
         try_with_context(|context| {
             let attributes = context
                 .get_simulation(&self.0)
-                .context("No simulation found for {self.0}")?
+                .with_context(|| format!("No simulation found for {}", self.0))?
                 .available_attributes(frame)?
                 .into_iter()
                 .map(|attribute| Ok(to_string(&attribute)?))
@@ -131,7 +131,7 @@ impl Simulation {
         try_with_context(|context| {
             let flat_attribute = context
                 .get_simulation(&self.0)
-                .context("No simulation found for {self.0}")?
+                .with_context(|| format!("No simulation found for {}", self.0))?
                 .fetch_flat_attribute(
                     frame,
                     from_str(attribute).context("Attribute string isn't valid json")?,
