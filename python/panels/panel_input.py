@@ -212,6 +212,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
     def modal(self, context: bpy.types.Context, event: bpy.types.Event):
+        global SIMULATION_INPUT
         assert isinstance(SIMULATION_INPUT, SimulationInput)
         simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
 
