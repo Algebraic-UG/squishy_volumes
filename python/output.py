@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import bpy
 
 import json
 import mathutils
@@ -110,18 +111,17 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
         attribute.data.foreach_set("value", array)
 
 
-def sync_output(simulation, obj, num_colliders, frame):
-    mpm = obj.squishy_volumes_object
+def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, frame: int):
+    mpm = obj.squishy_volumes_object  # ty:ignore[unresolved-attribute]
 
     if mpm.sync_once and frame != mpm.sync_once_frame:
         return
 
     if mpm.output_type == GRID_COLLIDER_DISTANCE:
         # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps({"GridColliderDistance": attribute}),
+        ffa = lambda attribute: sim.fetch_flat_attribute(
+            frame=frame,
+            attribute={"GridColliderDistance": attribute},
         )
 
         fill_mesh_with_positions(obj.data, ffa("Positions"))

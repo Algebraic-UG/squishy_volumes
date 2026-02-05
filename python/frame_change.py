@@ -42,19 +42,23 @@ def sync(scene):
         sync_simulation(sim, simulation, scene.frame_current)
 
 
-def sync_simulation(sim: Simulation, simulation: Squishy_Volumes_Simulation, frame):
+def sync_simulation(
+    sim: Simulation,
+    simulation: Squishy_Volumes_Simulation,
+    frame: int,
+):
     frame = frame_to_load(simulation, frame)
 
     if frame is None:
         return
 
-    input_names = InputNames(simulation, frame)
-    num_colliders = len(input_names.collider_names)
+    # TODO
+    num_colliders = 0
 
     desynced_objs = []
     for obj in get_output_objects(simulation):
         try:
-            sync_output(simulation, obj, num_colliders, frame)
+            sync_output(sim, obj, num_colliders, frame)
         except RuntimeError as e:
             desynced_objs.append((obj, e))
     if desynced_objs:
