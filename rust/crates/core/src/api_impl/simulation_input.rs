@@ -12,7 +12,8 @@ use anyhow::{Result, bail, ensure};
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
-use squishy_volumes_api::{SimulationInput, T};
+use squishy_volumes_api::{InputBulk, SimulationInput, T};
+use tracing::info;
 
 use crate::{
     directory_lock::DirectoryLock,
@@ -61,20 +62,24 @@ impl SimulationInput for SimulationInputImpl {
 
         let FrameStart { gravity } = from_value(frame_start)?;
 
-        self.current_frame = Some(InputFrame {
+        let input_frame = InputFrame {
             gravity,
             bulk: Default::default(),
-        });
+        };
+        info!("starting next frame: {input_frame:?}");
+
+        self.current_frame = Some(input_frame);
 
         Ok(())
     }
 
-    fn record_input(&mut self, meta: Value, bulk: squishy_volumes_api::InputBulk) -> Result<()> {
+    fn record_input(&mut self, meta: Value, bulk: InputBulk) -> Result<()> {
         let Some(current_frame) = self.current_frame.as_mut() else {
             bail!("No frame started.");
         };
-
-        todo!()
+        info!("got some input: {meta:?}");
+        info!("with this bulk: {bulk:?}");
+        Ok(())
     }
 
     fn finish_frame(&mut self) -> Result<()> {

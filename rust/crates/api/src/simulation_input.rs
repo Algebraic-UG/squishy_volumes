@@ -15,6 +15,7 @@ pub trait SimulationInput {
     fn finish_frame(&mut self) -> Result<()>;
 }
 
+#[derive(Debug)]
 pub enum InputBulk<'a> {
     F32(&'a [f32]),
     I32(&'a [i32]),
