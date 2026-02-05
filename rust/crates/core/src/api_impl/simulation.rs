@@ -81,6 +81,10 @@ impl SimulationImpl {
 }
 
 impl Simulation for SimulationImpl {
+    fn input_header(&self) -> Result<Value> {
+        Ok(to_value(&self.input_header)?)
+    }
+
     fn computing(&self) -> bool {
         self.compute_thread
             .as_ref()

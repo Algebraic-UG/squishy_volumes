@@ -39,6 +39,18 @@ impl Simulation {
         self.0.clone()
     }
 
+    pub fn input_header(&self) -> Result<String> {
+        try_with_context(|context| {
+            Ok(to_string(
+                &context
+                    .get_simulation(&self.0)
+                    .with_context(|| format!("No simulation found for {}", self.0))?
+                    .input_header()?,
+            )
+            .unwrap())
+        })
+    }
+
     pub fn poll(&self) -> Result<Option<String>> {
         try_with_context(|context| {
             Ok(context

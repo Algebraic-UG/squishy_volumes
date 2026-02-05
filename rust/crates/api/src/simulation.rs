@@ -13,6 +13,8 @@ use serde_json::Value;
 use crate::T;
 
 pub trait Simulation {
+    fn input_header(&self) -> Result<Value>;
+
     fn computing(&self) -> bool;
 
     fn poll(&mut self) -> Result<Option<Task>>;

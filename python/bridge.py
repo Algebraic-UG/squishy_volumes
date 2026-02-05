@@ -97,6 +97,10 @@ class Simulation:
         return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))  # ty:ignore[invalid-return-type]
 
     @hint_at_info
+    def input_header(self) -> dict[str, Any]:
+        return json.loads(self.handle.input_header)
+
+    @hint_at_info
     def poll(self):
         progress = self.handle.poll()
         if progress is None:
