@@ -240,6 +240,9 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
 
         self.report({"INFO"}, f"Finished capturing input for {simulation.name}")
 
+        SIMULATION_INPUT = None
+        Simulation.new()
+
         if simulation.immediately_start_baking:
             simulation.last_exception = ""
             start_compute(simulation, 0)
