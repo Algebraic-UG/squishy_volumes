@@ -22,8 +22,8 @@ from ..util import obj_by_index
 
 from .squishy_volumes_simulation import Squishy_Volumes_Simulation
 from .squishy_volumes_object import (
-    OBJECT_TYPE_INPUT,
-    OBJECT_TYPE_OUTPUT,
+    IO_INPUT,
+    IO_OUTPUT,
     get_input_objects,
 )
 
@@ -66,14 +66,14 @@ def _verify_selected_object(obj: bpy.types.Object, scene: bpy.types.Scene):
 
 def get_selected_input_object(scene: bpy.types.Scene):
     obj = obj_by_index(scene.squishy_volumes_scene.selected_input_object)  # ty:ignore[unresolved-attribute]
-    if obj is None or obj.squishy_volumes_object.object_type != OBJECT_TYPE_INPUT:
+    if obj is None or obj.squishy_volumes_object.io != IO_INPUT:
         return None
     return _verify_selected_object(obj, scene)
 
 
 def get_selected_output_object(scene: bpy.types.Scene):
     obj = obj_by_index(scene.squishy_volumes_scene.selected_output_object)  # ty:ignore[unresolved-attribute]
-    if obj is None or obj.squishy_volumes_object.object_type != OBJECT_TYPE_OUTPUT:
+    if obj is None or obj.squishy_volumes_object.io != IO_OUTPUT:
         return None
     return _verify_selected_object(obj, scene)
 
@@ -106,13 +106,13 @@ def _on_active_change():
     scene = bpy.context.scene.squishy_volumes_scene  # ty:ignore[unresolved-attribute]
 
     if (
-        obj.squishy_volumes_object.object_type == OBJECT_TYPE_INPUT  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes_object.io == IO_INPUT  # ty:ignore[unresolved-attribute]
         and scene.selected_input_object != index
     ):
         scene.selected_input_object = index
 
     if (
-        obj.squishy_volumes_object.object_type == OBJECT_TYPE_OUTPUT  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes_object.io == IO_OUTPUT  # ty:ignore[unresolved-attribute]
         and scene.selected_output_object != index
     ):
         scene.selected_output_object = index

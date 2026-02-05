@@ -46,7 +46,7 @@ from ..properties.squishy_volumes_scene import (
 from ..properties.squishy_volumes_object import (
     get_input_objects,
     get_output_objects,
-    OBJECT_TYPE_UNASSINGED,
+    IO_NONE,
 )
 from ..util import (
     force_ui_redraw,
@@ -155,10 +155,10 @@ please use your OS's file browser."""
 
         for obj in get_input_objects(simulation):
             obj.squishy_volumes_object.simulation_uuid = "unassigned"
-            obj.squishy_volumes_object.object_type = OBJECT_TYPE_UNASSINGED
+            obj.squishy_volumes_object.io = IO_NONE
         for obj in get_output_objects(simulation):
             obj.squishy_volumes_object.simulation_uuid = "unassigned"
-            obj.squishy_volumes_object.object_type = OBJECT_TYPE_UNASSINGED
+            obj.squishy_volumes_object.io = IO_NONE
 
         update_drivers(idx)
         cleanup_markers(simulation)

@@ -28,8 +28,8 @@ from ..properties.squishy_volumes_scene import (
     get_selected_uuid,
 )
 from ..properties.squishy_volumes_object import (
-    OBJECT_TYPE_UNASSINGED,
-    OBJECT_TYPE_INPUT,
+    IO_NONE,
+    IO_INPUT,
     get_input_objects,
 )
 
@@ -58,8 +58,7 @@ def selection_eligible_for_input(context):
         and context.active_object is not None
         and context.active_object.select_get()
         and context.active_object.type == "MESH"
-        and context.active_object.squishy_volumes_object.object_type
-        == OBJECT_TYPE_UNASSINGED
+        and context.active_object.squishy_volumes_object.io == IO_NONE
     )
 
 
@@ -78,7 +77,7 @@ class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
 
         simulation = get_selected_simulation(context.scene)
         obj.squishy_volumes_object.simulation_uuid = simulation.uuid
-        obj.squishy_volumes_object.object_type = OBJECT_TYPE_INPUT
+        obj.squishy_volumes_object.io = IO_INPUT
 
         # TODO make this configurable
         modifier = context.object.modifiers.new("Squishy Volumes Input", type="NODES")
@@ -116,8 +115,7 @@ Note that this does not delete the object or remove the input modifier."""
             simulation is not None
             and context.active_object is not None
             and context.active_object.select_get()
-            and context.active_object.squishy_volumes_object.object_type
-            == OBJECT_TYPE_INPUT
+            and context.active_object.squishy_volumes_object.io == IO_INPUT
             and context.active_object.squishy_volumes_object.simulation_uuid
             == simulation.uuid
         )
@@ -125,7 +123,7 @@ Note that this does not delete the object or remove the input modifier."""
     def execute(self, context):
         obj = context.active_object.squishy_volumes_object
         obj.simulation_uuid = "unassigned"
-        obj.object_type = OBJECT_TYPE_UNASSINGED
+        obj.io = IO_NONE
         self.report({"INFO"}, f"Removed {obj.name} from inputs.")
         return {"FINISHED"}
 

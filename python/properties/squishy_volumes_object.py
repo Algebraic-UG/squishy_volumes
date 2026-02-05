@@ -22,16 +22,18 @@ from ..magic_consts import OUTPUT_TYPES
 
 from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
 
-OBJECT_TYPE_UNASSINGED = "Unassigned"
-OBJECT_TYPE_INPUT = "Input"
-OBJECT_TYPE_OUTPUT = "Output"
+IO_NONE = "None"
+IO_INPUT = "Input"
+IO_OUTPUT = "Output"
+
+INPUT_TYPE_PARTICLES = "Particles"
 
 
 def get_input_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if obj.squishy_volumes_object.object_type == OBJECT_TYPE_INPUT  # ty:ignore[unresolved-attribute]
+        if obj.squishy_volumes_object.io == IO_INPUT  # ty:ignore[unresolved-attribute]
         and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
     ]
 
@@ -40,7 +42,7 @@ def get_output_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if obj.squishy_volumes_object.object_type == OBJECT_TYPE_OUTPUT  # ty:ignore[unresolved-attribute]
+        if obj.squishy_volumes_object.io == IO_OUTPUT  # ty:ignore[unresolved-attribute]
         and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
     ]
 
@@ -53,15 +55,25 @@ class Squishy_Volumes_Object(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    object_type: bpy.props.EnumProperty(
+    io: bpy.props.EnumProperty(
         items=[
-            (OBJECT_TYPE_UNASSINGED,) * 3,
-            (OBJECT_TYPE_INPUT,) * 3,
-            (OBJECT_TYPE_OUTPUT,) * 3,
+            (IO_NONE,) * 3,
+            (IO_INPUT,) * 3,
+            (IO_OUTPUT,) * 3,
         ],  # ty:ignore[invalid-argument-type]
-        name="Object Type",
+        name="I/O",
         description="""TODO""",
-        default=OBJECT_TYPE_UNASSINGED,
+        default=IO_NONE,
+        options=set(),
+    )  # type: ignore
+
+    input_type: bpy.props.EnumProperty(
+        items=[
+            (INPUT_TYPE_PARTICLES,) * 3,
+        ],  # ty:ignore[invalid-argument-type]
+        name="Input Type",
+        description="""TODO""",
+        default=INPUT_TYPE_PARTICLES,
         options=set(),
     )  # type: ignore
 
