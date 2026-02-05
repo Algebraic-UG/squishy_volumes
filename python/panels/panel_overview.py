@@ -295,7 +295,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                         SCENE_OT_Squishy_Volumes_Remove_Lock_File.bl_idname,
                         icon="WARNING_LARGE",
                     ).uuid = simulation.uuid
-                elif simulation_input_exists(simulation):
+                elif sim is None and simulation_input_exists(simulation):
                     row.operator(
                         SCENE_OT_Squishy_Volumes_Reload.bl_idname,
                         icon="FILE_CACHE",

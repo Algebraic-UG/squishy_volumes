@@ -118,7 +118,7 @@ class Simulation:
         adaptive_time_steps: bool,
         next_frame: int,
         number_of_frames: int,
-        max_bytes_on_disk: float,
+        max_bytes_on_disk: int,
     ):
         self.handle.start_compute(
             time_step,
