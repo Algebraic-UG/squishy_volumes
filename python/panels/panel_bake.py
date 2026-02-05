@@ -102,7 +102,7 @@ or cancellation occurs due to user input or error."""
             sim=sim,
             simulation=simulation,
             next_frame=sim.available_frames(),
-            number_of_frames=simulation.bake_frames - sim.available_frames(),
+            number_of_frames=simulation.bake_frames,
         )
 
         self.report({"INFO"}, f"Commence baking of {simulation.name}.")
@@ -201,20 +201,18 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         simulation = get_selected_simulation(context.scene)
         sim = Simulation.get(uuid=simulation.uuid)
         assert sim is not None
-        col = self.layout.column()
-        col.enabled = sim.computing()
         if sim.available_frames() == 0:
-            col.operator(
+            self.layout.operator(
                 SCENE_OT_Squishy_Volumes_Bake_Initial_Frame.bl_idname,
                 icon="PHYSICS",
             )
         else:
-            col.prop(simulation, "time_step")
+            self.layout.prop(simulation, "time_step")
             # TODO: make implicit viable
             # col.prop(simulation, "explicit")
             # col.prop(simulation, "debug_mode")
-            col.prop(simulation, "adaptive_time_steps")
-            col.prop(simulation, "bake_frames")
+            self.layout.prop(simulation, "adaptive_time_steps")
+            self.layout.prop(simulation, "bake_frames")
 
             row = self.layout.row()
             row.operator(
@@ -230,6 +228,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
                     text=f"Rebake from #{simulation.loaded_frame}",
                     icon="PHYSICS",
                 )
+
         self.layout.operator(
             SCENE_OT_Squishy_Volumes_Bake_Pause.bl_idname,
             icon="CANCEL",
