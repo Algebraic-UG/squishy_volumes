@@ -92,9 +92,9 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
         simulation = get_simulation_by_uuid(context.scene, self.uuid)
         simulation.has_loaded_frame = False
 
-        Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
+        sim = Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
 
-        sync_simulation(simulation, context.scene.frame_current)
+        sync_simulation(sim, simulation, context.scene.frame_current)
 
         self.report({"INFO"}, "Reloaded simulation.")
         return {"FINISHED"}
@@ -115,9 +115,9 @@ This is useful when reloading a Blender filer with multiple simulations."""
                 self.report({"INFO"}, "Removed lock file.")
             simulation.has_loaded_frame = False
 
-            Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
+            sim = Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
 
-            sync_simulation(simulation, context.scene.frame_current)
+            sync_simulation(sim, simulation, context.scene.frame_current)
             self.report({"INFO"}, "Reloaded simulation.")
 
         return {"FINISHED"}
