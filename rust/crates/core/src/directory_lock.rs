@@ -29,8 +29,8 @@ Either another simulation is currently using this cache
 or the lock is a remnant of a prior crash and you must delete it (sorry)."
     )]
     AlreadyLocked(PathBuf),
-    #[error("The cache lock's UUID has changed.")]
-    UuidChanged,
+    #[error("The cache lock's UUID has changed from {was} to {is}.")]
+    UuidChanged { was: String, is: String },
     #[error("Unknown io error: {0}")]
     IoError(#[from] std::io::Error),
 }
@@ -73,8 +73,12 @@ impl DirectoryLock {
     }
 
     pub fn check(&self) -> Result<(), DirectoryLockingError> {
-        if self.uuid == read_to_string(lock_path(&self.directory))? {
-            return Err(DirectoryLockingError::UuidChanged);
+        let uuid = read_to_string(lock_path(&self.directory))?;
+        if self.uuid != uuid {
+            return Err(DirectoryLockingError::UuidChanged {
+                was: self.uuid.clone(),
+                is: uuid,
+            });
         }
         Ok(())
     }
