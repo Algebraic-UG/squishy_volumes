@@ -84,17 +84,17 @@ class Simulation:
 
     @staticmethod
     def get(*, uuid: str) -> None | Self:
-        return _simulations.get(uuid)
+        return _simulations.get(uuid)  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     @staticmethod
     def new() -> Self:
-        return Simulation(handle=squishy_volumes_wrap.Simulation.new())
+        return Simulation(handle=squishy_volumes_wrap.Simulation.new())  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     @staticmethod
     def load(*, uuid: str, directory: str) -> Self:
-        return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))
+        return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     def poll(self):

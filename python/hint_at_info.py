@@ -29,11 +29,7 @@ def hint_at_info(func: Callable[P, R]) -> Callable[P, R]:
         try:
             return func(*args, **kwargs)
         except RuntimeError as cause:
-            # Show hint + original message, and still chain for full traceback context
-            raise RuntimeError(
-                f"""{cause}
-
-View the full message in 'Info'"""
-            ) from cause
+            cause.add_note("View the full message in 'Info'.")
+            raise
 
     return wrapper

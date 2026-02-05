@@ -49,7 +49,6 @@ from ..util import (
     index_by_object,
     giga_f32_to_u64,
 )
-from ..popup import with_popup
 from ..nodes import create_geometry_nodes_generate_particles
 
 
@@ -151,25 +150,16 @@ Note that this also discards all computed frames in the cache."""
 
         self.report({"INFO"}, f"Resetting {simulation.name}")
 
-        input_header = with_popup(
-            uuid=simulation.uuid, f=lambda: create_input_header(simulation)
-        )
-        if not input_header:
-            return {"CANCELLED"}
+        input_header = create_input_header(simulation)
 
         self.report({"INFO"}, f"Collected input header for {simulation.name}")
 
-        SIMULATION_INPUT = with_popup(
+        SIMULATION_INPUT = SimulationInput.new(
             uuid=simulation.uuid,
-            f=lambda: SimulationInput.new(
-                uuid=simulation.uuid,
-                directory=simulation.directory,
-                input_header=input_header,
-                max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
-            ),
+            directory=simulation.directory,
+            input_header=input_header,
+            max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
         )
-        if not SIMULATION_INPUT:
-            return {"CANCELLED"}
 
         self.report({"INFO"}, f"(Re)Created {simulation.name}")
 
