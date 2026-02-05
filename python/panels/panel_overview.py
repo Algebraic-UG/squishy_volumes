@@ -216,6 +216,10 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
 
     def execute(self, context):
         popup(self.uuid)
+        sim = Simulation.get(uuid=self.uuid)
+        assert sim is not None, f"No simulation context for {self.uuid}"
+        sim.last_error = ""
+
         return {"FINISHED"}
 
 
