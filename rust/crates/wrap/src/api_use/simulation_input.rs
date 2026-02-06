@@ -12,7 +12,7 @@ use pyo3::prelude::*;
 use serde_json::from_str;
 use squishy_volumes_api::InputBulk;
 
-use crate::hot_reloadable::try_with_context;
+use crate::hot_reloadable::{try_with_context, with_context};
 
 #[pyclass]
 pub struct SimulationInput;
@@ -85,5 +85,9 @@ impl SimulationInput {
                 .context("Not recording input")?
                 .finish_frame()
         })
+    }
+
+    pub fn drop(&self) -> Result<()> {
+        with_context(|context| context.drop_simulation_input())
     }
 }

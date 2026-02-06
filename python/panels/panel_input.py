@@ -218,6 +218,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
 
         if event.type in {"RIGHTMOUSE", "ESC"}:
             context.window_manager.event_timer_remove(self._timer)  # ty:ignore[possibly-missing-attribute, invalid-argument-type]
+            SIMULATION_INPUT.drop()
             self.report(
                 {"WARNING"},
                 f"Capture of {simulation.name} incomplete due to user cancellation.",
@@ -228,10 +229,14 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         assert captured_frames >= 0
 
         if captured_frames + 1 < simulation.capture_frames:
-            capture_input_frame(
-                simulation=simulation,
-                simulation_input=SIMULATION_INPUT,
-            )
+            try:
+                capture_input_frame(
+                    simulation=simulation,
+                    simulation_input=SIMULATION_INPUT,
+                )
+            except RuntimeError:
+                SIMULATION_INPUT.drop()
+                raise
 
             context.scene.frame_set(context.scene.frame_current + 1)  # ty:ignore[possibly-missing-attribute]
             context.window_manager.progress_update(captured_frames)  # ty:ignore[possibly-missing-attribute]

@@ -65,6 +65,12 @@ impl Context for ContextImpl {
             .map(|r| r as &mut dyn SimulationInput)
     }
 
+    fn drop_simulation_input(&mut self) {
+        if self.simulation_input.take().is_none() {
+            warn!("No simulation input")
+        }
+    }
+
     fn new_simulation(&mut self) -> Result<String> {
         let Some(simulation_input) = self.simulation_input.take() else {
             bail!("No input prepared.");

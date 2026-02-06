@@ -67,6 +67,10 @@ class SimulationInput:
     def finish_frame(self):
         self.handle.finish_frame()
 
+    @hint_at_info
+    def drop(self):
+        self.handle.drop()
+
 
 _simulations: dict[str, "Simulation"] = {}
 

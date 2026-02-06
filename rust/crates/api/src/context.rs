@@ -22,6 +22,7 @@ pub trait Context: Send + Sync {
     ) -> Result<()>;
 
     fn get_simulation_input(&mut self) -> Option<&mut dyn SimulationInput>;
+    fn drop_simulation_input(&mut self);
 
     fn new_simulation(&mut self) -> Result<String>;
     fn load_simulation(&mut self, uuid: String, directory: PathBuf) -> Result<()>;
