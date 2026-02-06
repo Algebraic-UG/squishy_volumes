@@ -102,6 +102,12 @@ impl State {
                         .position_gradients
                         .extend(position_gradients.into_iter());
 
+                    particles.velocities.extend(
+                        initial_velocities
+                            .chunks_exact(3)
+                            .map(Vector3::from_column_slice),
+                    );
+
                     let initial_volumes = sizes.iter().map(|size| size.powi(3));
                     particles.initial_volumes.extend(initial_volumes.clone());
                     particles.masses.extend(
