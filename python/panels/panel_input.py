@@ -228,7 +228,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         captured_frames = context.scene.frame_current - simulation.capture_start_frame  # ty:ignore[possibly-missing-attribute]
         assert captured_frames >= 0
 
-        if captured_frames + 1 < simulation.capture_frames:
+        if captured_frames < simulation.capture_frames:
             try:
                 capture_input_frame(
                     simulation=simulation,
@@ -238,9 +238,12 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
                 SIMULATION_INPUT.drop()
                 raise
 
-            context.scene.frame_set(context.scene.frame_current + 1)  # ty:ignore[possibly-missing-attribute]
             context.window_manager.progress_update(captured_frames)  # ty:ignore[possibly-missing-attribute]
+
+        if captured_frames + 1 < simulation.capture_frames:
+            context.scene.frame_set(context.scene.frame_current + 1)  # ty:ignore[possibly-missing-attribute]
             return {"RUNNING_MODAL"}
+
         context.window_manager.progress_end()  # ty:ignore[possibly-missing-attribute]
 
         self.report({"INFO"}, f"Finished capturing input for {simulation.name}")
