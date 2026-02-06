@@ -142,7 +142,7 @@ come after the displayed one."""
             sim=sim,
             simulation=simulation,
             next_frame=simulation.loaded_frame + 1,
-            number_of_frames=simulation.bake_frames - simulation.loaded_frame - 1,
+            number_of_frames=simulation.bake_frames,
         )
         self.report({"INFO"}, f"Commence baking of {simulation.name}.")
         return {"FINISHED"}
