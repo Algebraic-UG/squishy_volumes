@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This file is part of the Squishy Volumes extension.
+# Copyright (C) 2025  Algebraic UG (haftungsbeschränkt)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import bpy
+
+import numpy as np
+from .bridge import SimulationInput
+from .properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from .properties.squishy_volumes_object import get_input_objects
+
+
+def create_input_header(simulation):
+    scene = bpy.context.scene
+
+    grid_node_size = simulation.grid_node_size
+    simulation_scale = simulation.simulation_scale
+    frames_per_second = simulation.frames_per_second
+    domain_min = [
+        simulation.domain_min[0],
+        simulation.domain_min[1],
+        simulation.domain_min[2],
+    ]
+    domain_max = [
+        simulation.domain_max[0],
+        simulation.domain_max[1],
+        simulation.domain_max[2],
+    ]
+
+    consts = {
+        "grid_node_size": grid_node_size,
+        "simulation_scale": simulation_scale,
+        "frames_per_second": frames_per_second,
+        "domain_min": domain_min,
+        "domain_max": domain_max,
+    }
+
+    objects = []
+
+    for obj in get_input_objects(simulation):
+        name = obj.name
+        ty = obj.squishy_volumes_object.input_type
+        objects.append(
+            {
+                "name": name,
+                "ty": ty,
+            }
+        )
+
+    return {
+        "consts": consts,
+        "objects": objects,
+    }
+
+
+class AttributeInfo:
+    def __init__(self, *, per_count: int, attr: str, dtype: str):
+        self.per_count = per_count
+        self.attr = attr
+        self.dtype = dtype
+
+
+ATTRIBUTE_MAP = {
+    "FLOAT": AttributeInfo(per_count=1, attr="value", dtype="float32"),
+    "INT": AttributeInfo(per_count=1, attr="value", dtype="int32"),
+    "BOOLEAN": AttributeInfo(per_count=1, attr="value", dtype="bool"),
+    "FLOAT_VECTOR": AttributeInfo(per_count=3, attr="vector", dtype="float32"),
+    "FLOAT_COLOR": AttributeInfo(per_count=4, attr="color", dtype="float32"),
+    "QUATERNION": AttributeInfo(per_count=4, attr="value", dtype="float32"),
+    "FLOAT4X4": AttributeInfo(per_count=16, attr="value", dtype="float32"),
+}
+
+
+def attribute_to_numpy_array(
+    *,
+    mesh: bpy.types.Mesh,
+    attribute: bpy.types.Attribute,
+) -> np.ndarray:
+    assert attribute.domain == "POINT"
+
+    info = ATTRIBUTE_MAP[attribute.data_type]
+
+    n = len(mesh.vertices) * info.per_count
+    array = np.empty(n, dtype=info.dtype)
+
+    attribute.data.foreach_get(info.attr, array)  # ty:ignore[unresolved-attribute]
+
+    return array
+
+
+def capture_input_frame(
+    *,
+    simulation: Squishy_Volumes_Simulation,
+    simulation_input: SimulationInput,
+):
+    gravity = [
+        simulation.gravity[0],
+        simulation.gravity[1],
+        simulation.gravity[2],
+    ]
+    frame_start = {"gravity": gravity}
+
+    simulation_input.start_frame(frame_start=frame_start)
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+
+    for obj in get_input_objects(simulation):
+        mesh = obj.evaluated_get(depsgraph).data
+        attributes = mesh.attributes
+
+        simulation_input.record_input_float(
+            meta={
+                "Particles": {
+                    "object_name": obj.name,
+                    "captured_attribute": "Transforms",
+                }
+            },
+            bulk=attribute_to_numpy_array(
+                mesh=mesh,
+                attribute=attributes["squishy_volumes_transform"],
+            ),
+        )
+
+    simulation_input.finish_frame()
