@@ -152,15 +152,15 @@ impl SimulationInput for SimulationInputImpl {
                     }
                     FrameBulkParticle::InitialVelocity => {
                         ensure!(bulk.len() % 3 == 0);
-                        ps.initial_velocity = bulk.try_into()?
+                        ps.initial_velocities = bulk.try_into()?
                     }
                     FrameBulkParticle::ViscosityDynamic => {
-                        ps.viscosity_dynamic = bulk.try_into()?
+                        ps.viscosities_dynamic = bulk.try_into()?
                     }
-                    FrameBulkParticle::ViscosityBulk => ps.viscosity_bulk = bulk.try_into()?,
-                    FrameBulkParticle::Exponent => ps.exponent = bulk.try_into()?,
-                    FrameBulkParticle::BulkModulus => ps.bulk_modulus = bulk.try_into()?,
-                    FrameBulkParticle::SandAlpha => ps.sand_alpha = bulk.try_into()?,
+                    FrameBulkParticle::ViscosityBulk => ps.viscosities_bulk = bulk.try_into()?,
+                    FrameBulkParticle::Exponent => ps.exponents = bulk.try_into()?,
+                    FrameBulkParticle::BulkModulus => ps.bulk_moduluses = bulk.try_into()?,
+                    FrameBulkParticle::SandAlpha => ps.sand_alphas = bulk.try_into()?,
                 }
             }
         }
@@ -180,12 +180,12 @@ impl SimulationInput for SimulationInputImpl {
             youngs_moduluses,
             poissons_ratios,
             initial_positions,
-            initial_velocity,
-            viscosity_dynamic,
-            viscosity_bulk,
-            exponent,
-            bulk_modulus,
-            sand_alpha,
+            initial_velocities,
+            viscosities_dynamic,
+            viscosities_bulk,
+            exponents,
+            bulk_moduluses,
+            sand_alphas,
         } in current_frame.particles_input.values()
         {
             let n = flags.len();
@@ -195,12 +195,12 @@ impl SimulationInput for SimulationInputImpl {
             ensure!(n == youngs_moduluses.len());
             ensure!(n == poissons_ratios.len());
             ensure!(n == initial_positions.len() / 3);
-            ensure!(n == initial_velocity.len() / 3);
-            ensure!(n == viscosity_dynamic.len());
-            ensure!(n == viscosity_bulk.len());
-            ensure!(n == exponent.len());
-            ensure!(n == bulk_modulus.len());
-            ensure!(n == sand_alpha.len());
+            ensure!(n == initial_velocities.len() / 3);
+            ensure!(n == viscosities_dynamic.len());
+            ensure!(n == viscosities_bulk.len());
+            ensure!(n == exponents.len());
+            ensure!(n == bulk_moduluses.len());
+            ensure!(n == sand_alphas.len());
         }
 
         self.input_writer.record_frame(current_frame)?;

@@ -64,12 +64,12 @@ impl State {
                         youngs_moduluses,
                         poissons_ratios,
                         initial_positions,
-                        initial_velocity,
-                        viscosity_dynamic,
-                        viscosity_bulk,
-                        exponent,
-                        bulk_modulus,
-                        sand_alpha,
+                        initial_velocities,
+                        viscosities_dynamic,
+                        viscosities_bulk,
+                        exponents,
+                        bulk_moduluses,
+                        sand_alphas,
                     }) = first_frame.particles_input.get(&object.name)
                     else {
                         continue;
