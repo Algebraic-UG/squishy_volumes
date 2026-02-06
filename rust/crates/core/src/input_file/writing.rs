@@ -24,12 +24,12 @@ pub struct InputWriter {
 }
 
 impl InputWriter {
-    pub fn new<P: AsRef<Path> + Debug>(path: P, header: InputHeader) -> Result<Self, InputError> {
+    pub fn new<P: AsRef<Path> + Debug>(path: P, header: &InputHeader) -> Result<Self, InputError> {
         info!("Start writing input to {path:?}");
         let mut writer = BufWriter::new(File::create(path)?);
         writer.write_all(&magic_bytes())?;
         writer.write_all(&version_bytes())?;
-        serialize_into(&mut writer, &header)?;
+        serialize_into(&mut writer, header)?;
         Ok(Self {
             writer,
             frame_offsets: Default::default(),

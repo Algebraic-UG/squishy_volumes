@@ -44,6 +44,7 @@ impl SimulationImpl {
             input_writer,
             max_bytes_on_disk,
             current_frame,
+            ..
         }: SimulationInputImpl,
     ) -> Result<Self> {
         info!("Creating new simulation");

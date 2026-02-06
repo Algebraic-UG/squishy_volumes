@@ -12,14 +12,19 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum BulkData {
-    F32(Vec<f32>),
-    I32(Vec<i32>),
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct ParticlesInput {
+    pub transforms: Vec<f32>,
+    pub sizes: Vec<f32>,
+    pub densities: Vec<f32>,
+    pub youngs_moduluses: Vec<f32>,
+    pub poissons_ratios: Vec<f32>,
+    pub types: Vec<i32>,
+    pub initial_positions: Vec<f32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputFrame {
     pub gravity: Vector3<T>,
-    pub bulk: BTreeMap<String, BulkData>,
+    pub particles_input: BTreeMap<String, ParticlesInput>,
 }
