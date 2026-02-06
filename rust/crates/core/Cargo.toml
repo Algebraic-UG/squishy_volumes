@@ -38,6 +38,7 @@ itertools = "0.14.0"
 roots = "0.0.8"
 
 squishy_volumes_api.path = "../api"
+bitflags = "2.10.0"
 
 [build-dependencies]
 build-info-build.workspace = true
