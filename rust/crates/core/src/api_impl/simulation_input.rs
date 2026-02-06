@@ -9,7 +9,8 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail, ensure};
-use nalgebra::{Matrix4, Vector3};
+use bitflags::bitflags;
+use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::{InputBulk, SimulationInput, T};
@@ -56,6 +57,19 @@ pub enum FrameBulkParticle {
     Exponent,
     BulkModulus,
     SandAlpha,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub struct ParticleFlags(pub i32);
+
+bitflags! {
+    impl ParticleFlags: i32 {
+        const IsSolid = 1 << 0;
+        const IsFluid = 1 << 1;
+        const UseViscosity = 1 << 2;
+        const UseSandAlpha = 1 << 3;
+        const _ = !0;
+    }
 }
 
 pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
