@@ -113,6 +113,7 @@ impl Simulation for SimulationImpl {
             max_bytes_on_disk,
         }: ComputeSettings,
     ) -> Result<()> {
+        info!("starting compute");
         self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
 
         let Some(number_of_frames) = NonZero::new(number_of_frames) else {
@@ -132,11 +133,18 @@ impl Simulation for SimulationImpl {
 
         self.pause_compute();
 
+        info!("performing checks");
+        info!("directory checks");
         self.directory_lock.check()?;
+        info!("cache checks");
         self.cache.check()?;
+        info!("drop checks");
         self.cache.drop_frames(next_frame)?;
+        info!("input checks");
         let input_reader =
             InputReader::new(simulation_input_path(self.directory_lock.directory()))?;
+
+        info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(
             input_reader,
             self.cache.clone(),
