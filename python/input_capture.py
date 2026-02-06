@@ -122,17 +122,20 @@ def capture_input_frame(
         mesh = obj.evaluated_get(depsgraph).data
         attributes = mesh.attributes
 
-        simulation_input.record_input_float(
-            meta={
-                "Particles": {
-                    "object_name": obj.name,
-                    "captured_attribute": "Transforms",
-                }
-            },
-            bulk=attribute_to_numpy_array(
-                mesh=mesh,
-                attribute=attributes["squishy_volumes_transform"],
-            ),
-        )
+        def record(*, python_name: str, rust_name: str):
+            simulation_input.record_input_float(
+                meta={
+                    "Particles": {
+                        "object_name": obj.name,
+                        "captured_attribute": rust_name,
+                    }
+                },
+                bulk=attribute_to_numpy_array(
+                    mesh=mesh,
+                    attribute=attributes[python_name],
+                ),
+            )
+
+        record(python_name="squishy_volumes_transform", rust_name="Transforms")
 
     simulation_input.finish_frame()
