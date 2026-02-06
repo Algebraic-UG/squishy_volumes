@@ -8,6 +8,7 @@
 
 use std::{
     collections::BTreeMap,
+    iter::repeat_n,
     num::NonZero,
     sync::{Arc, atomic::AtomicBool},
 };
@@ -21,7 +22,7 @@ use tracing::info;
 use crate::{
     ParticleFlags, Report, ReportInfo,
     elastic::{lambda_stable_neo_hookean, mu_stable_neo_hookean},
-    input_file::{InputFrame, InputHeader, InputObjectType, ParticlesInput},
+    input_file::{InputFrame, InputHeader, InputObjectType},
     state::{
         ObjectIndex,
         object::ObjectParticles,
@@ -56,6 +57,24 @@ impl State {
         let mut particles = Particles::default();
         let mut particle_objects = Vec::new();
 
+        let Particles {
+            sort_map,
+            reverse_sort_map,
+            states,
+            parameters,
+            masses,
+            initial_volumes,
+            initial_positions,
+            positions,
+            position_gradients,
+            velocities,
+            velocity_gradients,
+            elastic_energies,
+            collider_insides,
+            trial_position_gradients: _,
+            action_matrices: _,
+        } = &mut particles;
+
         for object in input_header.objects {
             match object.ty {
                 InputObjectType::Particles => {
@@ -65,84 +84,89 @@ impl State {
                     particle_objects.push(ObjectParticles::default());
                     let particle_object = particle_objects.last_mut().unwrap();
 
-                    let Some(ParticlesInput {
-                        flags,
-                        transforms,
-                        sizes,
-                        densities,
-                        youngs_moduluses,
-                        poissons_ratios,
-                        initial_positions,
-                        initial_velocities,
-                        viscosities_dynamic,
-                        viscosities_bulk,
-                        exponents,
-                        bulk_moduluses,
-                        sand_alphas,
-                    }) = first_frame.particles_input.get(&object.name)
-                    else {
+                    let Some(input) = first_frame.particles_input.get(&object.name) else {
                         continue;
                     };
 
-                    let first_index = particles.sort_map.len();
+                    let first_index = sort_map.len();
 
-                    let (positions, position_gradients): (Vec<Vector3<T>>, Vec<Matrix3<T>>) =
-                        transforms
-                            .chunks_exact(16)
-                            .map(Matrix4::from_column_slice)
-                            .map(|transform| -> (Vector3<T>, Matrix3<T>) {
-                                (
-                                    Vector3::new(transform.m14, transform.m24, transform.m34),
-                                    transform.fixed_view::<3, 3>(0, 0).into(),
-                                )
-                            })
-                            .unzip();
-                    particles.positions.extend(positions.into_iter());
-                    particles
-                        .position_gradients
-                        .extend(position_gradients.into_iter());
+                    let n = input.flags.len();
 
-                    particles.velocities.extend(
-                        initial_velocities
+                    sort_map.extend(first_index..first_index + n);
+                    reverse_sort_map.extend(first_index..first_index + n);
+                    states.extend(repeat_n(Default::default(), n));
+                    collider_insides.extend(repeat_n(Default::default(), n));
+
+                    let (input_positions, input_position_gradients): (
+                        Vec<Vector3<T>>,
+                        Vec<Matrix3<T>>,
+                    ) = input
+                        .transforms
+                        .chunks_exact(16)
+                        .map(Matrix4::from_column_slice)
+                        .map(|transform| -> (Vector3<T>, Matrix3<T>) {
+                            (
+                                Vector3::new(transform.m14, transform.m24, transform.m34),
+                                transform.fixed_view::<3, 3>(0, 0).into(),
+                            )
+                        })
+                        .unzip();
+                    positions.extend(input_positions.into_iter());
+                    position_gradients.extend(input_position_gradients.into_iter());
+
+                    velocities.extend(
+                        input
+                            .initial_velocities
                             .chunks_exact(3)
                             .map(Vector3::from_column_slice),
                     );
 
-                    let initial_volumes = sizes.iter().map(|size| size.powi(3));
-                    particles.initial_volumes.extend(initial_volumes.clone());
-                    particles.masses.extend(
-                        densities
+                    let input_initial_volumes = input.sizes.iter().map(|size| size.powi(3));
+                    initial_volumes.extend(input_initial_volumes.clone());
+                    masses.extend(
+                        input
+                            .densities
                             .iter()
-                            .zip(initial_volumes)
+                            .zip(input_initial_volumes)
                             .map(|(density, volume)| density * volume),
                     );
 
-                    particles.initial_positions.extend(
-                        initial_positions
+                    initial_positions.extend(
+                        input
+                            .initial_positions
                             .chunks_exact(3)
                             .map(Vector3::from_column_slice),
                     );
 
-                    for (i, flags) in flags.iter().enumerate() {
+                    // TODO:
+
+                    velocity_gradients.extend(repeat_n(Matrix3::zeros(), n));
+                    elastic_energies.extend(repeat_n(0., n));
+
+                    for (i, flags) in input.flags.iter().enumerate() {
                         let flags = ParticleFlags(*flags);
 
-                        let mu = mu_stable_neo_hookean(youngs_moduluses[i], poissons_ratios[i]);
-                        let lambda =
-                            lambda_stable_neo_hookean(youngs_moduluses[i], poissons_ratios[i]);
-                        let exponent = exponents[i];
-                        let bulk_modulus = bulk_moduluses[i];
+                        let mu = mu_stable_neo_hookean(
+                            input.youngs_moduluses[i],
+                            input.poissons_ratios[i],
+                        );
+                        let lambda = lambda_stable_neo_hookean(
+                            input.youngs_moduluses[i],
+                            input.poissons_ratios[i],
+                        );
+                        let exponent = input.exponents[i];
+                        let bulk_modulus = input.bulk_moduluses[i];
 
                         let viscosity = flags.contains(ParticleFlags::UseViscosity).then_some(
                             ViscosityParameters {
-                                dynamic: viscosities_dynamic[i],
-                                bulk: viscosities_bulk[i],
+                                dynamic: input.viscosities_dynamic[i],
+                                bulk: input.viscosities_bulk[i],
                             },
                         );
                         let sand_alpha = flags
                             .contains(ParticleFlags::UseSandAlpha)
-                            .then_some(sand_alphas[i]);
-                        particles
-                            .parameters
+                            .then_some(input.sand_alphas[i]);
+                        parameters
                             .push(bitflags_match!(flags, {
                                 ParticleFlags::IsSolid => Ok(ParticleParameters::Solid { mu, lambda, viscosity, sand_alpha }),
                                 ParticleFlags::IsFluid => Ok(ParticleParameters::Fluid { exponent, bulk_modulus, viscosity }),
@@ -150,7 +174,7 @@ impl State {
                             })?);
                     }
 
-                    particle_object.particles = (first_index..particles.sort_map.len()).collect();
+                    particle_object.particles = (first_index..first_index + n).collect();
                 }
             }
 
