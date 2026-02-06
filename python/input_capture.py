@@ -123,19 +123,33 @@ def capture_input_frame(
         attributes = mesh.attributes
 
         def record(*, python_name: str, rust_name: str):
-            simulation_input.record_input_float(
-                meta={
-                    "Particles": {
-                        "object_name": obj.name,
-                        "captured_attribute": rust_name,
-                    }
-                },
-                bulk=attribute_to_numpy_array(
-                    mesh=mesh,
-                    attribute=attributes[python_name],
-                ),
+            meta = {
+                "Particles": {
+                    "object_name": obj.name,
+                    "captured_attribute": rust_name,
+                }
+            }
+            bulk = attribute_to_numpy_array(
+                mesh=mesh,
+                attribute=attributes[python_name],
             )
+            if bulk.dtype == "float32":
+                simulation_input.record_input_float(meta=meta, bulk=bulk)
+            elif bulk.dtype == "int32":
+                simulation_input.record_input_int(meta=meta, bulk=bulk)
+            else:
+                raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
         record(python_name="squishy_volumes_transform", rust_name="Transforms")
+        record(python_name="squishy_volumes_size", rust_name="Sizes")
+        record(python_name="squishy_volumes_density", rust_name="Densities")
+        record(
+            python_name="squishy_volumes_youngs_modulus", rust_name="YoungsModuluses"
+        )
+        record(python_name="squishy_volumes_poissons_ratio", rust_name="PoissonsRatios")
+        record(python_name="squishy_volumes_type", rust_name="Types")
+        record(
+            python_name="squishy_volumes_initial_position", rust_name="InitialPositions"
+        )
 
     simulation_input.finish_frame()

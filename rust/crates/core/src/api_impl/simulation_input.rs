@@ -123,7 +123,9 @@ impl SimulationInput for SimulationInputImpl {
                     FrameBulkParticle::YoungsModuluses => ps.youngs_moduluses = bulk.try_into()?,
                     FrameBulkParticle::PoissonsRatios => ps.poissons_ratios = bulk.try_into()?,
                     FrameBulkParticle::Types => ps.types = bulk.try_into()?,
-                    FrameBulkParticle::InitialPositions => ps.types = bulk.try_into()?,
+                    FrameBulkParticle::InitialPositions => {
+                        ps.initial_positions = bulk.try_into()?
+                    }
                 }
             }
         }
