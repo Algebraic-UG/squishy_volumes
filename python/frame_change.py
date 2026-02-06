@@ -52,6 +52,9 @@ def sync_simulation(
     if frame is None:
         return
 
+    simulation.has_loaded_frame = True
+    simulation.loaded_frame = frame
+
     # TODO
     num_colliders = 0
 
