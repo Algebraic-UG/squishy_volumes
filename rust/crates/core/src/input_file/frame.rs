@@ -14,13 +14,19 @@ use squishy_volumes_api::T;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct ParticlesInput {
+    pub flags: Vec<i32>,
     pub transforms: Vec<f32>,
     pub sizes: Vec<f32>,
     pub densities: Vec<f32>,
     pub youngs_moduluses: Vec<f32>,
     pub poissons_ratios: Vec<f32>,
-    pub types: Vec<i32>,
     pub initial_positions: Vec<f32>,
+    pub initial_velocity: Vec<f32>,
+    pub viscosity_dynamic: Vec<f32>,
+    pub viscosity_bulk: Vec<f32>,
+    pub exponent: Vec<f32>,
+    pub bulk_modulus: Vec<f32>,
+    pub sand_alpha: Vec<f32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

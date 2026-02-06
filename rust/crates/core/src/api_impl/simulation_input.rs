@@ -9,7 +9,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail, ensure};
-use nalgebra::Vector3;
+use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::{InputBulk, SimulationInput, T};
@@ -43,13 +43,19 @@ pub enum FrameBulkMeta {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkParticle {
+    Flags,
     Transforms,
     Sizes,
     Densities,
     YoungsModuluses,
     PoissonsRatios,
-    Types,
     InitialPositions,
+    InitialVelocity,
+    ViscosityDynamic,
+    ViscosityBulk,
+    Exponent,
+    BulkModulus,
+    SandAlpha,
 }
 
 pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
@@ -117,15 +123,30 @@ impl SimulationInput for SimulationInputImpl {
                     .get_mut(&object_name)
                     .context("Missing input particle object")?;
                 match captured_attribute {
-                    FrameBulkParticle::Transforms => ps.transforms = bulk.try_into()?,
+                    FrameBulkParticle::Flags => ps.flags = bulk.try_into()?,
+                    FrameBulkParticle::Transforms => {
+                        ensure!(bulk.len() % 16 == 0);
+                        ps.transforms = bulk.try_into()?;
+                    }
                     FrameBulkParticle::Sizes => ps.sizes = bulk.try_into()?,
                     FrameBulkParticle::Densities => ps.densities = bulk.try_into()?,
                     FrameBulkParticle::YoungsModuluses => ps.youngs_moduluses = bulk.try_into()?,
                     FrameBulkParticle::PoissonsRatios => ps.poissons_ratios = bulk.try_into()?,
-                    FrameBulkParticle::Types => ps.types = bulk.try_into()?,
                     FrameBulkParticle::InitialPositions => {
+                        ensure!(bulk.len() % 3 == 0);
                         ps.initial_positions = bulk.try_into()?
                     }
+                    FrameBulkParticle::InitialVelocity => {
+                        ensure!(bulk.len() % 3 == 0);
+                        ps.initial_velocity = bulk.try_into()?
+                    }
+                    FrameBulkParticle::ViscosityDynamic => {
+                        ps.viscosity_dynamic = bulk.try_into()?
+                    }
+                    FrameBulkParticle::ViscosityBulk => ps.viscosity_bulk = bulk.try_into()?,
+                    FrameBulkParticle::Exponent => ps.exponent = bulk.try_into()?,
+                    FrameBulkParticle::BulkModulus => ps.bulk_modulus = bulk.try_into()?,
+                    FrameBulkParticle::SandAlpha => ps.sand_alpha = bulk.try_into()?,
                 }
             }
         }

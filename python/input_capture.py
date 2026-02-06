@@ -140,6 +140,7 @@ def capture_input_frame(
             else:
                 raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
+        record(python_name="squishy_volumes_flags", rust_name="Flags")
         record(python_name="squishy_volumes_transform", rust_name="Transforms")
         record(python_name="squishy_volumes_size", rust_name="Sizes")
         record(python_name="squishy_volumes_density", rust_name="Densities")
@@ -147,9 +148,17 @@ def capture_input_frame(
             python_name="squishy_volumes_youngs_modulus", rust_name="YoungsModuluses"
         )
         record(python_name="squishy_volumes_poissons_ratio", rust_name="PoissonsRatios")
-        record(python_name="squishy_volumes_type", rust_name="Types")
         record(
             python_name="squishy_volumes_initial_position", rust_name="InitialPositions"
         )
+        record(python_name="squishy_volumes_velocity", rust_name="InitialVelocity")
+        record(
+            python_name="squishy_volumes_viscosity_dynamic",
+            rust_name="ViscosityDynamic",
+        )
+        record(python_name="squishy_volumes_viscosity_bulk", rust_name="ViscosityBulk")
+        record(python_name="squishy_volumes_exponent", rust_name="Exponent")
+        record(python_name="squishy_volumes_bulk_modulus", rust_name="BulkModulus")
+        record(python_name="squishy_volumes_sand_alpha", rust_name="SandAlpha")
 
     simulation_input.finish_frame()
