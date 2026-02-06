@@ -9,24 +9,33 @@
 use std::{
     collections::BTreeMap,
     num::NonZero,
-    sync::{Arc, WaitTimeoutResult, atomic::AtomicBool},
+    sync::{Arc, atomic::AtomicBool},
 };
 
+use bitflags::bitflags_match;
 use nalgebra::{Matrix3, Matrix4, Vector3};
 use squishy_volumes_api::T;
 use thiserror::Error;
 use tracing::info;
 
 use crate::{
-    Report, ReportInfo,
+    ParticleFlags, Report, ReportInfo,
+    elastic::{lambda_stable_neo_hookean, mu_stable_neo_hookean},
     input_file::{InputFrame, InputHeader, InputObjectType, ParticlesInput},
-    state::{ObjectIndex, object::ObjectParticles, particles::Particles},
+    state::{
+        ObjectIndex,
+        object::ObjectParticles,
+        particles::{ParticleParameters, Particles, ViscosityParameters},
+    },
 };
 
 use super::State;
 
 #[derive(Error, Debug)]
-pub enum StateInitializationError {}
+pub enum StateInitializationError {
+    #[error("the flags for a particle {0} are invalid")]
+    ParticleFlagsInvalid(usize),
+}
 
 impl State {
     pub fn new(
@@ -107,6 +116,33 @@ impl State {
                             .chunks_exact(3)
                             .map(Vector3::from_column_slice),
                     );
+
+                    for (i, flags) in flags.iter().enumerate() {
+                        let flags = ParticleFlags(*flags);
+
+                        let mu = mu_stable_neo_hookean(youngs_moduluses[i], poissons_ratios[i]);
+                        let lambda =
+                            lambda_stable_neo_hookean(youngs_moduluses[i], poissons_ratios[i]);
+                        let exponent = exponents[i];
+                        let bulk_modulus = bulk_moduluses[i];
+
+                        let viscosity = flags.contains(ParticleFlags::UseViscosity).then_some(
+                            ViscosityParameters {
+                                dynamic: viscosities_dynamic[i],
+                                bulk: viscosities_bulk[i],
+                            },
+                        );
+                        let sand_alpha = flags
+                            .contains(ParticleFlags::UseSandAlpha)
+                            .then_some(sand_alphas[i]);
+                        particles
+                            .parameters
+                            .push(bitflags_match!(flags, {
+                                ParticleFlags::IsSolid => Ok(ParticleParameters::Solid { mu, lambda, viscosity, sand_alpha }),
+                                ParticleFlags::IsFluid => Ok(ParticleParameters::Fluid { exponent, bulk_modulus, viscosity }),
+                                _=> Err(StateInitializationError::ParticleFlagsInvalid(i)),
+                            })?);
+                    }
 
                     particle_object.particles = (first_index..particles.sort_map.len()).collect();
                 }
