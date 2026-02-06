@@ -21,6 +21,15 @@ pub enum InputBulk<'a> {
     I32(&'a [i32]),
 }
 
+impl InputBulk<'_> {
+    pub fn len(&self) -> usize {
+        match self {
+            InputBulk::F32(slice) => slice.len(),
+            InputBulk::I32(slice) => slice.len(),
+        }
+    }
+}
+
 impl TryFrom<InputBulk<'_>> for Vec<f32> {
     type Error = anyhow::Error;
 

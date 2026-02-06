@@ -158,6 +158,37 @@ impl SimulationInput for SimulationInputImpl {
             bail!("No frame started.");
         };
 
+        for ParticlesInput {
+            flags,
+            transforms,
+            sizes,
+            densities,
+            youngs_moduluses,
+            poissons_ratios,
+            initial_positions,
+            initial_velocity,
+            viscosity_dynamic,
+            viscosity_bulk,
+            exponent,
+            bulk_modulus,
+            sand_alpha,
+        } in current_frame.particles_input.values()
+        {
+            let n = flags.len();
+            ensure!(n == transforms.len() / 16);
+            ensure!(n == sizes.len());
+            ensure!(n == densities.len());
+            ensure!(n == youngs_moduluses.len());
+            ensure!(n == poissons_ratios.len());
+            ensure!(n == initial_positions.len() / 3);
+            ensure!(n == initial_velocity.len() / 3);
+            ensure!(n == viscosity_dynamic.len());
+            ensure!(n == viscosity_bulk.len());
+            ensure!(n == exponent.len());
+            ensure!(n == bulk_modulus.len());
+            ensure!(n == sand_alpha.len());
+        }
+
         self.input_writer.record_frame(current_frame)?;
 
         ensure!(
