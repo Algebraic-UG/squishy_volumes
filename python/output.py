@@ -70,7 +70,7 @@ def create_default_visualization(obj, uuid):
         modifier.node_group = create_geometry_nodes_grid_momentum()
     if output_type == PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
-        modifier["Socket_10"] = create_material_display_uvw()
+        modifier["Socket_9"] = create_material_display_uvw()
     if output_type == COLLIDER_SAMPLES:
         modifier.node_group = create_geometry_nodes_surface_samples()
 

@@ -48,7 +48,14 @@ def update_progress():
             continue
 
         progess = sim.progress
-        with_popup(uuid=simulation.uuid, f=lambda: sim.poll())
+
+        def poll_and_true():
+            sim.poll()
+            return True
+
+        if not with_popup(uuid=simulation.uuid, f=poll_and_true):
+            sim.drop()
+            continue
 
         if progess != sim.progress:
             should_redraw = True

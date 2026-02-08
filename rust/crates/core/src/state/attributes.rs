@@ -176,10 +176,11 @@ impl State {
                             AttributeParticles::Transformations => is
                                 .flat_map(|i| {
                                     let position_gradient = &ps.position_gradients[i];
+                                    let scale = ps.initial_volumes[i].powf(1. / 3.);
                                     Matrix4::from_columns(&[
-                                        position_gradient.column(0).push(0.),
-                                        position_gradient.column(1).push(0.),
-                                        position_gradient.column(2).push(0.),
+                                        position_gradient.column(0).scale(scale).push(0.),
+                                        position_gradient.column(1).scale(scale).push(0.),
+                                        position_gradient.column(2).scale(scale).push(0.),
                                         ps.positions[i].push(1.),
                                     ])
                                     .flat()
