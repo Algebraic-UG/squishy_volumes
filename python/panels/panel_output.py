@@ -26,7 +26,6 @@ from ..util import copy_simple_property_group, frame_to_load
 
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
-    COLLIDER_MESH,
     COLLIDER_SAMPLES,
     GRID_COLLIDER_DISTANCE,
     GRID_MOMENTUM_CONFORMED,
@@ -36,25 +35,76 @@ from ..magic_consts import (
 )
 
 
-from ..properties.squishy_volumes_object import get_output_objects
-from ..properties.squishy_volumes_scene import get_selected_simulation
+from ..properties.squishy_volumes_object import (
+    get_output_objects,
+    INPUT_TYPE_PARTICLES,
+    IO_OUTPUT,
+)
+from ..properties.squishy_volumes_scene import (
+    get_selected_simulation,
+    get_simulation_by_uuid,
+    get_selected_output_object,
+)
 from ..properties.squishy_volumes_object_output_settings import (
     Squishy_Volumes_Object_Output_Settings,
 )
-from ..output import (
-    create_output,
-    sync_output,
-)
+from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
 from ..properties.util import (
     add_fields_from,
+)
+from ..output import (
+    create_default_visualization,
+    sync_output,
 )
 from ..bridge import Simulation
 
 
+class Squishy_Volumes_Particle_Output_Object(bpy.types.PropertyGroup):
+    input_name: bpy.props.StringProperty(
+        name="Input Name",
+        description="The original name of the given input object.",
+    )  # type: ignore
+    output_name: bpy.props.StringProperty(
+        name="Output Name",
+        description="The new name for the new output object.",
+    )  # type: ignore
+    select: bpy.props.BoolProperty(
+        name="Add", description="Create an output for this input.", default=True
+    )  # type: ignore
+
+
+class SCENE_UL_Squishy_Volumes_Particle_Output_Object_List(bpy.types.UIList):
+    def draw_item(
+        self,
+        context: bpy.types.Context,
+        layout: bpy.types.UILayout,
+        data: Any | None,
+        item: Any | None,
+        icon: int | None,
+        active_data: Any,
+        active_property: str | None,
+        index: int | None,
+        flt_flag: int | None,
+    ):
+        assert isinstance(item, Squishy_Volumes_Particle_Output_Object)
+        row = layout.row()
+        row.prop(item, "select", text=item.input_name)
+        row.prop(item, "output_name")
+
+
+def update_select_action(self, context):
+    if self.select_action == "All":
+        for output in self.particle_outputs:
+            output.select = True
+    if self.select_action == "None":
+        for output in self.particle_outputs:
+            output.select = False
+
+
 @add_fields_from(Squishy_Volumes_Object_Output_Settings)
-class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_add_output_object"
-    bl_label = "Add Output Object"
+class SCENE_OT_Squishy_Volumes_Add_Output_Objects(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_output_objects"
+    bl_label = "Add Output Objects"
     bl_description = """Create a new active output object from the simulation cache.
 
 There are several output object types.
@@ -67,105 +117,146 @@ the positions and attributes are synchronized
 each frame."""
     bl_options = {"REGISTER", "UNDO"}
 
-    object_name: bpy.props.StringProperty()  # type: ignore
-    num_colliders: bpy.props.IntProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()  # type: ignore
+
+    particle_outputs: bpy.props.CollectionProperty(
+        type=Squishy_Volumes_Particle_Output_Object
+    )  # type: ignore
+    selected_particle_output: bpy.props.IntProperty()  # type: ignore
+
+    select_action: bpy.props.EnumProperty(
+        items=[
+            ("All",) * 3,
+            ("Custom",) * 3,
+            ("None",) * 3,
+        ],  # ty:ignore[invalid-argument-type]
+        update=update_select_action,
+        default="All",
+    )  # type: ignore
+
+    add_default_visualization: bpy.props.BoolProperty(
+        name="Add Default Visualization", default=True
+    )  # type:ignore
 
     def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
+        assert isinstance(simulation, Squishy_Volumes_Simulation)
 
-        frame = frame_to_load(simulation, context.scene.frame_current)
-        if frame is None:
-            self.report(
-                {"ERROR"},
-                f"No frame ready for {simulation.name}.",
+        for particle_output in self.particle_outputs:
+            if not particle_output.select:
+                continue
+
+            obj = bpy.data.objects.new(
+                particle_output.output_name,
+                bpy.data.meshes.new(particle_output.output_name),
             )
-            return {"CANCELLED"}
+            context.collection.objects.link(obj)
 
-        obj = bpy.data.objects.new(
-            self.object_name, bpy.data.meshes.new(self.object_name)
-        )
+            obj.squishy_volumes_object.io = IO_OUTPUT  # ty:ignore[unresolved-attribute]
+            obj.squishy_volumes_object.simulation_uuid = self.uuid  # ty:ignore[unresolved-attribute]
 
-        obj.squishy_volumes_object.input_name = self.input_name
-        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
-        obj.squishy_volumes_object.output_type = self.output_type
-        copy_simple_property_group(
-            self,
-            obj.squishy_volumes_object.optional_attributes,
-        )
+            output_settings = obj.squishy_volumes_object.output_settings  # ty:ignore[unresolved-attribute]
+            copy_simple_property_group(self, output_settings)
+            output_settings.input_name = particle_output.input_name
 
-        create_output(simulation, obj, frame)
-        sync_output(simulation, obj, self.num_colliders, frame)
+            if self.add_default_visualization:
+                create_default_visualization(obj, self.uuid)
 
-        context.collection.objects.link(obj)
+            self.report(
+                {"INFO"},
+                f"Added {obj.name} to output objects of {simulation.name}.",
+            )
 
-        self.report(
-            {"INFO"},
-            f"Added {obj.name} to output objects of {simulation.name}.",
-        )
         return {"FINISHED"}
 
-    def invoke(self, context, _):
-        return context.window_manager.invoke_props_dialog(self)
+    def invoke(self, context, event):
+        sim = Simulation.get(uuid=self.uuid)
+        if sim is None:
+            return {"CANCELLED"}
+        input_header = sim.input_header()
+        for obj in input_header["objects"]:
+            if obj["ty"] != INPUT_TYPE_PARTICLES:
+                continue
+            particle_output = self.particle_outputs.add()
+            particle_output.input_name = obj["name"]
+            particle_output.output_name = obj["name"] + " - Output"
+
+        return context.window_manager.invoke_props_dialog(self, width=600)
+
+    def draw_selection_list(self):
+        self.layout.prop(self, "select_action", expand=True)
+        self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
+            listtype_name="SCENE_UL_Squishy_Volumes_Particle_Output_Object_List",
+            list_id="",
+            dataptr=self,
+            propname="particle_outputs",
+            active_dataptr=self,
+            active_propname="selected_particle_output",
+        )
+
+    def draw_object_attributes(self):
+        output_type = self.output_type  # ty:ignore[unresolved-attribute]
+        if output_type == INPUT_MESH:
+            return
+
+        box = self.layout.box()  # ty:ignore[possibly-missing-attribute]
+        box.label(text="These attributes will be loaded each frame.")
+        box.label(
+            text="The default selection is needed by the default visualization, but you might need less!"
+        )
+        box.label(text="Please mouse-over for the exact identifier.")
+        grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
+        grid.label(text="Attribute")
+        grid.label(text="Type")
+        if output_type == GRID_COLLIDER_DISTANCE:
+            grid.prop(self, "grid_collider_distances")
+            grid.label(text="FLOAT")
+            grid.prop(self, "grid_collider_normals")
+            grid.label(text="FLOAT_VECTOR")
+        if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
+            grid.prop(self, "grid_momentum_masses")
+            grid.label(text="FLOAT")
+            grid.prop(self, "grid_momentum_velocities")
+            grid.label(text="FLOAT_VECTOR")
+        if output_type == PARTICLES:
+            grid.prop(self, "particle_states")
+            grid.label(text="FLOAT")
+            grid.prop(self, "particle_masses")
+            grid.label(text="FLOAT")
+            grid.prop(self, "particle_initial_volumes")
+            grid.label(text="FLOAT")
+            grid.prop(self, "particle_initial_positions")
+            grid.label(text="FLOAT_VECTOR")
+            grid.prop(self, "particle_velocities")
+            grid.label(text="FLOAT_VECTOR")
+            grid.prop(self, "particle_transformations")
+            grid.label(text="FLOAT4X4")
+            grid.prop(self, "particle_energies")
+            grid.label(text="FLOAT")
+            grid.prop(self, "particle_collider_insides")
+            grid.label(text="FLOAT")
+        if output_type == COLLIDER_SAMPLES:
+            grid.prop(self, "collider_normals")
+            grid.label(text="FLOAT_VECTOR")
+            grid.prop(self, "collider_velocities")
+            grid.label(text="FLOAT_VECTOR")
 
     def draw(self, context):
-        input_names = InputNames(
-            simulation, frame_to_load(simulation, context.scene.frame_current)
-        )
-        num_colliders = len(input_names.collider_names)
+        self.layout.prop(self, "output_type")
 
-        def create_operator(layout, output_type, icon, input_name):
-            op = layout.operator(
-                SCENE_OT_Squishy_Volumes_Add_Output_Object.bl_idname,
-                text=input_name,
-                icon=icon,
-            )
-            op.object_name = f"{output_type} - {input_name}"
-            op.output_type = output_type
-            op.input_name = input_name
-            op.num_colliders = num_colliders
+        self.draw_selection_list()
+        self.draw_object_attributes()
 
-        if input_names.solid_names:
-            box = self.layout.box()
-            row = box.row()
-            row.label(text="Add Solid Output")
-            op = row.operator(
-                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
-                icon="POINTCLOUD_DATA",
-            )
-            op.output_type = SOLID_PARTICLES
-            for name in input_names.solid_names:
-                create_operator(box, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
-        if input_names.fluid_names:
-            box = self.layout.box()
-            row = box.row()
-            row.label(text="Add Fluid Output")
-            op = row.operator(
-                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
-                icon="POINTCLOUD_DATA",
-            )
-            op.output_type = FLUID_PARTICLES
-            for name in input_names.fluid_names:
-                create_operator(box, FLUID_PARTICLES, "POINTCLOUD_DATA", name)
-        if input_names.collider_names:
-            box = self.layout.box()
-            box.label(text="Add Collider Output")
-            for name in input_names.collider_names:
-                create_operator(box, COLLIDER_SAMPLES, "POINTCLOUD_DATA", name)
-                create_operator(box, COLLIDER_MESH, "MESH_DATA", name)
-        box = self.layout.box()
-        box.label(text="Add Grid Output")
-        create_operator(box, GRID_COLLIDER_DISTANCE, "MESH_GRID", "Distances")
-        create_operator(box, GRID_MOMENTUM_FREE, "MESH_GRID", "Free Momentum")
-        for name in input_names.collider_names:
-            create_operator(box, GRID_MOMENTUM_CONFORMED, "MESH_GRID", name)
-        box = self.layout.box()
-        box.label(text="Get Original Input Meshes")
-        for name in input_names.mesh_names:
-            create_operator(box, INPUT_MESH, "MESH_DATA", name)
+        self.layout.prop(self, "add_default_visualization")
 
-        self.layout.label(text=f"{self.output_type}")
-        self.layout.prop(self, "object_name")
-        draw_object_attributes(self.layout, self.output_type, self)
+        if (
+            self.select_action == "None"
+            and any(o.select for o in self.particle_outputs)
+        ) or (
+            self.select_action == "All"
+            and any(not o.select for o in self.particle_outputs)
+        ):
+            self.select_action = "Custom"
 
 
 class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
@@ -176,7 +267,7 @@ class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
 
     output_type: bpy.props.StringProperty()  # type: ignore
     optional_attributes: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Optional_Attributes
+        type=Squishy_Volumes_Object_Output_Settings
     )  # type: ignore
 
     def execute(self, context):
@@ -203,7 +294,7 @@ class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
             obj.squishy_volumes_object.output_type = self.output_type
             obj.squishy_volumes_object.attributes = self.optional_attributes
 
-            create_output(simulation, obj, frame)
+            create_default_visualization(simulation, obj, frame)
             sync_output(simulation, obj, num_colliders, frame)
 
             context.collection.objects.link(obj)
@@ -247,11 +338,12 @@ Note that this does not delete the object."""
     @classmethod
     def poll(cls, context):
         return (
-            context.mode == "OBJECT" and get_selected_output_object(context) is not None
+            context.mode == "OBJECT"
+            and get_selected_output_object(context.scene) is not None
         )
 
     def execute(self, context):
-        obj = get_selected_output_object(context)
+        obj = get_selected_output_object(context.scene)
         obj.squishy_volumes_object.simulation_uuid = ""
         remove_drivers(obj)
 
@@ -326,11 +418,12 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             "selected_output_object",
         )
         list_controls = row.column(align=True)
-        list_controls.operator(
-            SCENE_OT_Squishy_Volumes_Add_Output_Object.bl_idname,
+        add_op = list_controls.operator(
+            SCENE_OT_Squishy_Volumes_Add_Output_Objects.bl_idname,
             text="",
             icon="ADD",
         )
+        add_op.uuid = simulation.uuid
         list_controls.operator(
             OBJECT_OT_Squishy_Volumes_Remove_Output_Object.bl_idname,
             text="",
@@ -339,7 +432,9 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
 
 classes = [
-    SCENE_OT_Squishy_Volumes_Add_Output_Object,
+    Squishy_Volumes_Particle_Output_Object,
+    SCENE_UL_Squishy_Volumes_Particle_Output_Object_List,
+    SCENE_OT_Squishy_Volumes_Add_Output_Objects,
     SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
     SCENE_UL_Squishy_Volumes_Output_Object_List,

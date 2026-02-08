@@ -33,7 +33,6 @@ from .bridge import Simulation, build_info
 from .frame_change import register_handler, unregister_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
-from .couple_utils import register_couple_utils, unregister_couple_utils
 from .view_utils import register_view_utils, unregister_view_utils
 from .script_utils import register_script_utils, unregister_script_utils
 
@@ -82,7 +81,6 @@ def register():
     register_handler()
     register_progress_update()
     register_progress_update_toggle()
-    register_couple_utils()
     register_view_utils()
     register_script_utils()
 
@@ -90,7 +88,6 @@ def register():
 def unregister():
     unregister_script_utils()
     unregister_view_utils()
-    unregister_couple_utils()
     unregister_progress_update_toggle()
     unregister_progress_update()
     unregister_handler()

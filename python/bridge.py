@@ -102,7 +102,7 @@ class Simulation:
 
     @hint_at_info
     def input_header(self) -> dict[str, Any]:
-        return json.loads(self.handle.input_header)
+        return json.loads(self.handle.input_header())
 
     @hint_at_info
     def poll(self):

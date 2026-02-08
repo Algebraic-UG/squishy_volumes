@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+from bpy.props import StringProperty
 
 import bpy
 
@@ -25,7 +26,6 @@ from ..properties.util import add_fields_from
 from ..properties.squishy_volumes_scene import (
     get_selected_simulation,
     get_selected_input_object,
-    get_selected_uuid,
 )
 from ..properties.squishy_volumes_object import (
     IO_NONE,
@@ -142,6 +142,8 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
+    uuid: StringProperty()  # type: ignore
+
     def execute(self, context):
         simulation = get_selected_simulation(context.scene)
         simulation.has_loaded_frame = False
@@ -177,10 +179,7 @@ Note that this also discards all computed frames in the cache."""
             return self.execute(context)
 
     def draw(self, context):
-        uuid = get_selected_uuid(context.scene)
-        assert uuid is not None
-
-        sim = Simulation.get(uuid=uuid)
+        sim = Simulation.get(uuid=self.uuid)
         if sim is None:
             prior_frames = 0
         else:
@@ -361,7 +360,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
         self.layout.separator()
 
         row = self.layout.row()
-        row.operator(
+        write_op = row.operator(
             SCENE_OT_Squishy_Volumes_Write_Input_To_Cache.bl_idname,
             text=(
                 "Overwrite Cache"
@@ -370,6 +369,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             ),
             icon="FILE_CACHE",
         )
+        write_op.uuid = simulation.uuid
         row.prop(simulation, "immediately_start_baking")
 
 

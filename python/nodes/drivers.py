@@ -22,8 +22,8 @@ import bpy
 from ..util import get_simulation_idx_by_uuid
 
 
-def add_drivers(simulation, modifier):
-    simulation_idx = get_simulation_idx_by_uuid(simulation.uuid)
+def add_drivers(uuid, modifier):
+    simulation_idx = get_simulation_idx_by_uuid(uuid)
     tree = modifier.node_group.interface.items_tree
     if "Grid Node Size" in tree:
         identifier = tree["Grid Node Size"].identifier
@@ -34,18 +34,9 @@ def add_drivers(simulation, modifier):
         var.type = "CONTEXT_PROP"
         var.targets[
             0
-        ].data_path = f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.grid_node_size"
-
-    if "Particle Size" in tree:
-        identifier = tree["Particle Size"].identifier
-        driver = modifier.driver_add(f'["{identifier}"]').driver
-        driver.expression = "particle_size"
-        var = driver.variables.new()
-        var.name = "particle_size"
-        var.type = "CONTEXT_PROP"
-        var.targets[
-            0
-        ].data_path = f"squishy_volumes_scene.simulations[{simulation_idx}].from_cache.particle_size"
+        ].data_path = (
+            f"squishy_volumes_scene.simulations[{simulation_idx}].grid_node_size"
+        )
 
 
 DRIVER_PATTERN = r"^(squishy_volumes_scene\.simulations\[)(\d+)(\].*)"

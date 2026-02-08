@@ -33,7 +33,6 @@ from .magic_consts import (
     SQUISHY_VOLUMES_STATE,
     SQUISHY_VOLUMES_TRANSFORM,
     SQUISHY_VOLUMES_VELOCITY,
-    COLLIDER_MESH,
     COLLIDER_SAMPLES,
     PARTICLES,
     GRID_COLLIDER_DISTANCE,
@@ -58,42 +57,24 @@ from .util import (
 from .bridge import Simulation
 
 
-def create_output(simulation, obj, frame):
-    mpm = obj.squishy_volumes_object
-    if mpm.output_type == COLLIDER_MESH or mpm.output_type == INPUT_MESH:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps({"Mesh": {"name": mpm.input_name, "attribute": attribute}}),
-        )
-
-        fill_mesh_with_vertices_and_triangles(
-            obj.data, ffa("Vertices"), ffa("Triangles")
-        )
-        obj.location = ffa("Position")
-        obj.rotation_mode = "QUATERNION"
-        obj.rotation_quaternion = fix_quaternion_order(ffa("Orientation"))
+def create_default_visualization(obj, uuid):
+    output_type = obj.squishy_volumes_object.output_settings.output_type
+    if output_type == INPUT_MESH:
         return
 
-    modifier = obj.modifiers.new("Squishy Volumes Default", type="NODES")
+    modifier = obj.modifiers.new("Squishy Volumes Default Visualization", type="NODES")
 
-    if mpm.output_type == GRID_COLLIDER_DISTANCE:
+    if output_type == GRID_COLLIDER_DISTANCE:
         modifier.node_group = create_geometry_nodes_grid_distance()
-    if mpm.output_type == GRID_MOMENTUM_FREE:
+    if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
         modifier.node_group = create_geometry_nodes_grid_momentum()
-    if mpm.output_type == GRID_MOMENTUM_CONFORMED:
-        modifier.node_group = create_geometry_nodes_grid_momentum()
-    if mpm.output_type == FLUID_PARTICLES:
+    if output_type == PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
         modifier["Socket_10"] = create_material_display_uvw()
-    if mpm.output_type == SOLID_PARTICLES:
-        modifier.node_group = create_geometry_nodes_particles()
-        modifier["Socket_10"] = create_material_display_uvw()
-    if mpm.output_type == COLLIDER_SAMPLES:
+    if output_type == COLLIDER_SAMPLES:
         modifier.node_group = create_geometry_nodes_surface_samples()
 
-    add_drivers(simulation, modifier)
+    add_drivers(uuid, modifier)
 
 
 def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
@@ -111,12 +92,15 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
 
 
 def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, frame: int):
-    mpm = obj.squishy_volumes_object  # ty:ignore[unresolved-attribute]
+    output_settings = obj.squishy_volumes_object.output_settings  # ty:ignore[unresolved-attribute]
 
-    if mpm.sync_once and frame != mpm.sync_once_frame:
+    if output_settings.sync_once and frame != output_settings.sync_once_frame:
         return
 
-    if mpm.output_type == GRID_COLLIDER_DISTANCE:
+    if output_settings.output_type == INPUT_MESH:
+        raise RuntimeError("Not implemented yet")
+
+    if output_settings.output_type == GRID_COLLIDER_DISTANCE:
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: sim.fetch_flat_attribute(
             frame=frame,
@@ -124,7 +108,7 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
         )
 
         fill_mesh_with_positions(obj.data, ffa("Positions"))
-        if mpm.optional_attributes.grid_collider_distances:
+        if output_settings.grid_collider_distances:
             for collider_idx in range(0, num_colliders):
                 add_attribute(
                     obj.data,
@@ -132,7 +116,7 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
                     f"{SQUISHY_VOLUMES_DISTANCE}_{collider_idx}",
                     "FLOAT",
                 )
-        if mpm.optional_attributes.grid_collider_normals:
+        if output_settings.grid_collider_normals:
             for collider_idx in range(0, num_colliders):
                 add_attribute(
                     obj.data,
@@ -141,52 +125,36 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
                     "FLOAT_VECTOR",
                 )
 
-    if mpm.output_type == GRID_MOMENTUM_FREE:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps({"GridMomentums": {"Free": attribute}}),
-        )
-
-        fill_mesh_with_positions(obj.data, ffa("Positions"))
-        if mpm.optional_attributes.grid_momentum_masses:
-            add_attribute(
-                obj.data,
-                ffa("Masses"),
-                SQUISHY_VOLUMES_MASS,
-                "FLOAT",
+    if output_settings.output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
+        if output_settings.output_type == GRID_MOMENTUM_FREE:
+            # pylint: disable=unnecessary-lambda-assignment
+            ffa = lambda attribute: sim.fetch_flat_attribute(
+                frame=frame,
+                attribute={"GridMomentums": {"Free": attribute}},
             )
-        if mpm.optional_attributes.grid_momentum_velocities:
-            add_attribute(
-                obj.data,
-                ffa("Velocities"),
-                SQUISHY_VOLUMES_VELOCITY,
-                "FLOAT_VECTOR",
-            )
-    if mpm.output_type == GRID_MOMENTUM_CONFORMED:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps(
-                {
+        if output_settings.output_type == GRID_MOMENTUM_CONFORMED:
+            # pylint: disable=unnecessary-lambda-assignment
+            ffa = lambda attribute: sim.fetch_flat_attribute(
+                frame=frame,
+                attribute={
                     "GridMomentums": {
-                        "Conformed": {"name": mpm.input_name, "attribute": attribute}
+                        "Conformed": {
+                            "name": output_settings.input_name,
+                            "attribute": attribute,
+                        }
                     }
-                }
-            ),
-        )
+                },
+            )
 
         fill_mesh_with_positions(obj.data, ffa("Positions"))
-        if mpm.optional_attributes.grid_momentum_masses:
+        if output_settings.grid_momentum_masses:
             add_attribute(
                 obj.data,
                 ffa("Masses"),
                 SQUISHY_VOLUMES_MASS,
                 "FLOAT",
             )
-        if mpm.optional_attributes.grid_momentum_velocities:
+        if output_settings.grid_momentum_velocities:
             add_attribute(
                 obj.data,
                 ffa("Velocities"),
@@ -194,73 +162,69 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
                 "FLOAT_VECTOR",
             )
 
-    if mpm.output_type == SOLID_PARTICLES:
+    if output_settings.output_type == PARTICLES:
         # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps(
-                {
-                    "Object": {
-                        "name": mpm.input_name,
-                        "attribute": {"Solid": attribute},
-                    }
+        ffa = lambda attribute: sim.fetch_flat_attribute(
+            frame=frame,
+            attribute={
+                "Object": {
+                    "name": output_settings.input_name,
+                    "attribute": {"Particles": attribute},
                 }
-            ),
+            },
         )
 
         fill_mesh_with_positions(obj.data, ffa("Positions"))
-
-        if mpm.optional_attributes.solid_states:
+        if output_settings.particle_states:
             add_attribute(
                 obj.data,
                 ffa("States"),
                 SQUISHY_VOLUMES_STATE,
                 "FLOAT",
             )
-        if mpm.optional_attributes.solid_masses:
+        if output_settings.particle_masses:
             add_attribute(
                 obj.data,
                 ffa("Masses"),
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
-        if mpm.optional_attributes.solid_initial_volumes:
+        if output_settings.particle_initial_volumes:
             add_attribute(
                 obj.data,
                 ffa("InitialVolumes"),
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
-        if mpm.optional_attributes.solid_initial_positions:
+        if output_settings.particle_initial_positions:
             add_attribute(
                 obj.data,
                 ffa("InitialPositions"),
                 SQUISHY_VOLUMES_INITIAL_POSITION,
                 "FLOAT_VECTOR",
             )
-        if mpm.optional_attributes.solid_velocities:
+        if output_settings.particle_velocities:
             add_attribute(
                 obj.data,
                 ffa("Velocities"),
                 SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
-        if mpm.optional_attributes.solid_transformations:
+        if output_settings.particle_transformations:
             add_attribute(
                 obj.data,
                 ffa("Transformations"),
                 SQUISHY_VOLUMES_TRANSFORM,
                 "FLOAT4X4",
             )
-        if mpm.optional_attributes.solid_energies:
+        if output_settings.particle_energies:
             add_attribute(
                 obj.data,
                 ffa("ElasticEnergies"),
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
-        if mpm.optional_attributes.solid_collider_insides:
+        if output_settings.particle_collider_insides:
             for collider_idx in range(0, num_colliders):
                 add_attribute(
                     obj.data,
@@ -268,108 +232,31 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
                     f"{SQUISHY_VOLUMES_COLLIDER_INSIDE}_{collider_idx}",
                     "FLOAT",
                 )
-    if mpm.output_type == FLUID_PARTICLES:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps(
-                {"Object": {"name": mpm.input_name, "attribute": {"Fluid": attribute}}}
-            ),
-        )
-        fill_mesh_with_positions(obj.data, ffa("Positions"))
 
-        if mpm.optional_attributes.fluid_states:
-            add_attribute(
-                obj.data,
-                ffa("States"),
-                SQUISHY_VOLUMES_STATE,
-                "FLOAT",
-            )
-        if mpm.optional_attributes.fluid_initial_positions:
-            add_attribute(
-                obj.data,
-                ffa("InitialPositions"),
-                SQUISHY_VOLUMES_INITIAL_POSITION,
-                "FLOAT_VECTOR",
-            )
-        if mpm.optional_attributes.fluid_velocities:
-            add_attribute(
-                obj.data,
-                ffa("Velocities"),
-                SQUISHY_VOLUMES_VELOCITY,
-                "FLOAT_VECTOR",
-            )
-        if mpm.optional_attributes.fluid_transformations:
-            add_attribute(
-                obj.data,
-                ffa("Transformations"),
-                SQUISHY_VOLUMES_TRANSFORM,
-                "FLOAT4X4",
-            )
-        if mpm.optional_attributes.fluid_collider_insides:
-            for collider_idx in range(0, num_colliders):
-                add_attribute(
-                    obj.data,
-                    ffa({"ColliderInsides": collider_idx}),
-                    f"{SQUISHY_VOLUMES_COLLIDER_INSIDE}_{collider_idx}",
-                    "FLOAT",
-                )
-        if mpm.optional_attributes.fluid_energies:
-            add_attribute(
-                obj.data,
-                ffa("ElasticEnergies"),
-                SQUISHY_VOLUMES_ELASTIC_ENERGY,
-                "FLOAT",
-            )
-
-    if mpm.output_type == COLLIDER_SAMPLES:
+    if output_settings.output_type == COLLIDER_SAMPLES:
         # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps(
-                {
-                    "Object": {
-                        "name": mpm.input_name,
-                        "attribute": {"Collider": attribute},
-                    }
+        ffa = lambda attribute: sim.fetch_flat_attribute(
+            frame=frame,
+            attribute={
+                "Object": {
+                    "name": output_settings.input_name,
+                    "attribute": {"Collider": attribute},
                 }
-            ),
+            },
         )
 
         fill_mesh_with_positions(obj.data, ffa("Samples"))
-
-        if mpm.optional_attributes.collider_normals:
+        if output_settings.collider_normals:
             add_attribute(
                 obj.data,
                 ffa("SampleNormals"),
                 SQUISHY_VOLUMES_NORMAL,
                 "FLOAT_VECTOR",
             )
-        if mpm.optional_attributes.collider_velocities:
+        if output_settings.collider_velocities:
             add_attribute(
                 obj.data,
                 ffa("SampleVelocities"),
                 SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
-    if mpm.output_type == COLLIDER_MESH:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: fetch_flat_attribute(
-            simulation,
-            frame,
-            json.dumps(
-                {
-                    "Object": {
-                        "name": mpm.input_name,
-                        "attribute": {"Collider": attribute},
-                    }
-                }
-            ),
-        )
-        obj.matrix_world = mathutils.Matrix(np.reshape(ffa("Transformation"), (4, 4)))
-        obj.matrix_world.transpose()
-
-    if mpm.output_type == INPUT_MESH:
-        pass

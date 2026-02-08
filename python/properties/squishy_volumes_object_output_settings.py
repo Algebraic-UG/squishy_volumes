@@ -30,14 +30,8 @@ from ..magic_consts import (
     SQUISHY_VOLUMES_MASS,
     SQUISHY_VOLUMES_PRESSURE,
     SQUISHY_VOLUMES_INITIAL_VOLUME,
-    COLLIDER_MESH,
-    INPUT_MESH,
-    GRID_COLLIDER_DISTANCE,
-    GRID_MOMENTUM_FREE,
-    GRID_MOMENTUM_CONFORMED,
-    PARTICLES,
-    COLLIDER_SAMPLES,
     OUTPUT_TYPES,
+    PARTICLES,
 )
 
 
@@ -61,48 +55,6 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.collider_velocities = value
 
 
-def draw_object_attributes(layout, output_type, optional_attributes):
-    if output_type in [COLLIDER_MESH, INPUT_MESH]:
-        return
-
-    layout.label(text="Please mouse-over for the exact identifier.")
-    grid = layout.grid_flow(row_major=True, columns=2, even_columns=False)
-    grid.label(text="Attribute")
-    grid.label(text="Type")
-    if output_type == GRID_COLLIDER_DISTANCE:
-        grid.prop(optional_attributes, "grid_collider_distances")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "grid_collider_normals")
-        grid.label(text="FLOAT_VECTOR")
-    if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
-        grid.prop(optional_attributes, "grid_momentum_masses")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "grid_momentum_velocities")
-        grid.label(text="FLOAT_VECTOR")
-    if output_type == PARTICLES:
-        grid.prop(optional_attributes, "particle_states")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "particle_masses")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "particle_initial_volumes")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "particle_initial_positions")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "particle_velocities")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "particle_transformations")
-        grid.label(text="FLOAT4X4")
-        grid.prop(optional_attributes, "particle_energies")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "particle_collider_insides")
-        grid.label(text="FLOAT")
-    if output_type == COLLIDER_SAMPLES:
-        grid.prop(optional_attributes, "collider_normals")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "collider_velocities")
-        grid.label(text="FLOAT_VECTOR")
-
-
 class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
     output_type: bpy.props.EnumProperty(
         name="Output Type",
@@ -117,6 +69,25 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
         description="Referenced for retrieving object-bound outputs.",
         options=set(),
     )  # type: ignore
+
+    sync_once: bpy.props.BoolProperty(
+        name="Sync Once",
+        description="Instead of continously synchronizing, load only a specific frame.",
+        default=False,
+    )  # type: ignore
+    sync_once_frame: bpy.props.IntProperty(
+        name="Sync Once Frame",
+        description="""Simulation frame to synchronize on.
+
+Only used if 'Sync Once' is active.
+When the outputs of a simulation are synchronized on a different frame,
+this object is left untouched.""",
+        default=0,
+    )  # type: ignore
+
+    # ----------------------------------------------------------------
+    # Attribute syncing
+    # ----------------------------------------------------------------
 
     grid_collider_distances: bpy.props.BoolProperty(
         name="Distance",
