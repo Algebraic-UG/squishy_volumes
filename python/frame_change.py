@@ -64,6 +64,7 @@ def sync_simulation(
             sync_output(sim, obj, num_colliders, frame)
         except RuntimeError as e:
             desynced_objs.append((obj, e))
+
     if desynced_objs:
         for obj, _ in desynced_objs:
             obj.squishy_volumes_object.simulation_uuid = ""

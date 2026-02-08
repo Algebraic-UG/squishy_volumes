@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 import bpy
 
 from typing import Any
@@ -27,19 +28,18 @@ from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
     COLLIDER_MESH,
     COLLIDER_SAMPLES,
-    FLUID_PARTICLES,
     GRID_COLLIDER_DISTANCE,
     GRID_MOMENTUM_CONFORMED,
     GRID_MOMENTUM_FREE,
     INPUT_MESH,
-    SOLID_PARTICLES,
+    PARTICLES,
 )
 
 
 from ..properties.squishy_volumes_object import get_output_objects
 from ..properties.squishy_volumes_scene import get_selected_simulation
-from ..properties.squishy_volumes_object_attributes import (
-    Squishy_Volumes_Optional_Attributes,
+from ..properties.squishy_volumes_object_output_settings import (
+    Squishy_Volumes_Object_Output_Settings,
 )
 from ..output import (
     create_output,
@@ -51,87 +51,7 @@ from ..properties.util import (
 from ..bridge import Simulation
 
 
-def draw_object_attributes(layout, output_type, optional_attributes):
-    if output_type == COLLIDER_MESH:
-        return
-    if output_type == INPUT_MESH:
-        return
-
-    layout.label(text="Please mouse-over for the exact identifier.")
-    grid = layout.grid_flow(row_major=True, columns=2, even_columns=False)
-    grid.label(text="Attribute")
-    grid.label(text="Type")
-    if output_type == GRID_COLLIDER_DISTANCE:
-        grid.prop(optional_attributes, "grid_collider_distances")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "grid_collider_normals")
-        grid.label(text="FLOAT_VECTOR")
-    if output_type == GRID_MOMENTUM_FREE:
-        grid.prop(optional_attributes, "grid_momentum_masses")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "grid_momentum_velocities")
-        grid.label(text="FLOAT_VECTOR")
-    if output_type == GRID_MOMENTUM_CONFORMED:
-        grid.prop(optional_attributes, "grid_momentum_masses")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "grid_momentum_velocities")
-        grid.label(text="FLOAT_VECTOR")
-    if output_type == SOLID_PARTICLES:
-        grid.prop(optional_attributes, "solid_states")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "solid_masses")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "solid_initial_volumes")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "solid_initial_positions")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "solid_velocities")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "solid_transformations")
-        grid.label(text="FLOAT4X4")
-        grid.prop(optional_attributes, "solid_energies")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "solid_collider_insides")
-        grid.label(text="FLOAT")
-    if output_type == FLUID_PARTICLES:
-        grid.prop(optional_attributes, "fluid_states")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "fluid_initial_positions")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "fluid_velocities")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "fluid_transformations")
-        grid.label(text="FLOAT4X4")
-        grid.prop(optional_attributes, "fluid_collider_insides")
-        grid.label(text="FLOAT")
-        grid.prop(optional_attributes, "fluid_energies")
-        grid.label(text="FLOAT")
-    if output_type == COLLIDER_SAMPLES:
-        grid.prop(optional_attributes, "collider_normals")
-        grid.label(text="FLOAT_VECTOR")
-        grid.prop(optional_attributes, "collider_velocities")
-        grid.label(text="FLOAT_VECTOR")
-
-
-class SCENE_OT_Squishy_Volumes_Jump_To_Start(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_jump_to_start"
-    bl_label = "Jump to First Frame"
-    bl_description = """Jump to the first frame that is available
-in the loaded cache."""
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
-        context.scene.frame_set(simulation.display_start_frame)
-
-        self.report(
-            {"INFO"},
-            f"Jumped to first frame of {simulation.name}.",
-        )
-        return {"FINISHED"}
-
-
-@add_fields_from(Squishy_Volumes_Optional_Attributes)
+@add_fields_from(Squishy_Volumes_Object_Output_Settings)
 class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_output_object"
     bl_label = "Add Output Object"
@@ -148,8 +68,6 @@ each frame."""
     bl_options = {"REGISTER", "UNDO"}
 
     object_name: bpy.props.StringProperty()  # type: ignore
-    output_type: bpy.props.StringProperty()  # type: ignore
-    input_name: bpy.props.StringProperty()  # type: ignore
     num_colliders: bpy.props.IntProperty()  # type: ignore
 
     def execute(self, context):
@@ -190,6 +108,61 @@ each frame."""
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
+        input_names = InputNames(
+            simulation, frame_to_load(simulation, context.scene.frame_current)
+        )
+        num_colliders = len(input_names.collider_names)
+
+        def create_operator(layout, output_type, icon, input_name):
+            op = layout.operator(
+                SCENE_OT_Squishy_Volumes_Add_Output_Object.bl_idname,
+                text=input_name,
+                icon=icon,
+            )
+            op.object_name = f"{output_type} - {input_name}"
+            op.output_type = output_type
+            op.input_name = input_name
+            op.num_colliders = num_colliders
+
+        if input_names.solid_names:
+            box = self.layout.box()
+            row = box.row()
+            row.label(text="Add Solid Output")
+            op = row.operator(
+                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
+                icon="POINTCLOUD_DATA",
+            )
+            op.output_type = SOLID_PARTICLES
+            for name in input_names.solid_names:
+                create_operator(box, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
+        if input_names.fluid_names:
+            box = self.layout.box()
+            row = box.row()
+            row.label(text="Add Fluid Output")
+            op = row.operator(
+                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
+                icon="POINTCLOUD_DATA",
+            )
+            op.output_type = FLUID_PARTICLES
+            for name in input_names.fluid_names:
+                create_operator(box, FLUID_PARTICLES, "POINTCLOUD_DATA", name)
+        if input_names.collider_names:
+            box = self.layout.box()
+            box.label(text="Add Collider Output")
+            for name in input_names.collider_names:
+                create_operator(box, COLLIDER_SAMPLES, "POINTCLOUD_DATA", name)
+                create_operator(box, COLLIDER_MESH, "MESH_DATA", name)
+        box = self.layout.box()
+        box.label(text="Add Grid Output")
+        create_operator(box, GRID_COLLIDER_DISTANCE, "MESH_GRID", "Distances")
+        create_operator(box, GRID_MOMENTUM_FREE, "MESH_GRID", "Free Momentum")
+        for name in input_names.collider_names:
+            create_operator(box, GRID_MOMENTUM_CONFORMED, "MESH_GRID", name)
+        box = self.layout.box()
+        box.label(text="Get Original Input Meshes")
+        for name in input_names.mesh_names:
+            create_operator(box, INPUT_MESH, "MESH_DATA", name)
+
         self.layout.label(text=f"{self.output_type}")
         self.layout.prop(self, "object_name")
         draw_object_attributes(self.layout, self.output_type, self)
@@ -330,25 +303,18 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             return False
 
         simulation = get_selected_simulation(context.scene)
-        if simulation is None or not simulation.sync:
-            return False
-
-        sim = Simulation.get(uuid=simulation.uuid)
-        if sim is None:
-            return False
-
-        return sim.available_frames() > 0
+        return simulation is not None and Simulation.exists(uuid=simulation.uuid)
 
     def draw(self, context):
         simulation = get_selected_simulation(context.scene)
         self.layout.prop(simulation, "display_start_frame")  # ty:ignore[possibly-missing-attribute]
-        if simulation.loaded_frame == -1:
-            self.layout.operator(SCENE_OT_Squishy_Volumes_Jump_To_Start.bl_idname)  # ty:ignore[possibly-missing-attribute]
-            return
 
         col = self.layout.column()  # ty:ignore[possibly-missing-attribute]
-        col.enabled = False
-        col.prop(simulation, "loaded_frame")
+        if simulation.has_loaded_frame:
+            col.enabled = False
+            col.prop(simulation, "loaded_frame")
+        else:
+            col.label(text="No frame loaded")
 
         row = self.layout.row()  # ty:ignore[possibly-missing-attribute]
         row.column().template_list(
@@ -361,69 +327,18 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         )
         list_controls = row.column(align=True)
         list_controls.operator(
+            SCENE_OT_Squishy_Volumes_Add_Output_Object.bl_idname,
+            text="",
+            icon="ADD",
+        )
+        list_controls.operator(
             OBJECT_OT_Squishy_Volumes_Remove_Output_Object.bl_idname,
             text="",
             icon="REMOVE",
         )
 
-        input_names = InputNames(
-            simulation, frame_to_load(simulation, context.scene.frame_current)
-        )
-        num_colliders = len(input_names.collider_names)
-
-        def create_operator(layout, output_type, icon, input_name):
-            op = layout.operator(
-                SCENE_OT_Squishy_Volumes_Add_Output_Object.bl_idname,
-                text=input_name,
-                icon=icon,
-            )
-            op.object_name = f"{output_type} - {input_name}"
-            op.output_type = output_type
-            op.input_name = input_name
-            op.num_colliders = num_colliders
-
-        if input_names.solid_names:
-            box = self.layout.box()
-            row = box.row()
-            row.label(text="Add Solid Output")
-            op = row.operator(
-                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
-                icon="POINTCLOUD_DATA",
-            )
-            op.output_type = SOLID_PARTICLES
-            for name in input_names.solid_names:
-                create_operator(box, SOLID_PARTICLES, "POINTCLOUD_DATA", name)
-        if input_names.fluid_names:
-            box = self.layout.box()
-            row = box.row()
-            row.label(text="Add Fluid Output")
-            op = row.operator(
-                SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects.bl_idname,
-                icon="POINTCLOUD_DATA",
-            )
-            op.output_type = FLUID_PARTICLES
-            for name in input_names.fluid_names:
-                create_operator(box, FLUID_PARTICLES, "POINTCLOUD_DATA", name)
-        if input_names.collider_names:
-            box = self.layout.box()
-            box.label(text="Add Collider Output")
-            for name in input_names.collider_names:
-                create_operator(box, COLLIDER_SAMPLES, "POINTCLOUD_DATA", name)
-                create_operator(box, COLLIDER_MESH, "MESH_DATA", name)
-        box = self.layout.box()
-        box.label(text="Add Grid Output")
-        create_operator(box, GRID_COLLIDER_DISTANCE, "MESH_GRID", "Distances")
-        create_operator(box, GRID_MOMENTUM_FREE, "MESH_GRID", "Free Momentum")
-        for name in input_names.collider_names:
-            create_operator(box, GRID_MOMENTUM_CONFORMED, "MESH_GRID", name)
-        box = self.layout.box()
-        box.label(text="Get Original Input Meshes")
-        for name in input_names.mesh_names:
-            create_operator(box, INPUT_MESH, "MESH_DATA", name)
-
 
 classes = [
-    SCENE_OT_Squishy_Volumes_Jump_To_Start,
     SCENE_OT_Squishy_Volumes_Add_Output_Object,
     SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,

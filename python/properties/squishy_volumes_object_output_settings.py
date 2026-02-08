@@ -30,33 +30,94 @@ from ..magic_consts import (
     SQUISHY_VOLUMES_MASS,
     SQUISHY_VOLUMES_PRESSURE,
     SQUISHY_VOLUMES_INITIAL_VOLUME,
+    COLLIDER_MESH,
+    INPUT_MESH,
+    GRID_COLLIDER_DISTANCE,
+    GRID_MOMENTUM_FREE,
+    GRID_MOMENTUM_CONFORMED,
+    PARTICLES,
+    COLLIDER_SAMPLES,
+    OUTPUT_TYPES,
 )
 
 
 def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.grid_collider_distances = value
     optional_attributes.grid_collider_normals = value
+
     optional_attributes.grid_momentum_masses = value
     optional_attributes.grid_momentum_velocities = value
-    optional_attributes.solid_states = value
-    optional_attributes.solid_masses = value
-    optional_attributes.solid_initial_volumes = value
-    optional_attributes.solid_initial_positions = value
-    optional_attributes.solid_velocities = value
-    optional_attributes.solid_transformations = value
-    optional_attributes.solid_energies = value
-    optional_attributes.solid_collider_insides = value
-    optional_attributes.fluid_states = value
-    optional_attributes.fluid_initial_positions = value
-    optional_attributes.fluid_velocities = value
-    optional_attributes.fluid_transformations = value
-    optional_attributes.fluid_collider_insides = value
-    optional_attributes.fluid_energies = value
+
+    optional_attributes.particle_states = value
+    optional_attributes.particle_masses = value
+    optional_attributes.particle_initial_volumes = value
+    optional_attributes.particle_initial_positions = value
+    optional_attributes.particle_velocities = value
+    optional_attributes.particle_transformations = value
+    optional_attributes.particle_energies = value
+    optional_attributes.particle_collider_insides = value
+
     optional_attributes.collider_normals = value
     optional_attributes.collider_velocities = value
 
 
-class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
+def draw_object_attributes(layout, output_type, optional_attributes):
+    if output_type in [COLLIDER_MESH, INPUT_MESH]:
+        return
+
+    layout.label(text="Please mouse-over for the exact identifier.")
+    grid = layout.grid_flow(row_major=True, columns=2, even_columns=False)
+    grid.label(text="Attribute")
+    grid.label(text="Type")
+    if output_type == GRID_COLLIDER_DISTANCE:
+        grid.prop(optional_attributes, "grid_collider_distances")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "grid_collider_normals")
+        grid.label(text="FLOAT_VECTOR")
+    if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
+        grid.prop(optional_attributes, "grid_momentum_masses")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "grid_momentum_velocities")
+        grid.label(text="FLOAT_VECTOR")
+    if output_type == PARTICLES:
+        grid.prop(optional_attributes, "particle_states")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "particle_masses")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "particle_initial_volumes")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "particle_initial_positions")
+        grid.label(text="FLOAT_VECTOR")
+        grid.prop(optional_attributes, "particle_velocities")
+        grid.label(text="FLOAT_VECTOR")
+        grid.prop(optional_attributes, "particle_transformations")
+        grid.label(text="FLOAT4X4")
+        grid.prop(optional_attributes, "particle_energies")
+        grid.label(text="FLOAT")
+        grid.prop(optional_attributes, "particle_collider_insides")
+        grid.label(text="FLOAT")
+    if output_type == COLLIDER_SAMPLES:
+        grid.prop(optional_attributes, "collider_normals")
+        grid.label(text="FLOAT_VECTOR")
+        grid.prop(optional_attributes, "collider_velocities")
+        grid.label(text="FLOAT_VECTOR")
+
+
+class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
+    output_type: bpy.props.EnumProperty(
+        name="Output Type",
+        description="Depending on this, different attributes are synchronizable.",
+        items=[(ty,) * 3 for ty in OUTPUT_TYPES],  # ty:ignore[invalid-argument-type]
+        default=PARTICLES,
+        options=set(),
+    )  # type: ignore
+
+    input_name: bpy.props.StringProperty(
+        name="Original Input Name",
+        description="Referenced for retrieving object-bound outputs.",
+        options=set(),
+    )  # type: ignore
+
     grid_collider_distances: bpy.props.BoolProperty(
         name="Distance",
         description=f"Attribute name: {SQUISHY_VOLUMES_DISTANCE}",
@@ -85,100 +146,58 @@ class Squishy_Volumes_Optional_Attributes(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    solid_states: bpy.props.BoolProperty(
+    particle_states: bpy.props.BoolProperty(
         name="States",
         description=f"Attribute name: {SQUISHY_VOLUMES_STATE}",
         default=False,
         options=set(),
     )  # type: ignore
 
-    solid_masses: bpy.props.BoolProperty(
+    particle_masses: bpy.props.BoolProperty(
         name="Masses",
         description=f"Attribute name: {SQUISHY_VOLUMES_MASS}",
         default=False,
         options=set(),
     )  # type: ignore
 
-    solid_initial_positions: bpy.props.BoolProperty(
+    particle_initial_positions: bpy.props.BoolProperty(
         name="Initial Positions",
         description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_POSITION}",
         default=True,
         options=set(),
     )  # type: ignore
 
-    solid_initial_volumes: bpy.props.BoolProperty(
+    particle_initial_volumes: bpy.props.BoolProperty(
         name="Initial Volumes",
         description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_VOLUME}",
         default=False,
         options=set(),
     )  # type: ignore
 
-    solid_velocities: bpy.props.BoolProperty(
+    particle_velocities: bpy.props.BoolProperty(
         name="Velocites",
         description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore
 
-    solid_transformations: bpy.props.BoolProperty(
+    particle_transformations: bpy.props.BoolProperty(
         name="Transformations",
         description=f"Attribute name: {SQUISHY_VOLUMES_TRANSFORM}",
         default=True,
         options=set(),
     )  # type: ignore
 
-    solid_energies: bpy.props.BoolProperty(
+    particle_energies: bpy.props.BoolProperty(
         name="Energies",
         description=f"Attribute name: {SQUISHY_VOLUMES_ELASTIC_ENERGY}",
         default=True,
         options=set(),
     )  # type: ignore
 
-    solid_collider_insides: bpy.props.BoolProperty(
+    particle_collider_insides: bpy.props.BoolProperty(
         name="Collider Insides",
         description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    fluid_states: bpy.props.BoolProperty(
-        name="States",
-        description=f"Attribute name: {SQUISHY_VOLUMES_STATE}",
-        default=False,
-        options=set(),
-    )  # type: ignore
-
-    fluid_initial_positions: bpy.props.BoolProperty(
-        name="Initial Positions",
-        description=f"Attribute name: {SQUISHY_VOLUMES_INITIAL_POSITION}",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    fluid_velocities: bpy.props.BoolProperty(
-        name="Velocities",
-        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    fluid_transformations: bpy.props.BoolProperty(
-        name="Transformations",
-        description=f"Attribute name: {SQUISHY_VOLUMES_TRANSFORM}",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    fluid_collider_insides: bpy.props.BoolProperty(
-        name="Collider Insides",
-        description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    fluid_energies: bpy.props.BoolProperty(
-        name="Energies",
-        description=f"Attribute name: {SQUISHY_VOLUMES_ELASTIC_ENERGY}",
         default=True,
         options=set(),
     )  # type: ignore

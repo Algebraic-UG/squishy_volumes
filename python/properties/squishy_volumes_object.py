@@ -16,11 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 import bpy
 
-from ..magic_consts import OUTPUT_TYPES
-
-from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
+from .squishy_volumes_object_output_settings import (
+    Squishy_Volumes_Object_Output_Settings,
+)
 
 IO_NONE = "None"
 IO_INPUT = "Input"
@@ -77,20 +78,8 @@ class Squishy_Volumes_Object(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    input_name: bpy.props.StringProperty(
-        name="Original Input Name",
-        description="Referenced for retrieving outputs.",
-        options=set(),
-    )  # type: ignore
-    output_type: bpy.props.StringProperty(
-        name="Output Type",
-        description=f"""Depending on this, different outputs are synchronizable.
-Has to be one of:
-{", ".join(OUTPUT_TYPES)}""",
-        options=set(),
-    )  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Optional_Attributes,
+    output_settings: bpy.props.PointerProperty(
+        type=Squishy_Volumes_Object_Output_Settings,
         name="Optional Attributes",
         description="Further customization of what outputs are synchronized.",
         options=set(),

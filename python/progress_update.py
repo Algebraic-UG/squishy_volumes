@@ -70,11 +70,11 @@ def update_progress():
         else:
             add_or_update_marker(f"{simulation.name} Bake Latest & End", end_frame)
 
-        # if simulation.loaded_frame != frame_to_load(
-        #    simulation,
-        #    bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
-        # ):
-        #    sync_simulation(sim, simulation, bpy.context.scene.frame_current)  # ty:ignore[possibly-missing-attribute]
+        if simulation.loaded_frame != frame_to_load(
+            simulation,
+            bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
+        ):
+            sync_simulation(sim, simulation, bpy.context.scene.frame_current)  # ty:ignore[possibly-missing-attribute]
 
     if should_redraw:
         force_ui_redraw()
