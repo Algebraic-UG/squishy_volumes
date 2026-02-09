@@ -9,7 +9,10 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, iter::once};
 
-use crate::{phase::Phase, state::grids::GridColliderDistances, stats::StateStats};
+use crate::{
+    input_interpolation::InterpolatedInput, phase::Phase, state::grids::GridColliderDistances,
+    stats::StateStats,
+};
 
 pub mod attributes;
 pub mod grids;
@@ -38,6 +41,8 @@ pub struct State {
     pub grid_momentum: GridMomentum,
     pub grid_collider_distances: GridColliderDistances,
     pub grid_collider_momentums: Vec<GridMomentum>,
+
+    pub interpolated_input: Option<InterpolatedInput>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

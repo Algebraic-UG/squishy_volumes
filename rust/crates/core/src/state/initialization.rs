@@ -197,6 +197,7 @@ impl State {
             grid_momentum,
             grid_collider_distances,
             grid_collider_momentums,
+            interpolated_input: None,
         })
     }
 }

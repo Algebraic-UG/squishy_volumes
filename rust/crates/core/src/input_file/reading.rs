@@ -47,6 +47,10 @@ impl InputReader {
         self.size
     }
 
+    pub fn len(&self) -> usize {
+        self.frame_offsets.len()
+    }
+
     pub fn read_header(&mut self) -> Result<InputHeader, InputError> {
         self.reader
             .seek(SeekFrom::Start(HEADER_OFFSET.try_into().unwrap()))?;

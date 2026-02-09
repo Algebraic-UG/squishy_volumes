@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use strum::{EnumIter, IntoEnumIterator};
 
+use crate::input_interpolation::InputInterpolation;
 use crate::{input_file::InputConsts, state::State};
 
 use crate::profile;
@@ -28,6 +29,7 @@ mod limit_time_step;
 //mod move_collider;
 mod register_contributors;
 //mod scatter_collider_distances;
+mod interpolate_input;
 mod scatter_momentum;
 mod sort;
 mod update_momentum_maps;
@@ -36,6 +38,7 @@ mod update_momentum_maps;
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumIter, Serialize, Deserialize)]
 pub enum Phase {
     #[default]
+    InterpolateInput,
     Sort,
     //ScatterColliderDistances,
     //CollectInsides,
@@ -57,6 +60,7 @@ pub enum Phase {
 impl Phase {
     pub fn function(self) -> fn(State, &mut PhaseInput) -> Result<State> {
         match self {
+            Self::InterpolateInput => State::interpolate_input,
             Self::Sort => State::sort,
             //Self::ScatterColliderDistances => State::scatter_collider_distances,
             //Self::CollectInsides => State::collect_insides,
@@ -83,9 +87,10 @@ impl Phase {
     }
 }
 
-#[derive(Clone)]
 pub struct PhaseInput {
     pub consts: InputConsts,
+
+    pub input_interpolation: InputInterpolation,
 
     pub max_time_step: T,
     pub time_step_by_velocity: Option<T>,

@@ -18,12 +18,13 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use squishy_volumes_api::Task;
+use squishy_volumes_api::{T, Task};
 use strum::IntoEnumIterator;
 use tracing::{debug, info};
 
 use crate::{
-    input_file::InputReader,
+    input_file::{InputConsts, InputReader},
+    input_interpolation::{self, InputInterpolation},
     phase::{Phase, PhaseInput},
     report::{Report, ReportInfo},
     state::State,
@@ -40,14 +41,33 @@ pub struct ComputeThread {
     thread: Option<JoinHandle<Result<()>>>,
 }
 
+pub struct ComputeThreadSettings {
+    pub consts: InputConsts,
+    pub input_reader: InputReader,
+    pub cache: Arc<Cache>,
+    pub time_step: T,
+    pub max_time_step: T,
+    pub number_of_frames: NonZero<usize>,
+    pub next_frame: usize,
+    pub adaptive_time_steps: bool,
+    pub explicit: bool,
+    pub debug_mode: bool,
+}
+
 impl ComputeThread {
     pub fn new(
-        mut input_reader: InputReader,
-        cache: Arc<Cache>,
-        frames_per_second: usize,
-        mut phase_input: PhaseInput,
-        number_of_frames: NonZero<usize>,
-        mut next_frame: usize,
+        ComputeThreadSettings {
+            consts,
+            mut input_reader,
+            cache,
+            time_step,
+            max_time_step,
+            number_of_frames,
+            mut next_frame,
+            adaptive_time_steps,
+            explicit,
+            debug_mode,
+        }: ComputeThreadSettings,
     ) -> Result<Self> {
         info!("starting compute thread");
 
@@ -57,7 +77,7 @@ impl ComputeThread {
             completed_steps: next_frame,
             steps_to_completion: number_of_frames,
         });
-        let seconds_per_frame = 1. / frames_per_second as f64;
+        let seconds_per_frame = 1. / consts.frames_per_second as f64;
         let stats = Arc::new(Mutex::new(None));
         let thread = {
             let run = run.clone();
@@ -77,6 +97,23 @@ impl ComputeThread {
                     state
                 } else {
                     cache.fetch_frame(next_frame - 1)?
+                };
+
+                let input_interpolation = InputInterpolation::new(seconds_per_frame, input_reader)?;
+                let mut phase_input = PhaseInput {
+                    consts,
+                    input_interpolation,
+                    time_step,
+                    max_time_step,
+                    time_step_by_velocity: None,
+                    time_step_by_deformation: None,
+                    time_step_by_isolated: None,
+                    time_step_by_sound: None,
+                    time_step_by_sound_simple: None,
+                    time_step_prior: Default::default(),
+                    adaptive_time_steps,
+                    explicit,
+                    debug_mode,
                 };
 
                 let mut frame_times = VecDeque::new();

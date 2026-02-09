@@ -16,9 +16,10 @@ use tracing::{info, warn};
 use crate::{
     SimulationInputImpl,
     cache::Cache,
-    compute_thread::ComputeThread,
+    compute_thread::{ComputeThread, ComputeThreadSettings},
     directory_lock::DirectoryLock,
     input_file::{InputHeader, InputReader},
+    input_interpolation::InputInterpolation,
     math::flat::Flat3,
     phase::PhaseInput,
     simulation_input_path,
@@ -145,27 +146,18 @@ impl Simulation for SimulationImpl {
             InputReader::new(simulation_input_path(self.directory_lock.directory()))?;
 
         info!("starting thread");
-        self.compute_thread = Some(ComputeThread::new(
+        self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {
+            consts: self.input_header.consts.clone(),
             input_reader,
-            self.cache.clone(),
-            self.input_header.consts.frames_per_second as usize,
-            PhaseInput {
-                max_time_step: time_step,
-                time_step_by_velocity: Default::default(),
-                time_step_by_deformation: Default::default(),
-                time_step_by_isolated: Default::default(),
-                time_step_by_sound: Default::default(),
-                time_step_by_sound_simple: Default::default(),
-                time_step_prior: Default::default(),
-                adaptive_time_steps,
-                time_step,
-                explicit,
-                debug_mode,
-                consts: self.input_header.consts.clone(),
-            },
+            cache: self.cache.clone(),
+            time_step,
+            max_time_step: time_step,
             number_of_frames,
             next_frame,
-        )?);
+            adaptive_time_steps,
+            explicit,
+            debug_mode,
+        })?);
         Ok(())
     }
 
