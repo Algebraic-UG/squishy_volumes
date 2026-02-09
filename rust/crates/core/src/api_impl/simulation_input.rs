@@ -14,7 +14,7 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::{InputBulk, SimulationInput, T};
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::{
     directory_lock::DirectoryLock,
@@ -115,7 +115,7 @@ impl SimulationInput for SimulationInputImpl {
                 })
                 .collect(),
         };
-        info!("starting next frame: {input_frame:?}");
+        debug!("starting next frame: {input_frame:?}");
 
         self.current_frame = Some(input_frame);
 
@@ -126,7 +126,7 @@ impl SimulationInput for SimulationInputImpl {
         let Some(current_frame) = self.current_frame.as_mut() else {
             bail!("No frame started.");
         };
-        info!("got some input: {meta:?}");
+        debug!("got some input: {meta:?}");
         match from_value::<FrameBulkMeta>(meta)? {
             FrameBulkMeta::Particles {
                 object_name,

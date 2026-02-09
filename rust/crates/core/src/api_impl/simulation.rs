@@ -15,13 +15,11 @@ use tracing::{info, warn};
 
 use crate::{
     SimulationInputImpl,
-    cache::Cache,
+    cache::{Cache, clean_up_frames},
     compute_thread::{ComputeThread, ComputeThreadSettings},
     directory_lock::DirectoryLock,
     input_file::{InputHeader, InputReader},
-    input_interpolation::InputInterpolation,
     math::flat::Flat3,
-    phase::PhaseInput,
     simulation_input_path,
     state::attributes::{Attribute, AttributeConst},
     stats::{ComputeStats, Stats},
@@ -52,6 +50,7 @@ impl SimulationImpl {
         ensure!(current_frame.is_none(), "Last frame wasn't written");
 
         input_writer.flush()?;
+        clean_up_frames(directory_lock.directory(), 0)?;
 
         Self::load_with_lock(directory_lock, max_bytes_on_disk)
     }
@@ -65,7 +64,8 @@ impl SimulationImpl {
     fn load_with_lock(directory_lock: DirectoryLock, max_bytes_on_disk: u64) -> Result<Self> {
         let mut input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))?;
         let input_header = input_reader.read_header()?;
-        let cache = Arc::new(Cache::load(
+
+        let cache = Arc::new(Cache::new(
             directory_lock.directory().to_path_buf(),
             input_reader.size(),
             max_bytes_on_disk,

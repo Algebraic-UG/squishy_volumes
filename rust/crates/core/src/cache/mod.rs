@@ -50,17 +50,6 @@ impl Cache {
         input_bytes_on_disk: u64,
         max_bytes_on_disk: u64,
     ) -> Result<Self, CacheError> {
-        info!("New cache at {directory:?}");
-        clean_up_frames(&directory, 0)?;
-
-        Self::load(directory, input_bytes_on_disk, max_bytes_on_disk)
-    }
-
-    pub fn load(
-        directory: PathBuf,
-        input_bytes_on_disk: u64,
-        max_bytes_on_disk: u64,
-    ) -> Result<Self, CacheError> {
         info!("loading cache at {directory:?}");
 
         info!("discovering frames in cache");
@@ -268,7 +257,7 @@ fn get_frame_number<P: AsRef<Path>>(frame_path: P) -> Option<usize> {
 fn discover_frames<P: AsRef<Path>>(
     cache_dir: P,
 ) -> Result<(u64, Vec<(usize, PathBuf)>), io::Error> {
-    Ok(read_dir(cache_dir)?.try_fold(
+    read_dir(cache_dir)?.try_fold(
         (0, Vec::new()),
         |(mut bytes_on_disk, mut frames),
          entry|
@@ -283,10 +272,10 @@ fn discover_frames<P: AsRef<Path>>(
 
             Ok((bytes_on_disk, frames))
         },
-    )?)
+    )
 }
 
-fn clean_up_frames<P: AsRef<Path>>(
+pub fn clean_up_frames<P: AsRef<Path>>(
     cache_dir: P,
     from_frame: usize,
 ) -> Result<(), CacheCleanupError> {
