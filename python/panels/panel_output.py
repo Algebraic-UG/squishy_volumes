@@ -269,74 +269,6 @@ each frame."""
             self.select_action = "Custom"
 
 
-class SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_add_multiple_output_objects"
-    bl_label = "Add All"
-    bl_description = "TODO"
-    bl_options = {"REGISTER", "UNDO"}
-
-    output_type: bpy.props.StringProperty()  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Object_Output_Settings
-    )  # type: ignore
-
-    def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
-
-        frame = frame_to_load(simulation, context.scene.frame_current)
-        if frame is None:
-            self.report(
-                {"ERROR"},
-                f"No frame ready for {simulation.name}.",
-            )
-            return {"CANCELLED"}
-
-        input_names = InputNames(simulation, frame)
-        num_colliders = len(input_names.collider_names)
-
-        def add_one_output(input_name):
-            object_name = f"{self.output_type} - {input_name}"
-
-            obj = bpy.data.objects.new(object_name, bpy.data.meshes.new(object_name))
-
-            obj.squishy_volumes_object.input_name = input_name
-            obj.squishy_volumes_object.simulation_uuid = simulation.uuid
-            obj.squishy_volumes_object.output_type = self.output_type
-            obj.squishy_volumes_object.attributes = self.optional_attributes
-
-            create_default_visualization(simulation, obj, frame)
-            sync_output(simulation, obj, num_colliders, frame)
-
-            context.collection.objects.link(obj)
-
-            self.report(
-                {"INFO"},
-                f"Added {obj.name} to output objects of {simulation.name}.",
-            )
-
-        if self.output_type == SOLID_PARTICLES:
-            for input_name in input_names.solid_names:
-                add_one_output(input_name)
-        elif self.output_type == FLUID_PARTICLES:
-            for input_name in input_names.fluid_names:
-                add_one_output(input_name)
-        else:
-            self.report(
-                {"ERROR"},
-                f"Output type {self.output_type} is not supported for adding multiple outputs.",
-            )
-            return {"CANCELLED"}
-
-        return {"FINISHED"}
-
-    def invoke(self, context, _):
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, _context):
-        self.layout.label(text=f"{self.output_type}")
-        draw_object_attributes(self.layout, self.output_type, self.optional_attributes)
-
-
 class OBJECT_OT_Squishy_Volumes_Remove_Output_Object(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_remove_output_object"
     bl_label = "Remove Output Object"
@@ -445,7 +377,6 @@ classes = [
     Squishy_Volumes_Particle_Output_Object,
     SCENE_UL_Squishy_Volumes_Particle_Output_Object_List,
     SCENE_OT_Squishy_Volumes_Add_Output_Objects,
-    SCENE_OT_Squishy_Volumes_Add_Multiple_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
     SCENE_UL_Squishy_Volumes_Output_Object_List,
     SCENE_PT_Squishy_Volumes_Output,
