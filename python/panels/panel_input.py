@@ -15,14 +15,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-from bpy.props import StringProperty
+
 
 import bpy
 
 from typing import Any
 
-from ..properties.util import add_fields_from
+from ..nodes.drivers import add_drivers
 
+from ..properties.util import add_fields_from
 from ..properties.squishy_volumes_scene import (
     get_selected_simulation,
     get_selected_input_object,
@@ -31,6 +32,10 @@ from ..properties.squishy_volumes_object import (
     IO_NONE,
     IO_INPUT,
     get_input_objects,
+    IO_OUTPUT,
+)
+from ..properties.squishy_volumes_object_input_settings import (
+    Squishy_Volumes_Object_Input_Settings,
 )
 
 from ..bridge import (
@@ -52,52 +57,115 @@ from ..util import (
 from ..nodes import create_geometry_nodes_generate_particles
 
 
-def selection_eligible_for_input(context):
-    return (
-        get_selected_simulation(context.scene) is not None
-        and context.active_object is not None
-        and context.active_object.select_get()
-        and context.active_object.type == "MESH"
-        and context.active_object.squishy_volumes_object.io == IO_NONE
-    )
+class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
+    def filter_items(self, context, data, property):
+        return [
+            self.bitflag_filter_item if obj in context.selected_ids else 0
+            for obj in bpy.data.objects
+        ], []
+
+    def draw_item(
+        self,
+        context: bpy.types.Context,
+        layout: bpy.types.UILayout,
+        data: Any | None,
+        item: Any | None,
+        icon: int | None,
+        active_data: Any,
+        active_property: str | None,
+        index: int | None,
+        flt_flag: int | None,
+    ):
+        assert isinstance(item, bpy.types.Object)
+        row = layout.row()
+        row.label(text=item.name)
+        if item.type != "MESH":
+            row.label(text="️⚠️ not a Mesh")
+            return
+        if item.squishy_volumes_object.io == IO_INPUT:
+            row.label(text="⚠️ already an input")
+            return
+        if item.squishy_volumes_object.io == IO_OUTPUT:
+            row.label(text="⚠️ already an output")
+            return
+        row.label(text="✅ new input")
 
 
-class OBJECT_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_add_input_object"
-    bl_label = "Add Input Object"
+@add_fields_from(Squishy_Volumes_Object_Input_Settings)
+class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_input_objects"
+    bl_label = "Add Input Objects"
     bl_description = """TODO"""
     bl_options = {"REGISTER", "UNDO"}
 
+    add_default_generation: bpy.props.BoolProperty(
+        name="Add Default Generation", default=True
+    )  # type:ignore
+
+    selected_active: bpy.props.IntProperty()  # type: ignore
+
     @classmethod
     def poll(cls, context):
-        return selection_eligible_for_input(context)
+        return any(
+            isinstance(obj, bpy.types.Object) for obj in bpy.context.selected_ids
+        )
 
     def execute(self, context):
-        obj = context.active_object
+        def can_add(obj: bpy.types.ID) -> bool:
+            return (
+                isinstance(obj, bpy.types.Object)
+                and obj.type == "MESH"
+                and obj.squishy_volumes_object.io == IO_NONE  # ty:ignore[unresolved-attribute]
+            )
 
-        simulation = get_selected_simulation(context.scene)
-        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
-        obj.squishy_volumes_object.io = IO_INPUT
+        if (
+            any(can_add(obj) for obj in context.selected_ids)
+            and self.add_default_generation
+        ):
+            node_group = create_geometry_nodes_generate_particles()
 
-        # TODO make this configurable
-        modifier = context.object.modifiers.new("Squishy Volumes Input", type="NODES")
-        modifier.node_group = create_geometry_nodes_generate_particles()
+        for obj in context.selected_ids:
+            if not can_add(obj):
+                continue
 
-        context.scene.squishy_volumes_scene.selected_input_object = index_by_object(obj)
+            simulation = get_selected_simulation(context.scene)
+            obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+            obj.squishy_volumes_object.io = IO_INPUT
+
+            context.scene.squishy_volumes_scene.selected_input_object = index_by_object(
+                obj
+            )
+
+            self.report(
+                {"INFO"},
+                f"Added {context.object.name} to input objects of {simulation.name}.",
+            )
+
+            if not self.add_default_generation:
+                continue
+
+            modifier = context.object.modifiers.new(
+                "Squishy Volumes Input", type="NODES"
+            )
+            modifier.node_group = node_group
+            add_drivers(simulation.uuid, modifier)
 
         force_ui_redraw()
-
-        self.report(
-            {"INFO"},
-            f"Added {context.object.name} to input objects of {simulation.name}.",
-        )
         return {"FINISHED"}
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
+        return context.window_manager.invoke_props_dialog(self, width=600)  # ty:ignore[possibly-missing-attribute]
 
     def draw(self, context):
-        self.layout.label(text=context.object.name)  # ty:ignore[possibly-missing-attribute]
+        self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
+            listtype_name="SCENE_UL_Squishy_Volumes_Particle_Input_Object_List",
+            list_id="",
+            dataptr=bpy.data,
+            propname="objects",
+            active_dataptr=self,
+            active_propname="selected_active",
+        )
+        self.layout.prop(self, "add_default_generation")
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
@@ -142,7 +210,7 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
-    uuid: StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
         simulation = get_selected_simulation(context.scene)
@@ -336,7 +404,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
         )
         list_controls = row.column(align=True)
         list_controls.operator(
-            OBJECT_OT_Squishy_Volumes_Add_Input_Object.bl_idname,
+            SCENE_OT_Squishy_Volumes_Add_Input_Objects.bl_idname,
             text="",
             icon="ADD",
         )
@@ -374,7 +442,8 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
 
 
 classes = [
-    OBJECT_OT_Squishy_Volumes_Add_Input_Object,
+    SCENE_UL_Squishy_Volumes_Particle_Input_Object_List,
+    SCENE_OT_Squishy_Volumes_Add_Input_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Input_Object,
     SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal,
     SCENE_OT_Squishy_Volumes_Write_Input_To_Cache,

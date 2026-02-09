@@ -53,7 +53,7 @@ def create_input_header(simulation):
 
     for obj in get_input_objects(simulation):
         name = obj.name
-        ty = obj.squishy_volumes_object.input_type
+        ty = obj.squishy_volumes_object.input_settings.input_type
         objects.append(
             {
                 "name": name,

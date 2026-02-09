@@ -19,6 +19,9 @@
 
 import bpy
 
+from .squishy_volumes_object_input_settings import (
+    Squishy_Volumes_Object_Input_Settings,
+)
 from .squishy_volumes_object_output_settings import (
     Squishy_Volumes_Object_Output_Settings,
 )
@@ -26,8 +29,6 @@ from .squishy_volumes_object_output_settings import (
 IO_NONE = "None"
 IO_INPUT = "Input"
 IO_OUTPUT = "Output"
-
-INPUT_TYPE_PARTICLES = "Particles"
 
 
 def get_input_objects(simulation):
@@ -68,19 +69,12 @@ class Squishy_Volumes_Object(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    input_type: bpy.props.EnumProperty(
-        items=[
-            (INPUT_TYPE_PARTICLES,) * 3,
-        ],  # ty:ignore[invalid-argument-type]
-        name="Input Type",
-        description="""TODO""",
-        default=INPUT_TYPE_PARTICLES,
+    input_settings: bpy.props.PointerProperty(
+        type=Squishy_Volumes_Object_Input_Settings,
         options=set(),
     )  # type: ignore
 
     output_settings: bpy.props.PointerProperty(
         type=Squishy_Volumes_Object_Output_Settings,
-        name="Optional Attributes",
-        description="Further customization of what outputs are synchronized.",
         options=set(),
     )  # type: ignore

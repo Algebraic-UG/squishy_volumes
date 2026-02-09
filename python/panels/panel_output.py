@@ -35,9 +35,9 @@ from ..magic_consts import (
 )
 
 
+from ..properties.squishy_volumes_object_input_settings import INPUT_TYPE_PARTICLES
 from ..properties.squishy_volumes_object import (
     get_output_objects,
-    INPUT_TYPE_PARTICLES,
     IO_OUTPUT,
 )
 from ..properties.squishy_volumes_scene import (

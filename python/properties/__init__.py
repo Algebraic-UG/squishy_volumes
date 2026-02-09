@@ -25,6 +25,9 @@ from .squishy_volumes_scene import (
     subscribe_to_selection,
 )
 from .squishy_volumes_simulation import Squishy_Volumes_Simulation
+from .squishy_volumes_object_input_settings import (
+    Squishy_Volumes_Object_Input_Settings,
+)
 from .squishy_volumes_object_output_settings import (
     Squishy_Volumes_Object_Output_Settings,
 )
@@ -33,6 +36,7 @@ from .squishy_volumes_object_output_settings import (
 classes = [
     Squishy_Volumes_Simulation,
     Squishy_Volumes_Scene,
+    Squishy_Volumes_Object_Input_Settings,
     Squishy_Volumes_Object_Output_Settings,
     Squishy_Volumes_Object,
 ]
