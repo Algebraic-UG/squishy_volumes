@@ -179,6 +179,7 @@ each frame."""
         return {"FINISHED"}
 
     def invoke(self, context, event):
+        self.particle_outputs.clear()
         sim = Simulation.get(uuid=self.uuid)
         if sim is None:
             return {"CANCELLED"}
