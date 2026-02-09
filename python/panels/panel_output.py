@@ -22,6 +22,7 @@ import bpy
 from typing import Any
 
 
+from ..frame_change import sync_simulation
 from ..util import copy_simple_property_group, frame_to_load
 
 from ..nodes.drivers import remove_drivers
@@ -165,6 +166,14 @@ each frame."""
             self.report(
                 {"INFO"},
                 f"Added {obj.name} to output objects of {simulation.name}.",
+            )
+
+        sim = Simulation.get(uuid=self.uuid)
+        if sim is not None:
+            sync_simulation(
+                sim=sim,
+                simulation=simulation,
+                frame=context.scene.frame_current,
             )
 
         return {"FINISHED"}
