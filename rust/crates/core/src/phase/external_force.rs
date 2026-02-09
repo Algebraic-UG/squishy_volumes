@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use nalgebra::Vector3;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 use super::State;
@@ -17,9 +16,11 @@ impl State {
     pub fn external_force(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("external_force");
         let time_step = phase_input.time_step;
-        //TODO:
-        //let gravity = phase_input.gravity;
-        let gravity = Vector3::new(0., 0., -9.8);
+        let gravity = self
+            .interpolated_input
+            .as_ref()
+            .expect("interpolated input missing")
+            .gravity;
         // TODO: try chaining
         for grid in self.grid_momentums_mut() {
             grid.velocities
