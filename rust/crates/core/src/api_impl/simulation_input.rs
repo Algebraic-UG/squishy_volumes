@@ -57,6 +57,7 @@ pub enum FrameBulkParticle {
     Exponent,
     BulkModulus,
     SandAlpha,
+    GoalStiffness,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -161,6 +162,7 @@ impl SimulationInput for SimulationInputImpl {
                     FrameBulkParticle::Exponent => ps.exponents = bulk.try_into()?,
                     FrameBulkParticle::BulkModulus => ps.bulk_moduluses = bulk.try_into()?,
                     FrameBulkParticle::SandAlpha => ps.sand_alphas = bulk.try_into()?,
+                    FrameBulkParticle::GoalStiffness => ps.goal_stiffnesses = bulk.try_into()?,
                 }
             }
         }
@@ -186,6 +188,7 @@ impl SimulationInput for SimulationInputImpl {
             exponents,
             bulk_moduluses,
             sand_alphas,
+            goal_stiffnesses,
         } in current_frame.particles_input.values()
         {
             let n = flags.len();
@@ -201,6 +204,7 @@ impl SimulationInput for SimulationInputImpl {
             ensure!(n == exponents.len());
             ensure!(n == bulk_moduluses.len());
             ensure!(n == sand_alphas.len());
+            ensure!(n == goal_stiffnesses.len());
         }
 
         self.input_writer.record_frame(current_frame)?;

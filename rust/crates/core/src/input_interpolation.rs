@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeMap;
+
 use anyhow::{Result, ensure};
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
@@ -19,59 +21,37 @@ use crate::{
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InterpolatedInput {
     pub gravity: Vector3<T>,
+    pub particles_input: BTreeMap<String, InterpolatedInputParticles>,
 }
 
-struct InputInterpolationPoint {
-    frame: usize,
-    input_frame: InputFrame,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct InterpolatedInputParticles {
+    pub goal_positions: Vec<Vector3<T>>,
+    pub goal_stiffnesses: Vec<T>,
+}
+
+pub struct InputInterpolationPoint {
+    pub frame: usize,
+    pub input_frame: InputFrame,
 }
 
 pub struct InputInterpolation {
-    seconds_per_frame: f64,
     input_reader: InputReader,
     a: Option<InputInterpolationPoint>,
     b: Option<InputInterpolationPoint>,
 }
 
 impl InputInterpolation {
-    pub fn new(seconds_per_frame: f64, input_reader: InputReader) -> Result<Self> {
+    pub fn new(input_reader: InputReader) -> Result<Self> {
         ensure!(input_reader.len() > 0);
         Ok(Self {
-            seconds_per_frame,
             input_reader,
             a: None,
             b: None,
         })
     }
 
-    pub fn interpolate(&mut self, time: f64) -> Result<InterpolatedInput> {
-        profile!("interpolate");
-
-        // this should be a no-op for all in-between-frame-steps
-        self.load((time / self.seconds_per_frame).floor() as usize)?;
-
-        let a = self
-            .a
-            .as_ref()
-            .map(|point| &point.input_frame)
-            .expect("there's always the a point");
-
-        // in this case assume a constant extrapolation from a
-        let Some(b) = self.b.as_ref().map(|point| &point.input_frame) else {
-            let gravity = a.gravity;
-            return Ok(InterpolatedInput { gravity });
-        };
-
-        // linear interpolation between a and b
-        let factor_b = ((time / self.seconds_per_frame) % 1.) as f32;
-        let factor_a = 1. - factor_b;
-
-        let gravity = factor_a * a.gravity + factor_b * b.gravity;
-
-        Ok(InterpolatedInput { gravity })
-    }
-
-    fn load(&mut self, frame: usize) -> Result<()> {
+    pub fn load(&mut self, frame: usize) -> Result<()> {
         profile!("load interpolants");
 
         let max_frame = self.input_reader.len() - 1;
@@ -106,5 +86,13 @@ impl InputInterpolation {
         self.b = Some(InputInterpolationPoint { frame, input_frame });
 
         Ok(())
+    }
+
+    pub fn a(&self) -> Option<&InputInterpolationPoint> {
+        self.a.as_ref()
+    }
+
+    pub fn b(&self) -> Option<&InputInterpolationPoint> {
+        self.b.as_ref()
     }
 }

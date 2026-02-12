@@ -19,6 +19,7 @@ use crate::{input_file::InputConsts, state::State};
 use crate::profile;
 
 mod advect_particles;
+mod goal_forces;
 //mod collect_insides;
 mod collect_velocity;
 //mod conform_to_colliders;
@@ -53,6 +54,7 @@ pub enum Phase {
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
     AdvectParticles,
+    GoalForces,
     //MoveCollider,
     CullParticles,
 }
@@ -75,6 +77,7 @@ impl Phase {
             Self::CollectVelocity => State::collect_velocity,
             Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,
             Self::AdvectParticles => State::advect_particles,
+            Self::GoalForces => State::goal_forces,
             //Self::MoveCollider => State::move_collider,
             Self::CullParticles => State::cull_particles,
         }

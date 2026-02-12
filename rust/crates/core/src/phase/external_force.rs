@@ -21,7 +21,6 @@ impl State {
             .as_ref()
             .expect("interpolated input missing")
             .gravity;
-
         // TODO: try chaining
         for grid in self.grid_momentums_mut() {
             grid.velocities

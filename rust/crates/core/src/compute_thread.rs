@@ -24,7 +24,7 @@ use tracing::{debug, info};
 
 use crate::{
     input_file::{InputConsts, InputReader},
-    input_interpolation::{self, InputInterpolation},
+    input_interpolation::InputInterpolation,
     phase::{Phase, PhaseInput},
     report::{Report, ReportInfo},
     state::State,
@@ -99,7 +99,7 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
-                let input_interpolation = InputInterpolation::new(seconds_per_frame, input_reader)?;
+                let input_interpolation = InputInterpolation::new(input_reader)?;
                 let mut phase_input = PhaseInput {
                     consts,
                     input_interpolation,
