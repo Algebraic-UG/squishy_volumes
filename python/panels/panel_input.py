@@ -178,20 +178,12 @@ Note that this does not delete the object or remove the input modifier."""
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context.scene)
-        return (
-            simulation is not None
-            and context.active_object is not None
-            and context.active_object.select_get()
-            and context.active_object.squishy_volumes_object.io == IO_INPUT
-            and context.active_object.squishy_volumes_object.simulation_uuid
-            == simulation.uuid
-        )
+        return get_selected_input_object(context.scene) is not None
 
     def execute(self, context):
-        obj = context.active_object.squishy_volumes_object
-        obj.simulation_uuid = "unassigned"
-        obj.io = IO_NONE
+        obj = get_selected_input_object(context.scene)
+        obj.squishy_volumes_object.simulation_uuid = "unassigned"
+        obj.squishy_volumes_object.io = IO_NONE
         self.report({"INFO"}, f"Removed {obj.name} from inputs.")
         return {"FINISHED"}
 
