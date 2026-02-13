@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import bpy
 
 from typing import Any
@@ -54,7 +53,10 @@ from ..util import (
     index_by_object,
     giga_f32_to_u64,
 )
-from ..nodes import create_geometry_nodes_generate_particles
+from ..nodes import (
+    create_geometry_nodes_generate_particles,
+    create_geometry_nodes_generate_goal_positions,
+)
 
 
 class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
@@ -354,6 +356,40 @@ class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
         layout.label(text=item.name)
 
 
+# TODO: this doesn't feel like it's the right place... the whole file has become somewhat bloated
+class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_input_object_add_goals"
+    bl_label = "Add Goals"
+    bl_description = """TODO"""
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return get_selected_input_object(context.scene) is not None
+
+    def execute(self, context):
+        obj = get_selected_input_object(context.scene)
+
+        node_group = create_geometry_nodes_generate_goal_positions()
+        modifier = obj.modifiers.new("Squishy Volumes Goals", type="NODES")
+        modifier.node_group = node_group
+
+        bpy.ops.mesh.primitive_ico_sphere_add()
+        choose = context.active_object
+        choose.name = f"{obj.name} - Choose"
+
+        move = bpy.data.objects.new(f"{obj.name} - Move", None)
+        context.collection.objects.link(move)
+
+        move.parent = choose
+
+        modifier["Socket_3"] = choose
+        modifier["Socket_4"] = move
+
+        self.report({"INFO"}, f"Added goals to {obj.name}.")
+        return {"FINISHED"}
+
+
 class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
     bl_label = "Input"
     bl_space_type = "VIEW_3D"
@@ -413,7 +449,9 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             )
             header.label(text=f"Settings for {obj.name}")
             if body is not None:
-                pass
+                body.operator(
+                    OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals.bl_idname
+                )
 
         self.layout.prop(simulation, "capture_start_frame")
         self.layout.prop(simulation, "capture_frames")
@@ -440,6 +478,7 @@ classes = [
     SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal,
     SCENE_OT_Squishy_Volumes_Write_Input_To_Cache,
     SCENE_UL_Squishy_Volumes_Input_Object_List,
+    OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals,
     SCENE_PT_Squishy_Volumes_Input,
 ]
 
