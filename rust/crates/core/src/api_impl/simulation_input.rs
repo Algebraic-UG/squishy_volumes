@@ -57,7 +57,8 @@ pub enum FrameBulkParticle {
     Exponent,
     BulkModulus,
     SandAlpha,
-    GoalStiffness,
+    GoalPositions,
+    GoalStiffnesses,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -162,7 +163,8 @@ impl SimulationInput for SimulationInputImpl {
                     FrameBulkParticle::Exponent => ps.exponents = bulk.try_into()?,
                     FrameBulkParticle::BulkModulus => ps.bulk_moduluses = bulk.try_into()?,
                     FrameBulkParticle::SandAlpha => ps.sand_alphas = bulk.try_into()?,
-                    FrameBulkParticle::GoalStiffness => ps.goal_stiffnesses = bulk.try_into()?,
+                    FrameBulkParticle::GoalPositions => ps.goal_positions = bulk.try_into()?,
+                    FrameBulkParticle::GoalStiffnesses => ps.goal_stiffnesses = bulk.try_into()?,
                 }
             }
         }
@@ -188,6 +190,7 @@ impl SimulationInput for SimulationInputImpl {
             exponents,
             bulk_moduluses,
             sand_alphas,
+            goal_positions,
             goal_stiffnesses,
         } in current_frame.particles_input.values()
         {
@@ -204,6 +207,7 @@ impl SimulationInput for SimulationInputImpl {
             ensure!(n == exponents.len());
             ensure!(n == bulk_moduluses.len());
             ensure!(n == sand_alphas.len());
+            ensure!(n == goal_positions.len() / 3);
             ensure!(n == goal_stiffnesses.len());
         }
 

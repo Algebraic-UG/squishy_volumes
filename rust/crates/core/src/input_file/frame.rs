@@ -27,6 +27,7 @@ pub struct ParticlesInput {
     pub exponents: Vec<i32>,
     pub bulk_moduluses: Vec<f32>,
     pub sand_alphas: Vec<f32>,
+    pub goal_positions: Vec<f32>,
     pub goal_stiffnesses: Vec<f32>,
 }
 

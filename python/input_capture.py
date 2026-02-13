@@ -160,6 +160,9 @@ def capture_input_frame(
         record(python_name="squishy_volumes_exponent", rust_name="Exponent")
         record(python_name="squishy_volumes_bulk_modulus", rust_name="BulkModulus")
         record(python_name="squishy_volumes_sand_alpha", rust_name="SandAlpha")
-        record(python_name="squishy_volumes_goal_stiffness", rust_name="GoalStiffness")
+        record(python_name="squishy_volumes_goal_position", rust_name="GoalPositions")
+        record(
+            python_name="squishy_volumes_goal_stiffness", rust_name="GoalStiffnesses"
+        )
 
     simulation_input.finish_frame()

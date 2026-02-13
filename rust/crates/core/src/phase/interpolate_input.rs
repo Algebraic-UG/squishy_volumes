@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Result, ensure};
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::Vector3;
 
 use crate::{
     input_interpolation::{InterpolatedInput, InterpolatedInputParticles},
@@ -34,11 +34,6 @@ impl State {
             .map(|point| &point.input_frame)
             .expect("there's always the a point");
 
-        let extract_position = |chunk| {
-            let transform = Matrix4::from_column_slice(chunk);
-            Vector3::new(transform.m14, transform.m24, transform.m34)
-        };
-
         let gravity;
         let particles_input;
         if let Some(b) = phase_input
@@ -62,10 +57,15 @@ impl State {
                     ensure!(input_a.goal_stiffnesses.len() == input_b.goal_stiffnesses.len());
 
                     let goal_positions = input_a
-                        .transforms
-                        .chunks_exact(16)
-                        .map(extract_position)
-                        .zip(input_b.transforms.chunks_exact(16).map(extract_position))
+                        .goal_positions
+                        .chunks_exact(3)
+                        .map(Vector3::from_column_slice)
+                        .zip(
+                            input_b
+                                .goal_positions
+                                .chunks_exact(3)
+                                .map(Vector3::from_column_slice),
+                        )
                         .map(|(position_a, position_b)| {
                             factor_a * position_a + factor_b * position_b
                         })
@@ -97,9 +97,9 @@ impl State {
                 .iter()
                 .map(|(name, input)| {
                     let goal_positions = input
-                        .transforms
-                        .chunks_exact(16)
-                        .map(extract_position)
+                        .goal_positions
+                        .chunks_exact(3)
+                        .map(Vector3::from_column_slice)
                         .collect();
 
                     let goal_stiffnesses = input.goal_stiffnesses.clone();
