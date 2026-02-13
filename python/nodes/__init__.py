@@ -120,3 +120,7 @@ def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:
 
 def create_geometry_nodes_generate_particles() -> bpy.types.NodeTree:
     return _load_tree_clipper_tree("geometry_nodes_generate_particles.json")
+
+
+def create_geometry_nodes_generate_goal_positions() -> bpy.types.NodeTree:
+    return _load_tree_clipper_tree("geometry_nodes_generate_goal_positions.json")
