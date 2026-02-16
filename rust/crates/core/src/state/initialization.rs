@@ -166,12 +166,23 @@ impl State {
                         let sand_alpha = flags
                             .contains(ParticleFlags::UseSandAlpha)
                             .then_some(input.sand_alphas[i]);
-                        parameters
-                            .push(bitflags_match!(flags, {
-                                ParticleFlags::IsSolid => Ok(ParticleParameters::Solid { mu, lambda, viscosity, sand_alpha }),
-                                ParticleFlags::IsFluid => Ok(ParticleParameters::Fluid { exponent, bulk_modulus, viscosity }),
-                                _=> Err(StateInitializationError::ParticleFlagsInvalid(i)),
-                            })?);
+
+                        parameters.push(if flags.contains(ParticleFlags::IsSolid) {
+                            ParticleParameters::Solid {
+                                mu,
+                                lambda,
+                                viscosity,
+                                sand_alpha,
+                            }
+                        } else if flags.contains(ParticleFlags::IsFluid) {
+                            ParticleParameters::Fluid {
+                                exponent,
+                                bulk_modulus,
+                                viscosity,
+                            }
+                        } else {
+                            Err(StateInitializationError::ParticleFlagsInvalid(i))?
+                        });
                     }
 
                     particle_object.particles = (first_index..first_index + n).collect();
