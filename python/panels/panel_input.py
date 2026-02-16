@@ -386,6 +386,9 @@ class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
         modifier["Socket_3"] = choose
         modifier["Socket_4"] = move
 
+        obj.update_tag()
+        context.view_layer.update()
+
         self.report({"INFO"}, f"Added goals to {obj.name}.")
         return {"FINISHED"}
 
