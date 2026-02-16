@@ -22,7 +22,7 @@ pub mod particles;
 pub mod util;
 
 use grids::GridMomentum;
-use object::ObjectParticles;
+use object::{ObjectCollider, ObjectParticles};
 use particles::Particles;
 
 mod errors;
@@ -36,7 +36,8 @@ pub struct State {
     pub name_map: BTreeMap<String, ObjectIndex>,
 
     pub particle_objects: Vec<ObjectParticles>,
-    //pub collider_objects: Vec<ObjectCollider>,
+    pub collider_objects: Vec<ObjectCollider>,
+
     pub particles: Particles,
     pub grid_momentum: GridMomentum,
     pub grid_collider_distances: GridColliderDistances,

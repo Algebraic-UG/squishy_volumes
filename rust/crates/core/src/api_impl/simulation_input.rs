@@ -18,7 +18,9 @@ use tracing::{debug, info};
 
 use crate::{
     directory_lock::DirectoryLock,
-    input_file::{InputFrame, InputHeader, InputObjectType, InputWriter, ParticlesInput},
+    input_file::{
+        ColliderInput, InputFrame, InputHeader, InputObject, InputWriter, ParticlesInput,
+    },
 };
 
 pub struct SimulationInputImpl {
@@ -35,15 +37,19 @@ pub struct FrameStart {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub enum FrameBulkMeta {
-    Particles {
-        object_name: String,
-        captured_attribute: FrameBulkParticle,
-    },
+pub struct FrameBulkMeta {
+    object_name: String,
+    captured_attribute: BulkAttribute,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub enum FrameBulkParticle {
+pub enum BulkAttribute {
+    Particles(FrameBulkParticles),
+    Collider(FrameBulkCollider),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub enum FrameBulkParticles {
     Flags,
     Transforms,
     Sizes,
@@ -59,6 +65,15 @@ pub enum FrameBulkParticle {
     SandAlpha,
     GoalPositions,
     GoalStiffnesses,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+pub enum FrameBulkCollider {
+    VertexPositions,
+    Triangles,
+    TriangleNormals,
+    TriangleFrictions,
+    TriangleStickynesses,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -111,9 +126,18 @@ impl SimulationInput for SimulationInputImpl {
                 .input_header
                 .objects
                 .iter()
-                .filter_map(|input_object| {
-                    matches!(input_object.ty, InputObjectType::Particles)
-                        .then_some((input_object.name.clone(), ParticlesInput::default()))
+                .filter_map(|(name, input_object)| {
+                    matches!(input_object, InputObject::Particles)
+                        .then_some((name.clone(), ParticlesInput::default()))
+                })
+                .collect(),
+            collider_inputs: self
+                .input_header
+                .objects
+                .iter()
+                .filter_map(|(name, input_object)| {
+                    matches!(input_object, InputObject::Collider { .. })
+                        .then_some((name.clone(), ColliderInput::default()))
                 })
                 .collect(),
         };
@@ -129,42 +153,60 @@ impl SimulationInput for SimulationInputImpl {
             bail!("No frame started.");
         };
         debug!("got some input: {meta:?}");
-        match from_value::<FrameBulkMeta>(meta)? {
-            FrameBulkMeta::Particles {
-                object_name,
-                captured_attribute,
-            } => {
+        let FrameBulkMeta {
+            object_name,
+            captured_attribute,
+        } = from_value::<FrameBulkMeta>(meta)?;
+        match captured_attribute {
+            BulkAttribute::Particles(captured_attribute) => {
                 let ps = current_frame
                     .particles_inputs
                     .get_mut(&object_name)
                     .context("Missing input particle object")?;
                 match captured_attribute {
-                    FrameBulkParticle::Flags => ps.flags = bulk.try_into()?,
-                    FrameBulkParticle::Transforms => {
+                    FrameBulkParticles::Flags => ps.flags = bulk.try_into()?,
+                    FrameBulkParticles::Transforms => {
                         ensure!(bulk.len() % 16 == 0);
                         ps.transforms = bulk.try_into()?;
                     }
-                    FrameBulkParticle::Sizes => ps.sizes = bulk.try_into()?,
-                    FrameBulkParticle::Densities => ps.densities = bulk.try_into()?,
-                    FrameBulkParticle::YoungsModuluses => ps.youngs_moduluses = bulk.try_into()?,
-                    FrameBulkParticle::PoissonsRatios => ps.poissons_ratios = bulk.try_into()?,
-                    FrameBulkParticle::InitialPositions => {
+                    FrameBulkParticles::Sizes => ps.sizes = bulk.try_into()?,
+                    FrameBulkParticles::Densities => ps.densities = bulk.try_into()?,
+                    FrameBulkParticles::YoungsModuluses => ps.youngs_moduluses = bulk.try_into()?,
+                    FrameBulkParticles::PoissonsRatios => ps.poissons_ratios = bulk.try_into()?,
+                    FrameBulkParticles::InitialPositions => {
                         ensure!(bulk.len() % 3 == 0);
                         ps.initial_positions = bulk.try_into()?
                     }
-                    FrameBulkParticle::InitialVelocity => {
+                    FrameBulkParticles::InitialVelocity => {
                         ensure!(bulk.len() % 3 == 0);
                         ps.initial_velocities = bulk.try_into()?
                     }
-                    FrameBulkParticle::ViscosityDynamic => {
+                    FrameBulkParticles::ViscosityDynamic => {
                         ps.viscosities_dynamic = bulk.try_into()?
                     }
-                    FrameBulkParticle::ViscosityBulk => ps.viscosities_bulk = bulk.try_into()?,
-                    FrameBulkParticle::Exponent => ps.exponents = bulk.try_into()?,
-                    FrameBulkParticle::BulkModulus => ps.bulk_moduluses = bulk.try_into()?,
-                    FrameBulkParticle::SandAlpha => ps.sand_alphas = bulk.try_into()?,
-                    FrameBulkParticle::GoalPositions => ps.goal_positions = bulk.try_into()?,
-                    FrameBulkParticle::GoalStiffnesses => ps.goal_stiffnesses = bulk.try_into()?,
+                    FrameBulkParticles::ViscosityBulk => ps.viscosities_bulk = bulk.try_into()?,
+                    FrameBulkParticles::Exponent => ps.exponents = bulk.try_into()?,
+                    FrameBulkParticles::BulkModulus => ps.bulk_moduluses = bulk.try_into()?,
+                    FrameBulkParticles::SandAlpha => ps.sand_alphas = bulk.try_into()?,
+                    FrameBulkParticles::GoalPositions => ps.goal_positions = bulk.try_into()?,
+                    FrameBulkParticles::GoalStiffnesses => ps.goal_stiffnesses = bulk.try_into()?,
+                }
+            }
+            BulkAttribute::Collider(captured_attribute) => {
+                let cs = current_frame
+                    .collider_inputs
+                    .get_mut(&object_name)
+                    .context("Missing input collider object")?;
+                match captured_attribute {
+                    FrameBulkCollider::VertexPositions => cs.vertex_positions = bulk.try_into()?,
+                    FrameBulkCollider::Triangles => cs.triangles = bulk.try_into()?,
+                    FrameBulkCollider::TriangleNormals => cs.triangle_normals = bulk.try_into()?,
+                    FrameBulkCollider::TriangleFrictions => {
+                        cs.triangle_frictions = bulk.try_into()?
+                    }
+                    FrameBulkCollider::TriangleStickynesses => {
+                        cs.triangle_stickynesses = bulk.try_into()?
+                    }
                 }
             }
         }
@@ -209,6 +251,35 @@ impl SimulationInput for SimulationInputImpl {
             ensure!(n == sand_alphas.len());
             ensure!(n == goal_positions.len() / 3);
             ensure!(n == goal_stiffnesses.len());
+        }
+
+        for (
+            name,
+            ColliderInput {
+                vertex_positions,
+                triangles,
+                triangle_normals,
+                triangle_frictions,
+                triangle_stickynesses,
+            },
+        ) in current_frame.collider_inputs.iter()
+        {
+            let InputObject::Collider { num_vertices } = self
+                .input_header
+                .objects
+                .get(name)
+                .context("Missing collider object")?
+            else {
+                bail!("Input object type changed");
+            };
+            ensure!(*num_vertices == vertex_positions.len() / 3);
+            ensure!(triangles.iter().all(|&vertex_idx| {
+                vertex_idx >= 0 && (vertex_idx as usize) < vertex_positions.len()
+            }));
+            let n = triangles.len() / 3;
+            ensure!(n == triangle_normals.len() / 3);
+            ensure!(n == triangle_frictions.len());
+            ensure!(n == triangle_stickynesses.len());
         }
 
         self.input_writer.record_frame(current_frame)?;

@@ -12,3 +12,6 @@ use serde::{Deserialize, Serialize};
 pub struct ObjectParticles {
     pub particles: Vec<usize>,
 }
+
+#[derive(Default, Clone, Serialize, Deserialize)]
+pub struct ObjectCollider {}

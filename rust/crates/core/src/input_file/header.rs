@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeMap;
+
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
@@ -20,18 +22,13 @@ pub struct InputConsts {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum InputObjectType {
+pub enum InputObject {
     Particles,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct InputObject {
-    pub name: String,
-    pub ty: InputObjectType,
+    Collider { num_vertices: usize },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputHeader {
     pub consts: InputConsts,
-    pub objects: Vec<InputObject>,
+    pub objects: BTreeMap<String, InputObject>,
 }

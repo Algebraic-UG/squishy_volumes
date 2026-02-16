@@ -86,7 +86,7 @@
                                             "default_input": "VALUE",
                                             "in_out": "INPUT",
                                             "item_type": "SOCKET",
-                                            "subtype": "NONE",
+                                            "subtype": "FACTOR",
                                             "default_value": 0.30000001192092896,
                                             "min_value": 0.0,
                                             "max_value": 10.0
@@ -112,7 +112,7 @@
                                             "default_input": "VALUE",
                                             "in_out": "INPUT",
                                             "item_type": "SOCKET",
-                                            "subtype": "NONE",
+                                            "subtype": "FACTOR",
                                             "default_value": 0.0,
                                             "min_value": 0.0,
                                             "max_value": 1.0
@@ -126,18 +126,18 @@
                 "nodes": {
                     "id": 7,
                     "data": {
-                        "active": 15,
+                        "active": 102,
                         "items": [
                             {
                                 "id": 8,
                                 "data": {
                                     "location": [
-                                        -220.0,
-                                        240.0
+                                        -1000.0,
+                                        220.0
                                     ],
                                     "location_absolute": [
-                                        -220.0,
-                                        240.0
+                                        -1000.0,
+                                        220.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -239,16 +239,16 @@
                                 "id": 15,
                                 "data": {
                                     "location": [
-                                        980.0,
-                                        240.0
+                                        -820.0,
+                                        220.0
                                     ],
                                     "location_absolute": [
-                                        980.0,
-                                        240.0
+                                        -820.0,
+                                        220.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
-                                    "name": "Group Output",
+                                    "name": "Triangulate",
                                     "label": "",
                                     "warning_propagation": "ALL",
                                     "use_custom_color": false,
@@ -270,82 +270,6 @@
                                                 {
                                                     "id": 17,
                                                     "data": {
-                                                        "name": "Geometry",
-                                                        "description": "",
-                                                        "hide": false,
-                                                        "enabled": true,
-                                                        "link_limit": 1,
-                                                        "show_expanded": false,
-                                                        "hide_value": false,
-                                                        "pin_gizmo": false,
-                                                        "type": "GEOMETRY",
-                                                        "display_shape": "LINE"
-                                                    }
-                                                },
-                                                {
-                                                    "id": 18,
-                                                    "data": {
-                                                        "name": "",
-                                                        "description": "",
-                                                        "hide": false,
-                                                        "enabled": true,
-                                                        "link_limit": 4095,
-                                                        "show_expanded": false,
-                                                        "hide_value": false,
-                                                        "pin_gizmo": false,
-                                                        "type": "CUSTOM",
-                                                        "display_shape": "CIRCLE"
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    },
-                                    "outputs": {
-                                        "id": 19,
-                                        "data": {
-                                            "items": []
-                                        }
-                                    },
-                                    "bl_idname": "NodeGroupOutput",
-                                    "parent": null,
-                                    "is_active_output": true
-                                }
-                            },
-                            {
-                                "id": 20,
-                                "data": {
-                                    "location": [
-                                        -40.0,
-                                        240.0
-                                    ],
-                                    "location_absolute": [
-                                        -40.0,
-                                        240.0
-                                    ],
-                                    "width": 140.0,
-                                    "height": 100.0,
-                                    "name": "Triangulate",
-                                    "label": "",
-                                    "warning_propagation": "ALL",
-                                    "use_custom_color": false,
-                                    "color": [
-                                        0.6079999804496765,
-                                        0.6079999804496765,
-                                        0.6079999804496765
-                                    ],
-                                    "select": false,
-                                    "show_options": true,
-                                    "show_preview": false,
-                                    "hide": false,
-                                    "mute": false,
-                                    "show_texture": false,
-                                    "inputs": {
-                                        "id": 21,
-                                        "data": {
-                                            "items": [
-                                                {
-                                                    "id": 22,
-                                                    "data": {
                                                         "name": "Mesh",
                                                         "description": "",
                                                         "hide": false,
@@ -359,7 +283,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 23,
+                                                    "id": 18,
                                                     "data": {
                                                         "name": "Selection",
                                                         "description": "",
@@ -375,7 +299,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 24,
+                                                    "id": 19,
                                                     "data": {
                                                         "name": "Quad Method",
                                                         "description": "",
@@ -391,7 +315,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 25,
+                                                    "id": 20,
                                                     "data": {
                                                         "name": "N-gon Method",
                                                         "description": "",
@@ -410,11 +334,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 26,
+                                        "id": 21,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 27,
+                                                    "id": 22,
                                                     "data": {
                                                         "name": "Mesh",
                                                         "description": "",
@@ -436,15 +360,15 @@
                                 }
                             },
                             {
-                                "id": 28,
+                                "id": 23,
                                 "data": {
                                     "location": [
-                                        320.0000305175781,
-                                        240.0
+                                        540.0,
+                                        220.0
                                     ],
                                     "location_absolute": [
-                                        320.0000305175781,
-                                        240.0
+                                        540.0,
+                                        220.0
                                     ],
                                     "width": 200.0,
                                     "height": 100.0,
@@ -464,11 +388,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 29,
+                                        "id": 24,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 30,
+                                                    "id": 25,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -483,7 +407,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 31,
+                                                    "id": 26,
                                                     "data": {
                                                         "name": "Selection",
                                                         "description": "",
@@ -499,7 +423,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 32,
+                                                    "id": 27,
                                                     "data": {
                                                         "name": "Name",
                                                         "description": "",
@@ -515,7 +439,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 33,
+                                                    "id": 28,
                                                     "data": {
                                                         "name": "Value",
                                                         "description": "",
@@ -534,11 +458,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 34,
+                                        "id": 29,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 35,
+                                                    "id": 30,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -562,15 +486,15 @@
                                 }
                             },
                             {
-                                "id": 36,
+                                "id": 31,
                                 "data": {
                                     "location": [
-                                        740.0,
-                                        240.0
+                                        960.0,
+                                        220.0
                                     ],
                                     "location_absolute": [
-                                        740.0,
-                                        240.0
+                                        960.0,
+                                        220.0
                                     ],
                                     "width": 200.0,
                                     "height": 100.0,
@@ -590,11 +514,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 37,
+                                        "id": 32,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 38,
+                                                    "id": 33,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -609,7 +533,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 39,
+                                                    "id": 34,
                                                     "data": {
                                                         "name": "Selection",
                                                         "description": "",
@@ -625,7 +549,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 40,
+                                                    "id": 35,
                                                     "data": {
                                                         "name": "Name",
                                                         "description": "",
@@ -641,7 +565,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 41,
+                                                    "id": 36,
                                                     "data": {
                                                         "name": "Value",
                                                         "description": "",
@@ -660,11 +584,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 42,
+                                        "id": 37,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 43,
+                                                    "id": 38,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -688,15 +612,15 @@
                                 }
                             },
                             {
-                                "id": 44,
+                                "id": 39,
                                 "data": {
                                     "location": [
-                                        140.0,
-                                        120.0
+                                        360.0,
+                                        100.0
                                     ],
                                     "location_absolute": [
-                                        140.0,
-                                        120.0
+                                        360.0,
+                                        100.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -716,17 +640,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 45,
+                                        "id": 40,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 46,
+                                        "id": 41,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 47,
+                                                    "id": 42,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -741,7 +665,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 48,
+                                                    "id": 43,
                                                     "data": {
                                                         "name": "Friction",
                                                         "description": "",
@@ -757,7 +681,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 49,
+                                                    "id": 44,
                                                     "data": {
                                                         "name": "Sticky",
                                                         "description": "",
@@ -773,7 +697,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 50,
+                                                    "id": 45,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -795,15 +719,15 @@
                                 }
                             },
                             {
-                                "id": 51,
+                                "id": 46,
                                 "data": {
                                     "location": [
-                                        560.0,
-                                        120.0
+                                        780.0,
+                                        100.0
                                     ],
                                     "location_absolute": [
-                                        560.0,
-                                        120.0
+                                        780.0,
+                                        100.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -823,17 +747,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 52,
+                                        "id": 47,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 53,
+                                        "id": 48,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 54,
+                                                    "id": 49,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -848,7 +772,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 55,
+                                                    "id": 50,
                                                     "data": {
                                                         "name": "Friction",
                                                         "description": "",
@@ -864,7 +788,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 56,
+                                                    "id": 51,
                                                     "data": {
                                                         "name": "Sticky",
                                                         "description": "",
@@ -880,7 +804,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 57,
+                                                    "id": 52,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -900,6 +824,890 @@
                                     "bl_idname": "NodeGroupInput",
                                     "parent": null
                                 }
+                            },
+                            {
+                                "id": 53,
+                                "data": {
+                                    "location": [
+                                        1220.0,
+                                        220.0
+                                    ],
+                                    "location_absolute": [
+                                        1220.0,
+                                        220.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Group Output.001",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 54,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 55,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 56,
+                                                    "data": {
+                                                        "name": "",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "CUSTOM",
+                                                        "display_shape": "CIRCLE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 57,
+                                        "data": {
+                                            "items": []
+                                        }
+                                    },
+                                    "bl_idname": "NodeGroupOutput",
+                                    "parent": null,
+                                    "is_active_output": true
+                                }
+                            },
+                            {
+                                "id": 58,
+                                "data": {
+                                    "location": [
+                                        -300.0,
+                                        220.0
+                                    ],
+                                    "location_absolute": [
+                                        -300.0,
+                                        220.0
+                                    ],
+                                    "width": 200.0,
+                                    "height": 100.0,
+                                    "name": "Store Named Attribute.002",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 59,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 60,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 61,
+                                                    "data": {
+                                                        "name": "Selection",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": true,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": true
+                                                    }
+                                                },
+                                                {
+                                                    "id": 62,
+                                                    "data": {
+                                                        "name": "Name",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "STRING",
+                                                        "display_shape": "LINE",
+                                                        "default_value": "squishy_volumes_position"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 63,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 64,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 65,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeStoreNamedAttribute",
+                                    "parent": null,
+                                    "data_type": "FLOAT_VECTOR",
+                                    "domain": "POINT"
+                                }
+                            },
+                            {
+                                "id": 66,
+                                "data": {
+                                    "location": [
+                                        -500.0,
+                                        100.0
+                                    ],
+                                    "location_absolute": [
+                                        -500.0,
+                                        100.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Position",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 67,
+                                        "data": {
+                                            "items": []
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 68,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 69,
+                                                    "data": {
+                                                        "name": "Position",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeInputPosition",
+                                    "parent": null
+                                }
+                            },
+                            {
+                                "id": 70,
+                                "data": {
+                                    "location": [
+                                        -820.0,
+                                        80.0
+                                    ],
+                                    "location_absolute": [
+                                        -820.0,
+                                        80.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Object Info",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 71,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 72,
+                                                    "data": {
+                                                        "name": "Object",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "OBJECT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": null
+                                                    }
+                                                },
+                                                {
+                                                    "id": 73,
+                                                    "data": {
+                                                        "name": "As Instance",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "LINE",
+                                                        "default_value": false
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 74,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 75,
+                                                    "data": {
+                                                        "name": "Transform",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MATRIX",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 76,
+                                                    "data": {
+                                                        "name": "Location",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "LINE",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 77,
+                                                    "data": {
+                                                        "name": "Rotation",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "ROTATION",
+                                                        "display_shape": "LINE",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 78,
+                                                    "data": {
+                                                        "name": "Scale",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "LINE",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 79,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeObjectInfo",
+                                    "parent": null,
+                                    "transform_space": "ORIGINAL"
+                                }
+                            },
+                            {
+                                "id": 80,
+                                "data": {
+                                    "location": [
+                                        -1000.0,
+                                        -40.0
+                                    ],
+                                    "location_absolute": [
+                                        -1000.0,
+                                        -40.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Self Object",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 81,
+                                        "data": {
+                                            "items": []
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 82,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 83,
+                                                    "data": {
+                                                        "name": "Self Object",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "OBJECT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": null
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeSelfObject",
+                                    "parent": null
+                                }
+                            },
+                            {
+                                "id": 84,
+                                "data": {
+                                    "location": [
+                                        -600.0,
+                                        220.0
+                                    ],
+                                    "location_absolute": [
+                                        -600.0,
+                                        220.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Transform Geometry",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 85,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 86,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 87,
+                                                    "data": {
+                                                        "name": "Mode",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MENU",
+                                                        "display_shape": "LINE",
+                                                        "default_value": "Matrix"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 88,
+                                                    "data": {
+                                                        "name": "Translation",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "LINE",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 89,
+                                                    "data": {
+                                                        "name": "Rotation",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "ROTATION",
+                                                        "display_shape": "LINE",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 90,
+                                                    "data": {
+                                                        "name": "Scale",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "LINE",
+                                                        "default_value": [
+                                                            1.0,
+                                                            1.0,
+                                                            1.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 91,
+                                                    "data": {
+                                                        "name": "Transform",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MATRIX",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 92,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 93,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeTransform",
+                                    "parent": null
+                                }
+                            },
+                            {
+                                "id": 94,
+                                "data": {
+                                    "location": [
+                                        120.0,
+                                        220.0
+                                    ],
+                                    "location_absolute": [
+                                        120.0,
+                                        220.0
+                                    ],
+                                    "width": 200.0,
+                                    "height": 100.0,
+                                    "name": "Store Named Attribute.003",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 95,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 96,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 97,
+                                                    "data": {
+                                                        "name": "Selection",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": true,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": true
+                                                    }
+                                                },
+                                                {
+                                                    "id": 98,
+                                                    "data": {
+                                                        "name": "Name",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "STRING",
+                                                        "display_shape": "LINE",
+                                                        "default_value": "squishy_volumes_normal"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 99,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 100,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 101,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeStoreNamedAttribute",
+                                    "parent": null,
+                                    "data_type": "FLOAT_VECTOR",
+                                    "domain": "FACE"
+                                }
+                            },
+                            {
+                                "id": 102,
+                                "data": {
+                                    "location": [
+                                        -60.0,
+                                        100.0
+                                    ],
+                                    "location_absolute": [
+                                        -60.0,
+                                        100.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Normal",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 103,
+                                        "data": {
+                                            "items": []
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 104,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 105,
+                                                    "data": {
+                                                        "name": "Normal",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 106,
+                                                    "data": {
+                                                        "name": "True Normal",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeInputNormal",
+                                    "parent": null,
+                                    "legacy_corner_normals": false
+                                }
                             }
                         ]
                     }
@@ -907,61 +1715,124 @@
                 "bl_idname": "GeometryNodeTree",
                 "annotation": null,
                 "links": {
-                    "id": 58,
+                    "id": 107,
                     "data": {
                         "items": [
                             {
-                                "id": 59,
+                                "id": 108,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
                                     "from_socket": 11,
-                                    "to_socket": 22
-                                }
-                            },
-                            {
-                                "id": 60,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 43,
                                     "to_socket": 17
                                 }
                             },
                             {
-                                "id": 61,
+                                "id": 109,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 27,
-                                    "to_socket": 30
-                                }
-                            },
-                            {
-                                "id": 62,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 35,
-                                    "to_socket": 38
-                                }
-                            },
-                            {
-                                "id": 63,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 48,
+                                    "from_socket": 30,
                                     "to_socket": 33
                                 }
                             },
                             {
-                                "id": 64,
+                                "id": 110,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 56,
-                                    "to_socket": 41
+                                    "from_socket": 43,
+                                    "to_socket": 28
+                                }
+                            },
+                            {
+                                "id": 111,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 51,
+                                    "to_socket": 36
+                                }
+                            },
+                            {
+                                "id": 112,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 38,
+                                    "to_socket": 55
+                                }
+                            },
+                            {
+                                "id": 113,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 93,
+                                    "to_socket": 60
+                                }
+                            },
+                            {
+                                "id": 114,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 83,
+                                    "to_socket": 72
+                                }
+                            },
+                            {
+                                "id": 115,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 22,
+                                    "to_socket": 86
+                                }
+                            },
+                            {
+                                "id": 116,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 75,
+                                    "to_socket": 91
+                                }
+                            },
+                            {
+                                "id": 117,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 69,
+                                    "to_socket": 63
+                                }
+                            },
+                            {
+                                "id": 118,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 65,
+                                    "to_socket": 96
+                                }
+                            },
+                            {
+                                "id": 119,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 101,
+                                    "to_socket": 25
+                                }
+                            },
+                            {
+                                "id": 120,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 105,
+                                    "to_socket": 99
                                 }
                             }
                         ]

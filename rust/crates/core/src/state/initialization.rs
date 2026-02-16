@@ -13,7 +13,6 @@ use std::{
     sync::{Arc, atomic::AtomicBool},
 };
 
-use bitflags::bitflags_match;
 use nalgebra::{Matrix3, Matrix4, Vector3};
 use squishy_volumes_api::T;
 use thiserror::Error;
@@ -22,7 +21,7 @@ use tracing::info;
 use crate::{
     ParticleFlags, Report, ReportInfo,
     elastic::{lambda_stable_neo_hookean, mu_stable_neo_hookean},
-    input_file::{InputFrame, InputHeader, InputObjectType},
+    input_file::{InputFrame, InputHeader, InputObject},
     state::{
         ObjectIndex,
         object::ObjectParticles,
@@ -36,6 +35,8 @@ use super::State;
 pub enum StateInitializationError {
     #[error("the flags for a particle {0} are invalid")]
     ParticleFlagsInvalid(usize),
+    #[error("There was no input for particle object {0}")]
+    ParticleInputMissing(String),
 }
 
 impl State {
@@ -56,6 +57,7 @@ impl State {
         let mut name_map = BTreeMap::new();
         let mut particles = Particles::default();
         let mut particle_objects = Vec::new();
+        let mut collider_objects = Vec::new();
 
         let Particles {
             sort_map,
@@ -75,18 +77,18 @@ impl State {
             action_matrices: _,
         } = &mut particles;
 
-        for object in input_header.objects {
-            match object.ty {
-                InputObjectType::Particles => {
+        for (name, object) in input_header.objects.iter() {
+            match object {
+                InputObject::Particles => {
                     let object_index = ObjectIndex::Particles(particle_objects.len());
-                    name_map.insert(object.name.clone(), object_index);
+                    name_map.insert(name.clone(), object_index);
 
                     particle_objects.push(ObjectParticles::default());
                     let particle_object = particle_objects.last_mut().unwrap();
 
-                    let Some(input) = first_frame.particles_inputs.get(&object.name) else {
-                        continue;
-                    };
+                    let input = first_frame.particles_inputs.get(name).ok_or_else(|| {
+                        StateInitializationError::ParticleInputMissing(name.clone())
+                    })?;
 
                     let first_index = sort_map.len();
 
@@ -187,6 +189,10 @@ impl State {
 
                     particle_object.particles = (first_index..first_index + n).collect();
                 }
+                InputObject::Collider { .. } => {
+                    let object_index = ObjectIndex::Collider(particle_objects.len());
+                    name_map.insert(name.clone(), object_index);
+                }
             }
 
             report.step();
@@ -204,6 +210,7 @@ impl State {
             phase,
             name_map,
             particle_objects,
+            collider_objects,
             particles,
             grid_momentum,
             grid_collider_distances,

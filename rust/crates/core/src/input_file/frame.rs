@@ -31,8 +31,18 @@ pub struct ParticlesInput {
     pub goal_stiffnesses: Vec<f32>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
+pub struct ColliderInput {
+    pub vertex_positions: Vec<f32>,
+    pub triangles: Vec<i32>,
+    pub triangle_normals: Vec<f32>,
+    pub triangle_frictions: Vec<f32>,
+    pub triangle_stickynesses: Vec<f32>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputFrame {
     pub gravity: Vector3<T>,
     pub particles_inputs: BTreeMap<String, ParticlesInput>,
+    pub collider_inputs: BTreeMap<String, ColliderInput>,
 }
