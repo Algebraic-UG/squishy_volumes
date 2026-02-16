@@ -33,3 +33,8 @@ class Squishy_Volumes_Object_Input_Settings(bpy.types.PropertyGroup):
         default=INPUT_TYPE_PARTICLES,
         options=set(),
     )  # type: ignore
+    add_default_generation: bpy.props.BoolProperty(
+        name="Add Default Generation",
+        description="""TODO""",
+        default=True,
+    )  # type:ignore

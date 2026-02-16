@@ -35,6 +35,8 @@ from ..properties.squishy_volumes_object import (
 )
 from ..properties.squishy_volumes_object_input_settings import (
     Squishy_Volumes_Object_Input_Settings,
+    INPUT_TYPE_PARTICLES,
+    INPUT_TYPE_COLLIDER,
 )
 
 from ..bridge import (
@@ -56,6 +58,7 @@ from ..util import (
 from ..nodes import (
     create_geometry_nodes_generate_particles,
     create_geometry_nodes_generate_goal_positions,
+    create_geometry_nodes_generate_collider,
 )
 
 
@@ -91,6 +94,7 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
             row.label(text="⚠️ already an output")
             return
         row.prop(item.squishy_volumes_object.input_settings, "input_type")
+        row.prop(item.squishy_volumes_object.input_settings, "add_default_generation")
 
 
 @add_fields_from(Squishy_Volumes_Object_Input_Settings)
@@ -99,10 +103,6 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
     bl_label = "Add Input Objects"
     bl_description = """TODO"""
     bl_options = {"REGISTER", "UNDO"}
-
-    add_default_generation: bpy.props.BoolProperty(
-        name="Add Default Generation", default=True
-    )  # type:ignore
 
     selected_active: bpy.props.IntProperty()  # type: ignore
 
@@ -120,11 +120,20 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
                 and obj.squishy_volumes_object.io == IO_NONE  # ty:ignore[unresolved-attribute]
             )
 
-        if (
-            any(can_add(obj) for obj in context.selected_ids)
-            and self.add_default_generation
-        ):
-            node_group = create_geometry_nodes_generate_particles()
+        def add_default_generation(obj: bpy.types.Object) -> bool:
+            return obj.squishy_volumes_object.input_settings.add_default_generation  # ty:ignore[unresolved-attribute]
+
+        # only load the tree once
+        for obj in context.selected_ids:
+            if not can_add(obj) or not add_default_generation(obj):
+                continue
+            input_type = obj.squishy_volumes_object.input_settings.input_type
+            if input_type == INPUT_TYPE_PARTICLES:
+                node_group_generate_particles = (
+                    create_geometry_nodes_generate_particles()
+                )
+            if input_type == INPUT_TYPE_COLLIDER:
+                node_group_generate_collider = create_geometry_nodes_generate_collider()
 
         for obj in context.selected_ids:
             if not can_add(obj):
@@ -143,13 +152,18 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
                 f"Added {context.object.name} to input objects of {simulation.name}.",
             )
 
-            if not self.add_default_generation:
+            if not add_default_generation(obj):
                 continue
+            input_type = obj.squishy_volumes_object.input_settings.input_type
 
             modifier = context.object.modifiers.new(
                 "Squishy Volumes Input", type="NODES"
             )
-            modifier.node_group = node_group
+            if input_type == INPUT_TYPE_PARTICLES:
+                modifier.node_group = node_group_generate_particles
+            if input_type == INPUT_TYPE_COLLIDER:
+                modifier.node_group = node_group_generate_collider
+
             add_drivers(simulation.uuid, modifier)
 
         force_ui_redraw()
@@ -167,7 +181,6 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
             active_dataptr=self,
             active_propname="selected_active",
         )
-        self.layout.prop(self, "add_default_generation")
 
 
 class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
