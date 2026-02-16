@@ -1573,8 +1573,8 @@
                                             "in_out": "INPUT",
                                             "item_type": "SOCKET",
                                             "subtype": "NONE",
-                                            "default_value": 0.0,
-                                            "min_value": -3.4028234663852886e+38,
+                                            "default_value": 1000.0,
+                                            "min_value": 0.0,
                                             "max_value": 3.4028234663852886e+38
                                         }
                                     },
