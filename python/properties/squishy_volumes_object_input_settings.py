@@ -19,14 +19,16 @@
 import bpy
 
 INPUT_TYPE_PARTICLES = "Particles"
+INPUT_TYPE_COLLIDER = "Collider"
 
 
 class Squishy_Volumes_Object_Input_Settings(bpy.types.PropertyGroup):
     input_type: bpy.props.EnumProperty(
         items=[
             (INPUT_TYPE_PARTICLES,) * 3,
+            (INPUT_TYPE_COLLIDER,) * 3,
         ],  # ty:ignore[invalid-argument-type]
-        name="Input Type",
+        name="Type",
         description="""TODO""",
         default=INPUT_TYPE_PARTICLES,
         options=set(),

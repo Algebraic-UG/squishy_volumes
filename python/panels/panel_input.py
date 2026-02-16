@@ -90,7 +90,7 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
         if item.squishy_volumes_object.io == IO_OUTPUT:
             row.label(text="⚠️ already an output")
             return
-        row.label(text="✅ new input")
+        row.prop(item.squishy_volumes_object.input_settings, "input_type")
 
 
 @add_fields_from(Squishy_Volumes_Object_Input_Settings)
