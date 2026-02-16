@@ -84,7 +84,7 @@ impl State {
                     particle_objects.push(ObjectParticles::default());
                     let particle_object = particle_objects.last_mut().unwrap();
 
-                    let Some(input) = first_frame.particles_input.get(&object.name) else {
+                    let Some(input) = first_frame.particles_inputs.get(&object.name) else {
                         continue;
                     };
 

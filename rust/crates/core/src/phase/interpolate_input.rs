@@ -48,9 +48,9 @@ impl State {
             gravity = factor_a * a.gravity + factor_b * b.gravity;
 
             particles_input = a
-                .particles_input
+                .particles_inputs
                 .iter()
-                .zip(b.particles_input.iter())
+                .zip(b.particles_inputs.iter())
                 .map(|((name_a, input_a), (name_b, input_b))| {
                     ensure!(name_a == name_b);
                     ensure!(input_a.transforms.len() == input_b.transforms.len());
@@ -93,7 +93,7 @@ impl State {
             gravity = a.gravity;
 
             particles_input = a
-                .particles_input
+                .particles_inputs
                 .iter()
                 .map(|(name, input)| {
                     let goal_positions = input

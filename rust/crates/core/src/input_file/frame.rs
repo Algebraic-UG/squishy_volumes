@@ -34,5 +34,5 @@ pub struct ParticlesInput {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputFrame {
     pub gravity: Vector3<T>,
-    pub particles_input: BTreeMap<String, ParticlesInput>,
+    pub particles_inputs: BTreeMap<String, ParticlesInput>,
 }

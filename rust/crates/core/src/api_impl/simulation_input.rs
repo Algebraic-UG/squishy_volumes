@@ -107,7 +107,7 @@ impl SimulationInput for SimulationInputImpl {
 
         let input_frame = InputFrame {
             gravity,
-            particles_input: self
+            particles_inputs: self
                 .input_header
                 .objects
                 .iter()
@@ -135,7 +135,7 @@ impl SimulationInput for SimulationInputImpl {
                 captured_attribute,
             } => {
                 let ps = current_frame
-                    .particles_input
+                    .particles_inputs
                     .get_mut(&object_name)
                     .context("Missing input particle object")?;
                 match captured_attribute {
@@ -192,7 +192,7 @@ impl SimulationInput for SimulationInputImpl {
             sand_alphas,
             goal_positions,
             goal_stiffnesses,
-        } in current_frame.particles_input.values()
+        } in current_frame.particles_inputs.values()
         {
             let n = flags.len();
             ensure!(n == transforms.len() / 16);
