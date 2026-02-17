@@ -22,6 +22,7 @@ pub fn rasterize(
     spacing: T,
     layers: usize,
 ) -> impl Iterator<Item = Vector3<T>> {
+    let offset = normal.dot(corner_a);
     let margin = spacing * layers as T;
     let facing_axis = normal
         .iter()
@@ -29,6 +30,7 @@ pub fn rasterize(
         .max_by(|a, b| a.1.abs().total_cmp(&b.1.abs()))
         .unwrap()
         .0;
+    let normal_facing_coord = normal[facing_axis];
 
     let to_plane = |corner: &Vector3<T>| -> Vector2<T> {
         match facing_axis {
@@ -50,6 +52,7 @@ pub fn rasterize(
     let a = to_plane(corner_a);
     let b = to_plane(corner_b);
     let c = to_plane(corner_c);
+    let n = to_plane(normal);
 
     let ab = a - b;
     let bc = b - c;
@@ -92,7 +95,18 @@ pub fn rasterize(
                     || distance_to_segment(&c, &bc, bc_ns, ray_start) < margin
                     || distance_to_segment(&a, &ca, ca_ns, ray_start) < margin
             })
-            .map(move |v| to_world(&v, 0.))
+            .flat_map(move |ray_start| {
+                let hit_0 = (offset - margin - n.dot(&ray_start)) / normal_facing_coord;
+                let hit_1 = (offset + margin - n.dot(&ray_start)) / normal_facing_coord;
+
+                let n = (((hit_0 - hit_1) / spacing).abs().floor() as usize).max(1);
+                (0..n + 1)
+                    .map(move |i| {
+                        let factor = i as T / n as T;
+                        hit_0 * factor + hit_1 * (1. - factor)
+                    })
+                    .map(move |coord| to_world(&ray_start, coord))
+            })
             .iter_enum_2b()
     }
 }
