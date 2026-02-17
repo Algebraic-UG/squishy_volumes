@@ -9,10 +9,13 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context as _, Result, bail};
+use nalgebra::Vector3;
 use serde_json::{Value, from_value};
 use squishy_volumes_api::{Context, Simulation, SimulationInput};
 use tracing::{info, subscriber::set_global_default, warn};
 use tracing_subscriber::FmtSubscriber;
+
+use crate::{math::flat::Flat3, rasterization::rasterize};
 
 use super::{SimulationImpl, SimulationInputImpl};
 
@@ -110,5 +113,22 @@ impl Context for ContextImpl {
         if self.simulations.remove(uuid).is_none() {
             warn!("No simulation with {uuid}")
         }
+    }
+
+    fn test(&mut self, data: &[f32]) -> Vec<f32> {
+        let mut chunks = data.chunks_exact(3);
+        let corner_a = Vector3::from_column_slice(chunks.next().unwrap());
+        let corner_b = Vector3::from_column_slice(chunks.next().unwrap());
+        let corner_c = Vector3::from_column_slice(chunks.next().unwrap());
+        let normal = Vector3::from_column_slice(chunks.next().unwrap());
+
+        info!(?corner_a, ?corner_b, ?corner_c, ?normal);
+
+        let spacing = 0.5;
+        let layers = 5;
+
+        rasterize(&corner_a, &corner_b, &corner_c, &normal, spacing, layers)
+            .flat_map(|v| v.flat())
+            .collect()
     }
 }

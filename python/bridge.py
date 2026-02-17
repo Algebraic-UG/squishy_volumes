@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import bpy
 
 import json
 import numpy
@@ -27,6 +28,43 @@ from .hint_at_info import *
 @hint_at_info
 def build_info() -> dict[str, Any]:
     return json.loads(squishy_volumes_wrap.build_info_as_json())
+
+
+@hint_at_info
+def test():
+    vs = bpy.context.active_object.data.vertices
+    ts = bpy.context.active_object.data.loop_triangles
+
+    array = numpy.array(
+        object=[
+            vs[0].co.x,
+            vs[0].co.y,
+            vs[0].co.z,
+            vs[1].co.x,
+            vs[1].co.y,
+            vs[1].co.z,
+            vs[2].co.x,
+            vs[2].co.y,
+            vs[2].co.z,
+            ts[0].normal.x,
+            ts[0].normal.y,
+            ts[0].normal.z,
+        ],
+        dtype="float32",
+    )
+    positions = squishy_volumes_wrap.test(array)
+
+    obj = bpy.data.objects.get("test")
+    if obj is None:
+        obj = bpy.data.objects.new("test", bpy.data.meshes.new("test"))
+        bpy.context.collection.objects.link(obj)
+
+    num_floats = positions.size
+    num_vertices = num_floats // 3
+
+    obj.data.clear_geometry()
+    obj.data.vertices.add(num_vertices)  # Pre-allocate vertex space
+    obj.data.vertices.foreach_set("co", positions)  # Set all coordinates in one go
 
 
 class SimulationInput:
