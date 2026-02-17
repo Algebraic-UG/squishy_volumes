@@ -31,12 +31,14 @@ def build_info() -> dict[str, Any]:
 
 
 @hint_at_info
-def test():
+def test(spacing, layers):
     vs = bpy.context.active_object.data.vertices
     ts = bpy.context.active_object.data.loop_triangles
 
     array = numpy.array(
         object=[
+            spacing,
+            layers,
             vs[0].co.x,
             vs[0].co.y,
             vs[0].co.z,

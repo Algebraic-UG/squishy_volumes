@@ -116,16 +116,15 @@ impl Context for ContextImpl {
     }
 
     fn test(&mut self, data: &[f32]) -> Vec<f32> {
-        let mut chunks = data.chunks_exact(3);
+        let spacing = data[0];
+        let layers = data[1] as usize;
+        let mut chunks = data[2..].chunks_exact(3);
         let corner_a = Vector3::from_column_slice(chunks.next().unwrap());
         let corner_b = Vector3::from_column_slice(chunks.next().unwrap());
         let corner_c = Vector3::from_column_slice(chunks.next().unwrap());
         let normal = Vector3::from_column_slice(chunks.next().unwrap());
 
         info!(?corner_a, ?corner_b, ?corner_c, ?normal);
-
-        let spacing = 0.5;
-        let layers = 5;
 
         rasterize(&corner_a, &corner_b, &corner_c, &normal, spacing, layers)
             .flat_map(|v| v.flat())

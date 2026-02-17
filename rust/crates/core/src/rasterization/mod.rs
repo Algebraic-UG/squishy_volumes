@@ -9,8 +9,7 @@
 use iter_enumeration::IntoIterEnum2;
 use nalgebra::{Vector2, Vector3};
 use squishy_volumes_api::T;
-use std::iter::empty;
-use tracing::info;
+use std::{iter::empty, mem::swap};
 
 use crate::math::Aabb;
 
@@ -22,8 +21,6 @@ pub fn rasterize(
     spacing: T,
     layers: usize,
 ) -> impl Iterator<Item = Vector3<T>> {
-    let offset = normal.dot(corner_a);
-    let margin = spacing * layers as T;
     let facing_axis = normal
         .iter()
         .enumerate()
@@ -40,11 +37,11 @@ pub fn rasterize(
             _ => unreachable!(),
         }
     };
-    let to_world = move |point: &Vector2<T>, dist: T| -> Vector3<T> {
+    let to_world = move |point: &Vector2<i32>, final_coord: i32| -> Vector3<i32> {
         match facing_axis {
-            0 => Vector3::new(dist, point.x, point.y),
-            1 => Vector3::new(point.x, dist, point.y),
-            2 => Vector3::new(point.x, point.y, dist),
+            0 => Vector3::new(final_coord, point.x, point.y),
+            1 => Vector3::new(point.x, final_coord, point.y),
+            2 => Vector3::new(point.x, point.y, final_coord),
             _ => unreachable!(),
         }
     };
@@ -65,48 +62,54 @@ pub fn rasterize(
     if ab_ns == 0. || bc_ns == 0. || ca_ns == 0. {
         empty::<Vector3<T>>().iter_enum_2a()
     } else {
-        let mut projected_aabb = Aabb::new([a, b, c].into_iter());
-        projected_aabb.min -= Vector2::repeat(margin);
-        projected_aabb.max += Vector2::repeat(margin);
-        let (num, lattice) = projected_aabb.lattice(spacing);
-        info!(num);
+        let aabb = Aabb::new([a, b, c].into_iter());
+        let min = aabb
+            .min
+            .map(|c| (c / spacing).floor() as i32 - layers as i32);
+        let max = aabb
+            .max
+            .map(|c| (c / spacing).ceil() as i32 + layers as i32);
+        let offset = normal.dot(corner_a);
+        let height_margin = layers as T * spacing;
+        let side_margin = (layers + 1) as T * spacing;
+        (min.x..=max.x)
+            .flat_map(move |i| (min.y..=max.y).map(move |j| Vector2::new(i, j)))
+            .filter(move |projected_grid_node| {
+                let p = projected_grid_node.map(|c| c as T * spacing);
 
-        lattice
-            .filter(move |ray_start| {
-                let inside_triangle = |p: &Vector2<T>| -> bool {
-                    let sa = (p - b).perp(&ab).is_sign_negative();
-                    let sb = (p - c).perp(&bc).is_sign_negative();
-                    let sc = (p - a).perp(&ca).is_sign_negative();
-                    (sa && sb && sc) || (!sa && !sb && !sc)
-                };
+                let sa = (p - b).perp(&ab).is_sign_negative();
+                let sb = (p - c).perp(&bc).is_sign_negative();
+                let sc = (p - a).perp(&ca).is_sign_negative();
+                if (sa && sb && sc) || (!sa && !sb && !sc) {
+                    return true;
+                }
 
-                let distance_to_segment = |start: &Vector2<T>,
-                                           segment: &Vector2<T>,
-                                           squared_norm: T,
-                                           point: &Vector2<T>|
-                 -> T {
-                    let factor = ((point - start).dot(segment) / squared_norm).clamp(0., 1.);
-                    let projected = start + factor * segment;
-                    (projected - point).norm()
-                };
+                let distance_to_segment =
+                    |start: &Vector2<T>, segment: &Vector2<T>, squared_norm: T| -> T {
+                        let factor = ((p - start).dot(segment) / squared_norm).clamp(0., 1.);
+                        let projected = start + factor * segment;
+                        (projected - p).norm()
+                    };
 
-                inside_triangle(ray_start)
-                    || distance_to_segment(&b, &ab, ab_ns, ray_start) < margin
-                    || distance_to_segment(&c, &bc, bc_ns, ray_start) < margin
-                    || distance_to_segment(&a, &ca, ca_ns, ray_start) < margin
+                distance_to_segment(&b, &ab, ab_ns) < side_margin
+                    || distance_to_segment(&c, &bc, bc_ns) < side_margin
+                    || distance_to_segment(&a, &ca, ca_ns) < side_margin
             })
-            .flat_map(move |ray_start| {
-                let hit_0 = (offset - margin - n.dot(&ray_start)) / normal_facing_coord;
-                let hit_1 = (offset + margin - n.dot(&ray_start)) / normal_facing_coord;
+            .flat_map(move |projected_grid_node| {
+                let p = projected_grid_node.map(|c| c as T * spacing);
+                let mut hit_0 = (offset - height_margin - n.dot(&p)) / normal_facing_coord;
+                let mut hit_1 = (offset + height_margin - n.dot(&p)) / normal_facing_coord;
 
-                let n = (((hit_0 - hit_1) / spacing).abs().floor() as usize).max(1);
-                (0..n + 1)
-                    .map(move |i| {
-                        let factor = i as T / n as T;
-                        hit_0 * factor + hit_1 * (1. - factor)
-                    })
-                    .map(move |coord| to_world(&ray_start, coord))
+                if hit_1 < hit_0 {
+                    swap(&mut hit_0, &mut hit_1);
+                }
+
+                let min = (hit_0 / spacing).floor() as i32;
+                let max = (hit_1 / spacing).ceil() as i32;
+
+                (min..=max).map(move |coord| to_world(&projected_grid_node, coord))
             })
+            .map(move |v| v.map(move |c| spacing * c as T))
             .iter_enum_2b()
     }
 }

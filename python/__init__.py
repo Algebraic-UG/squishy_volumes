@@ -67,9 +67,15 @@ class OBJECT_OT_Test(bpy.types.Operator):
     bl_label = "Test"
     bl_options = {"REGISTER", "UNDO"}
 
+    spacing: bpy.props.FloatProperty()  # type: ignore
+    layers: bpy.props.IntProperty()  # type: ignore
+
     def execute(self, context):
-        test()
+        test(self.spacing, float(self.layers))
         return {"FINISHED"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
 
 
 def menu_func(self, _context):
