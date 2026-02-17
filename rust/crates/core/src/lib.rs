@@ -24,6 +24,7 @@ mod report;
 //mod setup;
 mod input_interpolation;
 mod phase;
+mod rasterization;
 mod state;
 mod stats;
 
