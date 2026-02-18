@@ -46,17 +46,13 @@ impl State {
             return Ok(self);
         };
 
-        let gravity;
-        let particles_input;
-        let collider_input;
-
         // linear interpolation between a and b
         let factor_b = (frame_time % 1.) as T;
         let factor_a = 1. - factor_b;
 
-        gravity = factor_a * a.gravity + factor_b * b.gravity;
+        let gravity = factor_a * a.gravity + factor_b * b.gravity;
 
-        particles_input = a
+        let particles_input = a
             .particles_input
             .iter()
             .zip(b.particles_input.iter())
@@ -90,7 +86,7 @@ impl State {
             })
             .collect::<Result<_>>()?;
 
-        collider_input = a
+        let collider_input = a
             .collider_input
             .iter()
             .zip(b.collider_input.iter())
