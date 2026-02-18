@@ -30,6 +30,7 @@ from .bridge import Simulation
 from .util import frame_to_load
 from .properties.squishy_volumes_object import get_output_objects
 from .properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from .properties.squishy_volumes_object_input_settings import INPUT_TYPE_COLLIDER
 
 
 def sync(scene):
@@ -55,8 +56,10 @@ def sync_simulation(
     simulation.has_loaded_frame = True
     simulation.loaded_frame = frame
 
-    # TODO
-    num_colliders = 0
+    input_header = sim.input_header()
+    num_colliders = sum(
+        INPUT_TYPE_COLLIDER in obj for obj in input_header["objects"].values()
+    )
 
     desynced_objs = []
     for obj in get_output_objects(simulation):

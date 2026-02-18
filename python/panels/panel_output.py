@@ -33,6 +33,7 @@ from ..magic_consts import (
     GRID_MOMENTUM_FREE,
     INPUT_MESH,
     PARTICLES,
+    OUTPUT_TYPES,
 )
 
 
@@ -143,14 +144,8 @@ each frame."""
         simulation = get_simulation_by_uuid(context.scene, self.uuid)
         assert isinstance(simulation, Squishy_Volumes_Simulation)
 
-        for particle_output in self.particle_outputs:
-            if not particle_output.select:
-                continue
-
-            obj = bpy.data.objects.new(
-                particle_output.output_name,
-                bpy.data.meshes.new(particle_output.output_name),
-            )
+        def create_output_obj(*, output_name: str, input_name: str | None):
+            obj = bpy.data.objects.new(output_name, bpy.data.meshes.new(output_name))
             context.collection.objects.link(obj)
 
             obj.squishy_volumes_object.io = IO_OUTPUT  # ty:ignore[unresolved-attribute]
@@ -158,7 +153,9 @@ each frame."""
 
             output_settings = obj.squishy_volumes_object.output_settings  # ty:ignore[unresolved-attribute]
             copy_simple_property_group(self, output_settings)
-            output_settings.input_name = particle_output.input_name
+
+            if input_name is not None:
+                output_settings.input_name = input_name
 
             if self.add_default_visualization:
                 create_default_visualization(obj, self.uuid)
@@ -167,6 +164,20 @@ each frame."""
                 {"INFO"},
                 f"Added {obj.name} to output objects of {simulation.name}.",
             )
+
+        if self.output_type == GRID_COLLIDER_DISTANCE:  # ty:ignore[unresolved-attribute]
+            create_output_obj(
+                output_name="Collider Distances - Output", input_name=None
+            )
+
+        if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
+            for particle_output in self.particle_outputs:
+                if not particle_output.select:
+                    continue
+                create_output_obj(
+                    output_name=particle_output.output_name,
+                    input_name=particle_output.input_name,
+                )
 
         sim = Simulation.get(uuid=self.uuid)
         if sim is not None:
@@ -184,25 +195,26 @@ each frame."""
         if sim is None:
             return {"CANCELLED"}
         input_header = sim.input_header()
-        for obj in input_header["objects"]:
-            if obj["ty"] != INPUT_TYPE_PARTICLES:
+        for name, obj in input_header["objects"].items():
+            if INPUT_TYPE_PARTICLES not in obj:
                 continue
             particle_output = self.particle_outputs.add()
-            particle_output.input_name = obj["name"]
-            particle_output.output_name = obj["name"] + " - Output"
+            particle_output.input_name = name
+            particle_output.output_name = name + " - Output"
 
         return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw_selection_list(self):
-        self.layout.prop(self, "select_action", expand=True)
-        self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
-            listtype_name="SCENE_UL_Squishy_Volumes_Particle_Output_Object_List",
-            list_id="",
-            dataptr=self,
-            propname="particle_outputs",
-            active_dataptr=self,
-            active_propname="selected_particle_output",
-        )
+        if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
+            self.layout.prop(self, "select_action", expand=True)
+            self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
+                listtype_name="SCENE_UL_Squishy_Volumes_Particle_Output_Object_List",
+                list_id="",
+                dataptr=self,
+                propname="particle_outputs",
+                active_dataptr=self,
+                active_propname="selected_particle_output",
+            )
 
     def draw_object_attributes(self):
         output_type = self.output_type  # ty:ignore[unresolved-attribute]

@@ -76,7 +76,7 @@ impl State {
                     name.clone(),
                     match object_idx {
                         ObjectIndex::Particles(idx) => self.particle_objects[*idx].particles.len(),
-                        ObjectIndex::Collider(_) => todo!(),
+                        ObjectIndex::Collider(_) => 0,
                     },
                 )
             })
