@@ -25,6 +25,8 @@ impl State {
         profile!("scatter_collider_distances");
         let grid_node_size = phase_input.consts.grid_node_size;
 
+        self.grid_collider_distances.clear();
+
         let collider_input = &self
             .interpolated_input
             .as_ref()
@@ -33,7 +35,7 @@ impl State {
 
         for (name, input) in collider_input.iter() {
             let object_index = self.name_map.get(name).context("Missing object")?;
-            let ObjectIndex::Collider(index) = object_index else {
+            let ObjectIndex::Collider(collider_index) = object_index else {
                 bail!("Wrong object type");
             };
 
@@ -66,7 +68,26 @@ impl State {
                     [opposite_d, opposite_e, opposite_f],
                     grid_node_size,
                     RASTERIZATION_LAYERS,
-                ) {}
+                ) {
+                    let guard = self
+                        .grid_collider_distances
+                        .entry(grid_node)
+                        .or_default()
+                        .get_mut()
+                        .unwrap();
+                    match guard.weighted_distances.entry(*collider_index) {
+                        Entry::Occupied(mut occupied_entry) => {
+                            let exsiting = occupied_entry.get_mut();
+                            if exsiting.distance.abs() < weighted_distance.distance.abs() {
+                                continue;
+                            }
+                            *exsiting = weighted_distance;
+                        }
+                        Entry::Vacant(vacant_entry) => {
+                            vacant_entry.insert(weighted_distance);
+                        }
+                    }
+                }
             }
         }
 
