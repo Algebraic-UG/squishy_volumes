@@ -30,6 +30,20 @@ def build_info() -> dict[str, Any]:
     return json.loads(squishy_volumes_wrap.build_info_as_json())
 
 
+def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
+    attribute = mesh.attributes.get(attribute_name)
+    if attribute is None:
+        attribute = mesh.attributes.new(
+            name=attribute_name, type=attribute_type, domain=domain
+        )
+    if attribute_type == "FLOAT_VECTOR":
+        attribute.data.foreach_set("vector", array)
+    elif attribute_type == "FLOAT_COLOR":
+        attribute.data.foreach_set("color", array)
+    else:
+        attribute.data.foreach_set("value", array)
+
+
 @hint_at_info
 def test(spacing, layers):
     vs = bpy.context.active_object.data.vertices
@@ -49,7 +63,20 @@ def test(spacing, layers):
         ],
         dtype="float32",
     )
-    positions = squishy_volumes_wrap.test(array)
+    positions_normals_distances_sign_confidences = squishy_volumes_wrap.test(array)
+    n = positions_normals_distances_sign_confidences.size / (3 + 3 + 1 + 1)
+    print(n)
+
+    positions = positions_normals_distances_sign_confidences[: int(n * 3)]
+    normals = positions_normals_distances_sign_confidences[
+        int(n * 3) : int(n * 3 + n * 3)
+    ]
+    distances = positions_normals_distances_sign_confidences[
+        int(n * 3 + n * 3) : int(n * 3 + n * 3 + n)
+    ]
+    sign_confidences = positions_normals_distances_sign_confidences[
+        int(n * 3 + n * 3 + n) :
+    ]
 
     obj = bpy.data.objects.get("test")
     if obj is None:
@@ -62,6 +89,10 @@ def test(spacing, layers):
     obj.data.clear_geometry()
     obj.data.vertices.add(num_vertices)  # Pre-allocate vertex space
     obj.data.vertices.foreach_set("co", positions)  # Set all coordinates in one go
+
+    add_attribute(obj.data, normals, "the_normals", "FLOAT_VECTOR")
+    add_attribute(obj.data, distances, "distances", "FLOAT")
+    add_attribute(obj.data, sign_confidences, "confidence", "FLOAT")
 
 
 class SimulationInput:

@@ -9,13 +9,14 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context as _, Result, bail};
+use itertools::multiunzip;
 use nalgebra::Vector3;
 use serde_json::{Value, from_value};
-use squishy_volumes_api::{Context, Simulation, SimulationInput};
+use squishy_volumes_api::{Context, Simulation, SimulationInput, T};
 use tracing::{info, subscriber::set_global_default, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use crate::{math::flat::Flat3, rasterization::rasterize};
+use crate::{math::flat::Flat3, rasterization::rasterize, state::grids::WeightedDistance};
 
 use super::{SimulationImpl, SimulationInputImpl};
 
@@ -124,9 +125,35 @@ impl Context for ContextImpl {
         let corner_c = Vector3::from_column_slice(chunks.next().unwrap());
 
         info!(?corner_a, ?corner_b, ?corner_c);
+        info!(rasterized = rasterize(&corner_a, &corner_b, &corner_c, spacing, layers).count());
+        let (positions, distances, sign_confidences, normals): (Vec<_>, Vec<_>, Vec<_>, Vec<_>) =
+            multiunzip(
+                rasterize(&corner_a, &corner_b, &corner_c, spacing, layers).map(
+                    |(
+                        grid_node,
+                        WeightedDistance {
+                            distance,
+                            sign_confidence,
+                            normal,
+                        },
+                    )|
+                     -> (Vector3<T>, T, T, Vector3<T>) {
+                        (
+                            grid_node.map(|c| c as T * spacing),
+                            distance,
+                            sign_confidence,
+                            normal,
+                        )
+                    },
+                ),
+            );
 
-        rasterize(&corner_a, &corner_b, &corner_c, spacing, layers)
+        positions
+            .into_iter()
             .flat_map(|v| v.flat())
+            .chain(normals.into_iter().flat_map(|v| v.flat()))
+            .chain(distances)
+            .chain(sign_confidences)
             .collect()
     }
 }

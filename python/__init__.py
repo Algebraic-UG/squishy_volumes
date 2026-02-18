@@ -67,7 +67,7 @@ class OBJECT_OT_Test(bpy.types.Operator):
     bl_label = "Test"
     bl_options = {"REGISTER", "UNDO"}
 
-    spacing: bpy.props.FloatProperty()  # type: ignore
+    spacing: bpy.props.FloatProperty(default=0.2)  # type: ignore
     layers: bpy.props.IntProperty()  # type: ignore
 
     def execute(self, context):
