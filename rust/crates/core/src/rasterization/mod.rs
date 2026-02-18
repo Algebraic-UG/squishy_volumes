@@ -18,9 +18,8 @@ use crate::{
 };
 
 pub fn rasterize(
-    a: &Vector3<T>,
-    b: &Vector3<T>,
-    c: &Vector3<T>,
+    [a, b, c]: [&Vector3<T>; 3],
+    [d, e, f]: [Option<&Vector3<T>>; 3],
     spacing: T,
     layers: usize,
 ) -> impl Iterator<Item = (Vector3<i32>, WeightedDistance)> {
@@ -31,6 +30,16 @@ pub fn rasterize(
     let ab = a - b;
     let bc = b - c;
     let ca = c - a;
+
+    let mix_normal = |other: Vector3<T>| {
+        other
+            .try_normalize(NORMALIZATION_EPS)
+            .and_then(|other| (other + normal).scale(0.5).try_normalize(NORMALIZATION_EPS))
+            .unwrap_or(normal)
+    };
+    let normal_ab = d.map(|d| mix_normal(ab.cross(&(d - b))));
+    let normal_bc = e.map(|e| mix_normal(bc.cross(&(e - c))));
+    let normal_ca = f.map(|f| mix_normal(ca.cross(&(f - a))));
 
     let ab_ns = ab.norm_squared();
     let bc_ns = bc.norm_squared();
@@ -51,43 +60,45 @@ pub fn rasterize(
 
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
                     let distance = (p - a).dot(&normal);
-                    (distance.abs() <= spacing * layers as T).then_some(WeightedDistance {
-                        distance,
-                        sign_confidence: 1.,
-                        normal,
-                    })
+                    (distance.abs() <= spacing * layers as T)
+                        .then_some(WeightedDistance { distance, normal })
                 } else {
-                    let to_ab = b + ((p - b).dot(&ab) / ab_ns).clamp(0., 1.) * ab - p;
-                    let to_bc = c + ((p - c).dot(&bc) / bc_ns).clamp(0., 1.) * bc - p;
-                    let to_ca = a + ((p - a).dot(&ca) / ca_ns).clamp(0., 1.) * ca - p;
-
-                    let (distance_squared, direction) = [
-                        (to_ab.norm_squared(), to_ab),
-                        (to_bc.norm_squared(), to_bc),
-                        (to_ca.norm_squared(), to_ca),
-                    ]
-                    .into_iter()
-                    .min_by(|a, b| a.0.total_cmp(&b.0))
-                    .unwrap();
-
-                    (distance_squared <= (spacing * layers as T).powi(2)).then_some({
-                        let distance = distance_squared.sqrt();
-                        let dn = direction.dot(&normal);
-
-                        if distance > 0. {
-                            WeightedDistance {
-                                distance: -(distance * dn.signum()),
-                                sign_confidence: dn.abs() / distance,
-                                normal: direction / distance * dn.signum(),
+                    let mut weighted_distance: Option<WeightedDistance> = None;
+                    let mut edge_contribution =
+                        |start: &Vector3<T>,
+                         segment: &Vector3<T>,
+                         squared_norm: T,
+                         edge_normal: &Option<Vector3<T>>| {
+                            let Some(edge_normal) = edge_normal else {
+                                return;
+                            };
+                            let to_p = p
+                                - start
+                                - ((p - start).dot(segment) / squared_norm).clamp(0., 1.) * segment;
+                            let distance = to_p.norm();
+                            let sign = to_p.dot(edge_normal).signum();
+                            if distance > spacing * layers as T {
+                                return;
                             }
-                        } else {
-                            WeightedDistance {
-                                distance,
-                                sign_confidence: 0.,
-                                normal,
+                            if weighted_distance
+                                .as_ref()
+                                .is_some_and(|existing| existing.distance.abs() < distance)
+                            {
+                                return;
                             }
-                        }
-                    })
+                            weighted_distance = Some(WeightedDistance {
+                                distance: distance * sign,
+                                normal: to_p
+                                    .try_normalize(NORMALIZATION_EPS)
+                                    .map(|n| n * sign)
+                                    .unwrap_or(*edge_normal),
+                            });
+                        };
+                    edge_contribution(b, &ab, ab_ns, &normal_ab);
+                    edge_contribution(c, &bc, bc_ns, &normal_bc);
+                    edge_contribution(a, &ca, ca_ns, &normal_ca);
+
+                    weighted_distance
                 }
                 .map(|weighted_distance| (grid_node, weighted_distance))
             },

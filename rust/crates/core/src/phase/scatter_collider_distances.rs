@@ -6,10 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::{Context as _, Result, bail};
-use tracing::info;
+use std::collections::hash_map::Entry;
 
-use crate::{profile, rasterization::rasterize, state::ObjectIndex};
+use anyhow::{Context as _, Result, bail};
+
+use crate::{math::RASTERIZATION_LAYERS, profile, rasterization::rasterize, state::ObjectIndex};
 
 use super::{PhaseInput, State};
 
@@ -40,8 +41,32 @@ impl State {
                 let corner_a = &input.vertex_positions[a as usize];
                 let corner_b = &input.vertex_positions[b as usize];
                 let corner_c = &input.vertex_positions[c as usize];
-                let n = rasterize(corner_a, corner_b, corner_c, grid_node_size, 2).count();
-                info!("got {n} here");
+
+                let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
+                let pick_other = |a: u32| {
+                    move |&[b, c]: &[u32; 2]| {
+                        &input.vertex_positions[if b != a { b } else { c } as usize]
+                    }
+                };
+                let opposite_d = input
+                    .edges_with_opposites
+                    .get(&order_edge([a, b]))
+                    .map(pick_other(c));
+                let opposite_e = input
+                    .edges_with_opposites
+                    .get(&order_edge([b, c]))
+                    .map(pick_other(a));
+                let opposite_f = input
+                    .edges_with_opposites
+                    .get(&order_edge([c, a]))
+                    .map(pick_other(b));
+
+                for (grid_node, weighted_distance) in rasterize(
+                    [corner_a, corner_b, corner_c],
+                    [opposite_d, opposite_e, opposite_f],
+                    grid_node_size,
+                    RASTERIZATION_LAYERS,
+                ) {}
             }
         }
 

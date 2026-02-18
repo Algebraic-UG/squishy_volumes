@@ -14,7 +14,7 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::{InputBulk, SimulationInput, T};
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::{
     directory_lock::DirectoryLock,

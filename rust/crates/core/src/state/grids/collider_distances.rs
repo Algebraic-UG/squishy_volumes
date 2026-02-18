@@ -18,7 +18,6 @@ use super::Mutex;
 #[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct WeightedDistance {
     pub distance: T,
-    pub sign_confidence: T,
     pub normal: Vector3<T>,
 }
 

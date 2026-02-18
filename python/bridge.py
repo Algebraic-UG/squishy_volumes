@@ -60,23 +60,25 @@ def test(spacing, layers):
             vs[2].co.x,
             vs[2].co.y,
             vs[2].co.z,
+            vs[3].co.x,
+            vs[3].co.y,
+            vs[3].co.z,
+            vs[4].co.x,
+            vs[4].co.y,
+            vs[4].co.z,
+            vs[5].co.x,
+            vs[5].co.y,
+            vs[5].co.z,
         ],
         dtype="float32",
     )
-    positions_normals_distances_sign_confidences = squishy_volumes_wrap.test(array)
-    n = positions_normals_distances_sign_confidences.size / (3 + 3 + 1 + 1)
+    positions_normals_distances = squishy_volumes_wrap.test(array)
+    n = positions_normals_distances.size / (3 + 3 + 1)
     print(n)
 
-    positions = positions_normals_distances_sign_confidences[: int(n * 3)]
-    normals = positions_normals_distances_sign_confidences[
-        int(n * 3) : int(n * 3 + n * 3)
-    ]
-    distances = positions_normals_distances_sign_confidences[
-        int(n * 3 + n * 3) : int(n * 3 + n * 3 + n)
-    ]
-    sign_confidences = positions_normals_distances_sign_confidences[
-        int(n * 3 + n * 3 + n) :
-    ]
+    positions = positions_normals_distances[: int(n * 3)]
+    normals = positions_normals_distances[int(n * 3) : int(n * 3 + n * 3)]
+    distances = positions_normals_distances[int(n * 3 + n * 3) :]
 
     obj = bpy.data.objects.get("test")
     if obj is None:
@@ -90,9 +92,8 @@ def test(spacing, layers):
     obj.data.vertices.add(num_vertices)  # Pre-allocate vertex space
     obj.data.vertices.foreach_set("co", positions)  # Set all coordinates in one go
 
-    add_attribute(obj.data, normals, "the_normals", "FLOAT_VECTOR")
+    add_attribute(obj.data, normals, "normals", "FLOAT_VECTOR")
     add_attribute(obj.data, distances, "distances", "FLOAT")
-    add_attribute(obj.data, sign_confidences, "confidence", "FLOAT")
 
 
 class SimulationInput:
