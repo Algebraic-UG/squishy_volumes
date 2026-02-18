@@ -6,21 +6,27 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use iter_enumeration::IntoIterEnum2;
+use iter_enumeration::IntoIterEnum3 as _;
 use nalgebra::{Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
 
-use crate::math::Aabb;
+use crate::math::{Aabb, NORMALIZATION_EPS};
 
 pub fn rasterize(
     corner_a: &Vector3<T>,
     corner_b: &Vector3<T>,
     corner_c: &Vector3<T>,
-    normal: &Vector3<T>,
     spacing: T,
     layers: usize,
 ) -> impl Iterator<Item = Vector3<T>> {
+    let Some(normal) = (corner_b - corner_a)
+        .cross(&(corner_c - corner_a))
+        .try_normalize(NORMALIZATION_EPS)
+    else {
+        return empty::<Vector3<T>>().iter_enum_3a();
+    };
+
     let facing_axis = normal
         .iter()
         .enumerate()
@@ -49,7 +55,7 @@ pub fn rasterize(
     let a = to_plane(corner_a);
     let b = to_plane(corner_b);
     let c = to_plane(corner_c);
-    let n = to_plane(normal);
+    let n = to_plane(&normal);
 
     let ab = a - b;
     let bc = b - c;
@@ -60,7 +66,7 @@ pub fn rasterize(
     let ca_ns = ca.norm_squared();
 
     if ab_ns == 0. || bc_ns == 0. || ca_ns == 0. {
-        empty::<Vector3<T>>().iter_enum_2a()
+        empty::<Vector3<T>>().iter_enum_3b()
     } else {
         let aabb = Aabb::new([a, b, c].into_iter());
         let min = aabb
@@ -110,6 +116,6 @@ pub fn rasterize(
                 (min..=max).map(move |coord| to_world(&projected_grid_node, coord))
             })
             .map(move |v| v.map(move |c| spacing * c as T))
-            .iter_enum_2b()
+            .iter_enum_3c()
     }
 }

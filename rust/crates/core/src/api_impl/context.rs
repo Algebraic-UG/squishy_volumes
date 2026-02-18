@@ -122,11 +122,10 @@ impl Context for ContextImpl {
         let corner_a = Vector3::from_column_slice(chunks.next().unwrap());
         let corner_b = Vector3::from_column_slice(chunks.next().unwrap());
         let corner_c = Vector3::from_column_slice(chunks.next().unwrap());
-        let normal = Vector3::from_column_slice(chunks.next().unwrap());
 
-        info!(?corner_a, ?corner_b, ?corner_c, ?normal);
+        info!(?corner_a, ?corner_b, ?corner_c);
 
-        rasterize(&corner_a, &corner_b, &corner_c, &normal, spacing, layers)
+        rasterize(&corner_a, &corner_b, &corner_c, spacing, layers)
             .flat_map(|v| v.flat())
             .collect()
     }

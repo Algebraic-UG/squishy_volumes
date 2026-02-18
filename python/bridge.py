@@ -33,8 +33,6 @@ def build_info() -> dict[str, Any]:
 @hint_at_info
 def test(spacing, layers):
     vs = bpy.context.active_object.data.vertices
-    ts = bpy.context.active_object.data.loop_triangles
-
     array = numpy.array(
         object=[
             spacing,
@@ -48,9 +46,6 @@ def test(spacing, layers):
             vs[2].co.x,
             vs[2].co.y,
             vs[2].co.z,
-            ts[0].normal.x,
-            ts[0].normal.y,
-            ts[0].normal.z,
         ],
         dtype="float32",
     )

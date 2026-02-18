@@ -6,12 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::Result;
-use nalgebra::Vector3;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_api::T;
+use anyhow::{Context as _, Result, bail};
+use tracing::info;
 
-use crate::{profile, setup::SurfaceSample};
+use crate::{profile, rasterization::rasterize, state::ObjectIndex};
 
 use super::{PhaseInput, State};
 
@@ -24,13 +22,36 @@ impl State {
         phase_input: &mut PhaseInput,
     ) -> Result<Self> {
         profile!("scatter_collider_distances");
-        let grid_node_size = phase_input.setup.settings.grid_node_size;
-        self.scatter_collider_distances_create_entries(grid_node_size);
-        self.scatter_collider_distances_reset();
-        self.scatter_collider_distances_scatter(grid_node_size);
+        let grid_node_size = phase_input.consts.grid_node_size;
+
+        let collider_input = &self
+            .interpolated_input
+            .as_ref()
+            .expect("interpolated input missing")
+            .collider_input;
+
+        for (name, input) in collider_input.iter() {
+            let object_index = self.name_map.get(name).context("Missing object")?;
+            let ObjectIndex::Collider(index) = object_index else {
+                bail!("Wrong object type");
+            };
+
+            for &[a, b, c] in &input.triangles {
+                let corner_a = &input.vertex_positions[a as usize];
+                let corner_b = &input.vertex_positions[b as usize];
+                let corner_c = &input.vertex_positions[c as usize];
+                let n = rasterize(corner_a, corner_b, corner_c, grid_node_size, 2).count();
+                info!("got {n} here");
+            }
+        }
+
+        // self.scatter_collider_distances_create_entries(grid_node_size);
+        // self.scatter_collider_distances_reset();
+        // self.scatter_collider_distances_scatter(grid_node_size);
         Ok(self)
     }
 
+    /*
     fn scatter_collider_distances_create_entries(&mut self, grid_node_size: T) {
         profile!("create_entries");
         for collider in &self.collider_objects {
@@ -110,4 +131,5 @@ impl State {
                 });
         }
     }
+    */
 }

@@ -28,9 +28,9 @@ mod external_force;
 mod implicit_solve;
 mod limit_time_step;
 //mod move_collider;
-mod register_contributors;
-//mod scatter_collider_distances;
 mod interpolate_input;
+mod register_contributors;
+mod scatter_collider_distances;
 mod scatter_momentum;
 mod sort;
 mod update_momentum_maps;
@@ -41,7 +41,7 @@ pub enum Phase {
     #[default]
     InterpolateInput,
     Sort,
-    //ScatterColliderDistances,
+    ScatterColliderDistances,
     //CollectInsides,
     UpdateMomentumMaps,
     RegisterContributors,
@@ -64,7 +64,7 @@ impl Phase {
         match self {
             Self::InterpolateInput => State::interpolate_input,
             Self::Sort => State::sort,
-            //Self::ScatterColliderDistances => State::scatter_collider_distances,
+            Self::ScatterColliderDistances => State::scatter_collider_distances,
             //Self::CollectInsides => State::collect_insides,
             Self::UpdateMomentumMaps => State::update_momentum_maps,
             Self::RegisterContributors => State::register_contributors,

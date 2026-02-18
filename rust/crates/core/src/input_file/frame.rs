@@ -35,6 +35,8 @@ pub struct ParticlesInput {
 pub struct ColliderInput {
     pub vertex_positions: Vec<f32>,
     pub triangles: Vec<i32>,
+
+    // TODO: probably remove these?
     pub triangle_normals: Vec<f32>,
     pub triangle_frictions: Vec<f32>,
     pub triangle_stickynesses: Vec<f32>,

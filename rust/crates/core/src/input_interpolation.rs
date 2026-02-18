@@ -22,12 +22,20 @@ use crate::{
 pub struct InterpolatedInput {
     pub gravity: Vector3<T>,
     pub particles_input: BTreeMap<String, InterpolatedInputParticles>,
+    pub collider_input: BTreeMap<String, InterpolatedInputCollider>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InterpolatedInputParticles {
     pub goal_positions: Vec<Vector3<T>>,
     pub goal_stiffnesses: Vec<T>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct InterpolatedInputCollider {
+    pub vertex_positions: Vec<Vector3<T>>,
+    pub vertex_velocities: Vec<Vector3<T>>,
+    pub triangles: Vec<[u32; 3]>,
 }
 
 pub struct InputInterpolationPoint {
