@@ -52,22 +52,24 @@ pub fn rasterize(
         }
     };
 
-    let a = to_plane(corner_a);
-    let b = to_plane(corner_b);
-    let c = to_plane(corner_c);
-    let n = to_plane(&normal);
+    let candidates = {
+        let a = to_plane(corner_a);
+        let b = to_plane(corner_b);
+        let c = to_plane(corner_c);
+        let n = to_plane(&normal);
 
-    let ab = a - b;
-    let bc = b - c;
-    let ca = c - a;
+        let ab = a - b;
+        let bc = b - c;
+        let ca = c - a;
 
-    let ab_ns = ab.norm_squared();
-    let bc_ns = bc.norm_squared();
-    let ca_ns = ca.norm_squared();
+        let ab_ns = ab.norm_squared();
+        let bc_ns = bc.norm_squared();
+        let ca_ns = ca.norm_squared();
 
-    if ab_ns == 0. || bc_ns == 0. || ca_ns == 0. {
-        empty::<Vector3<T>>().iter_enum_3b()
-    } else {
+        if ab_ns == 0. || bc_ns == 0. || ca_ns == 0. {
+            return empty::<Vector3<T>>().iter_enum_3b();
+        }
+
         let aabb = Aabb::new([a, b, c].into_iter());
         let min = aabb
             .min
@@ -77,15 +79,16 @@ pub fn rasterize(
             .map(|c| (c / spacing).ceil() as i32 + layers as i32);
         let offset = normal.dot(corner_a);
         let height_margin = layers as T * spacing;
-        let side_margin = (layers + 1) as T * spacing;
+        let side_margin_squared = ((layers + 1) as T * spacing).powi(2);
+
         (min.x..=max.x)
             .flat_map(move |i| (min.y..=max.y).map(move |j| Vector2::new(i, j)))
             .filter(move |projected_grid_node| {
                 let p = projected_grid_node.map(|c| c as T * spacing);
 
-                let sa = (p - b).perp(&ab).is_sign_negative();
-                let sb = (p - c).perp(&bc).is_sign_negative();
-                let sc = (p - a).perp(&ca).is_sign_negative();
+                let sa = (p - b).perp(&ab) < 0.;
+                let sb = (p - c).perp(&bc) < 0.;
+                let sc = (p - a).perp(&ca) < 0.;
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
                     return true;
                 }
@@ -94,12 +97,12 @@ pub fn rasterize(
                     |start: &Vector2<T>, segment: &Vector2<T>, squared_norm: T| -> T {
                         let factor = ((p - start).dot(segment) / squared_norm).clamp(0., 1.);
                         let projected = start + factor * segment;
-                        (projected - p).norm()
+                        (projected - p).norm_squared()
                     };
 
-                distance_to_segment(&b, &ab, ab_ns) < side_margin
-                    || distance_to_segment(&c, &bc, bc_ns) < side_margin
-                    || distance_to_segment(&a, &ca, ca_ns) < side_margin
+                distance_to_segment(&b, &ab, ab_ns) < side_margin_squared
+                    || distance_to_segment(&c, &bc, bc_ns) < side_margin_squared
+                    || distance_to_segment(&a, &ca, ca_ns) < side_margin_squared
             })
             .flat_map(move |projected_grid_node| {
                 let p = projected_grid_node.map(|c| c as T * spacing);
@@ -116,6 +119,51 @@ pub fn rasterize(
                 (min..=max).map(move |coord| to_world(&projected_grid_node, coord))
             })
             .map(move |v| v.map(move |c| spacing * c as T))
-            .iter_enum_3c()
+    };
+
+    let ab = corner_a - corner_b;
+    let bc = corner_b - corner_c;
+    let ca = corner_c - corner_a;
+
+    let ab_ns = ab.norm_squared();
+    let bc_ns = bc.norm_squared();
+    let ca_ns = ca.norm_squared();
+
+    // Can't be zero here
+    if ab_ns == 0. || bc_ns == 0. || ca_ns == 0. {
+        panic!();
     }
+
+    candidates
+        .into_iter()
+        .filter(move |candidate| {
+            let sa = (candidate - corner_b).dot(&normal.cross(&ab)) < 0.;
+            let sb = (candidate - corner_c).dot(&normal.cross(&bc)) < 0.;
+            let sc = (candidate - corner_a).dot(&normal.cross(&ca)) < 0.;
+
+            let distance = if (sa && sb && sc) || (!sa && !sb && !sc) {
+                (candidate - corner_a).dot(&normal)
+            } else {
+                let distance_to_segment =
+                    |start: &Vector3<T>, segment: &Vector3<T>, squared_norm: T| -> T {
+                        let factor =
+                            ((candidate - start).dot(segment) / squared_norm).clamp(0., 1.);
+                        let projected = start + factor * segment;
+                        (projected - candidate).norm_squared()
+                    };
+
+                [
+                    distance_to_segment(corner_b, &ab, ab_ns),
+                    distance_to_segment(corner_c, &bc, bc_ns),
+                    distance_to_segment(corner_a, &ca, ca_ns),
+                ]
+                .iter()
+                .min_by(|a, b| a.total_cmp(b))
+                .map(|v| v.sqrt())
+                .unwrap()
+            };
+
+            distance.abs() < spacing * layers as T
+        })
+        .iter_enum_3c()
 }
