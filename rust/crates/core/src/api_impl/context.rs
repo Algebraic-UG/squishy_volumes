@@ -131,6 +131,7 @@ impl Context for ContextImpl {
             multiunzip(
                 rasterize(
                     [&corner_a, &corner_b, &corner_c],
+                    [&None; 3],
                     [Some(&opposite_d), Some(&opposite_e), Some(&opposite_f)],
                     spacing,
                     layers,

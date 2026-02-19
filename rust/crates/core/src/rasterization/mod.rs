@@ -7,10 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use iter_enumeration::{IntoIterEnum2 as _, IntoIterEnum3 as _};
-use nalgebra::{Vector2, Vector3};
+use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
-use tracing::info;
 
 use crate::{
     math::{Aabb, NORMALIZATION_EPS},
@@ -19,6 +18,7 @@ use crate::{
 
 pub fn rasterize(
     [a, b, c]: [&Vector3<T>; 3],
+    [normal_a, normal_b, normal_c]: [&Option<Unit<Vector3<T>>>; 3],
     [d, e, f]: [Option<&Vector3<T>>; 3],
     spacing: T,
     layers: usize,
@@ -34,8 +34,8 @@ pub fn rasterize(
     let mix_normal = |other: Vector3<T>| {
         other
             .try_normalize(NORMALIZATION_EPS)
-            .and_then(|other| (other + normal).scale(0.5).try_normalize(NORMALIZATION_EPS))
-            .unwrap_or(normal)
+            .and_then(|other| Unit::try_new((other + normal).scale(0.5), NORMALIZATION_EPS))
+            .unwrap_or(Unit::new_unchecked(normal))
     };
     let normal_ab = d.map(|d| mix_normal(ab.cross(&(d - b))));
     let normal_bc = e.map(|e| mix_normal(bc.cross(&(e - c))));
@@ -49,7 +49,6 @@ pub fn rasterize(
         return empty().iter_enum_3b();
     }
 
-    info!(candidates = candidates(a, b, c, &normal, spacing, layers).count());
     candidates(a, b, c, &normal, spacing, layers)
         .filter_map(
             move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, WeightedDistance)> {
@@ -64,19 +63,40 @@ pub fn rasterize(
                         .then_some(WeightedDistance { distance, normal })
                 } else {
                     let mut weighted_distance: Option<WeightedDistance> = None;
+
                     let mut edge_contribution =
                         |start: &Vector3<T>,
                          segment: &Vector3<T>,
                          squared_norm: T,
-                         edge_normal: &Option<Vector3<T>>| {
+                         start_normal: &Option<Unit<Vector3<T>>>,
+                         edge_normal: &Option<Unit<Vector3<T>>>,
+                         end_normal: &Option<Unit<Vector3<T>>>| {
                             let Some(edge_normal) = edge_normal else {
                                 return;
                             };
-                            let to_p = p
-                                - start
-                                - ((p - start).dot(segment) / squared_norm).clamp(0., 1.) * segment;
+
+                            let normal;
+                            let to_p;
+                            let along_segment = (p - start).dot(segment) / squared_norm;
+                            if along_segment < 0. {
+                                let Some(start_normal) = start_normal.as_ref() else {
+                                    return;
+                                };
+                                normal = start_normal;
+                                to_p = p - start;
+                            } else if along_segment > 1. {
+                                let Some(end_normal) = end_normal.as_ref() else {
+                                    return;
+                                };
+                                normal = end_normal;
+                                to_p = p - start - segment;
+                            } else {
+                                normal = edge_normal;
+                                to_p = p - start - segment * along_segment;
+                            }
+
                             let distance = to_p.norm();
-                            let sign = to_p.dot(edge_normal).signum();
+                            let sign = to_p.dot(&normal).signum();
                             if distance > spacing * layers as T {
                                 return;
                             }
@@ -91,12 +111,12 @@ pub fn rasterize(
                                 normal: to_p
                                     .try_normalize(NORMALIZATION_EPS)
                                     .map(|n| n * sign)
-                                    .unwrap_or(*edge_normal),
+                                    .unwrap_or(**normal),
                             });
                         };
-                    edge_contribution(b, &ab, ab_ns, &normal_ab);
-                    edge_contribution(c, &bc, bc_ns, &normal_bc);
-                    edge_contribution(a, &ca, ca_ns, &normal_ca);
+                    edge_contribution(b, &ab, ab_ns, normal_b, &normal_ab, normal_a);
+                    edge_contribution(c, &bc, bc_ns, normal_c, &normal_bc, normal_b);
+                    edge_contribution(a, &ca, ca_ns, normal_a, &normal_ca, normal_c);
 
                     weighted_distance
                 }

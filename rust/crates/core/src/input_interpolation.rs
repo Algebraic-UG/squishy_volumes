@@ -9,13 +9,14 @@
 use std::collections::{BTreeMap, hash_map::Entry};
 
 use anyhow::{Result, bail, ensure};
-use nalgebra::Vector3;
+use nalgebra::{Unit, Vector3};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
 use crate::{
     input_file::{InputFrame, InputReader},
+    math::NORMALIZATION_EPS,
     profile,
 };
 
@@ -70,10 +71,15 @@ impl InterpolatedInput {
                     .map(|chunk| [chunk[0] as u32, chunk[1] as u32, chunk[2] as u32])
                     .collect();
 
+                let mut vertex_neighbors = vec![None; vertex_positions.len()];
                 let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
                 let mut edges_with_opposites: FxHashMap<[u32; 2], (u32, Option<u32>)> =
                     Default::default();
                 for &[a, b, c] in &triangles {
+                    vertex_neighbors[a as usize].get_or_insert([b, c]);
+                    vertex_neighbors[b as usize].get_or_insert([c, a]);
+                    vertex_neighbors[c as usize].get_or_insert([a, b]);
+
                     for (edge, opposite) in [[a, b], [b, c], [c, a]]
                         .into_iter()
                         .map(order_edge)
@@ -92,10 +98,44 @@ impl InterpolatedInput {
                         }
                     }
                 }
-                let edges_with_opposites = edges_with_opposites
+                let edges_with_opposites: FxHashMap<[u32; 2], [u32; 2]> = edges_with_opposites
                     .into_iter()
                     .filter_map(|(key, (first, second))| {
                         second.map(|second| (key, [first, second]))
+                    })
+                    .collect();
+
+                let vertex_normals = vertex_neighbors
+                    .into_iter()
+                    .enumerate()
+                    .map(|(this, neighbors)| {
+                        let [mut neighbor, mut next_neighbor] = neighbors?;
+
+                        let a = &vertex_positions[this];
+                        let mut b = &vertex_positions[neighbor as usize];
+                        let mut c = &vertex_positions[next_neighbor as usize];
+
+                        let start = neighbor;
+                        let mut normal = Vector3::zeros();
+                        while start != next_neighbor {
+                            let opposites = edges_with_opposites
+                                .get(&order_edge([this as u32, next_neighbor]))?;
+
+                            normal += (b - a).cross(&(c - a));
+
+                            if opposites[0] != neighbor {
+                                neighbor = next_neighbor;
+                                next_neighbor = opposites[0];
+                            } else {
+                                neighbor = next_neighbor;
+                                next_neighbor = opposites[1];
+                            };
+
+                            b = c;
+                            c = &vertex_positions[next_neighbor as usize];
+                        }
+
+                        Unit::try_new(normal, NORMALIZATION_EPS)
                     })
                     .collect();
 
@@ -103,6 +143,7 @@ impl InterpolatedInput {
                     name.clone(),
                     InterpolatedInputCollider {
                         vertex_positions,
+                        vertex_normals,
                         vertex_velocities,
                         triangles,
                         edges_with_opposites,
@@ -132,6 +173,7 @@ pub struct InterpolatedInputParticles {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InterpolatedInputCollider {
     pub vertex_positions: Vec<Vector3<T>>,
+    pub vertex_normals: Vec<Option<Unit<Vector3<T>>>>,
     pub vertex_velocities: Vec<Vector3<T>>,
     pub triangles: Vec<[u32; 3]>,
     pub edges_with_opposites: FxHashMap<[u32; 2], [u32; 2]>,

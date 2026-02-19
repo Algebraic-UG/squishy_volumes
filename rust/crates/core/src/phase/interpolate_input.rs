@@ -92,7 +92,7 @@ impl State {
             .zip(b.collider_input.iter())
             .map(|((name_a, input_a), (name_b, input_b))| {
                 ensure!(name_a == name_b);
-                let vertex_positions = input_a
+                let vertex_positions: Vec<_> = input_a
                     .vertex_positions
                     .iter()
                     .zip(&input_b.vertex_positions)
@@ -107,10 +107,28 @@ impl State {
                     })
                     .collect();
 
+                let vertex_normals = input_a
+                    .vertex_normals
+                    .iter()
+                    .zip(&input_b.vertex_normals)
+                    .map(|(normal_a, normal_b)| {
+                        if let (Some(normal_a), Some(normal_b)) = (normal_a, normal_b) {
+                            Some(
+                                normal_a
+                                    .try_slerp(normal_b, factor_b, 0.)
+                                    .unwrap_or(if factor_b < 0.5 { *normal_a } else { *normal_b }),
+                            )
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
                 Ok((
                     name_a.clone(),
                     InterpolatedInputCollider {
                         vertex_positions,
+                        vertex_normals,
                         vertex_velocities,
 
                         // assume topology constant from a

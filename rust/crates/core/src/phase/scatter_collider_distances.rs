@@ -44,6 +44,10 @@ impl State {
                 let corner_b = &input.vertex_positions[b as usize];
                 let corner_c = &input.vertex_positions[c as usize];
 
+                let normal_a = &input.vertex_normals[a as usize];
+                let normal_b = &input.vertex_normals[b as usize];
+                let normal_c = &input.vertex_normals[c as usize];
+
                 let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
                 let pick_other = |a: u32| {
                     move |&[b, c]: &[u32; 2]| {
@@ -65,6 +69,7 @@ impl State {
 
                 for (grid_node, weighted_distance) in rasterize(
                     [corner_a, corner_b, corner_c],
+                    [normal_a, normal_b, normal_c],
                     [opposite_d, opposite_e, opposite_f],
                     grid_node_size,
                     RASTERIZATION_LAYERS,
