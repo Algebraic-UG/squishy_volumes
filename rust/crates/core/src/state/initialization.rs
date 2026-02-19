@@ -24,7 +24,7 @@ use crate::{
     input_file::{InputFrame, InputHeader, InputObject},
     state::{
         ObjectIndex,
-        object::ObjectParticles,
+        object::{ObjectCollider, ObjectParticles},
         particles::{ParticleParameters, Particles, ViscosityParameters},
     },
 };
@@ -190,7 +190,8 @@ impl State {
                     particle_object.particles = (first_index..first_index + n).collect();
                 }
                 InputObject::Collider { .. } => {
-                    let object_index = ObjectIndex::Collider(particle_objects.len());
+                    let object_index = ObjectIndex::Collider(collider_objects.len());
+                    collider_objects.push(ObjectCollider {});
                     name_map.insert(name.clone(), object_index);
                 }
             }
