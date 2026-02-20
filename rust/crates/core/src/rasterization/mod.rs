@@ -10,7 +10,6 @@ use iter_enumeration::{IntoIterEnum2 as _, IntoIterEnum3 as _};
 use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
-use tracing::info;
 
 use crate::{
     math::{Aabb, NORMALIZATION_EPS},
@@ -38,7 +37,6 @@ pub fn rasterize(
     spacing: T,
     layers: usize,
 ) -> impl Iterator<Item = (Vector3<i32>, Rasterized)> {
-    info!("start rasterize");
     let Some(normal) = (b - a).cross(&(c - a)).try_normalize(NORMALIZATION_EPS) else {
         return empty().iter_enum_3a();
     };
