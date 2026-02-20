@@ -176,6 +176,9 @@ each frame."""
                 output_name="Collider Distances - Output", input_name=None
             )
 
+        if self.output_type == GRID_MOMENTUM_FREE:  # ty:ignore[unresolved-attribute]
+            create_output_obj(output_name="Grid Momentum - Output", input_name=None)
+
         if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
             for output in self.particle_outputs:
                 if not output.select:
