@@ -37,7 +37,10 @@ from ..magic_consts import (
 )
 
 
-from ..properties.squishy_volumes_object_input_settings import INPUT_TYPE_PARTICLES
+from ..properties.squishy_volumes_object_input_settings import (
+    INPUT_TYPE_PARTICLES,
+    INPUT_TYPE_COLLIDER,
+)
 from ..properties.squishy_volumes_object import (
     get_output_objects,
     IO_OUTPUT,
@@ -61,7 +64,7 @@ from ..output import (
 from ..bridge import Simulation
 
 
-class Squishy_Volumes_Particle_Output_Object(bpy.types.PropertyGroup):
+class Squishy_Volumes_New_Output_Object(bpy.types.PropertyGroup):
     input_name: bpy.props.StringProperty(
         name="Input Name",
         description="The original name of the given input object.",
@@ -75,7 +78,7 @@ class Squishy_Volumes_Particle_Output_Object(bpy.types.PropertyGroup):
     )  # type: ignore
 
 
-class SCENE_UL_Squishy_Volumes_Particle_Output_Object_List(bpy.types.UIList):
+class SCENE_UL_Squishy_Volumes_New_Output_Object_List(bpy.types.UIList):
     def draw_item(
         self,
         context: bpy.types.Context,
@@ -88,7 +91,7 @@ class SCENE_UL_Squishy_Volumes_Particle_Output_Object_List(bpy.types.UIList):
         index: int | None,
         flt_flag: int | None,
     ):
-        assert isinstance(item, Squishy_Volumes_Particle_Output_Object)
+        assert isinstance(item, Squishy_Volumes_New_Output_Object)
         row = layout.row()
         row.prop(item, "select", text=item.input_name)
         row.prop(item, "output_name")
@@ -122,9 +125,12 @@ each frame."""
     uuid: bpy.props.StringProperty()  # type: ignore
 
     particle_outputs: bpy.props.CollectionProperty(
-        type=Squishy_Volumes_Particle_Output_Object
+        type=Squishy_Volumes_New_Output_Object
     )  # type: ignore
-    selected_particle_output: bpy.props.IntProperty()  # type: ignore
+    collider_outputs: bpy.props.CollectionProperty(
+        type=Squishy_Volumes_New_Output_Object
+    )  # type: ignore
+    selected_output: bpy.props.IntProperty()  # type: ignore
 
     select_action: bpy.props.EnumProperty(
         items=[
@@ -171,12 +177,21 @@ each frame."""
             )
 
         if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
-            for particle_output in self.particle_outputs:
-                if not particle_output.select:
+            for output in self.particle_outputs:
+                if not output.select:
                     continue
                 create_output_obj(
-                    output_name=particle_output.output_name,
-                    input_name=particle_output.input_name,
+                    output_name=output.output_name,
+                    input_name=output.input_name,
+                )
+
+        if self.output_type == GRID_MOMENTUM_CONFORMED:  # ty:ignore[unresolved-attribute]
+            for output in self.collider_outputs:
+                if not output.select:
+                    continue
+                create_output_obj(
+                    output_name=output.output_name,
+                    input_name=output.input_name,
                 )
 
         sim = Simulation.get(uuid=self.uuid)
@@ -191,30 +206,39 @@ each frame."""
 
     def invoke(self, context, event):
         self.particle_outputs.clear()
+        self.collider_outputs.clear()
         sim = Simulation.get(uuid=self.uuid)
         if sim is None:
             return {"CANCELLED"}
         input_header = sim.input_header()
         for name, obj in input_header["objects"].items():
-            if INPUT_TYPE_PARTICLES not in obj:
+            if INPUT_TYPE_PARTICLES in obj:
+                output = self.particle_outputs.add()
+            elif INPUT_TYPE_COLLIDER in obj:
+                output = self.collider_outputs.add()
+            else:
                 continue
-            particle_output = self.particle_outputs.add()
-            particle_output.input_name = name
-            particle_output.output_name = name + " - Output"
+            output.input_name = name
+            output.output_name = name + " - Output"
 
         return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw_selection_list(self):
-        if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
-            self.layout.prop(self, "select_action", expand=True)
-            self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
-                listtype_name="SCENE_UL_Squishy_Volumes_Particle_Output_Object_List",
-                list_id="",
-                dataptr=self,
-                propname="particle_outputs",
-                active_dataptr=self,
-                active_propname="selected_particle_output",
-            )
+        propname = {
+            PARTICLES: "particle_outputs",
+            GRID_MOMENTUM_CONFORMED: "collider_outputs",
+        }.get(self.output_type)  # ty:ignore[unresolved-attribute]
+        if propname is None:
+            return
+        self.layout.prop(self, "select_action", expand=True)  # ty:ignore[possibly-missing-attribute]
+        self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
+            listtype_name="SCENE_UL_Squishy_Volumes_New_Output_Object_List",
+            list_id="",
+            dataptr=self,
+            propname=propname,
+            active_dataptr=self,
+            active_propname="selected_output",
+        )
 
     def draw_object_attributes(self):
         output_type = self.output_type  # ty:ignore[unresolved-attribute]
@@ -386,8 +410,8 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
 
 
 classes = [
-    Squishy_Volumes_Particle_Output_Object,
-    SCENE_UL_Squishy_Volumes_Particle_Output_Object_List,
+    Squishy_Volumes_New_Output_Object,
+    SCENE_UL_Squishy_Volumes_New_Output_Object_List,
     SCENE_OT_Squishy_Volumes_Add_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
     SCENE_UL_Squishy_Volumes_Output_Object_List,
