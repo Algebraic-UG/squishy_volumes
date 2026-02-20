@@ -19,6 +19,7 @@ use super::Mutex;
 pub struct WeightedDistance {
     pub distance: T,
     pub normal: Vector3<T>,
+    pub velocity: Vector3<T>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]

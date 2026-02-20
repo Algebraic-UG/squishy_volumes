@@ -30,7 +30,7 @@ impl State {
         profile!("collect_insides");
 
         let time_step = phase_input.time_step;
-        let grid_node_size = phase_input.setup.settings.grid_node_size;
+        let grid_node_size = phase_input.consts.grid_node_size;
 
         // Since the grid has only partial information about the distances,
         // we need to do MLS interpolation.
@@ -150,12 +150,9 @@ impl State {
                         Entry::Occupied(occupied_entry) => {
                             if occupied_entry.get() ^ (distance < 0.) {
                                 *velocity -= normal * normal.dot(velocity);
+                                let collider_velocity = Vector3::zeros(); // TODO
                                 *velocity += normal
-                                    * (self.collider_objects[collider_idx]
-                                        .kinematic
-                                        .point_velocity_from_world(*position)
-                                        .dot(&normal)
-                                        - distance / time_step);
+                                    * (collider_velocity.dot(&normal) - distance / time_step);
                             }
                         }
                         // Collider is new, accept the side

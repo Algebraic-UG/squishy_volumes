@@ -77,6 +77,8 @@ impl State {
             action_matrices: _,
         } = &mut particles;
 
+        let mut grid_collider_momentums: Vec<_> = Default::default();
+
         for (name, object) in input_header.objects.iter() {
             match object {
                 InputObject::Particles => {
@@ -193,6 +195,7 @@ impl State {
                     let object_index = ObjectIndex::Collider(collider_objects.len());
                     collider_objects.push(ObjectCollider {});
                     name_map.insert(name.clone(), object_index);
+                    grid_collider_momentums.push(Default::default());
                 }
             }
 
@@ -204,7 +207,6 @@ impl State {
 
         let grid_momentum = Default::default();
         let grid_collider_distances = Default::default();
-        let grid_collider_momentums = Default::default();
 
         Ok(Self {
             time,

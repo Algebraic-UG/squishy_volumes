@@ -59,8 +59,11 @@ pub fn rasterize(
 
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
                     let distance = (p - a).dot(&normal);
-                    (distance.abs() <= spacing * layers as T)
-                        .then_some(WeightedDistance { distance, normal })
+                    (distance.abs() <= spacing * layers as T).then_some(WeightedDistance {
+                        distance,
+                        normal,
+                        velocity: Vector3::zeros(), //TODO
+                    })
                 } else {
                     let mut weighted_distance: Option<WeightedDistance> = None;
 
@@ -112,6 +115,7 @@ pub fn rasterize(
                                     .try_normalize(NORMALIZATION_EPS)
                                     .map(|n| n * sign)
                                     .unwrap_or(**normal),
+                                velocity: Vector3::zeros(), // TODO
                             });
                         };
                     edge_contribution(b, &ab, ab_ns, normal_b, &normal_ab, normal_a);

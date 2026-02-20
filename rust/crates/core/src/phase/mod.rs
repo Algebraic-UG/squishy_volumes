@@ -19,9 +19,9 @@ use crate::{input_file::InputConsts, state::State};
 use crate::profile;
 
 mod advect_particles;
-mod goal_forces;
-//mod collect_insides;
+mod collect_insides;
 mod collect_velocity;
+mod goal_forces;
 //mod conform_to_colliders;
 mod cull_particles;
 mod external_force;
@@ -42,7 +42,7 @@ pub enum Phase {
     InterpolateInput,
     Sort,
     ScatterColliderDistances,
-    //CollectInsides,
+    CollectInsides,
     UpdateMomentumMaps,
     RegisterContributors,
     LimitTimeStepBeforeForce,
@@ -65,7 +65,7 @@ impl Phase {
             Self::InterpolateInput => State::interpolate_input,
             Self::Sort => State::sort,
             Self::ScatterColliderDistances => State::scatter_collider_distances,
-            //Self::CollectInsides => State::collect_insides,
+            Self::CollectInsides => State::collect_insides,
             Self::UpdateMomentumMaps => State::update_momentum_maps,
             Self::RegisterContributors => State::register_contributors,
             Self::LimitTimeStepBeforeForce => State::limit_time_step_before_force,

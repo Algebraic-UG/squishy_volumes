@@ -127,32 +127,28 @@ impl Context for ContextImpl {
         let opposite_e = Vector3::from_column_slice(chunks.next().unwrap());
         let opposite_f = Vector3::from_column_slice(chunks.next().unwrap());
 
-        let (positions, distances, normals): (Vec<_>, Vec<_>, Vec<_>) =
-            multiunzip(
-                rasterize(
-                    [&corner_a, &corner_b, &corner_c],
-                    [&None; 3],
-                    [Some(&opposite_d), Some(&opposite_e), Some(&opposite_f)],
-                    spacing,
-                    layers,
-                )
-                .map(
-                    |(
-                        grid_node,
-                        WeightedDistance {
-                            distance,
-                            normal,
-                        },
-                    )|
-                     -> (Vector3<T>,  T, Vector3<T>) {
-                        (
-                            grid_node.map(|c| c as T * spacing),
-                            distance,
-                            normal,
-                        )
+        let (positions, distances, normals): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(
+            rasterize(
+                [&corner_a, &corner_b, &corner_c],
+                [&None; 3],
+                [Some(&opposite_d), Some(&opposite_e), Some(&opposite_f)],
+                spacing,
+                layers,
+            )
+            .map(
+                |(
+                    grid_node,
+                    WeightedDistance {
+                        distance,
+                        normal,
+                        velocity,
                     },
-                ),
-            );
+                )|
+                 -> (Vector3<T>, T, Vector3<T>) {
+                    (grid_node.map(|c| c as T * spacing), distance, normal)
+                },
+            ),
+        );
 
         positions
             .into_iter()
