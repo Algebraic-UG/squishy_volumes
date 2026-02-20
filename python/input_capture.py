@@ -205,7 +205,6 @@ def capture_input_frame(
 
             record(python_name="squishy_volumes_position", rust_name="VertexPositions")
             record(python_name=None, rust_name="Triangles", triangle_indices=True)
-            record(python_name="squishy_volumes_normal", rust_name="TriangleNormals")
             record(
                 python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
             )

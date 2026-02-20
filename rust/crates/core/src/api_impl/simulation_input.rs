@@ -200,7 +200,6 @@ impl SimulationInput for SimulationInputImpl {
                 match captured_attribute {
                     FrameBulkCollider::VertexPositions => cs.vertex_positions = bulk.try_into()?,
                     FrameBulkCollider::Triangles => cs.triangles = bulk.try_into()?,
-                    FrameBulkCollider::TriangleNormals => cs.triangle_normals = bulk.try_into()?,
                     FrameBulkCollider::TriangleFrictions => {
                         cs.triangle_frictions = bulk.try_into()?
                     }
@@ -258,7 +257,6 @@ impl SimulationInput for SimulationInputImpl {
             ColliderInput {
                 vertex_positions,
                 triangles,
-                triangle_normals,
                 triangle_frictions,
                 triangle_stickynesses,
             },
@@ -277,7 +275,6 @@ impl SimulationInput for SimulationInputImpl {
                 vertex_idx >= 0 && (vertex_idx as usize) < vertex_positions.len()
             }));
             let n = triangles.len() / 3;
-            ensure!(n == triangle_normals.len() / 3);
             ensure!(n == triangle_frictions.len());
             ensure!(n == triangle_stickynesses.len());
         }
