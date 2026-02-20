@@ -31,6 +31,4 @@ pub trait Context: Send + Sync {
     fn get_simulation_mut(&mut self, uuid: &str) -> Option<&mut dyn Simulation>;
 
     fn drop_simulation(&mut self, uuid: &str);
-
-    fn test(&mut self, data: &[f32]) -> Vec<f32>;
 }

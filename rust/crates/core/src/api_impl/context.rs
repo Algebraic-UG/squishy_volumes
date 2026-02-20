@@ -115,49 +115,4 @@ impl Context for ContextImpl {
             warn!("No simulation with {uuid}")
         }
     }
-
-    fn test(&mut self, data: &[f32]) -> Vec<f32> {
-        /*
-        let spacing = data[0];
-        let layers = data[1] as usize;
-        let mut chunks = data[2..].chunks_exact(3);
-        let corner_a = Vector3::from_column_slice(chunks.next().unwrap());
-        let corner_b = Vector3::from_column_slice(chunks.next().unwrap());
-        let corner_c = Vector3::from_column_slice(chunks.next().unwrap());
-        let opposite_d = Vector3::from_column_slice(chunks.next().unwrap());
-        let opposite_e = Vector3::from_column_slice(chunks.next().unwrap());
-        let opposite_f = Vector3::from_column_slice(chunks.next().unwrap());
-
-        let (positions, distances, normals): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(
-            rasterize(
-                [&corner_a, &corner_b, &corner_c],
-                [&None; 3],
-                [Some(&opposite_d), Some(&opposite_e), Some(&opposite_f)],
-                spacing,
-                layers,
-            )
-            .map(
-                |(
-                    grid_node,
-                    WeightedDistance {
-                        distance,
-                        normal,
-                        velocity,
-                    },
-                )|
-                 -> (Vector3<T>, T, Vector3<T>) {
-                    (grid_node.map(|c| c as T * spacing), distance, normal)
-                },
-            ),
-        );
-
-        positions
-            .into_iter()
-            .flat_map(|v| v.flat())
-            .chain(normals.into_iter().flat_map(|v| v.flat()))
-            .chain(distances)
-            .collect()
-        */
-        Default::default()
-    }
 }

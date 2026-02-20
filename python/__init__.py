@@ -29,7 +29,7 @@ from .progress_update import (
     unregister_progress_update,
     unregister_progress_update_toggle,
 )
-from .bridge import Simulation, build_info, test
+from .bridge import Simulation, build_info
 from .frame_change import register_handler, unregister_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
@@ -62,32 +62,7 @@ def unregister_blend_file_change_handler():
         print("Squishy Volumes load_post unregistered.")
 
 
-class OBJECT_OT_Test(bpy.types.Operator):
-    bl_idname = "object.squishy_volumes_test"
-    bl_label = "Test"
-    bl_options = {"REGISTER", "UNDO"}
-
-    spacing: bpy.props.FloatProperty(default=0.2)  # type: ignore
-    layers: bpy.props.IntProperty()  # type: ignore
-
-    def execute(self, context):
-        test(self.spacing, float(self.layers))
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
-
-
-def menu_func(self, _context):
-    self.layout.operator(
-        OBJECT_OT_Test.bl_idname,
-        icon="MODIFIER",
-    )
-
-
 def register():
-    bpy.utils.register_class(OBJECT_OT_Test)
-    bpy.types.VIEW3D_MT_object.append(menu_func)
     version_rust = build_info()["wrapper"]["crate_info"]["version"]
     manifest_path = Path(__file__).parent / "blender_manifest.toml"
     with manifest_path.open("rb") as f:
@@ -121,8 +96,6 @@ def unregister():
     unregister_blend_file_change_handler()
     unregister_popup()
     Simulation.drop_all()
-    bpy.types.VIEW3D_MT_object.remove(menu_func)
-    bpy.utils.unregister_class(OBJECT_OT_Test)
 
 
 if __name__ == "__main__":

@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::Result;
-use numpy::{PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 use serde_json::to_string;
 
@@ -21,10 +19,7 @@ use hot_reloadable::{initialize, CombinedBuildInfo};
 use hot_reloadable::handle_reload;
 
 mod api_use;
-use crate::{
-    api_use::{simulation::Simulation, simulation_input::SimulationInput},
-    hot_reloadable::try_with_context,
-};
+use crate::api_use::{simulation::Simulation, simulation_input::SimulationInput};
 
 fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize();
@@ -33,7 +28,6 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     handle_reload();
 
     m.add_function(wrap_pyfunction!(build_info_as_json, m)?)?;
-    m.add_function(wrap_pyfunction!(test, m)?)?;
 
     m.add_class::<Simulation>()?;
     m.add_class::<SimulationInput>()?;
@@ -44,17 +38,4 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
 #[pyfunction]
 fn build_info_as_json() -> String {
     to_string(&CombinedBuildInfo::new()).unwrap()
-}
-
-#[pyfunction]
-fn test<'py>(
-    py: Python<'py>,
-    data: PyReadonlyArray1<'py, f32>,
-) -> Result<Bound<'py, PyArray1<f32>>> {
-    try_with_context(|context| {
-        let slice = data.as_slice()?;
-        let res = context.test(slice);
-        let array = PyArray1::from_vec(py, res);
-        Ok(array)
-    })
 }
