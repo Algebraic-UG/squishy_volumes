@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use iter_enumeration::{IntoIterEnum2 as _, IntoIterEnum3 as _};
+use iter_enumeration::{IntoIterEnum2, IntoIterEnum3 as _};
 use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
@@ -30,20 +30,25 @@ impl Rasterized {
     }
 }
 
-pub fn rasterize(
-    [a, b, c]: [&Vector3<T>; 3],
-    [normal_a, normal_b, normal_c]: [&Option<Unit<Vector3<T>>>; 3],
+pub struct RasterizationVertex<'a> {
+    pub position: &'a Vector3<T>,
+    pub velocity: &'a Vector3<T>,
+    pub normal: &'a Option<Unit<Vector3<T>>>,
+}
+
+pub fn rasterize<'a>(
+    [a, b, c]: [RasterizationVertex<'a>; 3],
     [d, e, f]: [Option<&Vector3<T>>; 3],
     spacing: T,
     layers: usize,
 ) -> impl Iterator<Item = (Vector3<i32>, Rasterized)> {
-    let Some(normal) = (b - a).cross(&(c - a)).try_normalize(NORMALIZATION_EPS) else {
-        return empty().iter_enum_3a();
-    };
+    let ab = a.position - b.position;
+    let bc = b.position - c.position;
+    let ca = c.position - a.position;
 
-    let ab = a - b;
-    let bc = b - c;
-    let ca = c - a;
+    let Some(normal) = (-ab).cross(&ca).try_normalize(NORMALIZATION_EPS) else {
+        return empty().iter_enum_2a();
+    };
 
     let mix_normal = |other: Vector3<T>| {
         other
@@ -51,28 +56,20 @@ pub fn rasterize(
             .and_then(|other| Unit::try_new((other + normal).scale(0.5), NORMALIZATION_EPS))
             .unwrap_or(Unit::new_unchecked(normal))
     };
-    let normal_ab = d.map(|d| mix_normal(ab.cross(&(d - b))));
-    let normal_bc = e.map(|e| mix_normal(bc.cross(&(e - c))));
-    let normal_ca = f.map(|f| mix_normal(ca.cross(&(f - a))));
+    let normal_ab = d.map(|d| mix_normal(ab.cross(&(d - b.position))));
+    let normal_bc = e.map(|e| mix_normal(bc.cross(&(e - c.position))));
+    let normal_ca = f.map(|f| mix_normal(ca.cross(&(f - a.position))));
 
-    let ab_ns = ab.norm_squared();
-    let bc_ns = bc.norm_squared();
-    let ca_ns = ca.norm_squared();
-
-    if ab_ns == 0. || bc_ns == 0. || ca_ns == 0. {
-        return empty().iter_enum_3b();
-    }
-
-    candidates(a, b, c, &normal, spacing, layers)
+    candidates(a.position, b.position, c.position, &normal, spacing, layers)
         .filter_map(
             move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, Rasterized)> {
                 let p = grid_node.map(|c| c as T * spacing);
-                let sa = (p - b).dot(&normal.cross(&ab)) < 0.;
-                let sb = (p - c).dot(&normal.cross(&bc)) < 0.;
-                let sc = (p - a).dot(&normal.cross(&ca)) < 0.;
+                let sa = (p - b.position).dot(&normal.cross(&ab)) < 0.;
+                let sb = (p - c.position).dot(&normal.cross(&bc)) < 0.;
+                let sc = (p - a.position).dot(&normal.cross(&ca)) < 0.;
 
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
-                    let distance = (p - a).dot(&normal);
+                    let distance = (p - a.position).dot(&normal);
                     (distance.abs() <= spacing * layers as T).then_some(Rasterized::Valid(
                         ColliderInfo {
                             distance,
@@ -87,25 +84,24 @@ pub fn rasterize(
                 } else {
                     let mut result: Option<Rasterized> = None;
                     let mut edge_contribution =
-                        |start: &Vector3<T>,
-                         segment: &Vector3<T>,
-                         squared_norm: T,
-                         start_normal: &Option<Unit<Vector3<T>>>,
-                         edge_normal: &Option<Unit<Vector3<T>>>,
-                         end_normal: &Option<Unit<Vector3<T>>>| {
-                            let along_segment = (p - start).dot(segment) / squared_norm;
+                        |start: &RasterizationVertex,
+                         end: &RasterizationVertex,
+                         edge_normal: &Option<Unit<Vector3<T>>>| {
+                            let segment = end.position - start.position;
+                            let along_segment =
+                                (p - start.position).dot(&segment) / segment.norm_squared();
 
                             let element_normal;
                             let to_p;
                             if along_segment < 0. {
-                                element_normal = start_normal;
-                                to_p = p - start;
+                                element_normal = start.normal;
+                                to_p = p - start.position;
                             } else if along_segment > 1. {
-                                element_normal = end_normal;
-                                to_p = p - start - segment;
+                                element_normal = end.normal;
+                                to_p = p - start.position - segment;
                             } else {
                                 element_normal = edge_normal;
-                                to_p = p - start - segment * along_segment;
+                                to_p = p - start.position - segment * along_segment;
                             }
 
                             let distance = to_p.norm();
@@ -139,16 +135,17 @@ pub fn rasterize(
                                 stickyness: 0.,
                             }));
                         };
-                    edge_contribution(b, &ab, ab_ns, normal_b, &normal_ab, normal_a);
-                    edge_contribution(c, &bc, bc_ns, normal_c, &normal_bc, normal_b);
-                    edge_contribution(a, &ca, ca_ns, normal_a, &normal_ca, normal_c);
+
+                    edge_contribution(&b, &a, &normal_ab);
+                    edge_contribution(&c, &b, &normal_bc);
+                    edge_contribution(&a, &c, &normal_ca);
 
                     result
                 }
                 .map(|result| (grid_node, result))
             },
         )
-        .iter_enum_3c()
+        .iter_enum_2b()
 }
 
 fn candidates(

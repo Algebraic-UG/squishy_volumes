@@ -15,7 +15,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     math::RASTERIZATION_LAYERS,
     profile,
-    rasterization::{Rasterized, rasterize},
+    rasterization::{RasterizationVertex, Rasterized, rasterize},
     state::ObjectIndex,
 };
 
@@ -49,15 +49,13 @@ impl State {
                 bail!("Wrong object type");
             };
 
+            let make_raterization_vertex = |index: usize| RasterizationVertex {
+                position: &input.vertex_positions[index],
+                velocity: &input.vertex_velocities[index],
+                normal: &input.vertex_normals[index],
+            };
+
             for &[a, b, c] in &input.triangles {
-                let corner_a = &input.vertex_positions[a as usize];
-                let corner_b = &input.vertex_positions[b as usize];
-                let corner_c = &input.vertex_positions[c as usize];
-
-                let normal_a = &input.vertex_normals[a as usize];
-                let normal_b = &input.vertex_normals[b as usize];
-                let normal_c = &input.vertex_normals[c as usize];
-
                 let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
                 let pick_other = |a: u32| {
                     move |&[b, c]: &[u32; 2]| {
@@ -78,8 +76,11 @@ impl State {
                     .map(pick_other(b));
 
                 for (grid_node, rasterized) in rasterize(
-                    [corner_a, corner_b, corner_c],
-                    [normal_a, normal_b, normal_c],
+                    [
+                        make_raterization_vertex(a as usize),
+                        make_raterization_vertex(b as usize),
+                        make_raterization_vertex(c as usize),
+                    ],
                     [opposite_d, opposite_e, opposite_f],
                     grid_node_size,
                     RASTERIZATION_LAYERS,
