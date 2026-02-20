@@ -55,7 +55,12 @@ impl State {
                 normal: &input.vertex_normals[index],
             };
 
-            for &[a, b, c] in &input.triangles {
+            for ((&[a, b, c], friction), stickyness) in input
+                .triangles
+                .iter()
+                .zip(&input.triangle_frictions)
+                .zip(&input.triangle_stickynesses)
+            {
                 let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
                 let pick_other = |a: u32| {
                     move |&[b, c]: &[u32; 2]| {
@@ -76,14 +81,16 @@ impl State {
                     .map(pick_other(b));
 
                 for (grid_node, rasterized) in rasterize(
+                    grid_node_size,
+                    RASTERIZATION_LAYERS,
                     [
                         make_raterization_vertex(a as usize),
                         make_raterization_vertex(b as usize),
                         make_raterization_vertex(c as usize),
                     ],
                     [opposite_d, opposite_e, opposite_f],
-                    grid_node_size,
-                    RASTERIZATION_LAYERS,
+                    *friction,
+                    *stickyness,
                 ) {
                     match this_collider_distances.entry(grid_node) {
                         Entry::Occupied(mut occupied_entry) => {

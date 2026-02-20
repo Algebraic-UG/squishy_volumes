@@ -36,7 +36,7 @@ impl InterpolatedInput {
         }: InputFrame,
     ) -> Result<Self> {
         let particles_input = particles_inputs
-            .iter()
+            .into_iter()
             .map(|(name, input)| {
                 let goal_positions = input
                     .goal_positions
@@ -44,7 +44,7 @@ impl InterpolatedInput {
                     .map(Vector3::from_column_slice)
                     .collect();
 
-                let goal_stiffnesses = input.goal_stiffnesses.clone();
+                let goal_stiffnesses = input.goal_stiffnesses;
                 (
                     name.clone(),
                     InterpolatedInputParticles {
@@ -57,7 +57,7 @@ impl InterpolatedInput {
 
         let mut non_manifold = None;
         let collider_input = collider_inputs
-            .iter()
+            .into_iter()
             .map(|(name, input)| {
                 let vertex_positions: Vec<_> = input
                     .vertex_positions
@@ -147,6 +147,8 @@ impl InterpolatedInput {
                         vertex_velocities,
                         triangles,
                         edges_with_opposites,
+                        triangle_frictions: input.triangle_frictions,
+                        triangle_stickynesses: input.triangle_stickynesses,
                     },
                 )
             })
@@ -176,6 +178,8 @@ pub struct InterpolatedInputCollider {
     pub vertex_normals: Vec<Option<Unit<Vector3<T>>>>,
     pub vertex_velocities: Vec<Vector3<T>>,
     pub triangles: Vec<[u32; 3]>,
+    pub triangle_frictions: Vec<T>,
+    pub triangle_stickynesses: Vec<T>,
     pub edges_with_opposites: FxHashMap<[u32; 2], [u32; 2]>,
 }
 

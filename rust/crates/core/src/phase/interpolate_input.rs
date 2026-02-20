@@ -123,6 +123,20 @@ impl State {
                         }
                     })
                     .collect();
+                let triangle_frictions = input_a
+                    .triangle_frictions
+                    .iter()
+                    .zip(&input_b.triangle_frictions)
+                    .map(|(friction_a, friction_b)| factor_a * friction_a + factor_b * friction_b)
+                    .collect();
+                let triangle_stickynesses = input_a
+                    .triangle_stickynesses
+                    .iter()
+                    .zip(&input_b.triangle_stickynesses)
+                    .map(|(stickyness_a, stickyness_b)| {
+                        factor_a * stickyness_a + factor_b * stickyness_b
+                    })
+                    .collect();
 
                 Ok((
                     name_a.clone(),
@@ -130,6 +144,8 @@ impl State {
                         vertex_positions,
                         vertex_normals,
                         vertex_velocities,
+                        triangle_frictions,
+                        triangle_stickynesses,
 
                         // assume topology constant from a
                         triangles: input_a.triangles.clone(),

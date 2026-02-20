@@ -37,10 +37,12 @@ pub struct RasterizationVertex<'a> {
 }
 
 pub fn rasterize<'a>(
-    [a, b, c]: [RasterizationVertex<'a>; 3],
-    [d, e, f]: [Option<&Vector3<T>>; 3],
     spacing: T,
     layers: usize,
+    [a, b, c]: [RasterizationVertex<'a>; 3],
+    [d, e, f]: [Option<&Vector3<T>>; 3],
+    friction: T,
+    stickyness: T,
 ) -> impl Iterator<Item = (Vector3<i32>, Rasterized)> {
     let ab = a.position - b.position;
     let bc = b.position - c.position;
@@ -77,8 +79,8 @@ pub fn rasterize<'a>(
 
                             //TODO
                             velocity: Vector3::zeros(),
-                            friction: 0.,
-                            stickyness: 0.,
+                            friction,
+                            stickyness,
                         },
                     ))
                 } else {
@@ -131,8 +133,8 @@ pub fn rasterize<'a>(
 
                                 //TODO
                                 velocity: Vector3::zeros(),
-                                friction: 0.,
-                                stickyness: 0.,
+                                friction,
+                                stickyness,
                             }));
                         };
 
