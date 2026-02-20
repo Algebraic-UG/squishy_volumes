@@ -71,7 +71,6 @@ pub enum FrameBulkParticles {
 pub enum FrameBulkCollider {
     VertexPositions,
     Triangles,
-    TriangleNormals,
     TriangleFrictions,
     TriangleStickynesses,
 }
