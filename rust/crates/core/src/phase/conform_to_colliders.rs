@@ -34,11 +34,12 @@ impl State {
                     let normal_part = normal.dot(&relative_velocity);
                     let normal_velocity = normal * normal_part;
                     let tangent_velocity = relative_velocity - normal_velocity;
-                    let tangent_part = tangent_velocity.norm();
 
                     // TODO: friction, stickyness
                     if normal_part < 0. {
-                        *velocity = tangent_velocity;
+                        *velocity = (1. + normal_part * phase_input.time_step * info.friction)
+                            .max(0.)
+                            * tangent_velocity
                     }
                 });
         }
