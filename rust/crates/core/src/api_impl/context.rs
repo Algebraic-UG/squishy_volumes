@@ -9,14 +9,10 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use anyhow::{Context as _, Result, bail};
-use itertools::multiunzip;
-use nalgebra::Vector3;
 use serde_json::{Value, from_value};
-use squishy_volumes_api::{Context, Simulation, SimulationInput, T};
+use squishy_volumes_api::{Context, Simulation, SimulationInput};
 use tracing::{info, subscriber::set_global_default, warn};
 use tracing_subscriber::FmtSubscriber;
-
-use crate::{math::flat::Flat3, rasterization::rasterize, state::grids::WeightedDistance};
 
 use super::{SimulationImpl, SimulationInputImpl};
 

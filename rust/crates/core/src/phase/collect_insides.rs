@@ -79,8 +79,7 @@ impl State {
                             let grid_idx = shift.map(|x| x as i32)
                                 + Vector3::new(i as i32, j as i32, k as i32);
 
-                            let Some(grid_node) = self.grid_collider_distances.get(&grid_idx)
-                            else {
+                            let Some(grid_node) = self.grid_collider.get(&grid_idx) else {
                                 continue;
                             };
 
@@ -90,13 +89,11 @@ impl State {
                                 j as T - shifted.y,
                                 k as T - shifted.z,
                             );
-                            for (collider_idx, weighted_distance) in
-                                grid_node.lock().weighted_distances.iter()
-                            {
+                            for (collider_idx, info) in grid_node.infos.iter() {
                                 let distance_helper =
                                     distance_helpers.entry(*collider_idx).or_default();
                                 distance_helper.distance_and_gradient +=
-                                    linear_basis * weighted_distance.distance * weight;
+                                    linear_basis * info.distance * weight;
                                 distance_helper.matrix +=
                                     (linear_basis * weight) * linear_basis.transpose();
                             }

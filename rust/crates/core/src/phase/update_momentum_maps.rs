@@ -73,12 +73,9 @@ impl State {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
                 kernel_quadratic_unrolled!(|grid_idx| {
                     let grid_idx = grid_idx + shift;
-                    let incompatibility =
-                        self.grid_collider_distances
-                            .get(&grid_idx)
-                            .and_then(|grid_node| {
-                                find_worst_incompatibility(collider_inside, &grid_node.lock())
-                            });
+                    let incompatibility = self.grid_collider.get(&grid_idx).and_then(|grid_node| {
+                        find_worst_incompatibility(collider_inside, grid_node)
+                    });
 
                     if let Some(collider_idx) = incompatibility {
                         if !collider_maps[collider_idx].contains_key(&grid_idx) {
@@ -92,7 +89,7 @@ impl State {
                     (!self.grid_momentum.map.contains_key(&grid_idx)).then_some(grid_idx)
                 })
                 .into_iter()
-                .filter_map(|grid_idx| grid_idx)
+                .flatten()
             })
             .collect::<Vec<_>>();
         self.grid_momentum

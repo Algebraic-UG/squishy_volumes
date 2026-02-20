@@ -206,7 +206,7 @@ impl State {
         let phase = Default::default();
 
         let grid_momentum = Default::default();
-        let grid_collider_distances = Default::default();
+        let grid_collider = Default::default();
 
         Ok(Self {
             time,
@@ -216,7 +216,7 @@ impl State {
             collider_objects,
             particles,
             grid_momentum,
-            grid_collider_distances,
+            grid_collider,
             grid_collider_momentums,
             interpolated_input: None,
         })

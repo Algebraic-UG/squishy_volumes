@@ -34,6 +34,7 @@ pub struct GridMomentum {
     pub masses: Vec<T>,
     pub velocities: Vec<Vector3<T>>,
 
+    // TODO: these are not needed for explicit integration
     pub reference_velocities: Vec<Vector3<T>>,
     pub newton_direction: Vec<Vector3<T>>,
 

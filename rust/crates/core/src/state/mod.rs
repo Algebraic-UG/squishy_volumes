@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, iter::once};
 
 use crate::{
-    input_interpolation::InterpolatedInput, phase::Phase, state::grids::GridColliderDistances,
+    input_interpolation::InterpolatedInput, phase::Phase, state::grids::GridCollider,
     stats::StateStats,
 };
 
@@ -26,7 +26,6 @@ use object::{ObjectCollider, ObjectParticles};
 use particles::Particles;
 
 mod errors;
-pub use errors::*;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct State {
@@ -40,7 +39,8 @@ pub struct State {
 
     pub particles: Particles,
     pub grid_momentum: GridMomentum,
-    pub grid_collider_distances: GridColliderDistances,
+    pub grid_collider: GridCollider,
+
     pub grid_collider_momentums: Vec<GridMomentum>,
 
     pub interpolated_input: Option<InterpolatedInput>,

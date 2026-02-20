@@ -32,7 +32,7 @@ impl State {
         profile!("scatter_collider_distances");
         let grid_node_size = phase_input.consts.grid_node_size;
 
-        self.grid_collider_distances.clear();
+        self.grid_collider.clear();
 
         let collider_input = &self
             .interpolated_input
@@ -100,18 +100,11 @@ impl State {
             }
 
             for (grid_node, rasterized) in this_collider_distances {
-                let Rasterized::Valid(weighted_distance) = rasterized else {
+                let Rasterized::Valid(info) = rasterized else {
                     continue;
                 };
-                let grid_node = self
-                    .grid_collider_distances
-                    .entry(grid_node)
-                    .or_default()
-                    .get_mut()
-                    .unwrap();
-                grid_node
-                    .weighted_distances
-                    .insert(*collider_index, weighted_distance);
+                let grid_node = self.grid_collider.entry(grid_node).or_default();
+                grid_node.infos.insert(*collider_index, info);
             }
         }
 

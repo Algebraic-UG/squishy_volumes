@@ -48,12 +48,9 @@ impl State {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
                 kernel_quadratic_unrolled!(|grid_idx| {
                     let grid_idx = grid_idx + shift;
-                    let incompatibility =
-                        self.grid_collider_distances
-                            .get(&grid_idx)
-                            .and_then(|grid_node| {
-                                find_worst_incompatibility(collider_inside, &grid_node.lock())
-                            });
+                    let incompatibility = self.grid_collider.get(&grid_idx).and_then(|grid_node| {
+                        find_worst_incompatibility(collider_inside, grid_node)
+                    });
 
                     let grid = if let Some(collider_idx) = incompatibility {
                         &self.grid_collider_momentums[collider_idx]

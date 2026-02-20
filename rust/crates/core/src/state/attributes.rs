@@ -201,32 +201,28 @@ impl State {
             }
             Attribute::GridColliderDistance(attribute) => match attribute {
                 AttributeGridColliderDistance::Positions => self
-                    .grid_collider_distances
+                    .grid_collider
                     .keys()
                     .map(|grid_node_idx| grid_node_idx.map(|i| i as T) * grid_node_size)
                     .flat_map(|position| position.flat())
                     .collect(),
                 AttributeGridColliderDistance::ColliderDistances(collider_idx) => self
-                    .grid_collider_distances
+                    .grid_collider
                     .values()
                     .map(|grid_node| {
                         grid_node
-                            .try_lock()
-                            .unwrap()
-                            .weighted_distances
+                            .infos
                             .get(&collider_idx)
-                            .map(|weighted_distance| weighted_distance.distance)
+                            .map(|info| info.distance)
                             .unwrap_or(T::MAX)
                     })
                     .collect(),
                 AttributeGridColliderDistance::ColliderDistanceNormals(collider_idx) => self
-                    .grid_collider_distances
+                    .grid_collider
                     .values()
                     .flat_map(|grid_node| {
                         grid_node
-                            .try_lock()
-                            .unwrap()
-                            .weighted_distances
+                            .infos
                             .get(&collider_idx)
                             .map(|weighted_distance| weighted_distance.normal)
                             .unwrap_or(Vector3::zeros())

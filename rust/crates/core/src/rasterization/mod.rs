@@ -13,19 +13,19 @@ use std::{iter::empty, mem::swap};
 
 use crate::{
     math::{Aabb, NORMALIZATION_EPS},
-    state::grids::WeightedDistance,
+    state::grids::ColliderInfo,
 };
 
 pub enum Rasterized {
     Invalid(T),
-    Valid(WeightedDistance),
+    Valid(ColliderInfo),
 }
 
 impl Rasterized {
     pub fn distance_abs(&self) -> T {
         match self {
             Rasterized::Invalid(distance) => *distance,
-            Rasterized::Valid(weighted_distance) => weighted_distance.distance.abs(),
+            Rasterized::Valid(info) => info.distance.abs(),
         }
     }
 }
@@ -74,10 +74,14 @@ pub fn rasterize(
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
                     let distance = (p - a).dot(&normal);
                     (distance.abs() <= spacing * layers as T).then_some(Rasterized::Valid(
-                        WeightedDistance {
+                        ColliderInfo {
                             distance,
                             normal,
-                            velocity: Vector3::zeros(), //TODO
+
+                            //TODO
+                            velocity: Vector3::zeros(),
+                            friction: 0.,
+                            stickyness: 0.,
                         },
                     ))
                 } else {
@@ -122,13 +126,17 @@ pub fn rasterize(
                             };
 
                             let sign = to_p.dot(element_normal).signum();
-                            result = Some(Rasterized::Valid(WeightedDistance {
+                            result = Some(Rasterized::Valid(ColliderInfo {
                                 distance: distance * sign,
                                 normal: to_p
                                     .try_normalize(NORMALIZATION_EPS)
                                     .map(|n| n * sign)
                                     .unwrap_or(**element_normal),
-                                velocity: Vector3::zeros(), // TODO
+
+                                //TODO
+                                velocity: Vector3::zeros(),
+                                friction: 0.,
+                                stickyness: 0.,
                             }));
                         };
                     edge_contribution(b, &ab, ab_ns, normal_b, &normal_ab, normal_a);

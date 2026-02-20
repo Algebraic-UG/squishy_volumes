@@ -63,14 +63,9 @@ impl State {
                                 let grid_idx = shift.map(|x| x as i32)
                                     + Vector3::new(i as i32, j as i32, k as i32);
 
-                                let incompatibility = self
-                                    .grid_collider_distances
-                                    .get(&grid_idx)
-                                    .and_then(|grid_node| {
-                                        find_worst_incompatibility(
-                                            collider_inside,
-                                            &grid_node.lock(),
-                                        )
+                                let incompatibility =
+                                    self.grid_collider.get(&grid_idx).and_then(|grid_node| {
+                                        find_worst_incompatibility(collider_inside, grid_node)
                                     });
                                 let grid_node_position = grid_idx.map(|i| i as T) * grid_node_size;
                                 let to_grid_node = grid_node_position - position;

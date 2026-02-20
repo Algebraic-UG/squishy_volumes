@@ -21,10 +21,10 @@ use crate::profile;
 mod advect_particles;
 mod collect_insides;
 mod collect_velocity;
-mod goal_forces;
-//mod conform_to_colliders;
+mod conform_to_colliders;
 mod cull_particles;
 mod external_force;
+mod goal_forces;
 mod implicit_solve;
 mod limit_time_step;
 //mod move_collider;
@@ -49,7 +49,7 @@ pub enum Phase {
     ScatterMomentum,
     ScatterMomentumExplicit,
     ExternalForce,
-    //ConformToColliders,
+    ConformToColliders,
     ImplicitSolve,
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
@@ -72,7 +72,7 @@ impl Phase {
             Self::ScatterMomentum => State::scatter_momentum::<false>,
             Self::ScatterMomentumExplicit => State::scatter_momentum::<true>,
             Self::ExternalForce => State::external_force,
-            //Self::ConformToColliders => State::conform_to_colliders,
+            Self::ConformToColliders => State::conform_to_colliders,
             Self::ImplicitSolve => State::implicit_solve,
             Self::CollectVelocity => State::collect_velocity,
             Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,

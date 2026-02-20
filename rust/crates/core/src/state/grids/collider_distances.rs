@@ -13,32 +13,32 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
-use super::Mutex;
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct WeightedDistance {
+pub struct ColliderInfo {
     pub distance: T,
     pub normal: Vector3<T>,
     pub velocity: Vector3<T>,
+    pub friction: T,
+    pub stickyness: T,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-pub struct GridNodeColliderDistances {
-    pub weighted_distances: FxHashMap<usize, WeightedDistance>,
+pub struct GridNodeCollider {
+    pub infos: FxHashMap<usize, ColliderInfo>,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
-pub struct GridColliderDistances(pub FxHashMap<Vector3<i32>, Mutex<GridNodeColliderDistances>>);
+pub struct GridCollider(pub FxHashMap<Vector3<i32>, GridNodeCollider>);
 
-impl Deref for GridColliderDistances {
-    type Target = FxHashMap<Vector3<i32>, Mutex<GridNodeColliderDistances>>;
+impl Deref for GridCollider {
+    type Target = FxHashMap<Vector3<i32>, GridNodeCollider>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for GridColliderDistances {
+impl DerefMut for GridCollider {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
