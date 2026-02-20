@@ -15,7 +15,7 @@ use squishy_volumes_api::T;
 
 use super::Mutex;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct WeightedDistance {
     pub distance: T,
     pub normal: Vector3<T>,

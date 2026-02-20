@@ -117,6 +117,7 @@ impl Context for ContextImpl {
     }
 
     fn test(&mut self, data: &[f32]) -> Vec<f32> {
+        /*
         let spacing = data[0];
         let layers = data[1] as usize;
         let mut chunks = data[2..].chunks_exact(3);
@@ -156,5 +157,7 @@ impl Context for ContextImpl {
             .chain(normals.into_iter().flat_map(|v| v.flat()))
             .chain(distances)
             .collect()
+        */
+        Default::default()
     }
 }

@@ -9,8 +9,15 @@
 use std::collections::hash_map::Entry;
 
 use anyhow::{Context as _, Result, bail};
+use nalgebra::Vector3;
+use rustc_hash::FxHashMap;
 
-use crate::{math::RASTERIZATION_LAYERS, profile, rasterization::rasterize, state::ObjectIndex};
+use crate::{
+    math::RASTERIZATION_LAYERS,
+    profile,
+    rasterization::{Rasterized, rasterize},
+    state::ObjectIndex,
+};
 
 use super::{PhaseInput, State};
 
@@ -34,6 +41,9 @@ impl State {
             .collider_input;
 
         for (name, input) in collider_input.iter() {
+            let mut this_collider_distances: FxHashMap<Vector3<i32>, Rasterized> =
+                Default::default();
+
             let object_index = self.name_map.get(name).context("Missing object")?;
             let ObjectIndex::Collider(collider_index) = object_index else {
                 bail!("Wrong object type");
@@ -67,32 +77,41 @@ impl State {
                     .get(&order_edge([c, a]))
                     .map(pick_other(b));
 
-                for (grid_node, weighted_distance) in rasterize(
+                for (grid_node, rasterized) in rasterize(
                     [corner_a, corner_b, corner_c],
                     [normal_a, normal_b, normal_c],
                     [opposite_d, opposite_e, opposite_f],
                     grid_node_size,
                     RASTERIZATION_LAYERS,
                 ) {
-                    let guard = self
-                        .grid_collider_distances
-                        .entry(grid_node)
-                        .or_default()
-                        .get_mut()
-                        .unwrap();
-                    match guard.weighted_distances.entry(*collider_index) {
+                    match this_collider_distances.entry(grid_node) {
                         Entry::Occupied(mut occupied_entry) => {
-                            let exsiting = occupied_entry.get_mut();
-                            if exsiting.distance.abs() < weighted_distance.distance.abs() {
+                            let existing = occupied_entry.get_mut();
+                            if existing.distance_abs() < rasterized.distance_abs() {
                                 continue;
                             }
-                            *exsiting = weighted_distance;
+                            *existing = rasterized;
                         }
                         Entry::Vacant(vacant_entry) => {
-                            vacant_entry.insert(weighted_distance);
+                            vacant_entry.insert(rasterized);
                         }
                     }
                 }
+            }
+
+            for (grid_node, rasterized) in this_collider_distances {
+                let Rasterized::Valid(weighted_distance) = rasterized else {
+                    continue;
+                };
+                let grid_node = self
+                    .grid_collider_distances
+                    .entry(grid_node)
+                    .or_default()
+                    .get_mut()
+                    .unwrap();
+                grid_node
+                    .weighted_distances
+                    .insert(*collider_index, weighted_distance);
             }
         }
 

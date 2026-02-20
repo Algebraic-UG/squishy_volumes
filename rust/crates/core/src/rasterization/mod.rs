@@ -10,11 +10,26 @@ use iter_enumeration::{IntoIterEnum2 as _, IntoIterEnum3 as _};
 use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
+use tracing::info;
 
 use crate::{
     math::{Aabb, NORMALIZATION_EPS},
     state::grids::WeightedDistance,
 };
+
+pub enum Rasterized {
+    Invalid(T),
+    Valid(WeightedDistance),
+}
+
+impl Rasterized {
+    pub fn distance_abs(&self) -> T {
+        match self {
+            Rasterized::Invalid(distance) => *distance,
+            Rasterized::Valid(weighted_distance) => weighted_distance.distance.abs(),
+        }
+    }
+}
 
 pub fn rasterize(
     [a, b, c]: [&Vector3<T>; 3],
@@ -22,7 +37,8 @@ pub fn rasterize(
     [d, e, f]: [Option<&Vector3<T>>; 3],
     spacing: T,
     layers: usize,
-) -> impl Iterator<Item = (Vector3<i32>, WeightedDistance)> {
+) -> impl Iterator<Item = (Vector3<i32>, Rasterized)> {
+    info!("start rasterize");
     let Some(normal) = (b - a).cross(&(c - a)).try_normalize(NORMALIZATION_EPS) else {
         return empty().iter_enum_3a();
     };
@@ -51,7 +67,7 @@ pub fn rasterize(
 
     candidates(a, b, c, &normal, spacing, layers)
         .filter_map(
-            move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, WeightedDistance)> {
+            move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, Rasterized)> {
                 let p = grid_node.map(|c| c as T * spacing);
                 let sa = (p - b).dot(&normal.cross(&ab)) < 0.;
                 let sb = (p - c).dot(&normal.cross(&bc)) < 0.;
@@ -59,14 +75,15 @@ pub fn rasterize(
 
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
                     let distance = (p - a).dot(&normal);
-                    (distance.abs() <= spacing * layers as T).then_some(WeightedDistance {
-                        distance,
-                        normal,
-                        velocity: Vector3::zeros(), //TODO
-                    })
+                    (distance.abs() <= spacing * layers as T).then_some(Rasterized::Valid(
+                        WeightedDistance {
+                            distance,
+                            normal,
+                            velocity: Vector3::zeros(), //TODO
+                        },
+                    ))
                 } else {
-                    let mut weighted_distance: Option<WeightedDistance> = None;
-
+                    let mut result: Option<Rasterized> = None;
                     let mut edge_contribution =
                         |start: &Vector3<T>,
                          segment: &Vector3<T>,
@@ -74,57 +91,55 @@ pub fn rasterize(
                          start_normal: &Option<Unit<Vector3<T>>>,
                          edge_normal: &Option<Unit<Vector3<T>>>,
                          end_normal: &Option<Unit<Vector3<T>>>| {
-                            let Some(edge_normal) = edge_normal else {
-                                return;
-                            };
-
-                            let normal;
-                            let to_p;
                             let along_segment = (p - start).dot(segment) / squared_norm;
+
+                            let element_normal;
+                            let to_p;
                             if along_segment < 0. {
-                                let Some(start_normal) = start_normal.as_ref() else {
-                                    return;
-                                };
-                                normal = start_normal;
+                                element_normal = start_normal;
                                 to_p = p - start;
                             } else if along_segment > 1. {
-                                let Some(end_normal) = end_normal.as_ref() else {
-                                    return;
-                                };
-                                normal = end_normal;
+                                element_normal = end_normal;
                                 to_p = p - start - segment;
                             } else {
-                                normal = edge_normal;
+                                element_normal = edge_normal;
                                 to_p = p - start - segment * along_segment;
                             }
 
                             let distance = to_p.norm();
-                            let sign = to_p.dot(&normal).signum();
                             if distance > spacing * layers as T {
                                 return;
                             }
-                            if weighted_distance
+
+                            if result
                                 .as_ref()
-                                .is_some_and(|existing| existing.distance.abs() < distance)
+                                .is_some_and(|result| result.distance_abs() < distance)
                             {
                                 return;
                             }
-                            weighted_distance = Some(WeightedDistance {
+
+                            let Some(element_normal) = element_normal else {
+                                result = Some(Rasterized::Invalid(distance));
+                                return;
+                            };
+
+                            let sign = to_p.dot(element_normal).signum();
+                            result = Some(Rasterized::Valid(WeightedDistance {
                                 distance: distance * sign,
                                 normal: to_p
                                     .try_normalize(NORMALIZATION_EPS)
                                     .map(|n| n * sign)
-                                    .unwrap_or(**normal),
+                                    .unwrap_or(**element_normal),
                                 velocity: Vector3::zeros(), // TODO
-                            });
+                            }));
                         };
                     edge_contribution(b, &ab, ab_ns, normal_b, &normal_ab, normal_a);
                     edge_contribution(c, &bc, bc_ns, normal_c, &normal_bc, normal_b);
                     edge_contribution(a, &ca, ca_ns, normal_a, &normal_ca, normal_c);
 
-                    weighted_distance
+                    result
                 }
-                .map(|weighted_distance| (grid_node, weighted_distance))
+                .map(|result| (grid_node, result))
             },
         )
         .iter_enum_3c()
