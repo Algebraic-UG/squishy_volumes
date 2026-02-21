@@ -38,6 +38,7 @@ jobs:
           else
             echo "Version matches"
           fi
+        continue-on-error: ${{ github.event.inputs.draft == 'true' }}
 
   bundle-extension:
     needs: [check-version]
