@@ -326,7 +326,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         sim = Simulation.new()
 
         if simulation.immediately_start_baking:
-            sim.last_error = ""
+            sim.last_error = None
             sim.start_compute(
                 time_step=simulation.time_step,
                 explicit=simulation.explicit,

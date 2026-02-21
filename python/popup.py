@@ -41,7 +41,7 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
             {"INFO"},
             message="Squishy Volumes clearing last message:\n" + sim.last_error,
         )
-        sim.last_error = ""
+        sim.last_error = None
         return {"FINISHED"}
 
     def invoke(self, context, event):

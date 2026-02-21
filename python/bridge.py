@@ -94,7 +94,7 @@ class Simulation:
     def __init__(self, *, handle: squishy_volumes_wrap.Simulation):
         _simulations[handle.uuid()] = self
         self.handle = handle
-        self.last_error = ""
+        self.last_error = None
         self.progress = None
 
     @staticmethod

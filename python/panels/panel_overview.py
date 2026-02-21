@@ -216,9 +216,6 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
 
     def execute(self, context):
         popup(self.uuid)
-        sim = Simulation.get(uuid=self.uuid)
-        assert sim is not None, f"No simulation context for {self.uuid}"
-        sim.last_error = ""
 
         return {"FINISHED"}
 
@@ -243,7 +240,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 simulation.uuid, default_closed=not simulation_input_exists(simulation)
             )
             sim = Simulation.get(uuid=simulation.uuid)
-            if sim is not None and sim.last_error != "":
+            if sim is not None and sim.last_error is not None:
                 col = header.column()
                 col.alert = True
                 col.label(text=f"{simulation.name}: Message")
