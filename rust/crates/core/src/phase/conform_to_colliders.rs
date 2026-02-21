@@ -22,11 +22,13 @@ impl State {
             keys.into_par_iter()
                 .zip(&mut grid_momentum.velocities)
                 .for_each(|(grid_idx, velocity)| {
-                    let info = self
+                    let Some(info) = self
                         .grid_collider
-                        .get(&grid_idx)
+                        .get(grid_idx)
                         .and_then(|node| node.infos.get(&collider_idx))
-                        .expect("missing distance node");
+                    else {
+                        return;
+                    };
 
                     let relative_velocity = *velocity - info.velocity;
                     let normal = info.normal * -info.distance.signum();
