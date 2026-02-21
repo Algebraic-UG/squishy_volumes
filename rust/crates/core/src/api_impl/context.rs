@@ -66,9 +66,11 @@ impl Context for ContextImpl {
     }
 
     fn drop_simulation_input(&mut self) {
-        if self.simulation_input.take().is_none() {
-            warn!("No simulation input")
-        }
+        let Some(simulation_input) = self.simulation_input.take() else {
+            warn!("No simulation input");
+            return;
+        };
+        simulation_input.clean_up();
     }
 
     fn new_simulation(&mut self) -> Result<String> {
