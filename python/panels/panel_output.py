@@ -28,7 +28,7 @@ from ..util import copy_simple_property_group, frame_to_load
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
     COLLIDER_SAMPLES,
-    GRID_COLLIDER_DISTANCE,
+    GRID_COLLIDER,
     GRID_MOMENTUM_CONFORMED,
     GRID_MOMENTUM_FREE,
     INPUT_MESH,
@@ -171,7 +171,7 @@ each frame."""
                 f"Added {obj.name} to output objects of {simulation.name}.",
             )
 
-        if self.output_type == GRID_COLLIDER_DISTANCE:  # ty:ignore[unresolved-attribute]
+        if self.output_type == GRID_COLLIDER:  # ty:ignore[unresolved-attribute]
             create_output_obj(
                 output_name="Collider Distances - Output", input_name=None
             )
@@ -257,10 +257,12 @@ each frame."""
         grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
         grid.label(text="Attribute")
         grid.label(text="Type")
-        if output_type == GRID_COLLIDER_DISTANCE:
+        if output_type == GRID_COLLIDER:
             grid.prop(self, "grid_collider_distances")
             grid.label(text="FLOAT")
             grid.prop(self, "grid_collider_normals")
+            grid.label(text="FLOAT_VECTOR")
+            grid.prop(self, "grid_collider_velocities")
             grid.label(text="FLOAT_VECTOR")
         if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
             grid.prop(self, "grid_momentum_masses")

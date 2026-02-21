@@ -35,7 +35,7 @@ from .magic_consts import (
     SQUISHY_VOLUMES_VELOCITY,
     COLLIDER_SAMPLES,
     PARTICLES,
-    GRID_COLLIDER_DISTANCE,
+    GRID_COLLIDER,
     GRID_MOMENTUM_CONFORMED,
     GRID_MOMENTUM_FREE,
     INPUT_MESH,
@@ -64,7 +64,7 @@ def create_default_visualization(obj, uuid):
 
     modifier = obj.modifiers.new("Squishy Volumes Default Visualization", type="NODES")
 
-    if output_type == GRID_COLLIDER_DISTANCE:
+    if output_type == GRID_COLLIDER:
         modifier.node_group = create_geometry_nodes_grid_distance()
     if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
         modifier.node_group = create_geometry_nodes_grid_momentum()
@@ -100,11 +100,11 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
     if output_settings.output_type == INPUT_MESH:
         raise RuntimeError("Not implemented yet")
 
-    if output_settings.output_type == GRID_COLLIDER_DISTANCE:
+    if output_settings.output_type == GRID_COLLIDER:
         # pylint: disable=unnecessary-lambda-assignment
         ffa = lambda attribute: sim.fetch_flat_attribute(
             frame=frame,
-            attribute={"GridColliderDistance": attribute},
+            attribute={"GridCollider": attribute},
         )
 
         fill_mesh_with_positions(obj.data, ffa("Positions"))
@@ -112,7 +112,7 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
             for collider_idx in range(0, num_colliders):
                 add_attribute(
                     obj.data,
-                    ffa({"ColliderDistances": collider_idx}),
+                    ffa({"Distances": collider_idx}),
                     f"{SQUISHY_VOLUMES_DISTANCE}_{collider_idx}",
                     "FLOAT",
                 )
@@ -120,8 +120,16 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
             for collider_idx in range(0, num_colliders):
                 add_attribute(
                     obj.data,
-                    ffa({"ColliderDistanceNormals": collider_idx}),
+                    ffa({"Normals": collider_idx}),
                     f"{SQUISHY_VOLUMES_NORMAL}_{collider_idx}",
+                    "FLOAT_VECTOR",
+                )
+        if output_settings.grid_collider_velocities:
+            for collider_idx in range(0, num_colliders):
+                add_attribute(
+                    obj.data,
+                    ffa({"Velocities": collider_idx}),
+                    f"{SQUISHY_VOLUMES_VELOCITY}_{collider_idx}",
                     "FLOAT_VECTOR",
                 )
 

@@ -41,7 +41,7 @@ pub enum Attribute {
         attribute: AttributeMesh,
     },
     GridMomentums(AttributeGridMomentums),
-    GridColliderDistance(AttributeGridColliderDistance),
+    GridCollider(AttributeGridCollider),
 }
 
 #[derive(Default, EnumIter, Serialize, Deserialize)]
@@ -55,10 +55,11 @@ pub enum AttributeConst {
 }
 
 #[derive(EnumIter, Serialize, Deserialize)]
-pub enum AttributeGridColliderDistance {
+pub enum AttributeGridCollider {
     Positions,
-    ColliderDistances(usize),
-    ColliderDistanceNormals(usize),
+    Distances(usize),
+    Normals(usize),
+    Velocities(usize),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -118,7 +119,7 @@ impl State {
     pub fn available_attributes(&self) -> impl Iterator<Item = Attribute> + '_ {
         empty()
             .chain(AttributeConst::iter().map(Attribute::Const))
-            .chain(AttributeGridColliderDistance::iter().map(Attribute::GridColliderDistance))
+            .chain(AttributeGridCollider::iter().map(Attribute::GridCollider))
             .chain(
                 AttributeGridMomentum::iter()
                     .map(AttributeGridMomentums::Free)
@@ -199,14 +200,14 @@ impl State {
                     _ => Err(AttributeError::ObjectTypeMismatch(name.clone()))?,
                 }
             }
-            Attribute::GridColliderDistance(attribute) => match attribute {
-                AttributeGridColliderDistance::Positions => self
+            Attribute::GridCollider(attribute) => match attribute {
+                AttributeGridCollider::Positions => self
                     .grid_collider
                     .keys()
                     .map(|grid_node_idx| grid_node_idx.map(|i| i as T) * grid_node_size)
                     .flat_map(|position| position.flat())
                     .collect(),
-                AttributeGridColliderDistance::ColliderDistances(collider_idx) => self
+                AttributeGridCollider::Distances(collider_idx) => self
                     .grid_collider
                     .values()
                     .map(|grid_node| {
@@ -217,7 +218,7 @@ impl State {
                             .unwrap_or(T::MAX)
                     })
                     .collect(),
-                AttributeGridColliderDistance::ColliderDistanceNormals(collider_idx) => self
+                AttributeGridCollider::Normals(collider_idx) => self
                     .grid_collider
                     .values()
                     .flat_map(|grid_node| {
@@ -225,6 +226,18 @@ impl State {
                             .infos
                             .get(&collider_idx)
                             .map(|weighted_distance| weighted_distance.normal)
+                            .unwrap_or(Vector3::zeros())
+                            .flat()
+                    })
+                    .collect(),
+                AttributeGridCollider::Velocities(collider_idx) => self
+                    .grid_collider
+                    .values()
+                    .flat_map(|grid_node| {
+                        grid_node
+                            .infos
+                            .get(&collider_idx)
+                            .map(|weighted_distance| weighted_distance.velocity)
                             .unwrap_or(Vector3::zeros())
                             .flat()
                     })

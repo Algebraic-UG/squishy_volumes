@@ -74,7 +74,7 @@ def create_geometry_nodes_grid_distance() -> bpy.types.NodeTree:
     colored_instances = create_material_colored_instances()
     return _load_tree_clipper_tree(
         "geometry_nodes_grid_distance.json",
-        [(389, colored_instances)],
+        [(469, colored_instances)],
     )
 
 

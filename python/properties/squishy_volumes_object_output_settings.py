@@ -38,6 +38,7 @@ from ..magic_consts import (
 def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.grid_collider_distances = value
     optional_attributes.grid_collider_normals = value
+    optional_attributes.grid_collider_velocities = value
 
     optional_attributes.grid_momentum_masses = value
     optional_attributes.grid_momentum_velocities = value
@@ -99,6 +100,13 @@ this object is left untouched.""",
     grid_collider_normals: bpy.props.BoolProperty(
         name="Normal",
         description=f"Attribute name: {SQUISHY_VOLUMES_NORMAL}",
+        default=True,
+        options=set(),
+    )  # type: ignore
+
+    grid_collider_velocities: bpy.props.BoolProperty(
+        name="Velocity",
+        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore
