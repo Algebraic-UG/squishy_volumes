@@ -89,7 +89,7 @@
                                             "subtype": "FACTOR",
                                             "default_value": 0.30000001192092896,
                                             "min_value": 0.0,
-                                            "max_value": 10.0
+                                            "max_value": 2.0
                                         }
                                     },
                                     {
