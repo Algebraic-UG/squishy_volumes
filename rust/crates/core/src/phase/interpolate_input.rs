@@ -103,7 +103,7 @@ impl State {
                     .iter()
                     .zip(&input_b.vertex_positions)
                     .map(|(position_a, position_b)| {
-                        (position_b - position_a) / phase_input.consts.frames_per_second as T
+                        (position_b - position_a) * phase_input.consts.frames_per_second as T
                     })
                     .collect();
 
