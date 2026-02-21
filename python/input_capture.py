@@ -30,6 +30,7 @@ from .properties.squishy_volumes_object_input_settings import (
 
 def create_input_header(simulation):
     scene = bpy.context.scene
+    depsgraph = bpy.context.evaluated_depsgraph_get()
 
     grid_node_size = simulation.grid_node_size
     simulation_scale = simulation.simulation_scale
@@ -56,14 +57,13 @@ def create_input_header(simulation):
     objects = {}
 
     for obj in get_input_objects(simulation):
+        mesh = obj.evaluated_get(depsgraph).data
         name = obj.name
         ty = obj.squishy_volumes_object.input_settings.input_type
         if ty == INPUT_TYPE_PARTICLES:
             objects[name] = ty
         if ty == INPUT_TYPE_COLLIDER:
-            objects[name] = {
-                INPUT_TYPE_COLLIDER: {"num_vertices": len(obj.data.vertices)}
-            }
+            objects[name] = {INPUT_TYPE_COLLIDER: {"num_vertices": len(mesh.vertices)}}
 
     return {
         "consts": consts,
