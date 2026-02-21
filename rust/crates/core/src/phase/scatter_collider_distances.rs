@@ -1,0 +1,206 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright 2025  Algebraic UG (haftungsbeschränkt)
+//
+// Use of this source code is governed by an MIT-style
+// license that can be found in the LICENSE_MIT file or at
+// https://opensource.org/licenses/MIT.
+
+use std::collections::hash_map::Entry;
+
+use anyhow::{Context as _, Result, bail};
+use nalgebra::Vector3;
+use rustc_hash::FxHashMap;
+
+use crate::{
+    math::RASTERIZATION_LAYERS,
+    profile,
+    rasterization::{RasterizationVertex, Rasterized, rasterize},
+    state::ObjectIndex,
+};
+
+use super::{PhaseInput, State};
+
+impl State {
+    // Splat collider distances into the grid.
+    // Each grid node then contains signed distance and normal information for each collider.
+    // But only if it's close enough.
+    pub(super) fn scatter_collider_distances(
+        mut self,
+        phase_input: &mut PhaseInput,
+    ) -> Result<Self> {
+        profile!("scatter_collider_distances");
+        let grid_node_size = phase_input.consts.grid_node_size;
+
+        self.grid_collider.clear();
+
+        let collider_input = &self
+            .interpolated_input
+            .as_ref()
+            .expect("interpolated input missing")
+            .collider_input;
+
+        for (name, input) in collider_input.iter() {
+            let mut this_collider_distances: FxHashMap<Vector3<i32>, Rasterized> =
+                Default::default();
+
+            let object_index = self.name_map.get(name).context("Missing object")?;
+            let ObjectIndex::Collider(collider_index) = object_index else {
+                bail!("Wrong object type");
+            };
+
+            let make_raterization_vertex = |index: usize| RasterizationVertex {
+                position: &input.vertex_positions[index],
+                velocity: &input.vertex_velocities[index],
+                normal: &input.vertex_normals[index],
+            };
+
+            for ((&[a, b, c], friction), stickyness) in input
+                .triangles
+                .iter()
+                .zip(&input.triangle_frictions)
+                .zip(&input.triangle_stickynesses)
+            {
+                let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
+                let pick_other = |a: u32| {
+                    move |&[b, c]: &[u32; 2]| {
+                        &input.vertex_positions[if b != a { b } else { c } as usize]
+                    }
+                };
+                let opposite_d = input
+                    .edges_with_opposites
+                    .get(&order_edge([a, b]))
+                    .map(pick_other(c));
+                let opposite_e = input
+                    .edges_with_opposites
+                    .get(&order_edge([b, c]))
+                    .map(pick_other(a));
+                let opposite_f = input
+                    .edges_with_opposites
+                    .get(&order_edge([c, a]))
+                    .map(pick_other(b));
+
+                for (grid_node, rasterized) in rasterize(
+                    grid_node_size,
+                    RASTERIZATION_LAYERS,
+                    [
+                        make_raterization_vertex(a as usize),
+                        make_raterization_vertex(b as usize),
+                        make_raterization_vertex(c as usize),
+                    ],
+                    [opposite_d, opposite_e, opposite_f],
+                    *friction,
+                    *stickyness,
+                ) {
+                    match this_collider_distances.entry(grid_node) {
+                        Entry::Occupied(mut occupied_entry) => {
+                            let existing = occupied_entry.get_mut();
+                            if existing.distance_abs() < rasterized.distance_abs() {
+                                continue;
+                            }
+                            *existing = rasterized;
+                        }
+                        Entry::Vacant(vacant_entry) => {
+                            vacant_entry.insert(rasterized);
+                        }
+                    }
+                }
+            }
+
+            for (grid_node, rasterized) in this_collider_distances {
+                let Rasterized::Valid(info) = rasterized else {
+                    continue;
+                };
+                let grid_node = self.grid_collider.entry(grid_node).or_default();
+                grid_node.infos.insert(*collider_index, info);
+            }
+        }
+
+        // self.scatter_collider_distances_create_entries(grid_node_size);
+        // self.scatter_collider_distances_reset();
+        // self.scatter_collider_distances_scatter(grid_node_size);
+        Ok(self)
+    }
+
+    /*
+    fn scatter_collider_distances_create_entries(&mut self, grid_node_size: T) {
+        profile!("create_entries");
+        for collider in &self.collider_objects {
+            if !collider.has_moved {
+                continue;
+            }
+            let new_entries: Vec<Vector3<i32>> = collider
+                .surface_samples
+                .par_iter()
+                .flat_map_iter(|surface_sample| {
+                    let shift = position_to_shift_quadratic(
+                        &collider
+                            .kinematic
+                            .to_world_position(surface_sample.position),
+                        grid_node_size,
+                    );
+                    kernel_quadratic_unrolled!(move |grid_idx| grid_idx + shift)
+                        .into_iter()
+                        .filter(|grid_idx| !self.grid_collider_distances.contains_key(grid_idx))
+                })
+                .collect();
+            self.grid_collider_distances.extend(
+                new_entries
+                    .into_iter()
+                    .map(|grid_idx| (grid_idx, Default::default())),
+            );
+        }
+    }
+
+    fn scatter_collider_distances_reset(&mut self) {
+        profile!("reset");
+        self.grid_collider_distances
+            .values_mut()
+            .for_each(|node| node.get_mut().unwrap().weighted_distances.clear());
+    }
+
+    // Splat distance information by projecting oriented disks.
+    fn scatter_collider_distances_scatter(&self, grid_node_size: T) {
+        profile!("scatter");
+        for (collider_idx, collider) in self.collider_objects.iter().enumerate() {
+            collider
+                .surface_samples
+                .par_iter()
+                .for_each(|SurfaceSample { position, normal }| {
+                    let position = collider.kinematic.to_world_position(*position);
+                    let normal = collider.kinematic.to_world_normal(*normal);
+
+                    let shift = position_to_shift_quadratic(&position, grid_node_size);
+
+                    kernel_quadratic_unrolled!(move |grid_idx: Vector3<i32>| {
+                        let grid_idx = grid_idx + shift;
+                        let grid_node_position = grid_idx.map(|i| i as T) * grid_node_size;
+                        let to_grid_node = grid_node_position - position;
+                        let distance = normal.dot(&to_grid_node);
+                        let tangential_part = to_grid_node - normal * distance;
+                        if tangential_part.norm() > grid_node_size * SURFACE_DISK_SIZE_FACTOR {
+                            // trust that another nearby disk will be a better fit
+                            return;
+                        }
+                        let mut grid_node = self
+                            .grid_collider_distances
+                            .get(&grid_idx)
+                            .expect("missing node")
+                            .lock();
+                        match grid_node.weighted_distances.entry(collider_idx) {
+                            Entry::Occupied(mut occupied_entry) => {
+                                if distance.abs() < occupied_entry.get().distance.abs() {
+                                    occupied_entry.get_mut().distance = distance;
+                                    occupied_entry.get_mut().normal = normal;
+                                }
+                            }
+                            Entry::Vacant(vacant_entry) => {
+                                vacant_entry.insert(WeightedDistance { distance, normal });
+                            }
+                        }
+                    });
+                });
+        }
+    }
+    */
+}

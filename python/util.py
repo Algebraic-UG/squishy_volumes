@@ -16,15 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import bpy
+
+import mathutils
+
 import base64
 import os
 from pathlib import Path
 
-import numpy as np
-import bpy
-import mathutils
+import numpy as np  # ty:ignore[unresolved-import]
 
-from .bridge import available_frames, context_exists
+from .bridge import Simulation
 
 
 def remove_marker(marker_name):
@@ -53,8 +55,8 @@ def get_simulation_obj(simulation, name):
     collection = bpy.data.collections.get(collection_name)
     if collection is None:
         collection = bpy.data.collections.new(collection_name)
-        bpy.context.scene.collection.children.link(collection)
-        collection.squishy_volumes_collection.simulation_uuid = simulation.uuid
+        bpy.context.scene.collection.children.link(collection)  # ty:ignore[possibly-missing-attribute]
+        collection.squishy_volumes_collection.simulation_uuid = simulation.uuid  # ty:ignore[unresolved-attribute]
 
     mesh = bpy.data.meshes.get(mesh_name)
     if mesh is None:
@@ -63,8 +65,8 @@ def get_simulation_obj(simulation, name):
     obj = bpy.data.objects.get(object_name)
     if obj is None:
         obj = bpy.data.objects.new(object_name, mesh)
-        obj.squishy_volumes_object.input_name = name
-        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
+        obj.squishy_volumes_object.input_name = name  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes_object.simulation_uuid = simulation.uuid  # ty:ignore[unresolved-attribute]
 
     if obj.name not in collection.all_objects:
         collection.objects.link(obj)
@@ -96,12 +98,17 @@ def array_to_base64(array):
     return {"dtype": str(array.dtype), "data": base64_str}
 
 
-def attribute_to_base64(collection, attribute_name, dtype, per_count):
+def attribute_to_numpy(collection, attribute_name, dtype, per_count):
     n = len(collection) * per_count
     array = np.empty(n, dtype=dtype)
     collection.foreach_get(attribute_name, array)
+    return array
 
-    return array_to_base64(array)
+
+def attribute_to_base64(collection, attribute_name, dtype, per_count):
+    return array_to_base64(
+        attribute_to_numpy(collection, attribute_name, dtype, per_count)
+    )
 
 
 # TODO: pass the scene
@@ -109,19 +116,13 @@ def get_simulation_idx_by_uuid(uuid):
     return [
         idx
         for idx, simulation in enumerate(
-            bpy.context.scene.squishy_volumes_scene.simulations
+            bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
         )
         if simulation.uuid == uuid
     ][0]
 
 
 # TODO: pass the scene
-def get_simulation_by_uuid(uuid):
-    for simulation in bpy.context.scene.squishy_volumes_scene.simulations:
-        if simulation.uuid == uuid:
-            return simulation
-    raise RuntimeError(f"There is no simulation with UUID {uuid}")
-
 
 DEBUG_VISUALS = "Squishy Volumes Debug Visuals"
 
@@ -132,12 +133,12 @@ def force_ui_redraw():
             area.tag_redraw()
 
 
-def simulation_cache_locked(simulation):
-    return os.path.exists(Path(simulation.cache_directory) / "lock")
+def simulation_locked(simulation):
+    return os.path.exists(Path(simulation.directory) / "lock")
 
 
-def simulation_cache_exists(simulation):
-    return os.path.exists(Path(simulation.cache_directory) / "setup.json")
+def simulation_input_exists(simulation):
+    return os.path.exists(Path(simulation.directory) / "simulation_input.bin")
 
 
 def fix_quaternion_order(quaternion):
@@ -163,15 +164,6 @@ def copy_simple_property_group(source, target):
             pass
 
 
-def tutorial_msg(layout, context, msg):
-    if not context.scene.squishy_volumes_scene.tutorial_active:
-        return
-    box = layout.box()
-    box.label(text="Tutorial:")
-    for line in msg.splitlines():
-        box.label(text=line.strip())
-
-
 def local_bounding_box(obj: bpy.types.Object):
     if obj.type != "MESH":
         raise TypeError(f"Object {obj.name!r} is not a mesh")
@@ -192,7 +184,10 @@ def local_bounding_box(obj: bpy.types.Object):
 def frame_to_load(simulation, frame):
     frame = frame - simulation.display_start_frame
 
-    simulated_frames = available_frames(simulation)
+    sim = Simulation.get(uuid=simulation.uuid)
+    assert sim is not None
+
+    simulated_frames = sim.available_frames()
     if simulated_frames < 1:
         return None
     max_frame = min(simulation.bake_frames, simulated_frames - 1)
@@ -207,7 +202,7 @@ def locked_simulations(context):
     return [
         simulation
         for simulation in context.scene.squishy_volumes_scene.simulations
-        if not context_exists(simulation) and simulation_cache_locked(simulation)
+        if not Simulation.exists(uuid=simulation.uuid) and simulation_locked(simulation)
     ]
 
 
@@ -215,5 +210,20 @@ def unloaded_simulations(context):
     return [
         simulation
         for simulation in context.scene.squishy_volumes_scene.simulations
-        if not context_exists(simulation) and simulation_cache_exists(simulation)
+        if not Simulation.exists(uuid=simulation.uuid)
+        and simulation_input_exists(simulation)
     ]
+
+
+def obj_by_index(index):
+    if index < 0 or index >= len(bpy.data.objects):
+        return None
+    return bpy.data.objects[index]
+
+
+def index_by_object(obj):
+    return next(i for i, other in enumerate(bpy.data.objects) if other.name == obj.name)
+
+
+def giga_f32_to_u64(giga_float):
+    return int(float(giga_float) * 1e9)

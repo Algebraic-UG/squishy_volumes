@@ -110,7 +110,7 @@ impl<V: AabbVector> Aabb<V> {
         self.max - self.min
     }
 
-    pub fn lattice(&self, spacing: T) -> (usize, impl Iterator<Item = V>) {
+    pub fn lattice(&self, spacing: T) -> (usize, impl Iterator<Item = V> + use<V>) {
         V::lattice(self.min, self.extents(), spacing)
     }
 }

@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{ensure, Result};
-use squishy_volumes_core::{Cache, Phase, PhaseInput, Report, ReportInfo, State};
 use std::{
     num::NonZero,
     path::PathBuf,
@@ -54,6 +53,7 @@ struct Cli {
 }
 
 fn main() -> Result<()> {
+    /* TODO
     set_global_default(FmtSubscriber::default())?;
     let Cli {
         cache_dir,
@@ -176,6 +176,7 @@ fn main() -> Result<()> {
         next_frame += 1;
         completed_frames += 1;
     }
+    */
 
     Ok(())
 }

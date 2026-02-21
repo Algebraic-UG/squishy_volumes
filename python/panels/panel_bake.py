@@ -19,15 +19,28 @@
 import json
 import bpy
 
-from ..properties.util import get_selected_simulation
-from ..bridge import (
-    computing,
-    available_frames,
-    context_exists,
-    pause_compute,
-    start_compute,
-    start_compute_initial_frame,
-)
+from ..properties.squishy_volumes_scene import get_selected_simulation
+from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from ..bridge import Simulation
+from ..util import giga_f32_to_u64
+
+
+def _start_compute(
+    sim: Simulation,
+    simulation: Squishy_Volumes_Simulation,
+    next_frame: int,
+    number_of_frames: int,
+):
+    sim.last_error = ""
+    sim.start_compute(
+        time_step=simulation.time_step,
+        explicit=simulation.explicit,
+        debug_mode=simulation.debug_mode,
+        adaptive_time_steps=simulation.adaptive_time_steps,
+        next_frame=next_frame,
+        number_of_frames=number_of_frames,
+        max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
+    )
 
 
 class SCENE_OT_Squishy_Volumes_Bake_Initial_Frame(bpy.types.Operator):
@@ -42,18 +55,17 @@ Outputs become available as the initial state is created."""
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
-        return (
-            simulation is not None
-            and context_exists(simulation)
-            and not computing(simulation)
-            and available_frames(simulation) == 0
-        )
+        simulation = get_selected_simulation(context.scene)
+        if simulation is None:
+            return False
+        sim = Simulation.get(uuid=simulation.uuid)
+        return sim is not None and not sim.computing() and sim.available_frames() == 0
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
-        simulation.last_exception = ""
-        start_compute_initial_frame(simulation)
+        simulation = get_selected_simulation(context.scene)
+        sim = Simulation.get(uuid=simulation.uuid)
+        assert sim is not None
+        _start_compute(sim=sim, simulation=simulation, next_frame=0, number_of_frames=1)
         self.report({"INFO"}, f"Creating first frame of {simulation.name}.")
         return {"FINISHED"}
 
@@ -70,18 +82,27 @@ or cancellation occurs due to user input or error."""
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
+        if simulation is None:
+            return False
+        sim = Simulation.get(uuid=simulation.uuid)
         return (
-            simulation is not None
-            and context_exists(simulation)
-            and not computing(simulation)
-            and available_frames(simulation) < simulation.bake_frames
+            sim is not None
+            and not sim.computing()
+            and sim.available_frames() < simulation.bake_frames
         )
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
-        simulation.last_exception = ""
-        start_compute(simulation, available_frames(simulation))
+        simulation = get_selected_simulation(context.scene)
+        sim = Simulation.get(uuid=simulation.uuid)
+        assert sim is not None
+        _start_compute(
+            sim=sim,
+            simulation=simulation,
+            next_frame=sim.available_frames(),
+            number_of_frames=simulation.bake_frames,
+        )
+
         self.report({"INFO"}, f"Commence baking of {simulation.name}.")
         return {"FINISHED"}
 
@@ -101,18 +122,26 @@ come after the displayed one."""
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
+        simulation = get_selected_simulation(context.scene)
+        if simulation is None or not simulation.has_loaded_frame:
+            return False
+        sim = Simulation.get(uuid=simulation.uuid)
         return (
-            simulation is not None
-            and context_exists(simulation)
-            and not computing(simulation)
-            and simulation.loaded_frame < simulation.bake_frames - 1
+            sim is not None
+            and not sim.computing()
+            and simulation.loaded_frame + 1 < simulation.bake_frames
         )
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
-        start_compute(simulation, simulation.loaded_frame + 1)
-        simulation.last_exception = ""
+        simulation = get_selected_simulation(context.scene)
+        sim = Simulation.get(uuid=simulation.uuid)
+        assert sim is not None
+        _start_compute(
+            sim=sim,
+            simulation=simulation,
+            next_frame=simulation.loaded_frame + 1,
+            number_of_frames=simulation.bake_frames,
+        )
         self.report({"INFO"}, f"Commence baking of {simulation.name}.")
         return {"FINISHED"}
 
@@ -125,16 +154,17 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
-        return (
-            simulation is not None
-            and context_exists(simulation)
-            and computing(simulation)
-        )
+        simulation = get_selected_simulation(context.scene)
+        if simulation is None:
+            return False
+        sim = Simulation.get(uuid=simulation.uuid)
+        return sim is not None and sim.computing()
 
     def execute(self, context):
-        simulation = get_selected_simulation(context)
-        pause_compute(simulation)
+        simulation = get_selected_simulation(context.scene)
+        sim = Simulation.get(uuid=simulation.uuid)
+        assert sim is not None
+        sim.pause_compute()
         self.report({"INFO"}, f"Baking of {simulation.name} paused.")
         return {"FINISHED"}
 
@@ -160,31 +190,27 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context)
-        return (
-            context.mode == "OBJECT"
-            and simulation is not None
-            and context_exists(simulation)
-        )
+        if context.mode != "OBJECT":
+            return False
+        simulation = get_selected_simulation(context.scene)
+        return simulation is not None and Simulation.exists(uuid=simulation.uuid)
 
     def draw(self, context):
-        simulation = get_selected_simulation(context)
-        col = self.layout.column()
-        col.enabled = not computing(simulation)
-        if available_frames(simulation) == 0:
-            tut = col.column()
-            tut.alert = context.scene.squishy_volumes_scene.tutorial_active
-            tut.operator(
+        simulation = get_selected_simulation(context.scene)
+        sim = Simulation.get(uuid=simulation.uuid)
+        assert sim is not None
+        if sim.available_frames() == 0:
+            self.layout.operator(
                 SCENE_OT_Squishy_Volumes_Bake_Initial_Frame.bl_idname,
                 icon="PHYSICS",
             )
         else:
-            col.prop(simulation, "time_step")
+            self.layout.prop(simulation, "time_step")
             # TODO: make implicit viable
             # col.prop(simulation, "explicit")
             # col.prop(simulation, "debug_mode")
-            col.prop(simulation, "adaptive_time_steps")
-            col.prop(simulation, "bake_frames")
+            self.layout.prop(simulation, "adaptive_time_steps")
+            self.layout.prop(simulation, "bake_frames")
 
             row = self.layout.row()
             row.operator(
@@ -192,14 +218,15 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
                 icon="PHYSICS",
             )
             if (
-                simulation.loaded_frame != -1
-                and simulation.loaded_frame + 1 != available_frames(simulation)
+                simulation.has_loaded_frame
+                and simulation.loaded_frame + 1 != sim.available_frames()
             ):
                 row.operator(
                     SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded.bl_idname,
                     text=f"Rebake from #{simulation.loaded_frame}",
                     icon="PHYSICS",
                 )
+
         self.layout.operator(
             SCENE_OT_Squishy_Volumes_Bake_Pause.bl_idname,
             icon="CANCEL",

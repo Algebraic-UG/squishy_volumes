@@ -20,8 +20,8 @@ import bpy
 import time
 import timeit
 
-from .bridge import computing
-from .util import get_simulation_by_uuid
+from .bridge import Simulation
+from .properties.squishy_volumes_scene import get_simulation_by_uuid
 
 
 class SCENE_OT_Squishy_Volumes_Wait_Until_Finished(bpy.types.Operator):
@@ -35,12 +35,14 @@ This is only useful for scripting."""
     simulation_uuid: bpy.props.StringProperty(name="Simulation UUID")  # type: ignore
     timeout_sec: bpy.props.FloatProperty(name="Timeout", min=0.0)  # type: ignore
 
-    def execute(self, _context):
+    def execute(self, context):
         start = timeit.timeit()
 
-        simulation = get_simulation_by_uuid(self.simulation_uuid)
+        simulation = get_simulation_by_uuid(context.scene, self.simulation_uuid)
+        sim = Simulation.get(uuid=self.simulation_uuid)
+        assert isinstance(sim, Simulation)
 
-        while computing(simulation):
+        while sim.computing():
             if (timeit.timeit() - start) > self.timeout_sec:
                 raise RuntimeError("Timed out")
             time.sleep(0.01)

@@ -12,16 +12,12 @@ use std::{
 };
 
 use crate::{
-    api::{GlobalSettings, Mesh, ObjectSettingsSolid},
+    elastic::{lambda_stable_neo_hookean, mu_stable_neo_hookean, try_elastic_energy_neo_hookean},
+    error_messages::SAMPLING_FAILED,
+    profile,
     report::Report,
-    simulation::{
-        elastic::{
-            lambda_stable_neo_hookean, mu_stable_neo_hookean, try_elastic_energy_neo_hookean,
-        },
-        error_messages::SAMPLING_FAILED,
-        particles::ParticleParameters,
-        state::profile,
-    },
+    setup::{GlobalSettings, Mesh, ObjectSettingsSolid},
+    simulation::particles::ParticleParameters,
 };
 use anyhow::{Result, ensure};
 use nalgebra::{Matrix3, Vector3};

@@ -12,9 +12,11 @@ mod consts;
 pub mod flat;
 pub mod safe_inverse;
 mod typedefs;
+mod velocity_gradient;
 
 pub use aabb::Aabb;
 
 pub use basis_from_direction::*;
 pub use consts::*;
 pub use typedefs::*;
+pub use velocity_gradient::*;

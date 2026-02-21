@@ -12,7 +12,7 @@ use std::{
 };
 
 use crate::{
-    api::{GlobalSettings, Mesh, ObjectSettingsCollider, ScriptedFrame, SurfaceSample},
+    setup::{GlobalSettings, Mesh, ObjectSettingsCollider, ScriptedFrame, SurfaceSample},
     math::NORMALIZATION_EPS,
     report::Report,
 };

@@ -18,22 +18,26 @@
 
 import bpy
 
-from .squishy_volumes_collection import Squishy_Volumes_Collection
 from .squishy_volumes_object import Squishy_Volumes_Object
-from .squishy_volumes_object_settings import Squishy_Volumes_Object_Settings
-from .squishy_volumes_scene import Squishy_Volumes_Scene
+from .squishy_volumes_scene import (
+    Squishy_Volumes_Scene,
+    unsubscribe_from_selection,
+    subscribe_to_selection,
+)
 from .squishy_volumes_simulation import Squishy_Volumes_Simulation
-from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Settings
-from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
+from .squishy_volumes_object_input_settings import (
+    Squishy_Volumes_Object_Input_Settings,
+)
+from .squishy_volumes_object_output_settings import (
+    Squishy_Volumes_Object_Output_Settings,
+)
 
 
 classes = [
-    Squishy_Volumes_Simulation_Settings,
     Squishy_Volumes_Simulation,
     Squishy_Volumes_Scene,
-    Squishy_Volumes_Collection,
-    Squishy_Volumes_Object_Settings,
-    Squishy_Volumes_Optional_Attributes,
+    Squishy_Volumes_Object_Input_Settings,
+    Squishy_Volumes_Object_Output_Settings,
     Squishy_Volumes_Object,
 ]
 
@@ -41,23 +45,21 @@ classes = [
 def register_properties():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(
+    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Object
     )
-    bpy.types.Collection.squishy_volumes_collection = bpy.props.PointerProperty(
-        type=Squishy_Volumes_Collection
-    )
-    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(
+    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Scene
     )
+    subscribe_to_selection()
 
     print("Squishy Volumes properties registered.")
 
 
 def unregister_properties():
-    del bpy.types.Scene.squishy_volumes_scene
-    del bpy.types.Collection.squishy_volumes_collection
-    del bpy.types.Object.squishy_volumes_object
+    unsubscribe_from_selection()
+    del bpy.types.Scene.squishy_volumes_scene  # ty:ignore[unresolved-attribute]
+    del bpy.types.Object.squishy_volumes_object  # ty:ignore[unresolved-attribute]
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
     print("Squishy Volumes properties unregistered.")

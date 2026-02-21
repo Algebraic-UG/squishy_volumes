@@ -22,7 +22,6 @@ import tomllib
 
 import bpy
 
-from .skin_utils import register_skin_utils, unregister_skin_utils
 from .properties import register_properties, unregister_properties
 from .progress_update import (
     register_progress_update,
@@ -30,11 +29,10 @@ from .progress_update import (
     unregister_progress_update,
     unregister_progress_update_toggle,
 )
-from .bridge import cleanup_native, build_info
-from .frame_change import register_frame_handler, unregister_frame_handler
+from .bridge import Simulation, build_info
+from .frame_change import register_handler, unregister_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
-from .couple_utils import register_couple_utils, unregister_couple_utils
 from .view_utils import register_view_utils, unregister_view_utils
 from .script_utils import register_script_utils, unregister_script_utils
 
@@ -80,11 +78,9 @@ def register():
     register_blend_file_change_handler()
     register_properties()
     register_panels()
-    register_frame_handler()
+    register_handler()
     register_progress_update()
     register_progress_update_toggle()
-    register_skin_utils()
-    register_couple_utils()
     register_view_utils()
     register_script_utils()
 
@@ -92,16 +88,14 @@ def register():
 def unregister():
     unregister_script_utils()
     unregister_view_utils()
-    unregister_couple_utils()
-    unregister_skin_utils()
     unregister_progress_update_toggle()
     unregister_progress_update()
-    unregister_frame_handler()
+    unregister_handler()
     unregister_panels()
     unregister_properties()
     unregister_blend_file_change_handler()
     unregister_popup()
-    cleanup_native()
+    Simulation.drop_all()
 
 
 if __name__ == "__main__":

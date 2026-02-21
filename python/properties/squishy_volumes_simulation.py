@@ -21,10 +21,7 @@ import re
 import tempfile
 import bpy
 
-from ..bridge import drop_context
-from ..progress_update import cleanup_markers
-
-from .squishy_volumes_simulation_settings import Squishy_Volumes_Simulation_Settings
+from ..bridge import Simulation
 
 
 def duplicate_simulation_name(simulation):
@@ -38,11 +35,11 @@ def duplicate_simulation_name(simulation):
     )
 
 
-def duplicate_simulation_cache_directory(simulation):
+def duplicate_simulation_directory(simulation):
     simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
-            simulation.cache_directory == other.cache_directory
+            simulation.directory == other.directory
             for other in simulations
             if other.uuid != simulation.uuid
         ]
@@ -63,28 +60,23 @@ def update_name(self, context):
         self.name = make_unique(
             self.name, [s.name for s in context.scene.squishy_volumes_scene.simulations]
         )
+
+
+def update_directory(self, context):
+    if self.directory != str(Path(self.directory)):
+        self.directory = str(Path(self.directory))
         return  # we'll re-enter anyway
 
-    cleanup_markers(self)
-
-
-def update_cache_directory(self, context):
-    if self.cache_directory != str(Path(self.cache_directory)):
-        self.cache_directory = str(Path(self.cache_directory))
-        return  # we'll re-enter anyway
-
-    if duplicate_simulation_cache_directory(self):
-        self.cache_directory = make_unique(
-            self.cache_directory,
-            [
-                s.cache_directory
-                for s in context.scene.squishy_volumes_scene.simulations
-            ],
+    if duplicate_simulation_directory(self):
+        self.directory = make_unique(
+            self.directory,
+            [s.directory for s in context.scene.squishy_volumes_scene.simulations],
         )
         return  # we'll re-enter anyway
 
-    cleanup_markers(self)
-    drop_context(self)
+    sim = Simulation.get(uuid=self.uuid)
+    if sim is not None:
+        sim.drop()
 
 
 class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
@@ -111,7 +103,7 @@ class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    cache_directory: bpy.props.StringProperty(
+    directory: bpy.props.StringProperty(
         name="Cache",
         description="""Directory that holds the relevant simulation data.
 This includes settings, meshes, animations and simulated frames.
@@ -122,7 +114,7 @@ The latter being a temporary file indicating ownership.""",
         default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
         subtype="DIR_PATH",
         options=set(),
-        update=update_cache_directory,
+        update=update_directory,
     )  # type: ignore
 
     sync: bpy.props.BoolProperty(
@@ -152,19 +144,71 @@ Changes have *no effect* on *already running* bakes.""",
     )  # type: ignore
 
     # ----------------------------------------------------------------
-    # from_cache is read-only but can be overwritten with to_cache
+    # These are constant
     # ----------------------------------------------------------------
-    from_cache: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Simulation_Settings,
-        name="From Cache",
-        description="The currently active set of settings (readonly).",
-        options=set(),
+    grid_node_size: bpy.props.FloatProperty(
+        name="Grid Node Size",
+        description="""The major discrete space resolution of the simulation.
+Can be tricky to get right: Lower values grant higher fidelity
+in the simulation but impacts performance and stability.
+
+Overwrite the cache to manifest changes.""",
+        default=0.5,
+        min=0.001,
+        precision=5,
+        options=set(),  # can't be animated
     )  # type: ignore
-    to_cache: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Simulation_Settings,
-        name="To Cache",
-        description="The modifiable set of settings.",
-        options=set(),
+    frames_per_second: bpy.props.IntProperty(
+        name="Frames per Second",
+        description="""Controls how many simulation steps end up as viewable frames per simulated second.
+If blender's native FPS differs from this setting you'll get 'artifical' speedup or slowdown.
+
+For example:
+Given that blender's native FPS is set to 24 (default),
+to achieve a 4x 'slowmotion' effect, you need to set this to 96.
+
+Note that this also effects the interpretation of captured animations from input objects.
+
+Overwrite the cache to manifest changes.""",
+        default=24,
+        min=1,
+        options=set(),  # can't be animated
+    )  # type: ignore
+    simulation_scale: bpy.props.FloatProperty(
+        name="Simulation Scale",
+        description="""Use this to simulate things as if they were bigger or smaller.
+
+For example, if your scene is 10 meters long but should behave as if it were 10 centimeters,
+you can set this to 100.""",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        precision=6,
+        options=set(),  # can't be animated
+    )  # type: ignore
+    domain_min: bpy.props.FloatVectorProperty(
+        name="Domain Min",
+        description="""The min corner of the domain AABB.
+Particles that fall below this are deactivated.""",
+        default=(-100.0, -100.0, -100.0),
+        options=set(),  # can't be animated
+    )  # type: ignore
+    domain_max: bpy.props.FloatVectorProperty(
+        name="Domain Max",
+        description="""The max corner of the domain AABB
+Particles that rise above this are deactivated.""",
+        default=(100.0, 100.0, 100.0),
+        options=set(),  # can't be animated
+    )  # type: ignore
+
+    # ----------------------------------------------------------------
+    # These can be animated over time
+    # ----------------------------------------------------------------
+    gravity: bpy.props.FloatVectorProperty(
+        name="Gravity",
+        description="It is currently the only volumetric force and it is constant.",
+        default=(0.0, 0.0, -9.8),
+        options={"ANIMATABLE"},
     )  # type: ignore
 
     # ----------------------------------------------------------------
@@ -236,6 +280,7 @@ the automatic one.""",
         default=True,
         options=set(),
     )  # type: ignore
+    has_loaded_frame: bpy.props.BoolProperty(default=False)  # type: ignore
     loaded_frame: bpy.props.IntProperty(
         name="Loaded Simulation Frame",
         description="""The index of the currently displayed simulation frame.

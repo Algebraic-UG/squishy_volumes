@@ -16,56 +16,65 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 import bpy
 
-from ..magic_consts import OUTPUT_TYPES
+from .squishy_volumes_object_input_settings import (
+    Squishy_Volumes_Object_Input_Settings,
+)
+from .squishy_volumes_object_output_settings import (
+    Squishy_Volumes_Object_Output_Settings,
+)
 
-from .squishy_volumes_object_attributes import Squishy_Volumes_Optional_Attributes
-from .squishy_volumes_object_settings import Squishy_Volumes_Object_Settings
+IO_NONE = "None"
+IO_INPUT = "Input"
+IO_OUTPUT = "Output"
+
+
+def get_input_objects(simulation):
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.squishy_volumes_object.io == IO_INPUT  # ty:ignore[unresolved-attribute]
+        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
+    ]
+
+
+def get_output_objects(simulation):
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.squishy_volumes_object.io == IO_OUTPUT  # ty:ignore[unresolved-attribute]
+        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
+    ]
 
 
 class Squishy_Volumes_Object(bpy.types.PropertyGroup):
-    simulation_specific_settings: bpy.props.CollectionProperty(
-        type=Squishy_Volumes_Object_Settings,
-        name="Settings per Simulation",
-        description="For each simulation an input can have different meanings.",
-        options=set(),
-    )  # type: ignore
-    input_name: bpy.props.StringProperty(
-        name="Original Input Name",
-        description="Referenced for retrieving outputs.",
-        options=set(),
-    )  # type: ignore
     simulation_uuid: bpy.props.StringProperty(
         name="Simulation UUID",
-        description="The UUID of the simulation driving this",
-        options=set(),
-    )  # type: ignore
-    output_type: bpy.props.StringProperty(
-        name="Output Type",
-        description=f"""Depending on this, different outputs are synchronizable.
-Has to be one of:
-{", ".join(OUTPUT_TYPES)}""",
-        options=set(),
-    )  # type: ignore
-    optional_attributes: bpy.props.PointerProperty(
-        type=Squishy_Volumes_Optional_Attributes,
-        name="Optional Attributes",
-        description="Further customization of what outputs are synchronized.",
+        description="Reference to the Simulation.",
+        default="unassigned",
         options=set(),
     )  # type: ignore
 
-    sync_once: bpy.props.BoolProperty(
-        name="Sync Once",
-        description="Instead of continously synchronizing, load only a specific frame.",
-        default=False,
+    io: bpy.props.EnumProperty(
+        items=[
+            (IO_NONE,) * 3,
+            (IO_INPUT,) * 3,
+            (IO_OUTPUT,) * 3,
+        ],  # ty:ignore[invalid-argument-type]
+        name="I/O",
+        description="""TODO""",
+        default=IO_NONE,
+        options=set(),
     )  # type: ignore
-    sync_once_frame: bpy.props.IntProperty(
-        name="Sync Once Frame",
-        description="""Simulation frame to synchronize on.
 
-Only used if 'Sync Once' is active.
-When the outputs of a simulation are synchronized on a different frame,
-this object is left untouched.""",
-        default=0,
+    input_settings: bpy.props.PointerProperty(
+        type=Squishy_Volumes_Object_Input_Settings,
+        options=set(),
+    )  # type: ignore
+
+    output_settings: bpy.props.PointerProperty(
+        type=Squishy_Volumes_Object_Output_Settings,
+        options=set(),
     )  # type: ignore

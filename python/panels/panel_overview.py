@@ -15,113 +15,87 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+import re
+
+import bpy
+
 
 import json
 import os
 import uuid
 from pathlib import Path
 
-import bpy
 
-from ..bridge import (
-    available_frames,
-    computing,
-    context_exists,
-    drop_context,
-    load_simulation,
-    stats,
-)
+from ..bridge import Simulation
 from ..frame_change import sync_simulation
 from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
+from ..properties.squishy_volumes_simulation import (
+    Squishy_Volumes_Simulation,
+    update_name,
+    update_directory,
+)
 from ..properties.util import (
+    add_fields_from,
+)
+from ..properties.squishy_volumes_scene import (
+    get_simulation_by_uuid,
+    get_selected_simulation,
+)
+from ..properties.squishy_volumes_object import (
     get_input_objects,
     get_output_objects,
-    get_selected_simulation,
-    add_fields_from,
+    IO_NONE,
 )
 from ..util import (
     force_ui_redraw,
-    get_simulation_by_uuid,
     get_simulation_idx_by_uuid,
-    simulation_cache_exists,
-    simulation_cache_locked,
-    tutorial_msg,
+    simulation_input_exists,
+    simulation_locked,
     locked_simulations,
     unloaded_simulations,
 )
 
 
-@add_fields_from(Squishy_Volumes_Simulation)
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
     bl_description = """Create a new Squishy Volumes simulation.
 
-There can be multiple simulations at once
-and they can share input geometries, but the physics
+There can be multiple simulations at once, but the physics
 are completely separate from each other."""
     bl_options = {"REGISTER", "UNDO"}
-
-    @classmethod
-    def poll(cls, context):
-        return (
-            not context.scene.squishy_volumes_scene.tutorial_active
-            or not context.scene.squishy_volumes_scene.simulations
-        )
 
     def execute(self, context):
         simulations = context.scene.squishy_volumes_scene.simulations
 
         new_simulation = simulations.add()
         new_simulation.uuid = str(uuid.uuid4())
-        new_simulation.name = self.name
-        new_simulation.cache_directory = self.cache_directory
-        new_simulation.max_giga_bytes_on_disk = self.max_giga_bytes_on_disk
+
+        update_name(new_simulation, context)
+        update_directory(new_simulation, context)
 
         force_ui_redraw()
         return {"FINISHED"}
-
-    def invoke(self, context, _):
-        if not context.scene.squishy_volumes_scene.tutorial_active:
-            return self.execute(context)
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, context):
-        self.layout.prop(self, "name")
-        self.layout.prop(self, "cache_directory")
-        self.layout.prop(self, "max_giga_bytes_on_disk")
-        tutorial_msg(
-            self.layout,
-            context,
-            """\
-            You're about to add a new simulation.
-
-            That means you are creating a *cache* directory
-            where all the inputs and outputs of
-            your simulation are stored!
-
-            You can leave everything as default for now
-            and press OK.""",
-        )
 
 
 class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_reload"
     bl_label = "Reload"
     bl_description = "Reloads the cache"
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(self.uuid)
-        simulation.last_exception = ""
-        simulation.loaded_frame = -1
-        load_simulation(simulation)
-        sync_simulation(simulation, context.scene.frame_current)
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
+        simulation.has_loaded_frame = False
+
+        sim = Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
+
+        sync_simulation(sim, simulation, context.scene.frame_current)
+
         self.report({"INFO"}, "Reloaded simulation.")
         return {"FINISHED"}
 
@@ -135,20 +109,20 @@ This is useful when reloading a Blender filer with multiple simulations."""
 
     def execute(self, context):
         for simulation in unloaded_simulations(context):
-            lock_file = Path(simulation.cache_directory) / "lock"
+            lock_file = Path(simulation.directory) / "lock"
             if os.path.exists(lock_file):
                 os.remove(lock_file)
                 self.report({"INFO"}, "Removed lock file.")
+            simulation.has_loaded_frame = False
 
-            simulation.last_exception = ""
-            simulation.loaded_frame = -1
-            load_simulation(simulation)
-            sync_simulation(simulation, context.scene.frame_current)
+            sim = Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
+
+            sync_simulation(sim, simulation, context.scene.frame_current)
             self.report({"INFO"}, "Reloaded simulation.")
 
         return {"FINISHED"}
 
-    def invoke(self, context, _event):
+    def invoke(self, context, event):
         if locked_simulations(context):
             return context.window_manager.invoke_props_dialog(self)
         else:
@@ -157,10 +131,10 @@ This is useful when reloading a Blender filer with multiple simulations."""
     def draw(self, context):
         locked = locked_simulations(context)
         if locked:
-            self.layout.label(text="WARNING: these caches contain lock files:")
+            self.layout.label(text="WARNING: these caches contain lock files:")  # ty:ignore[possibly-missing-attribute]
             for simulation in locked:
-                self.layout.label(text=f"{simulation.name}")
-            self.layout.label(text="Confirm to remove them.")
+                self.layout.label(text=f"{simulation.name}")  # ty:ignore[possibly-missing-attribute]
+            self.layout.label(text="Confirm to remove them.")  # ty:ignore[possibly-missing-attribute]
 
 
 class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
@@ -170,30 +144,28 @@ class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
 
 This does not clear the cache. If you want to delete (not overwrite) the cache,
 please use your OS's file browser."""
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(self.uuid)
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
         idx = get_simulation_idx_by_uuid(self.uuid)
-        selected_uuid = get_selected_simulation(context).uuid
+        selected_uuid = get_selected_simulation(context.scene).uuid
 
         for obj in get_input_objects(simulation):
-            all_settings = obj.squishy_volumes_object.simulation_specific_settings
-            all_settings.remove(
-                next(
-                    i
-                    for i, settings in enumerate(all_settings)
-                    if settings.simulation_uuid == simulation.uuid
-                )
-            )
+            obj.squishy_volumes_object.simulation_uuid = "unassigned"
+            obj.squishy_volumes_object.io = IO_NONE
         for obj in get_output_objects(simulation):
-            obj.squishy_volumes_object.simulation_uuid = ""
+            obj.squishy_volumes_object.simulation_uuid = "unassigned"
+            obj.squishy_volumes_object.io = IO_NONE
 
         update_drivers(idx)
         cleanup_markers(simulation)
-        drop_context(simulation)
+
+        sim = Simulation.get(uuid=simulation.uuid)
+        if sim is not None:
+            sim.drop()
 
         simulations = context.scene.squishy_volumes_scene.simulations
 
@@ -202,10 +174,11 @@ please use your OS's file browser."""
         # It's UB to continue using simulation
         simulations.remove(idx)
 
-        if simulations and self.uuid == selected_uuid:
-            context.scene.squishy_volumes_scene.selected_simulation = simulations[
-                0
-            ].uuid
+        if self.uuid == selected_uuid:
+            if simulations:
+                context.scene.squishy_volumes_scene.selected_simulation = simulations[
+                    0
+                ].uuid
             self.report({"INFO"}, "Updated simulation selection.")
 
         self.report({"INFO"}, "Removed simulation")
@@ -224,9 +197,9 @@ However, the lock file can remain after a crash, in which case it must be delete
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
-    def execute(self, _context):
-        simulation = get_simulation_by_uuid(self.uuid)
-        lock_file = Path(simulation.cache_directory) / "lock"
+    def execute(self, context):
+        simulation = get_simulation_by_uuid(context.scene, self.uuid)
+        lock_file = Path(simulation.directory) / "lock"
         if os.path.exists(lock_file):
             os.remove(lock_file)
             self.report({"INFO"}, "Removed lock file.")
@@ -241,8 +214,12 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
-    def execute(self, _context):
+    def execute(self, context):
         popup(self.uuid)
+        sim = Simulation.get(uuid=self.uuid)
+        assert sim is not None, f"No simulation context for {self.uuid}"
+        sim.last_error = ""
+
         return {"FINISHED"}
 
 
@@ -260,12 +237,13 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         layout = self.layout
 
         if len(unloaded_simulations(context)) > 1:
-            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
+            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)  # ty:ignore[possibly-missing-attribute]
         for simulation in context.scene.squishy_volumes_scene.simulations:
-            (header, body) = layout.panel(
-                simulation.uuid, default_closed=not simulation_cache_exists(simulation)
+            (header, body) = layout.panel(  # ty:ignore[possibly-missing-attribute]
+                simulation.uuid, default_closed=not simulation_input_exists(simulation)
             )
-            if simulation.last_exception:
+            sim = Simulation.get(uuid=simulation.uuid)
+            if sim is not None and sim.last_error != "":
                 col = header.column()
                 col.alert = True
                 col.label(text=f"{simulation.name}: Message")
@@ -275,16 +253,15 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
             else:
                 progress_text = f"{simulation.name}: "
                 factor = 0.0
-                if context_exists(simulation):
-                    if simulation.progress_json_string:
-                        progress = json.loads(simulation.progress_json_string)
-                        progress_text += progress["name"]
-                        completed_steps = progress["completed_steps"]
-                        steps_to_completion = progress["steps_to_completion"]
+                if sim is not None:
+                    if sim.progress:
+                        progress_text += sim.progress["name"]
+                        completed_steps = sim.progress["completed_steps"]
+                        steps_to_completion = sim.progress["steps_to_completion"]
                         progress_text += f" {completed_steps}/{steps_to_completion}"
                         factor = completed_steps / steps_to_completion
                     else:
-                        computed = available_frames(simulation)
+                        computed = sim.available_frames()
                         if computed == simulation.bake_frames:
                             progress_text += "Completed: "
                         else:
@@ -292,11 +269,9 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                         progress_text += f"{computed}/{simulation.bake_frames}"
                         factor = computed / simulation.bake_frames
                 else:
-                    if not context_exists(simulation) and simulation_cache_locked(
-                        simulation
-                    ):
+                    if simulation_locked(simulation):
                         progress_text += "Cache Locked!"
-                    elif simulation_cache_exists(simulation):
+                    elif simulation_input_exists(simulation):
                         progress_text += "Cache Unloaded"
                     else:
                         progress_text += "Uninitialized"
@@ -304,7 +279,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
             if body is not None:
                 body.prop(simulation, "name")
-                body.prop(simulation, "cache_directory")
+                body.prop(simulation, "directory")
 
                 col = body.column()
                 col.enabled = False
@@ -312,23 +287,16 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
                 col = body.column()
                 col.prop(simulation, "sync")
-                col.enabled = not computing(simulation)
                 col.prop(simulation, "max_giga_bytes_on_disk")
 
                 row = body.row()
-                if not context_exists(simulation) and simulation_cache_locked(
-                    simulation
-                ):
+                if sim is None and simulation_locked(simulation):
                     row.operator(
                         SCENE_OT_Squishy_Volumes_Remove_Lock_File.bl_idname,
                         icon="WARNING_LARGE",
                     ).uuid = simulation.uuid
-                elif simulation_cache_exists(simulation):
-                    tut = row.column()
-                    tut.enabled = (
-                        not context.scene.squishy_volumes_scene.tutorial_active
-                    )
-                    tut.operator(
+                elif sim is None and simulation_input_exists(simulation):
+                    row.operator(
                         SCENE_OT_Squishy_Volumes_Reload.bl_idname,
                         icon="FILE_CACHE",
                     ).uuid = simulation.uuid
@@ -337,12 +305,12 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     icon="TRASH",
                 ).uuid = simulation.uuid
 
-                if not context_exists(simulation):
+                if sim is None:
                     continue
-                json_stats = stats(simulation)
-                loaded_state = json_stats["loaded_state"]
-                compute = json_stats["compute"]
-                bytes_on_disk = json_stats["bytes_on_disk"]
+                stats = sim.stats()
+                loaded_state = stats["loaded_state"]
+                compute = stats["compute"]
+                bytes_on_disk = stats["bytes_on_disk"]
 
                 body.label(text="Misc. Stats")
                 box = body.box()
@@ -379,16 +347,11 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
 
-        tut = layout.column()
-        tut.alert = (
-            context.scene.squishy_volumes_scene.tutorial_active
-            and not context.scene.squishy_volumes_scene.simulations
-        )
-        tut.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
+        layout.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")  # ty:ignore[possibly-missing-attribute]
 
         if len(context.scene.squishy_volumes_scene.simulations) > 1:
-            layout.separator()
-            layout.prop(
+            layout.separator()  # ty:ignore[possibly-missing-attribute]
+            layout.prop(  # ty:ignore[possibly-missing-attribute]
                 context.scene.squishy_volumes_scene,
                 "selected_simulation",
                 text="Select",

@@ -18,12 +18,10 @@ use tracing::info;
 
 use crate::{
     Report,
-    api::{GlobalSettings, Mesh, ObjectSettingsFluid},
-    simulation::{
-        error_messages::SAMPLING_FAILED,
-        particles::{ParticleParameters, Particles},
-        state::profile,
-    },
+    error_messages::SAMPLING_FAILED,
+    profile,
+    setup::{GlobalSettings, Mesh, ObjectSettingsFluid},
+    simulation::particles::{ParticleParameters, Particles},
 };
 
 use super::kinematic::Kinematic;

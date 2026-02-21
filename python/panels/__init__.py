@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .panel_tutorial import register_panel_tutorial, unregister_panel_tutorial
 from .panel_overview import register_panel_overview, unregister_panel_overview
 from .panel_input import register_panel_input, unregister_panel_input
 from .panel_bake import register_panel_bake, unregister_panel_bake
@@ -24,7 +23,6 @@ from .panel_output import register_panel_output, unregister_panel_output
 
 
 def register_panels():
-    register_panel_tutorial()
     register_panel_overview()
     register_panel_input()
     register_panel_bake()
@@ -37,5 +35,4 @@ def unregister_panels():
     unregister_panel_bake()
     unregister_panel_input()
     unregister_panel_overview()
-    unregister_panel_tutorial()
     print("Squishy Volumes panels unregistered.")

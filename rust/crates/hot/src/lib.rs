@@ -15,10 +15,9 @@ pub fn build_info() -> BuildInfo {
     _build_info().clone()
 }
 
-pub use squishy_volumes_api::{ComputeSettings, Context, Simulation, Task};
 use squishy_volumes_core::ContextImpl;
 
 #[unsafe(no_mangle)]
-pub fn create_context() -> Box<dyn Context> {
+pub fn create_context() -> Box<dyn squishy_volumes_api::Context> {
     Box::new(ContextImpl::default())
 }

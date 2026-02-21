@@ -23,6 +23,7 @@ serde.workspace = true
 serde_json.workspace = true
 build-info.workspace = true
 
+squishy_volumes_api.path = "../api"
 squishy_volumes_hot.path = "../hot"
 
 [dependencies.pyo3]
