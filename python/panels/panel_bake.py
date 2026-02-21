@@ -232,8 +232,8 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
             icon="CANCEL",
         )
 
-        if simulation.progress_json_string:
-            recursive_progress(self.layout, json.loads(simulation.progress_json_string))
+        if sim.progress is not None:
+            recursive_progress(self.layout, sim.progress)
 
 
 classes = [
