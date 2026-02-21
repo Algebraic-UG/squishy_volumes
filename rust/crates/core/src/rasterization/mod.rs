@@ -48,9 +48,12 @@ pub fn rasterize<'a>(
     let bc = b.position - c.position;
     let ca = c.position - a.position;
 
-    let Some(normal) = (-ab).cross(&ca).try_normalize(NORMALIZATION_EPS) else {
+    let normal_area_2 = (-ab).cross(&ca);
+    let area_2 = normal_area_2.norm();
+    if area_2 < NORMALIZATION_EPS {
         return empty().iter_enum_2a();
-    };
+    }
+    let normal = normal_area_2 / area_2;
 
     let mix_normal = |other: Vector3<T>| {
         other
@@ -66,9 +69,16 @@ pub fn rasterize<'a>(
         .filter_map(
             move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, Rasterized)> {
                 let p = grid_node.map(|c| c as T * spacing);
-                let sa = (p - b.position).dot(&normal.cross(&ab)) < 0.;
-                let sb = (p - c.position).dot(&normal.cross(&bc)) < 0.;
-                let sc = (p - a.position).dot(&normal.cross(&ca)) < 0.;
+
+                let bary_a = (p - b.position).dot(&normal.cross(&ab)) / area_2;
+                let bary_b = (p - c.position).dot(&normal.cross(&bc)) / area_2;
+                let bary_c = (p - a.position).dot(&normal.cross(&ca)) / area_2;
+
+                let velocity = *a.velocity; // * bary_a + b.velocity * bary_b + c.velocity * bary_c;
+
+                let sa = bary_a < 0.;
+                let sb = bary_b < 0.;
+                let sc = bary_c < 0.;
 
                 if (sa && sb && sc) || (!sa && !sb && !sc) {
                     let distance = (p - a.position).dot(&normal);
@@ -77,8 +87,7 @@ pub fn rasterize<'a>(
                             distance,
                             normal,
 
-                            //TODO
-                            velocity: Vector3::zeros(),
+                            velocity,
                             friction,
                             stickyness,
                         },
@@ -131,8 +140,7 @@ pub fn rasterize<'a>(
                                     .map(|n| n * sign)
                                     .unwrap_or(**element_normal),
 
-                                //TODO
-                                velocity: Vector3::zeros(),
+                                velocity,
                                 friction,
                                 stickyness,
                             }));
