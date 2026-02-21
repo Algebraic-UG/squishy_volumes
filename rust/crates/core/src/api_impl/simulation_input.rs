@@ -6,7 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs::remove_file,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result, bail, ensure};
 use bitflags::bitflags;
@@ -14,9 +17,10 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::{InputBulk, SimulationInput, T};
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::{
+    api_impl::simulation_input,
     directory_lock::DirectoryLock,
     input_file::{
         ColliderInput, InputFrame, InputHeader, InputObject, InputWriter, ParticlesInput,
@@ -110,6 +114,13 @@ impl SimulationInputImpl {
             max_bytes_on_disk,
             current_frame: None,
         })
+    }
+
+    pub fn clean_up(self) {
+        drop(self.input_writer);
+        if let Err(e) = remove_file(simulation_input_path(self.directory_lock.directory())) {
+            error!("failed to clean up input file: {e:?}");
+        }
     }
 }
 
