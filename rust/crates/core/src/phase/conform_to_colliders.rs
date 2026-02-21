@@ -14,7 +14,7 @@ use crate::{phase::PhaseInput, profile, state::State};
 impl State {
     // Conform the collider's grids to their scripted velocity,
     // taking stickiness and friction into account.
-    pub fn conform_to_colliders(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
+    pub fn conform_to_colliders(mut self, _phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("conform_to_colliders");
 
         for (collider_idx, grid_momentum) in self.grid_collider_momentums.iter_mut().enumerate() {
@@ -40,8 +40,7 @@ impl State {
                     // TODO: stickyness
                     if normal_part < 0. {
                         let tangent_velocity_applied_friction =
-                            (1. + normal_part * phase_input.time_step * info.friction).max(0.)
-                                * tangent_velocity;
+                            (1. + normal_part * info.friction).max(0.) * tangent_velocity;
                         *velocity = info.velocity + tangent_velocity_applied_friction;
                     }
                 });
