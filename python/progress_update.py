@@ -47,6 +47,9 @@ def update_progress():
         if sim is None:
             continue
 
+        if sim.last_error is not None:
+            continue
+
         progess = sim.progress
 
         def poll_and_true():
@@ -54,7 +57,6 @@ def update_progress():
             return True
 
         if not with_popup(uuid=simulation.uuid, f=poll_and_true):
-            sim.drop()
             continue
 
         if progess != sim.progress:
