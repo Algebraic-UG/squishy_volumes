@@ -223,6 +223,8 @@ Note that this also discards all computed frames in the cache."""
     blocking: bpy.props.BoolProperty(default=False)  # type: ignore
 
     def execute(self, context):
+        bpy.ops.screen.animation_cancel()
+
         simulation = get_selected_simulation(context.scene)
         simulation.has_loaded_frame = False
 
