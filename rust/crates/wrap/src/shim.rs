@@ -14,6 +14,6 @@ use pyo3::prelude::*;
 /// the `lib.name` setting in the `Cargo.toml`, else Python will not be able to
 /// import the module.
 #[pymodule]
-pub fn squishy_volumes_wrap_0_1_21(m: &Bound<'_, PyModule>) -> PyResult<()> {
+pub fn squishy_volumes_wrap_0_2_0(m: &Bound<'_, PyModule>) -> PyResult<()> {
     super::squishy_volumes_wrap(m)
 }
