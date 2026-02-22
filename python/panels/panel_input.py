@@ -20,6 +20,7 @@ import bpy
 
 from typing import Any
 
+from ..preferences import get_confirm_bake_overwrite
 from ..nodes.drivers import add_drivers
 
 from ..properties.util import add_fields_from
@@ -281,7 +282,7 @@ Note that this also discards all computed frames in the cache."""
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
-        if simulation_input_exists(simulation):
+        if simulation_input_exists(simulation) and get_confirm_bake_overwrite():
             return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
         else:
             return self.execute(context)
