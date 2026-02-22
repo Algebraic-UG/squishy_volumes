@@ -124,6 +124,8 @@ each frame."""
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
+    called_from_script: bpy.props.BoolProperty(default=False)  # type: ignore
+
     particle_outputs: bpy.props.CollectionProperty(
         type=Squishy_Volumes_New_Output_Object
     )  # type: ignore
@@ -180,6 +182,12 @@ each frame."""
             create_output_obj(output_name="Grid Momentum - Output", input_name=None)
 
         if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
+            if self.called_from_script:
+                create_output_obj(
+                    output_name=self.input_name + "- Output",  # ty:ignore[unresolved-attribute]
+                    input_name=self.input_name,  # ty:ignore[unresolved-attribute]
+                )
+
             for output in self.particle_outputs:
                 if not output.select:
                     continue
