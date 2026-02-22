@@ -461,8 +461,6 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             body.prop(simulation, "grid_node_size")
             body.prop(simulation, "frames_per_second")
             body.prop(simulation, "simulation_scale")
-            body.prop(simulation, "domain_min")
-            body.prop(simulation, "domain_max")
 
         (header, body) = self.layout.panel("animatables", default_closed=True)
         header.label(text="Animatable Globals")

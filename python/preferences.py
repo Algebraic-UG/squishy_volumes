@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
+import mathutils
 
 
 class SquishyVolumesPreferences(bpy.types.AddonPreferences):
@@ -33,14 +34,43 @@ Disable this option to skip that popup.""",
         default=True,
     )  # type: ignore
 
+    domain_min: bpy.props.FloatVectorProperty(
+        name="Domain Min",
+        description="""The min corner of the domain AABB.
+Particles that fall below this are deactivated.""",
+        default=(-100.0, -100.0, -100.0),
+        options=set(),  # can't be animated
+    )  # type: ignore
+    domain_max: bpy.props.FloatVectorProperty(
+        name="Domain Max",
+        description="""The max corner of the domain AABB
+Particles that rise above this are deactivated.""",
+        default=(100.0, 100.0, 100.0),
+        options=set(),  # can't be animated
+    )  # type: ignore
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "confirm_bake_overwrite")
+        self.layout.prop(self, "domain_min")
+        self.layout.prop(self, "domain_max")
 
 
 def get_confirm_bake_overwrite() -> bool:
     return bpy.context.preferences.addons.get(  # ty:ignore[possibly-missing-attribute]
         __package__  # ty:ignore[invalid-argument-type]
     ).preferences.confirm_bake_overwrite
+
+
+def get_domain_min() -> mathutils.Vector:
+    return bpy.context.preferences.addons.get(  # ty:ignore[possibly-missing-attribute]
+        __package__  # ty:ignore[invalid-argument-type]
+    ).preferences.domain_min
+
+
+def get_domain_max() -> mathutils.Vector:
+    return bpy.context.preferences.addons.get(  # ty:ignore[possibly-missing-attribute]
+        __package__  # ty:ignore[invalid-argument-type]
+    ).preferences.domain_max
 
 
 def register_preferences():
