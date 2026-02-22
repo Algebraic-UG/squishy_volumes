@@ -65,7 +65,7 @@ from ..nodes import (
 class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
     def filter_items(self, context, data, property):
         return [
-            self.bitflag_filter_item if obj in context.selected_ids else 0
+            self.bitflag_filter_item if obj.select_get() else 0
             for obj in bpy.data.objects
         ], []
 
@@ -108,9 +108,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return any(
-            isinstance(obj, bpy.types.Object) for obj in bpy.context.selected_ids
-        )
+        return any(obj.select_get() for obj in bpy.data.objects)
 
     def execute(self, context):
         def can_add(obj: bpy.types.ID) -> bool:
@@ -124,10 +122,14 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
             return obj.squishy_volumes_object.input_settings.add_default_generation  # ty:ignore[unresolved-attribute]
 
         # only load the tree once
-        for obj in context.selected_ids:
-            if not can_add(obj) or not add_default_generation(obj):
+        for obj in bpy.data.objects:
+            if (
+                not obj.select_get()
+                or not can_add(obj)
+                or not add_default_generation(obj)
+            ):
                 continue
-            input_type = obj.squishy_volumes_object.input_settings.input_type
+            input_type = obj.squishy_volumes_object.input_settings.input_type  # ty:ignore[unresolved-attribute]
             if input_type == INPUT_TYPE_PARTICLES:
                 node_group_generate_particles = (
                     create_geometry_nodes_generate_particles()
@@ -135,8 +137,8 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
             if input_type == INPUT_TYPE_COLLIDER:
                 node_group_generate_collider = create_geometry_nodes_generate_collider()
 
-        for obj in context.selected_ids:
-            if not can_add(obj):
+        for obj in bpy.data.objects:
+            if not obj.select_get() or not can_add(obj):
                 continue
 
             simulation = get_selected_simulation(context.scene)
@@ -218,6 +220,7 @@ Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
+    blocking: bpy.props.BoolProperty(default=False)  # type: ignore
 
     def execute(self, context):
         simulation = get_selected_simulation(context.scene)
@@ -229,12 +232,13 @@ Note that this also discards all computed frames in the cache."""
         if sim is not None:
             sim.drop()
 
+        context.scene.frame_set(simulation.capture_start_frame)
+
         input_header = create_input_header(simulation)
 
         self.report({"INFO"}, f"Collected input header for {simulation.name}")
 
-        global SIMULATION_INPUT
-        SIMULATION_INPUT = SimulationInput.new(
+        simulation_input = SimulationInput.new(
             uuid=simulation.uuid,
             directory=simulation.directory,
             input_header=input_header,
@@ -243,7 +247,34 @@ Note that this also discards all computed frames in the cache."""
 
         self.report({"INFO"}, f"(Re)Created {simulation.name}")
 
-        bpy.ops.scene.squishy_volumes_write_input_to_cache_modal("INVOKE_DEFAULT")  # ty: ignore[unresolved-attribute]
+        if not self.blocking:
+            global SIMULATION_INPUT
+            SIMULATION_INPUT = simulation_input
+            bpy.ops.scene.squishy_volumes_write_input_to_cache_modal("INVOKE_DEFAULT")  # ty: ignore[unresolved-attribute]
+            return {"FINISHED"}
+
+        for i in range(simulation.capture_frames):
+            capture_input_frame(
+                simulation=simulation,
+                simulation_input=simulation_input,
+            )
+            if i + 1 < simulation.capture_frames:
+                context.scene.frame_set(context.scene.frame_current + 1)
+
+        sim = Simulation.new()
+        if simulation.immediately_start_baking:
+            sim.last_error = None
+            sim.start_compute(
+                time_step=simulation.time_step,
+                explicit=simulation.explicit,
+                debug_mode=simulation.debug_mode,
+                adaptive_time_steps=simulation.adaptive_time_steps,
+                next_frame=0,
+                number_of_frames=simulation.bake_frames,
+                max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
+            )
+            self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+
         return {"FINISHED"}
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
@@ -274,8 +305,6 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
 
     def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
         simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
-
-        context.scene.frame_set(simulation.capture_start_frame)  # ty:ignore[possibly-missing-attribute]
 
         self._timer = context.window_manager.event_timer_add(  # ty:ignore[possibly-missing-attribute]
             time_step=0, window=context.window
