@@ -74,19 +74,13 @@ if __name__ == "__main__":
 
     test_factory_clean()
 
-    bpy.context.preferences.system.use_online_access = True
+    bpy.context.preferences.system.use_online_access = True  # ty:ignore[possibly-missing-attribute]
 
     test_install(URL)
 
-    bpy.ops.scene.squishy_volumes_add_simulation(cache_directory=test_dir)
-    simulation_uuid = bpy.context.scene.squishy_volumes_scene.simulations[0].uuid
-
-    default_cube = bpy.data.objects["Cube"]
-    default_cube.hide_render = True
-
-    default_cube.select_set(True)
-    bpy.context.view_layer.objects.active = default_cube
-    bpy.ops.object.squishy_volumes_add_input_object(object_type="Solid")
+    bpy.ops.scene.squishy_volumes_add_simulation()  # ty:ignore[unresolved-attribute]
+    simulation = bpy.context.scene.squishy_volumes_scene.simulations[0]  # ty:ignore[unresolved-attribute]
+    simulation.directory = test_dir
 
     bpy.ops.mesh.primitive_uv_sphere_add(
         radius=1,
@@ -95,9 +89,6 @@ if __name__ == "__main__":
         location=(0, 0, 3),
         scale=(1, 1, 1),
     )
-    bpy.ops.object.squishy_volumes_add_input_object(object_type="Fluid")
-    bpy.context.active_object.hide_render = True
-
     bpy.ops.mesh.primitive_plane_add(
         size=6,
         enter_editmode=False,
@@ -105,42 +96,61 @@ if __name__ == "__main__":
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    bpy.ops.object.squishy_volumes_add_input_object(object_type="Collider")
 
-    bpy.ops.scene.squishy_volumes_write_input_to_cache()
+    cube = bpy.data.objects["Cube"]
+    sphere = bpy.data.objects["Sphere"]
+    plane = bpy.data.objects["Plane"]
 
-    bpy.ops.scene.squishy_volumes_wait_until_finished(
-        simulation_uuid=simulation_uuid, timeout_sec=10
+    cube.hide_render = True
+    sphere.hide_render = True
+
+    plane.squishy_volumes_object.input_settings.input_type = "Collider"  # ty:ignore[unresolved-attribute]
+
+    cube.select_set(True)
+    sphere.select_set(True)
+    plane.select_set(True)
+
+    bpy.ops.scene.squishy_volumes_add_input_objects()  # ty:ignore[unresolved-attribute]
+
+    sphere.modifiers["Squishy Volumes Input"]["Socket_8"] = 3
+    sphere.modifiers["Squishy Volumes Input"].node_group.interface_update(bpy.context)
+
+    bpy.ops.scene.squishy_volumes_write_input_to_cache(blocking=True)  # ty:ignore[unresolved-attribute]
+
+    bpy.ops.scene.squishy_volumes_wait_until_finished(  # ty:ignore[unresolved-attribute]
+        simulation_uuid=simulation.uuid, timeout_sec=10
     )
 
-    bpy.ops.scene.squishy_volumes_add_output_object(
-        object_name="SOLID_PARTICLES - Cube",
-        output_type="SOLID_PARTICLES",
+    bpy.ops.scene.squishy_volumes_add_output_objects(  # ty:ignore[unresolved-attribute]
+        uuid=simulation.uuid,
         input_name="Cube",
-        num_colliders=1,
+        called_from_script=True,
     )
-    bpy.ops.scene.squishy_volumes_add_output_object(
-        object_name="FLUID_PARTICLES - Sphere",
-        output_type="FLUID_PARTICLES",
+    bpy.ops.scene.squishy_volumes_add_output_objects(  # ty:ignore[unresolved-attribute]
+        uuid=simulation.uuid,
         input_name="Sphere",
-        num_colliders=1,
+        called_from_script=True,
     )
 
-    bpy.context.scene.frame_end = 100
-    bpy.context.scene.render.resolution_percentage = 20
+    bpy.ops.scene.squishy_volumes_add_output_objects(  # ty:ignore[unresolved-attribute]
+        uuid=simulation.uuid, output_type="PARTICLES"
+    )
 
-    bpy.context.scene.render.filepath = test_dir
+    bpy.context.scene.frame_end = 100  # ty:ignore[invalid-assignment]
+    bpy.context.scene.render.resolution_percentage = 20  # ty:ignore[possibly-missing-attribute]
+
+    bpy.context.scene.render.filepath = test_dir  # ty:ignore[possibly-missing-attribute]
     if bpy.app.version >= (5, 0, 0):
-        bpy.context.scene.render.image_settings.media_type = "VIDEO"
+        bpy.context.scene.render.image_settings.media_type = "VIDEO"  # ty:ignore[possibly-missing-attribute]
     else:
-        bpy.context.scene.render.image_settings.file_format = "FFMPEG"
-    bpy.context.scene.render.ffmpeg.format = "MPEG4"
-    bpy.context.scene.render.ffmpeg.codec = "H264"
-    bpy.context.scene.render.ffmpeg.constant_rate_factor = "MEDIUM"
-    bpy.context.scene.render.ffmpeg.ffmpeg_preset = "GOOD"
-    bpy.context.scene.render.ffmpeg.gopsize = 250
-    bpy.context.scene.render.ffmpeg.use_max_b_frames = True
-    bpy.context.scene.render.ffmpeg.max_b_frames = 2
+        bpy.context.scene.render.image_settings.file_format = "FFMPEG"  # ty:ignore[possibly-missing-attribute]
+    bpy.context.scene.render.ffmpeg.format = "MPEG4"  # ty:ignore[possibly-missing-attribute, invalid-assignment]
+    bpy.context.scene.render.ffmpeg.codec = "H264"  # ty:ignore[possibly-missing-attribute, invalid-assignment]
+    bpy.context.scene.render.ffmpeg.constant_rate_factor = "MEDIUM"  # ty:ignore[possibly-missing-attribute, invalid-assignment]
+    bpy.context.scene.render.ffmpeg.ffmpeg_preset = "GOOD"  # ty:ignore[possibly-missing-attribute, invalid-assignment]
+    bpy.context.scene.render.ffmpeg.gopsize = 250  # ty:ignore[possibly-missing-attribute, invalid-assignment]
+    bpy.context.scene.render.ffmpeg.use_max_b_frames = True  # ty:ignore[possibly-missing-attribute, invalid-assignment]
+    bpy.context.scene.render.ffmpeg.max_b_frames = 2  # ty:ignore[possibly-missing-attribute, invalid-assignment]
 
     bpy.ops.render.render(animation=True)
 
