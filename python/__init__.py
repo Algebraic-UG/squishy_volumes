@@ -40,7 +40,6 @@ from .script_utils import register_script_utils, unregister_script_utils
 
 bl_info = {
     "name": "Squishy Volumes",
-    "blender": (4, 2, 0),
     "category": "Physics",
 }
 
