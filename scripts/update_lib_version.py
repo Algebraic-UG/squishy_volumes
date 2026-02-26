@@ -12,10 +12,14 @@ rust_shim_path = wrap_dir / "src" / "shim.rs"
 with cargo_toml_path.open("r") as f:
     cargo_toml = toml.load(f)
 version = cargo_toml["package"]["version"]
-major, minor, patch = version.split(".")
+version_and_addendum = version.split("-")
+major, minor, patch = version_and_addendum[0].split(".")
 
 name = "squishy_volumes_wrap"
 versioned_name = f"{name}_{major}_{minor}_{patch}"
+
+if len(version_and_addendum) > 1:
+    versioned_name = f"{versioned_name}_{version_and_addendum[1]}"
 
 with python_shim_path.open("w") as f:
     f.write(

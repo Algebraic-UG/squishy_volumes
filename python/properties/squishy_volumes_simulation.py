@@ -186,20 +186,6 @@ you can set this to 100.""",
         precision=6,
         options=set(),  # can't be animated
     )  # type: ignore
-    domain_min: bpy.props.FloatVectorProperty(
-        name="Domain Min",
-        description="""The min corner of the domain AABB.
-Particles that fall below this are deactivated.""",
-        default=(-100.0, -100.0, -100.0),
-        options=set(),  # can't be animated
-    )  # type: ignore
-    domain_max: bpy.props.FloatVectorProperty(
-        name="Domain Max",
-        description="""The max corner of the domain AABB
-Particles that rise above this are deactivated.""",
-        default=(100.0, 100.0, 100.0),
-        options=set(),  # can't be animated
-    )  # type: ignore
 
     # ----------------------------------------------------------------
     # These can be animated over time

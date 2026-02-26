@@ -22,6 +22,7 @@ import tomllib
 
 import bpy
 
+from .preferences import register_preferences, unregister_preferences
 from .properties import register_properties, unregister_properties
 from .progress_update import (
     register_progress_update,
@@ -39,7 +40,6 @@ from .script_utils import register_script_utils, unregister_script_utils
 
 bl_info = {
     "name": "Squishy Volumes",
-    "blender": (4, 2, 0),
     "category": "Physics",
 }
 
@@ -74,6 +74,7 @@ def register():
         )
     print(f"Squishy Volumes detailed build info: {json.dumps(build_info(), indent=4)}")
 
+    register_preferences()
     register_popup()
     register_blend_file_change_handler()
     register_properties()
@@ -95,6 +96,7 @@ def unregister():
     unregister_properties()
     unregister_blend_file_change_handler()
     unregister_popup()
+    unregister_preferences()
     Simulation.drop_all()
 
 
