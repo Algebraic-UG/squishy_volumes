@@ -9,7 +9,7 @@ classifiers = ["Private :: Do Not Upload"]
 dev = [
   "vendorize",
   "pip>=25.3",
-  "tree-clipper",
+  "tree-clipper==0.1.6",
 ]
 
 [project.optional-dependencies]
