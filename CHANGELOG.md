@@ -4,7 +4,6 @@
 
 > [!NOTE]
 > This is an *alpha* release.
-> Due to current limitations of Tree Clipper, it *only works for Blender 5.0.1*
 > Performance is not on-par with 0.1.21 for colliders and certain features are missing:
 > The simulation scale does nothing and skinning is not in yet.
 
