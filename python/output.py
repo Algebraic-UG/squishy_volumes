@@ -39,6 +39,7 @@ from .magic_consts import (
     GRID_MOMENTUM_CONFORMED,
     GRID_MOMENTUM_FREE,
     INPUT_MESH,
+    SQUISHY_VOLUMES_SIZE,
 )
 
 from .nodes import (
@@ -217,6 +218,13 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
                 ffa("Velocities"),
                 SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
+            )
+        if output_settings.particle_sizes:
+            add_attribute(
+                obj.data,
+                ffa("Sizes"),
+                SQUISHY_VOLUMES_SIZE,
+                "FLOAT",
             )
         if output_settings.particle_transformations:
             add_attribute(

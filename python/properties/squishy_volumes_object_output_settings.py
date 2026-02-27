@@ -32,6 +32,7 @@ from ..magic_consts import (
     SQUISHY_VOLUMES_INITIAL_VOLUME,
     OUTPUT_TYPES,
     PARTICLES,
+    SQUISHY_VOLUMES_SIZE,
 )
 
 
@@ -48,6 +49,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.particle_initial_volumes = value
     optional_attributes.particle_initial_positions = value
     optional_attributes.particle_velocities = value
+    optional_attributes.particle_sizes = value
     optional_attributes.particle_transformations = value
     optional_attributes.particle_energies = value
     optional_attributes.particle_collider_insides = value
@@ -156,6 +158,13 @@ this object is left untouched.""",
     particle_velocities: bpy.props.BoolProperty(
         name="Velocites",
         description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
+        default=True,
+        options=set(),
+    )  # type: ignore
+
+    particle_sizes: bpy.props.BoolProperty(
+        name="Sizes",
+        description=f"Attribute name: {SQUISHY_VOLUMES_SIZE}",
         default=True,
         options=set(),
     )  # type: ignore

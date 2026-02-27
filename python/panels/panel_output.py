@@ -288,6 +288,8 @@ each frame."""
             grid.label(text="FLOAT_VECTOR")
             grid.prop(self, "particle_velocities")
             grid.label(text="FLOAT_VECTOR")
+            grid.prop(self, "particle_sizes")
+            grid.label(text="FLOAT")
             grid.prop(self, "particle_transformations")
             grid.label(text="FLOAT4X4")
             grid.prop(self, "particle_energies")
