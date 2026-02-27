@@ -156,6 +156,7 @@ Overwrite the cache to manifest changes.""",
         default=0.5,
         min=0.001,
         precision=5,
+        subtype="DISTANCE",
         options=set(),  # can't be animated
     )  # type: ignore
     frames_per_second: bpy.props.IntProperty(
@@ -192,9 +193,10 @@ you can set this to 100.""",
     # ----------------------------------------------------------------
     gravity: bpy.props.FloatVectorProperty(
         name="Gravity",
-        description="It is currently the only volumetric force and it is constant.",
+        description="Acts on all the particles and can be key-framed.",
         default=(0.0, 0.0, -9.8),
         options={"ANIMATABLE"},
+        subtype="VELOCITY",
     )  # type: ignore
 
     # ----------------------------------------------------------------
