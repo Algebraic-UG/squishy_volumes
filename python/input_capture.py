@@ -203,8 +203,5 @@ def capture_input_frame(
             record(
                 python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
             )
-            record(
-                python_name="squishy_volumes_sticky", rust_name="TriangleStickynesses"
-            )
 
     simulation_input.finish_frame()

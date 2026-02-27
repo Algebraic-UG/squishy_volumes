@@ -76,7 +76,6 @@ pub enum FrameBulkCollider {
     VertexPositions,
     Triangles,
     TriangleFrictions,
-    TriangleStickynesses,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -213,9 +212,6 @@ impl SimulationInput for SimulationInputImpl {
                     FrameBulkCollider::TriangleFrictions => {
                         cs.triangle_frictions = bulk.try_into()?
                     }
-                    FrameBulkCollider::TriangleStickynesses => {
-                        cs.triangle_stickynesses = bulk.try_into()?
-                    }
                 }
             }
         }
@@ -268,7 +264,6 @@ impl SimulationInput for SimulationInputImpl {
                 vertex_positions,
                 triangles,
                 triangle_frictions,
-                triangle_stickynesses,
             },
         ) in current_frame.collider_inputs.iter()
         {
@@ -286,7 +281,6 @@ impl SimulationInput for SimulationInputImpl {
             }));
             let n = triangles.len() / 3;
             ensure!(n == triangle_frictions.len());
-            ensure!(n == triangle_stickynesses.len());
         }
 
         self.input_writer.record_frame(current_frame)?;

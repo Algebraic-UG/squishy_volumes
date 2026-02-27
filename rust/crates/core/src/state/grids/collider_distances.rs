@@ -19,7 +19,6 @@ pub struct ColliderInfo {
     pub normal: Vector3<T>,
     pub velocity: Vector3<T>,
     pub friction: T,
-    pub stickyness: T,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]

@@ -36,7 +36,6 @@ pub struct ColliderInput {
     pub vertex_positions: Vec<f32>,
     pub triangles: Vec<i32>,
     pub triangle_frictions: Vec<f32>,
-    pub triangle_stickynesses: Vec<f32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]

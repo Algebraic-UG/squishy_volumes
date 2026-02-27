@@ -148,7 +148,6 @@ impl InterpolatedInput {
                         triangles,
                         edges_with_opposites,
                         triangle_frictions: input.triangle_frictions,
-                        triangle_stickynesses: input.triangle_stickynesses,
                     },
                 )
             })
@@ -179,7 +178,6 @@ pub struct InterpolatedInputCollider {
     pub vertex_velocities: Vec<Vector3<T>>,
     pub triangles: Vec<[u32; 3]>,
     pub triangle_frictions: Vec<T>,
-    pub triangle_stickynesses: Vec<T>,
     pub edges_with_opposites: FxHashMap<[u32; 2], [u32; 2]>,
 }
 

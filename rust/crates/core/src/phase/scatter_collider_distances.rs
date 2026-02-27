@@ -55,12 +55,7 @@ impl State {
                 normal: &input.vertex_normals[index],
             };
 
-            for ((&[a, b, c], friction), stickyness) in input
-                .triangles
-                .iter()
-                .zip(&input.triangle_frictions)
-                .zip(&input.triangle_stickynesses)
-            {
+            for (&[a, b, c], friction) in input.triangles.iter().zip(&input.triangle_frictions) {
                 let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
                 let pick_other = |a: u32| {
                     move |&[b, c]: &[u32; 2]| {
@@ -90,7 +85,6 @@ impl State {
                     ],
                     [opposite_d, opposite_e, opposite_f],
                     *friction,
-                    *stickyness,
                 ) {
                     match this_collider_distances.entry(grid_node) {
                         Entry::Occupied(mut occupied_entry) => {

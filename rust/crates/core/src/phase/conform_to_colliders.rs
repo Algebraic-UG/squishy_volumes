@@ -37,7 +37,6 @@ impl State {
                     let normal_velocity = normal * normal_part;
                     let tangent_velocity = relative_velocity - normal_velocity;
 
-                    // TODO: stickyness
                     if normal_part < 0. {
                         let tangent_velocity_applied_friction =
                             (1. + normal_part * info.friction).max(0.) * tangent_velocity;

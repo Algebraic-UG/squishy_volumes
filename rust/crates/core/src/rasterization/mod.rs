@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use iter_enumeration::{IntoIterEnum2, IntoIterEnum3 as _};
+use iter_enumeration::IntoIterEnum2;
 use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
@@ -42,7 +42,6 @@ pub fn rasterize<'a>(
     [a, b, c]: [RasterizationVertex<'a>; 3],
     [d, e, f]: [Option<&Vector3<T>>; 3],
     friction: T,
-    stickyness: T,
 ) -> impl Iterator<Item = (Vector3<i32>, Rasterized)> {
     let ab = a.position - b.position;
     let bc = b.position - c.position;
@@ -89,7 +88,6 @@ pub fn rasterize<'a>(
 
                             velocity,
                             friction,
-                            stickyness,
                         },
                     ))
                 } else {
@@ -142,7 +140,6 @@ pub fn rasterize<'a>(
 
                                 velocity,
                                 friction,
-                                stickyness,
                             }));
                         };
 
