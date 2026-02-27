@@ -1,6 +1,6 @@
 {
     "blender_version": "5.0.1",
-    "tree_clipper_version": "0.1.5",
+    "tree_clipper_version": "0.1.6",
     "node_trees": [
         {
             "id": 0,
@@ -3107,7 +3107,7 @@
                                                         "pin_gizmo": false,
                                                         "type": "MATERIAL",
                                                         "display_shape": "LINE",
-                                                        "default_value": 702
+                                                        "default_value": 719
                                                     }
                                                 }
                                             ]
@@ -7910,7 +7910,7 @@
                 "interface": {
                     "id": 524,
                     "data": {
-                        "active_index": 1,
+                        "active_index": 12,
                         "items_tree": {
                             "id": 525,
                             "data": {
@@ -8275,18 +8275,18 @@
                 "nodes": {
                     "id": 541,
                     "data": {
-                        "active": 559,
+                        "active": 653,
                         "items": [
                             {
                                 "id": 542,
                                 "data": {
                                     "location": [
-                                        300.0,
-                                        -300.0
+                                        380.0,
+                                        -360.0
                                     ],
                                     "location_absolute": [
-                                        300.0,
-                                        -300.0
+                                        380.0,
+                                        -360.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -8335,7 +8335,7 @@
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8351,7 +8351,7 @@
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8366,7 +8366,7 @@
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8381,7 +8381,7 @@
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8397,7 +8397,7 @@
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8413,7 +8413,7 @@
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8429,7 +8429,7 @@
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8445,7 +8445,7 @@
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8461,7 +8461,7 @@
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8477,7 +8477,7 @@
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8493,7 +8493,7 @@
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8525,7 +8525,7 @@
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -8547,11 +8547,11 @@
                                 "data": {
                                     "location": [
                                         260.0,
-                                        0.0
+                                        -40.0
                                     ],
                                     "location_absolute": [
                                         260.0,
-                                        0.0
+                                        -40.0
                                     ],
                                     "width": 250.0,
                                     "height": 100.0,
@@ -8763,12 +8763,12 @@
                                 "id": 573,
                                 "data": {
                                     "location": [
-                                        300.0,
-                                        -660.0
+                                        280.0,
+                                        -460.0
                                     ],
                                     "location_absolute": [
-                                        300.0,
-                                        -660.0
+                                        280.0,
+                                        -460.0
                                     ],
                                     "width": 250.0,
                                     "height": 100.0,
@@ -8863,11 +8863,11 @@
                                 "data": {
                                     "location": [
                                         600.0,
-                                        -380.0
+                                        -360.0
                                     ],
                                     "location_absolute": [
                                         600.0,
-                                        -380.0
+                                        -360.0
                                     ],
                                     "width": 250.0,
                                     "height": 100.0,
@@ -8975,12 +8975,12 @@
                                 "id": 586,
                                 "data": {
                                     "location": [
-                                        1500.0,
-                                        -400.0
+                                        1360.0,
+                                        -420.0
                                     ],
                                     "location_absolute": [
-                                        1500.0,
-                                        -400.0
+                                        1360.0,
+                                        -420.0
                                     ],
                                     "width": 250.0,
                                     "height": 100.0,
@@ -9132,12 +9132,12 @@
                                 "id": 596,
                                 "data": {
                                     "location": [
-                                        1040.0,
-                                        -220.0
+                                        960.0,
+                                        -320.0
                                     ],
                                     "location_absolute": [
-                                        1040.0,
-                                        -220.0
+                                        960.0,
+                                        -320.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -9208,12 +9208,12 @@
                                 "id": 601,
                                 "data": {
                                     "location": [
-                                        1900.0,
-                                        -280.0
+                                        1820.0,
+                                        -160.0
                                     ],
                                     "location_absolute": [
-                                        1900.0,
-                                        -280.0
+                                        1820.0,
+                                        -160.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -9384,12 +9384,12 @@
                                 "id": 614,
                                 "data": {
                                     "location": [
-                                        2100.0,
-                                        -280.0
+                                        2020.0,
+                                        -160.0
                                     ],
                                     "location_absolute": [
-                                        2100.0,
-                                        -280.0
+                                        2020.0,
+                                        -160.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -9460,12 +9460,12 @@
                                 "id": 619,
                                 "data": {
                                     "location": [
-                                        -80.0,
-                                        -20.0
+                                        0.0,
+                                        -140.0
                                     ],
                                     "location_absolute": [
-                                        -80.0,
-                                        -20.0
+                                        0.0,
+                                        -140.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -9514,7 +9514,7 @@
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9530,7 +9530,7 @@
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9608,7 +9608,7 @@
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9624,7 +9624,7 @@
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9640,7 +9640,7 @@
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9656,7 +9656,7 @@
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9672,7 +9672,7 @@
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9688,7 +9688,7 @@
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9704,7 +9704,7 @@
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9726,11 +9726,11 @@
                                 "data": {
                                     "location": [
                                         1160.0,
-                                        -380.0
+                                        -460.0
                                     ],
                                     "location_absolute": [
                                         1160.0,
-                                        -380.0
+                                        -460.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -9795,7 +9795,7 @@
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9810,7 +9810,7 @@
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9825,7 +9825,7 @@
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9841,7 +9841,7 @@
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9857,7 +9857,7 @@
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9937,7 +9937,7 @@
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9953,7 +9953,7 @@
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9969,7 +9969,7 @@
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -9990,12 +9990,12 @@
                                 "id": 653,
                                 "data": {
                                     "location": [
-                                        1040.0,
-                                        180.0
+                                        960.0,
+                                        -80.0
                                     ],
                                     "location_absolute": [
-                                        1040.0,
-                                        180.0
+                                        960.0,
+                                        -80.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -10029,7 +10029,7 @@
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10044,7 +10044,7 @@
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10060,7 +10060,7 @@
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10075,7 +10075,7 @@
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10090,7 +10090,7 @@
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10106,7 +10106,7 @@
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10122,7 +10122,7 @@
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10138,7 +10138,7 @@
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10154,7 +10154,7 @@
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10170,7 +10170,7 @@
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10186,7 +10186,7 @@
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10218,7 +10218,7 @@
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10234,7 +10234,7 @@
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 4095,
                                                         "show_expanded": false,
@@ -10255,12 +10255,12 @@
                                 "id": 670,
                                 "data": {
                                     "location": [
-                                        1220.0,
-                                        -100.0
+                                        1200.0,
+                                        -180.0
                                     ],
                                     "location_absolute": [
-                                        1220.0,
-                                        -100.0
+                                        1200.0,
+                                        -180.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -10358,6 +10358,271 @@
                                     "parent": null,
                                     "input_type": "GEOMETRY"
                                 }
+                            },
+                            {
+                                "id": 677,
+                                "data": {
+                                    "location": [
+                                        1580.0,
+                                        -120.0
+                                    ],
+                                    "location_absolute": [
+                                        1580.0,
+                                        -120.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Group Input.004",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 678,
+                                        "data": {
+                                            "items": []
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 679,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 680,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 681,
+                                                    "data": {
+                                                        "name": "Grid Node Size",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 0.25
+                                                    }
+                                                },
+                                                {
+                                                    "id": 682,
+                                                    "data": {
+                                                        "name": "Display as",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MENU",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 683,
+                                                    "data": {
+                                                        "name": "Coloring",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MENU",
+                                                        "display_shape": "CIRCLE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 684,
+                                                    "data": {
+                                                        "name": "Divide by 10^x",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 3.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 685,
+                                                    "data": {
+                                                        "name": "Collider Idx",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "INT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 686,
+                                                    "data": {
+                                                        "name": "Scale",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 1.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 687,
+                                                    "data": {
+                                                        "name": "Threshold",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 0.5
+                                                    }
+                                                },
+                                                {
+                                                    "id": 688,
+                                                    "data": {
+                                                        "name": "Material",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MATERIAL",
+                                                        "display_shape": "LINE",
+                                                        "default_value": null
+                                                    }
+                                                },
+                                                {
+                                                    "id": 689,
+                                                    "data": {
+                                                        "name": "Shade Smooth",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": true
+                                                    }
+                                                },
+                                                {
+                                                    "id": 690,
+                                                    "data": {
+                                                        "name": "Blur Iterations",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "INT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 1
+                                                    }
+                                                },
+                                                {
+                                                    "id": 691,
+                                                    "data": {
+                                                        "name": "Velocity",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "LINE",
+                                                        "default_value": false
+                                                    }
+                                                },
+                                                {
+                                                    "id": 692,
+                                                    "data": {
+                                                        "name": "Velocity Scale",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 1.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 693,
+                                                    "data": {
+                                                        "name": "",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "CUSTOM",
+                                                        "display_shape": "CIRCLE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "NodeGroupInput",
+                                    "parent": null
+                                }
                             }
                         ]
                     }
@@ -10365,11 +10630,11 @@
                 "bl_idname": "GeometryNodeTree",
                 "annotation": null,
                 "links": {
-                    "id": 677,
+                    "id": 694,
                     "data": {
                         "items": [
                             {
-                                "id": 678,
+                                "id": 695,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10378,7 +10643,7 @@
                                 }
                             },
                             {
-                                "id": 679,
+                                "id": 696,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10387,7 +10652,7 @@
                                 }
                             },
                             {
-                                "id": 680,
+                                "id": 697,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10396,7 +10661,7 @@
                                 }
                             },
                             {
-                                "id": 681,
+                                "id": 698,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10405,7 +10670,7 @@
                                 }
                             },
                             {
-                                "id": 682,
+                                "id": 699,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10415,7 +10680,7 @@
                                 }
                             },
                             {
-                                "id": 683,
+                                "id": 700,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10424,7 +10689,7 @@
                                 }
                             },
                             {
-                                "id": 684,
+                                "id": 701,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10433,7 +10698,7 @@
                                 }
                             },
                             {
-                                "id": 685,
+                                "id": 702,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10442,7 +10707,7 @@
                                 }
                             },
                             {
-                                "id": 686,
+                                "id": 703,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10452,7 +10717,7 @@
                                 }
                             },
                             {
-                                "id": 687,
+                                "id": 704,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10461,7 +10726,7 @@
                                 }
                             },
                             {
-                                "id": 688,
+                                "id": 705,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10470,7 +10735,7 @@
                                 }
                             },
                             {
-                                "id": 689,
+                                "id": 706,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10479,7 +10744,7 @@
                                 }
                             },
                             {
-                                "id": 690,
+                                "id": 707,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10488,7 +10753,7 @@
                                 }
                             },
                             {
-                                "id": 691,
+                                "id": 708,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10497,7 +10762,7 @@
                                 }
                             },
                             {
-                                "id": 692,
+                                "id": 709,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10506,7 +10771,7 @@
                                 }
                             },
                             {
-                                "id": 693,
+                                "id": 710,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10515,7 +10780,7 @@
                                 }
                             },
                             {
-                                "id": 694,
+                                "id": 711,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10524,7 +10789,7 @@
                                 }
                             },
                             {
-                                "id": 695,
+                                "id": 712,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10533,7 +10798,7 @@
                                 }
                             },
                             {
-                                "id": 696,
+                                "id": 713,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10542,7 +10807,7 @@
                                 }
                             },
                             {
-                                "id": 697,
+                                "id": 714,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10551,16 +10816,7 @@
                                 }
                             },
                             {
-                                "id": 698,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 658,
-                                    "to_socket": 603
-                                }
-                            },
-                            {
-                                "id": 699,
+                                "id": 715,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10569,7 +10825,7 @@
                                 }
                             },
                             {
-                                "id": 700,
+                                "id": 716,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -10578,12 +10834,21 @@
                                 }
                             },
                             {
-                                "id": 701,
+                                "id": 717,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
                                     "from_socket": 667,
                                     "to_socket": 672
+                                }
+                            },
+                            {
+                                "id": 718,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 682,
+                                    "to_socket": 603
                                 }
                             }
                         ]
@@ -10605,8 +10870,8 @@
         }
     ],
     "external": {
-        "702": {
-            "description": "Squishy Volumes Colored Instances",
+        "719": {
+            "description": "Hint for Import",
             "fixed_type_name": "Material",
             "scene_id": null
         }
