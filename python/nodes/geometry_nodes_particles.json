@@ -12125,7 +12125,7 @@
                 "interface": {
                     "id": 803,
                     "data": {
-                        "active_index": 4,
+                        "active_index": 1,
                         "items_tree": {
                             "id": 804,
                             "data": {
@@ -12839,14 +12839,14 @@
                                 "id": 842,
                                 "data": {
                                     "location": [
-                                        260.0,
+                                        180.0,
                                         -40.0
                                     ],
                                     "location_absolute": [
-                                        260.0,
+                                        180.0,
                                         -40.0
                                     ],
-                                    "width": 250.0,
+                                    "width": 320.0,
                                     "height": 100.0,
                                     "name": "Group",
                                     "label": "",
@@ -13791,11 +13791,11 @@
                                 "id": 905,
                                 "data": {
                                     "location": [
-                                        0.0,
+                                        -80.0,
                                         -140.0
                                     ],
                                     "location_absolute": [
-                                        0.0,
+                                        -80.0,
                                         -140.0
                                     ],
                                     "width": 140.0,

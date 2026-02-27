@@ -72,6 +72,9 @@ def create_default_visualization(obj, uuid):
     if output_type == PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
         modifier["Socket_9"] = create_material_display_uvw()
+        modifier["Socket_12"] = bpy.data.objects.get(
+            obj.squishy_volumes_object.output_settings.input_name
+        )
     if output_type == COLLIDER_SAMPLES:
         modifier.node_group = create_geometry_nodes_surface_samples()
 
