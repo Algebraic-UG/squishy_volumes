@@ -2014,6 +2014,7 @@ dependencies = [
  "ctrlc",
  "plotters",
  "serde_json",
+ "squishy_volumes_api",
  "squishy_volumes_core",
  "tracing",
  "tracing-subscriber",

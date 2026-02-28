@@ -20,12 +20,13 @@ use std::{
 use anyhow::{Context, Result};
 use squishy_volumes_api::{T, Task};
 use strum::IntoEnumIterator;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::{
     input_file::{InputConsts, InputReader},
     input_interpolation::InputInterpolation,
     phase::{Phase, PhaseInput},
+    profile,
     report::{Report, ReportInfo},
     state::State,
     stats::ComputeStats,
@@ -84,7 +85,9 @@ impl ComputeThread {
             let frame_report = report.clone();
             let stats = stats.clone();
             Some(spawn(move || -> Result<()> {
+                info!("compute thread started");
                 let mut current_state = if next_frame == 0 {
+                    info!("creating initial state");
                     let state = State::new(
                         run.clone(),
                         frame_report.clone(),
@@ -96,6 +99,7 @@ impl ComputeThread {
                     next_frame += 1;
                     state
                 } else {
+                    info!("loading checkpoint");
                     cache.fetch_frame(next_frame - 1)?
                 };
 
@@ -118,6 +122,8 @@ impl ComputeThread {
 
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
+                    profile!("frame");
+
                     let start_compute_frame = Instant::now();
 
                     let step_report = frame_report.new_sub(ReportInfo {
@@ -130,8 +136,11 @@ impl ComputeThread {
                     });
 
                     let next_stored_frame_time = next_frame as f64 * seconds_per_frame;
+
                     let mut substeps = 0;
+
                     while current_state.time() < next_stored_frame_time {
+                        profile!("substep");
                         let phase_report = step_report.new_sub(ReportInfo {
                             name: "Phases".to_string(),
                             completed_steps: 0,
@@ -158,10 +167,11 @@ impl ComputeThread {
                         );
                         substeps += 1;
                     }
+
                     frame_report.step();
 
                     cache.store_frame(current_state.clone())?;
-                    debug!("computed frame {} of {}", next_frame, number_of_frames);
+                    info!("computed frame {} of {}", next_frame, number_of_frames);
                     next_frame += 1;
 
                     let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
@@ -181,6 +191,15 @@ impl ComputeThread {
                         last_frame_substeps: substeps,
                     });
                 }
+                #[cfg(feature = "profile")]
+                {
+                    let mut buf = std::io::BufWriter::new(Vec::new());
+                    coarse_prof::write(&mut buf)?;
+                    info!("{}", String::from_utf8(buf.into_inner()?)?);
+                    coarse_prof::reset();
+                }
+
+                info!("done computing {}", number_of_frames.get());
 
                 Ok(())
             }))
