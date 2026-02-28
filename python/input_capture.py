@@ -122,9 +122,9 @@ def capture_input_frame(
     simulation_input: SimulationInput,
 ):
     gravity = [
-        simulation.gravity[0],
-        simulation.gravity[1],
-        simulation.gravity[2],
+        simulation.gravity[0] * simulation.simulation_scale,
+        simulation.gravity[1] * simulation.simulation_scale,
+        simulation.gravity[2] * simulation.simulation_scale,
     ]
     frame_start = {"gravity": gravity}
 
