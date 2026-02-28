@@ -30,7 +30,7 @@ impl State {
         profile!("collect_insides");
 
         let time_step = phase_input.time_step;
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         // Since the grid has only partial information about the distances,
         // we need to do MLS interpolation.

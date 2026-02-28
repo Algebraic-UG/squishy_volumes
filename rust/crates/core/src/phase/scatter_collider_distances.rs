@@ -30,7 +30,7 @@ impl State {
         phase_input: &mut PhaseInput,
     ) -> Result<Self> {
         profile!("scatter_collider_distances");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         self.grid_collider.clear();
 

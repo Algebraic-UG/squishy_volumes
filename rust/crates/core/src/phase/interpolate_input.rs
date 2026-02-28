@@ -28,7 +28,7 @@ impl State {
         // this should be a no-op for all in-between-frame-steps
         phase_input
             .input_interpolation
-            .load(frame_time.floor() as usize)?;
+            .load(&phase_input.consts, frame_time.floor() as usize)?;
 
         let a = phase_input
             .input_interpolation

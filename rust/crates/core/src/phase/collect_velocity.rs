@@ -28,7 +28,7 @@ impl State {
     // Update the particles' velocity and velocity gradients to be transported.
     pub fn collect_velocity(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("collect_velocity");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
         self.particles
             .positions
             .par_iter()

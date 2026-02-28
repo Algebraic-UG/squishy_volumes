@@ -20,7 +20,6 @@ use squishy_volumes_api::{InputBulk, SimulationInput, T};
 use tracing::{debug, error};
 
 use crate::{
-    api_impl::simulation_input,
     directory_lock::DirectoryLock,
     input_file::{
         ColliderInput, InputFrame, InputHeader, InputObject, InputWriter, ParticlesInput,

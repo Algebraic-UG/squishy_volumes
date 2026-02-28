@@ -110,7 +110,8 @@ impl State {
                         .map(Matrix4::from_column_slice)
                         .map(|transform| -> (Vector3<T>, Matrix3<T>) {
                             (
-                                Vector3::new(transform.m14, transform.m24, transform.m34),
+                                Vector3::new(transform.m14, transform.m24, transform.m34)
+                                    .scale(1. / input_header.consts.simulation_scale),
                                 transform.fixed_view::<3, 3>(0, 0).into(),
                             )
                         })
@@ -125,7 +126,10 @@ impl State {
                             .map(Vector3::from_column_slice),
                     );
 
-                    let input_initial_volumes = input.sizes.iter().map(|size| size.powi(3));
+                    let input_initial_volumes = input
+                        .sizes
+                        .iter()
+                        .map(|size| (size / input_header.consts.simulation_scale).powi(3));
                     initial_volumes.extend(input_initial_volumes.clone());
                     masses.extend(
                         input

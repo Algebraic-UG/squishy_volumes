@@ -185,7 +185,9 @@ impl Simulation for SimulationImpl {
         let attribute = from_value(attribute)?;
         match attribute {
             Attribute::Const(attribute) => Ok(match attribute {
-                AttributeConst::GridNodeSize => vec![self.input_header.consts.grid_node_size],
+                AttributeConst::GridNodeSize => {
+                    vec![self.input_header.consts.unscaled_grid_node_size()]
+                }
                 AttributeConst::FramesPerSecond => {
                     vec![self.input_header.consts.frames_per_second as T]
                 }
@@ -195,11 +197,11 @@ impl Simulation for SimulationImpl {
                 AttributeConst::DomainMin => self.input_header.consts.domain_min.flat().into(),
                 AttributeConst::DomainMax => self.input_header.consts.domain_max.flat().into(),
             }),
-            attribute => Ok(self.cache.fetch_flat_attribute(
-                self.input_header.consts.grid_node_size,
-                frame,
-                attribute,
-            )?),
+            attribute => {
+                Ok(self
+                    .cache
+                    .fetch_flat_attribute(&self.input_header.consts, frame, attribute)?)
+            }
         }
     }
 

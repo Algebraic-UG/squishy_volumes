@@ -26,7 +26,7 @@ impl State {
     // with the node's 3d integer position. The data vectors are effectively invalidated.
     pub fn update_momentum_maps(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("update_momentum_maps");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         {
             profile!("prune");

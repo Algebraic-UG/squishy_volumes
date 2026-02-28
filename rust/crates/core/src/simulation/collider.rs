@@ -12,9 +12,9 @@ use std::{
 };
 
 use crate::{
-    setup::{GlobalSettings, Mesh, ObjectSettingsCollider, ScriptedFrame, SurfaceSample},
     math::NORMALIZATION_EPS,
     report::Report,
+    setup::{GlobalSettings, Mesh, ObjectSettingsCollider, ScriptedFrame, SurfaceSample},
 };
 use anyhow::{Context, Result};
 use nalgebra::{UnitQuaternion, Vector3};

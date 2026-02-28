@@ -33,7 +33,7 @@ impl State {
         phase_input: &mut PhaseInput,
     ) -> Result<Self> {
         profile!("scatter_momentum");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
         let scaling = phase_input.time_step * 4. / grid_node_size.powi(2);
 
         // Take memory to satisfy the borrow checker, return at the end

@@ -15,6 +15,7 @@ use squishy_volumes_api::T;
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
+    input_file::InputConsts,
     math::flat::{Flat3, Flat9, Flat16},
     state::{ObjectIndex, grids::GridMomentum, particles::ParticleState},
 };
@@ -136,7 +137,7 @@ impl State {
 
     pub fn fetch_flat_attribute(
         &self,
-        grid_node_size: T,
+        consts: &InputConsts,
         attribute: Attribute,
     ) -> Result<Vec<T>, AttributeError> {
         let flat_attribute = match attribute {
@@ -160,9 +161,9 @@ impl State {
                             AttributeParticles::InitialVolumes => {
                                 is.map(|i| ps.initial_volumes[i]).collect()
                             }
-                            AttributeParticles::Positions => {
-                                is.flat_map(|i| ps.positions[i].flat()).collect()
-                            }
+                            AttributeParticles::Positions => is
+                                .flat_map(|i| ps.positions[i].scale(consts.simulation_scale).flat())
+                                .collect(),
                             AttributeParticles::InitialPositions => {
                                 is.flat_map(|i| ps.initial_positions[i].flat()).collect()
                             }
@@ -175,9 +176,11 @@ impl State {
                             AttributeParticles::ElasticEnergies => {
                                 is.map(|i| ps.elastic_energies[i]).collect()
                             }
-                            AttributeParticles::Sizes => {
-                                is.map(|i| ps.initial_volumes[i].powf(1. / 3.)).collect()
-                            }
+                            AttributeParticles::Sizes => is
+                                .map(|i| {
+                                    ps.initial_volumes[i].powf(1. / 3.) * consts.simulation_scale
+                                })
+                                .collect(),
                             AttributeParticles::Transformations => is
                                 .flat_map(|i| {
                                     let position_gradient = &ps.position_gradients[i];
@@ -185,7 +188,7 @@ impl State {
                                         position_gradient.column(0).push(0.),
                                         position_gradient.column(1).push(0.),
                                         position_gradient.column(2).push(0.),
-                                        ps.positions[i].push(1.),
+                                        ps.positions[i].scale(consts.simulation_scale).push(1.),
                                     ])
                                     .flat()
                                 })
@@ -207,7 +210,9 @@ impl State {
                 AttributeGridCollider::Positions => self
                     .grid_collider
                     .keys()
-                    .map(|grid_node_idx| grid_node_idx.map(|i| i as T) * grid_node_size)
+                    .map(|grid_node_idx| {
+                        grid_node_idx.map(|i| i as T) * consts.unscaled_grid_node_size()
+                    })
                     .flat_map(|position| position.flat())
                     .collect(),
                 AttributeGridCollider::Distances(collider_idx) => self
@@ -257,7 +262,7 @@ impl State {
                             messed_up
                                 .into_iter()
                                 .map(|(grid_node_idx, _)| {
-                                    grid_node_idx.map(|i| i as T) * grid_node_size
+                                    grid_node_idx.map(|i| i as T) * consts.unscaled_grid_node_size()
                                 })
                                 .flat_map(|position| position.flat())
                                 .collect()
