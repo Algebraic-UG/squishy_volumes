@@ -37,18 +37,6 @@ def add_drivers(uuid, modifier):
         ].data_path = (
             f"squishy_volumes_scene.simulations[{simulation_idx}].grid_node_size"
         )
-    if "Simulation Scale" in tree:
-        identifier = tree["Simulation Scale"].identifier
-        driver = modifier.driver_add(f'["{identifier}"]').driver
-        driver.expression = "simulation_scale"
-        var = driver.variables.new()
-        var.name = "simulation_scale"
-        var.type = "CONTEXT_PROP"
-        var.targets[
-            0
-        ].data_path = (
-            f"squishy_volumes_scene.simulations[{simulation_idx}].simulation_scale"
-        )
 
 
 DRIVER_PATTERN = r"^(squishy_volumes_scene\.simulations\[)(\d+)(\].*)"
