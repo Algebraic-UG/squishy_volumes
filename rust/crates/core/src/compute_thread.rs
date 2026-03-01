@@ -103,9 +103,6 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
-                #[cfg(feature = "profile")]
-                coarse_prof::reset();
-
                 let input_interpolation = InputInterpolation::new(input_reader)?;
                 let mut phase_input = PhaseInput {
                     consts,
@@ -175,6 +172,11 @@ impl ComputeThread {
 
                     cache.store_frame(current_state.clone())?;
                     info!("computed frame {} of {}", next_frame, number_of_frames);
+                    #[cfg(feature = "profile")]
+                    if next_frame == 1 {
+                        coarse_prof::reset();
+                        info!("profile reset");
+                    }
                     next_frame += 1;
 
                     let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
