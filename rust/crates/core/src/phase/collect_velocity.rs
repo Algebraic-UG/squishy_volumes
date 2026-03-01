@@ -65,7 +65,10 @@ impl State {
 
                                 let incompatibility =
                                     self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                                        find_worst_incompatibility(collider_inside, grid_node)
+                                        find_worst_incompatibility(
+                                            collider_inside,
+                                            grid_node.assume_ref(),
+                                        )
                                     });
                                 let grid_node_position = grid_idx.map(|i| i as T) * grid_node_size;
                                 let to_grid_node = grid_node_position - position;

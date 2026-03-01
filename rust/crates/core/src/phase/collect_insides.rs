@@ -17,7 +17,7 @@ use crate::{
     kernels::{KERNEL_QUADRATIC_LENGTH, kernel_quadratic},
     math::{NORMALIZATION_EPS, safe_inverse::SafeInverse},
     profile,
-    state::{particles::ParticleState, util::check_shifted_quadratic},
+    state::{grids::Rasterized, particles::ParticleState, util::check_shifted_quadratic},
 };
 
 use super::{PhaseInput, State};
@@ -89,7 +89,10 @@ impl State {
                                 j as T - shifted.y,
                                 k as T - shifted.z,
                             );
-                            for (collider_idx, info) in grid_node.infos.iter() {
+                            for (collider_idx, rasterized) in grid_node.assume_ref().iter() {
+                                let Rasterized::Valid(info) = rasterized else {
+                                    panic!("Invalid collider info");
+                                };
                                 let distance_helper =
                                     distance_helpers.entry(*collider_idx).or_default();
                                 distance_helper.distance_and_gradient +=

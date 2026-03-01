@@ -74,7 +74,7 @@ impl State {
                 kernel_quadratic_unrolled!(|grid_idx| {
                     let grid_idx = grid_idx + shift;
                     let incompatibility = self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                        find_worst_incompatibility(collider_inside, grid_node)
+                        find_worst_incompatibility(collider_inside, grid_node.assume_ref())
                     });
 
                     if let Some(collider_idx) = incompatibility {

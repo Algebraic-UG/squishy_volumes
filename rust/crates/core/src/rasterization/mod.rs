@@ -13,22 +13,8 @@ use std::{iter::empty, mem::swap};
 
 use crate::{
     math::{Aabb, NORMALIZATION_EPS},
-    state::grids::ColliderInfo,
+    state::grids::{ColliderInfo, Rasterized},
 };
-
-pub enum Rasterized {
-    Invalid(T),
-    Valid(ColliderInfo),
-}
-
-impl Rasterized {
-    pub fn distance_abs(&self) -> T {
-        match self {
-            Rasterized::Invalid(distance) => *distance,
-            Rasterized::Valid(info) => info.distance.abs(),
-        }
-    }
-}
 
 pub struct RasterizationVertex<'a> {
     pub position: &'a Vector3<T>,

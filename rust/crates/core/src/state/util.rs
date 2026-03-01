@@ -10,7 +10,7 @@ use nalgebra::Vector3;
 use rustc_hash::FxHashMap;
 use squishy_volumes_api::T;
 
-use crate::state::grids::GridNodeCollider;
+use crate::state::grids::Rasterized;
 
 pub fn check_shifted_quadratic(shifted: Vector3<T>) -> bool {
     shifted.x >= 0.5
@@ -33,14 +33,15 @@ pub fn check_shifted_cubic(shifted: Vector3<T>) -> bool {
 
 pub fn find_worst_incompatibility(
     collider_insides: &FxHashMap<usize, bool>,
-    grid_node: &GridNodeCollider,
+    grid_node: &FxHashMap<usize, Rasterized>,
 ) -> Option<usize> {
     collider_insides
         .iter()
         .filter_map(|(collider_idx, inside)| {
             Some((
                 *collider_idx,
-                grid_node.infos.get(collider_idx).and_then(|info| {
+                grid_node.get(collider_idx).and_then(|info| {
+                    let info = info.assume_valid();
                     (inside ^ (info.distance < 0.)).then_some(info.distance.abs())
                 })?,
             ))
