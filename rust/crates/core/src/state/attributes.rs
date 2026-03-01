@@ -221,7 +221,7 @@ impl State {
                     .map(|grid_node| {
                         grid_node
                             .assume_ref()
-                            .get(&collider_idx)
+                            .get(&(collider_idx as u8))
                             .map(|info| info.assume_valid().distance)
                             .unwrap_or(T::MAX)
                     })
@@ -232,7 +232,7 @@ impl State {
                     .flat_map(|grid_node| {
                         grid_node
                             .assume_ref()
-                            .get(&collider_idx)
+                            .get(&(collider_idx as u8))
                             .map(|info| info.assume_valid().normal)
                             .unwrap_or(Vector3::zeros())
                             .flat()
@@ -244,7 +244,7 @@ impl State {
                     .flat_map(|grid_node| {
                         grid_node
                             .assume_ref()
-                            .get(&collider_idx)
+                            .get(&(collider_idx as u8))
                             .map(|info| info.assume_valid().velocity)
                             .unwrap_or(Vector3::zeros())
                             .flat()

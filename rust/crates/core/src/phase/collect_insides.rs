@@ -94,7 +94,7 @@ impl State {
                                     panic!("Invalid collider info");
                                 };
                                 let distance_helper =
-                                    distance_helpers.entry(*collider_idx).or_default();
+                                    distance_helpers.entry(*collider_idx as usize).or_default();
                                 distance_helper.distance_and_gradient +=
                                     linear_basis * info.distance * weight;
                                 distance_helper.matrix +=

@@ -29,7 +29,7 @@ impl State {
                     let Some(Rasterized::Valid(info)) = self
                         .grid_collider
                         .get(grid_idx)
-                        .and_then(|node| node.assume_ref().get(&collider_idx))
+                        .and_then(|node| node.assume_ref().get(&(collider_idx as u8)))
                     else {
                         return;
                     };

@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{collections::hash_map::Entry, sync::mpsc::channel, thread::spawn};
+use std::{sync::mpsc::channel, thread::spawn};
 
 use anyhow::{Context as _, Result, bail};
 use nalgebra::Vector3;
@@ -15,7 +15,6 @@ use rayon::iter::{
     IntoParallelRefMutIterator, ParallelExtend, ParallelIterator,
 };
 use rustc_hash::FxHashMap;
-use tracing::info;
 
 use crate::{
     math::RASTERIZATION_LAYERS,
@@ -23,7 +22,7 @@ use crate::{
     rasterization::{RasterizationVertex, rasterize},
     state::{
         ObjectIndex,
-        grids::{GridNodeCollider, Mutex, Rasterized},
+        grids::{ColliderInfos, GridNodeCollider, Mutex, Rasterized},
     },
 };
 
@@ -63,34 +62,29 @@ impl State {
 
         let collector = {
             profile!("scatter");
-            let (tx, rx) = channel::<(Vector3<i32>, (usize, Rasterized))>();
-            let collector = spawn(
-                move || -> FxHashMap<Vector3<i32>, FxHashMap<usize, Rasterized>> {
-                    let mut new_entries: FxHashMap<Vector3<i32>, FxHashMap<usize, Rasterized>> =
-                        Default::default();
-                    while let Ok((grid_idx, (collider_idx, rasterized))) = rx.recv() {
-                        match new_entries.entry(grid_idx).or_default().entry(collider_idx) {
-                            Entry::Occupied(mut occupied_entry) => {
-                                let existing = occupied_entry.get_mut();
-                                if existing.distance_abs() < rasterized.distance_abs() {
-                                    continue;
-                                }
-                                *existing = rasterized;
-                            }
-                            Entry::Vacant(vacant_entry) => {
-                                vacant_entry.insert(rasterized);
-                            }
+            let (tx, rx) = channel::<(Vector3<i32>, (u8, Rasterized))>();
+            let collector = spawn(move || -> FxHashMap<Vector3<i32>, ColliderInfos> {
+                let mut new_entries: FxHashMap<Vector3<i32>, ColliderInfos> = Default::default();
+                while let Ok((grid_idx, (collider_idx, rasterized))) = rx.recv() {
+                    let grid_node = new_entries.entry(grid_idx).or_default();
+                    if let Some(info) = grid_node.get_mut(&collider_idx) {
+                        if info.distance_abs() < rasterized.distance_abs() {
+                            continue;
                         }
+                        *info = rasterized;
+                    } else {
+                        grid_node.insert(collider_idx, rasterized);
                     }
-                    new_entries
-                },
-            );
+                }
+                new_entries
+            });
 
             for (name, input) in collider_input.iter() {
                 let object_index = self.name_map.get(name).context("Missing object")?;
                 let ObjectIndex::Collider(collider_index) = object_index.clone() else {
                     bail!("Wrong object type");
                 };
+                let collider_index = collider_index as u8;
 
                 let make_rasterization_vertex = |index: usize| RasterizationVertex {
                     position: &input.vertex_positions[index],
@@ -139,17 +133,14 @@ impl State {
                                 continue;
                             };
 
-                            match grid_node.assume_mut().lock().entry(collider_index) {
-                                Entry::Occupied(mut occupied_entry) => {
-                                    if occupied_entry.get().distance_abs()
-                                        > rasterized.distance_abs()
-                                    {
-                                        occupied_entry.insert(rasterized);
-                                    }
+                            let mut grid_node = grid_node.assume_mut().lock();
+                            if let Some(info) = grid_node.get_mut(&collider_index) {
+                                if info.distance_abs() < rasterized.distance_abs() {
+                                    return;
                                 }
-                                Entry::Vacant(vacant_entry) => {
-                                    vacant_entry.insert(rasterized);
-                                }
+                                *info = rasterized;
+                            } else {
+                                grid_node.insert(collider_index, rasterized);
                             }
                         }
                     });

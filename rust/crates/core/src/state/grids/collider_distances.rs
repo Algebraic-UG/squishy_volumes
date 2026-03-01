@@ -7,13 +7,14 @@
 // https://opensource.org/licenses/MIT.
 
 use std::{
-    mem::{swap, take},
+    mem::take,
     ops::{Deref, DerefMut},
 };
 
 use nalgebra::Vector3;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use small_map::FxSmallMap;
 use squishy_volumes_api::T;
 
 use crate::state::grids::Mutex;
@@ -49,23 +50,25 @@ pub struct ColliderInfo {
     pub friction: T,
 }
 
+pub type ColliderInfos = FxSmallMap<4, u8, Rasterized>;
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub enum GridNodeCollider {
     #[default]
     Tmp,
-    Mut(Mutex<FxHashMap<usize, Rasterized>>),
-    Ref(FxHashMap<usize, Rasterized>),
+    Mut(Mutex<ColliderInfos>),
+    Ref(ColliderInfos),
 }
 
 impl GridNodeCollider {
-    pub fn assume_ref(&self) -> &FxHashMap<usize, Rasterized> {
+    pub fn assume_ref(&self) -> &ColliderInfos {
         let Self::Ref(infos) = &self else {
             panic!("Collider node wasn't ref");
         };
         infos
     }
 
-    pub fn assume_mut(&self) -> &Mutex<FxHashMap<usize, Rasterized>> {
+    pub fn assume_mut(&self) -> &Mutex<ColliderInfos> {
         let Self::Mut(infos) = &self else {
             panic!("Collider node wasn't mut");
         };
