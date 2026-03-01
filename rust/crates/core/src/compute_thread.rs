@@ -103,6 +103,9 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
+                #[cfg(feature = "profile")]
+                coarse_prof::reset();
+
                 let input_interpolation = InputInterpolation::new(input_reader)?;
                 let mut phase_input = PhaseInput {
                     consts,

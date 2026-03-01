@@ -6,7 +6,14 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{mem::take, sync::mpsc::channel, thread::spawn};
+use std::{
+    mem::take,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        mpsc::channel,
+    },
+    thread::spawn,
+};
 
 use anyhow::{Context as _, Result, bail};
 use nalgebra::Vector3;
@@ -15,6 +22,7 @@ use rayon::iter::{
     IntoParallelRefMutIterator, ParallelExtend, ParallelIterator,
 };
 use rustc_hash::FxHashMap;
+use tracing::info;
 
 use crate::{
     math::RASTERIZATION_LAYERS,
@@ -46,12 +54,6 @@ impl State {
             .collider_input;
 
         {
-            profile!("prune");
-            self.grid_collider
-                .retain(|_, infos| !infos.assume_ref().is_empty());
-        }
-
-        {
             profile!("reset");
             self.grid_collider
                 .par_iter_mut()
@@ -63,6 +65,9 @@ impl State {
                     *grid_node = GridNodeCollider::Mut(Mutex(infos.into()));
                 });
         }
+
+        let sends = AtomicUsize::new(0);
+        let accesses = AtomicUsize::new(0);
 
         let collector = {
             profile!("scatter");
@@ -132,10 +137,12 @@ impl State {
                             *friction,
                         ) {
                             let Some(grid_node) = self.grid_collider.get(&grid_idx) else {
+                                sends.fetch_add(1, Ordering::Relaxed);
                                 tx.send((grid_idx, (collider_index, rasterized)))
                                     .expect("collider collector died");
                                 continue;
                             };
+                            accesses.fetch_add(1, Ordering::Relaxed);
 
                             let mut grid_node = grid_node.assume_mut().lock();
                             if let Some(info) = grid_node.get_mut(&collider_index) {
@@ -152,6 +159,10 @@ impl State {
             collector
         };
 
+        info!(
+            sends = sends.load(Ordering::Relaxed),
+            accesses = accesses.load(Ordering::Relaxed)
+        );
         {
             profile!("transition");
             self.grid_collider
@@ -162,8 +173,18 @@ impl State {
         }
 
         {
+            profile!("prune");
+            self.grid_collider
+                .retain(|_, infos| !infos.assume_ref().is_empty());
+        }
+
+        let new_entries = {
+            profile!("join");
+            collector.join().unwrap()
+        };
+
+        {
             profile!("extend");
-            let new_entries = collector.join().unwrap();
             self.grid_collider.par_extend(
                 new_entries
                     .into_par_iter()
