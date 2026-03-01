@@ -47,6 +47,12 @@ impl State {
             .collider_input;
 
         {
+            profile!("prune");
+            self.grid_collider
+                .retain(|_, infos| !infos.assume_ref().is_empty());
+        }
+
+        {
             profile!("reset");
             self.grid_collider
                 .par_iter_mut()
