@@ -95,9 +95,6 @@ impl State {
                 .par_iter()
                 .zip(&input.triangle_frictions)
                 .for_each(|(&[a, b, c], friction)| {
-                    let mut this_triangle_distances: FxHashMap<Vector3<i32>, Rasterized> =
-                        Default::default();
-
                     let order_edge = |[a, b]: [u32; 2]| if a < b { [a, b] } else { [b, a] };
                     let pick_other = |a: u32| {
                         move |&[b, c]: &[u32; 2]| {
@@ -128,41 +125,23 @@ impl State {
                         [opposite_d, opposite_e, opposite_f],
                         *friction,
                     ) {
-                        match this_triangle_distances.entry(grid_idx) {
+                        let Some(grid_node) = self.grid_collider.get(&grid_idx) else {
+                            tx.send((grid_idx, (collider_index, rasterized)))
+                                .expect("collider collector died");
+                            continue;
+                        };
+
+                        match grid_node.assume_mut().lock().entry(collider_index) {
                             Entry::Occupied(mut occupied_entry) => {
-                                let existing = occupied_entry.get_mut();
-                                if existing.distance_abs() < rasterized.distance_abs() {
-                                    continue;
+                                if occupied_entry.get().distance_abs() > rasterized.distance_abs() {
+                                    occupied_entry.insert(rasterized);
                                 }
-                                *existing = rasterized;
                             }
                             Entry::Vacant(vacant_entry) => {
                                 vacant_entry.insert(rasterized);
                             }
                         }
                     }
-
-                    this_triangle_distances
-                        .into_iter()
-                        .for_each(|(grid_idx, rasterized)| {
-                            let Some(grid_node) = self.grid_collider.get(&grid_idx) else {
-                                tx.send((grid_idx, (collider_index, rasterized)))
-                                    .expect("collider collector died");
-                                return;
-                            };
-
-                            match grid_node.assume_mut().lock().entry(collider_index) {
-                                Entry::Occupied(mut occupied_entry) => {
-                                    let existing = occupied_entry.get_mut();
-                                    if existing.distance_abs() > rasterized.distance_abs() {
-                                        *existing = rasterized;
-                                    }
-                                }
-                                Entry::Vacant(vacant_entry) => {
-                                    vacant_entry.insert(rasterized);
-                                }
-                            }
-                        });
                 });
         }
 
