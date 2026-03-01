@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{sync::mpsc::channel, thread::spawn};
+use std::{mem::take, sync::mpsc::channel, thread::spawn};
 
 use anyhow::{Context as _, Result, bail};
 use nalgebra::Vector3;
@@ -56,7 +56,11 @@ impl State {
             self.grid_collider
                 .par_iter_mut()
                 .for_each(|(_, grid_node)| {
-                    *grid_node = GridNodeCollider::Mut(Mutex(Default::default()));
+                    let GridNodeCollider::Ref(mut infos) = take(grid_node) else {
+                        panic!("Collider node wasn't ref");
+                    };
+                    infos.clear();
+                    *grid_node = GridNodeCollider::Mut(Mutex(infos.into()));
                 });
         }
 
