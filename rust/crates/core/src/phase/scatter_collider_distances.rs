@@ -66,9 +66,6 @@ impl State {
                 });
         }
 
-        let sends = AtomicUsize::new(0);
-        let accesses = AtomicUsize::new(0);
-
         let collector = {
             profile!("scatter");
             let (tx, rx) = channel::<(Vector3<i32>, (u8, Rasterized))>();
@@ -137,12 +134,10 @@ impl State {
                             *friction,
                         ) {
                             let Some(grid_node) = self.grid_collider.get(&grid_idx) else {
-                                sends.fetch_add(1, Ordering::Relaxed);
                                 tx.send((grid_idx, (collider_index, rasterized)))
                                     .expect("collider collector died");
                                 continue;
                             };
-                            accesses.fetch_add(1, Ordering::Relaxed);
 
                             let mut grid_node = grid_node.assume_mut().lock();
                             if let Some(info) = grid_node.get_mut(&collider_index) {
@@ -159,10 +154,6 @@ impl State {
             collector
         };
 
-        info!(
-            sends = sends.load(Ordering::Relaxed),
-            accesses = accesses.load(Ordering::Relaxed)
-        );
         {
             profile!("transition");
             self.grid_collider
