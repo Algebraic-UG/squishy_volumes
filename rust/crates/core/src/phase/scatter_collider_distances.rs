@@ -146,7 +146,7 @@ impl State {
                             let mut grid_node = grid_node.assume_mut().lock();
                             if let Some(info) = grid_node.get_mut(&collider_index) {
                                 if info.distance_abs() < rasterized.distance_abs() {
-                                    return;
+                                    continue;
                                 }
                                 *info = rasterized;
                             } else {
