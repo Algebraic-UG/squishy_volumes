@@ -82,6 +82,10 @@ impl State {
                         grid_node.insert(collider_idx, rasterized);
                     }
                 }
+
+                new_entries.values_mut().for_each(|grid_node| {
+                    grid_node.retain(|_, rasterized| matches!(rasterized, Rasterized::Valid(_)))
+                });
                 new_entries
             });
 
@@ -159,7 +163,12 @@ impl State {
             self.grid_collider
                 .par_iter_mut()
                 .for_each(|(_, grid_node)| {
-                    grid_node.trans_to_ref();
+                    let GridNodeCollider::Mut(Mutex(mutex)) = take(grid_node) else {
+                        panic!("Collider node was't mut");
+                    };
+                    let mut infos = mutex.into_inner().unwrap();
+                    infos.retain(|_, rasterized| matches!(rasterized, Rasterized::Valid(_)));
+                    *grid_node = GridNodeCollider::Ref(infos);
                 });
         }
 

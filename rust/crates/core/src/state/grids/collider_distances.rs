@@ -74,13 +74,6 @@ impl GridNodeCollider {
         };
         infos
     }
-
-    pub fn trans_to_ref(&mut self) {
-        let GridNodeCollider::Mut(Mutex(mutex)) = take(self) else {
-            panic!("Collider node was't mut");
-        };
-        *self = Self::Ref(mutex.into_inner().unwrap());
-    }
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
