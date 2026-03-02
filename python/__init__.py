@@ -22,7 +22,11 @@ import tomllib
 
 import bpy
 
-from .preferences import register_preferences, unregister_preferences
+from .preferences import (
+    register_preferences,
+    unregister_preferences,
+    get_print_debug_info,
+)
 from .properties import register_properties, unregister_properties
 from .progress_update import (
     register_progress_update,
@@ -53,16 +57,20 @@ def toggle_register(*_):
 def register_blend_file_change_handler():
     if toggle_register not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(toggle_register)
-        print("Squishy Volumes load_post registered.")
+        if get_print_debug_info():
+            print("Squishy Volumes load_post registered.")
 
 
 def unregister_blend_file_change_handler():
     if toggle_register in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.remove(toggle_register)
-        print("Squishy Volumes load_post unregistered.")
+        if get_print_debug_info():
+            print("Squishy Volumes load_post unregistered.")
 
 
 def register():
+    register_preferences()
+
     version_rust = build_info()["wrapper"]["crate_info"]["version"]
     manifest_path = Path(__file__).parent / "blender_manifest.toml"
     with manifest_path.open("rb") as f:
@@ -72,9 +80,11 @@ def register():
         raise RuntimeError(
             f"Version mismatch! Expected {version_python} but loaded {version_rust}"
         )
-    print(f"Squishy Volumes detailed build info: {json.dumps(build_info(), indent=4)}")
+    if get_print_debug_info():
+        print(
+            f"Squishy Volumes detailed build info: {json.dumps(build_info(), indent=4)}"
+        )
 
-    register_preferences()
     register_popup()
     register_blend_file_change_handler()
     register_properties()

@@ -49,10 +49,19 @@ Particles that rise above this are deactivated.""",
         options=set(),  # can't be animated
     )  # type: ignore
 
+    print_debug_info: bpy.props.BoolProperty(
+        name="Print Debug Info",
+        description="""Can be used to disable certain debug printouts.
+This is most likely only relevant to developers of other extensions.""",
+        default=True,
+        options=set(),  # can't be animated
+    )  # type: ignore
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "confirm_bake_overwrite")
         self.layout.prop(self, "domain_min")
         self.layout.prop(self, "domain_max")
+        self.layout.prop(self, "print_debug_info")
 
 
 def get_confirm_bake_overwrite() -> bool:
@@ -71,6 +80,12 @@ def get_domain_max() -> mathutils.Vector:
     return bpy.context.preferences.addons.get(  # ty:ignore[possibly-missing-attribute]
         __package__  # ty:ignore[invalid-argument-type]
     ).preferences.domain_max
+
+
+def get_print_debug_info() -> bool:
+    return bpy.context.preferences.addons.get(  # ty:ignore[possibly-missing-attribute]
+        __package__  # ty:ignore[invalid-argument-type]
+    ).preferences.print_debug_info
 
 
 def register_preferences():

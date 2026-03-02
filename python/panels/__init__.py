@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from ..preferences import get_print_debug_info
 from .panel_overview import register_panel_overview, unregister_panel_overview
 from .panel_input import register_panel_input, unregister_panel_input
 from .panel_bake import register_panel_bake, unregister_panel_bake
@@ -27,7 +28,8 @@ def register_panels():
     register_panel_input()
     register_panel_bake()
     register_panel_output()
-    print("Squishy Volumes panels registered.")
+    if get_print_debug_info():
+        print("Squishy Volumes panels registered.")
 
 
 def unregister_panels():
@@ -35,4 +37,5 @@ def unregister_panels():
     unregister_panel_bake()
     unregister_panel_input()
     unregister_panel_overview()
-    print("Squishy Volumes panels unregistered.")
+    if get_print_debug_info():
+        print("Squishy Volumes panels unregistered.")

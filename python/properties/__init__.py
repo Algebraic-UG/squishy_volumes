@@ -18,6 +18,7 @@
 
 import bpy
 
+from ..preferences import get_print_debug_info
 from .squishy_volumes_object import Squishy_Volumes_Object
 from .squishy_volumes_scene import (
     Squishy_Volumes_Scene,
@@ -53,7 +54,8 @@ def register_properties():
     )
     subscribe_to_selection()
 
-    print("Squishy Volumes properties registered.")
+    if get_print_debug_info():
+        print("Squishy Volumes properties registered.")
 
 
 def unregister_properties():
@@ -62,4 +64,5 @@ def unregister_properties():
     del bpy.types.Object.squishy_volumes_object  # ty:ignore[unresolved-attribute]
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-    print("Squishy Volumes properties unregistered.")
+    if get_print_debug_info():
+        print("Squishy Volumes properties unregistered.")
