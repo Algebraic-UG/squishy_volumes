@@ -55,11 +55,11 @@ pub fn rasterize<'a>(
             move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, Rasterized)> {
                 let p = grid_node.map(|c| c as T * spacing);
 
-                let bary_a = (p - b.position).dot(&normal.cross(&ab)) / area_2;
-                let bary_b = (p - c.position).dot(&normal.cross(&bc)) / area_2;
-                let bary_c = (p - a.position).dot(&normal.cross(&ca)) / area_2;
+                let bary_c = (p - b.position).dot(&normal.cross(&ab)) / area_2;
+                let bary_a = (p - c.position).dot(&normal.cross(&bc)) / area_2;
+                let bary_b = (p - a.position).dot(&normal.cross(&ca)) / area_2;
 
-                let velocity = *a.velocity; // * bary_a + b.velocity * bary_b + c.velocity * bary_c;
+                let velocity = -*a.velocity * bary_a - b.velocity * bary_b - c.velocity * bary_c;
 
                 let sa = bary_a < 0.;
                 let sb = bary_b < 0.;
