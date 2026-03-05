@@ -71,6 +71,10 @@ class SimulationInput:
         self.handle.start_frame(json.dumps(frame_start))
 
     @hint_at_info
+    def record_input_bool(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
+        self.handle.record_input_bool(json.dumps(meta), bulk)
+
+    @hint_at_info
     def record_input_float(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
         self.handle.record_input_float(json.dumps(meta), bulk)
 

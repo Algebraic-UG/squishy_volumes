@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
 use crate::{
+    ParticleFlags,
     input_file::{InputConsts, InputFrame, InputReader},
     math::NORMALIZATION_EPS,
     profile,
@@ -44,13 +45,13 @@ impl InterpolatedInput {
         let particles_input = particles_inputs
             .into_iter()
             .map(|(name, input)| {
+                let flags = input.flags;
                 let goal_positions = read_positions(&input.goal_positions);
-                let goal_stiffnesses = input.goal_stiffnesses;
                 (
                     name.clone(),
                     InterpolatedInputParticles {
+                        flags,
                         goal_positions,
-                        goal_stiffnesses,
                     },
                 )
             })
@@ -164,8 +165,8 @@ impl InterpolatedInput {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InterpolatedInputParticles {
+    pub flags: Vec<ParticleFlags>,
     pub goal_positions: Vec<Vector3<T>>,
-    pub goal_stiffnesses: Vec<T>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

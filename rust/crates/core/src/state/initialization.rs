@@ -8,7 +8,6 @@
 
 use std::{
     collections::BTreeMap,
-    iter::repeat_n,
     num::NonZero,
     sync::{Arc, atomic::AtomicBool},
 };
@@ -37,6 +36,12 @@ pub enum StateInitializationError {
     ParticleFlagsInvalid(usize),
     #[error("There was no input for particle object {0}")]
     ParticleInputMissing(String),
+    #[error("Expected {expected} values for {name}, but found {actual}")]
+    ParticleInvalidNumber {
+        name: &'static str,
+        actual: usize,
+        expected: usize,
+    },
 }
 
 impl State {
@@ -93,13 +98,12 @@ impl State {
                     })?;
 
                     let first_index = sort_map.len();
+                    let new_len = first_index + input.flags.len();
 
-                    let n = input.flags.len();
-
-                    sort_map.extend(first_index..first_index + n);
-                    reverse_sort_map.extend(first_index..first_index + n);
-                    states.extend(repeat_n(Default::default(), n));
-                    collider_insides.extend(repeat_n(Default::default(), n));
+                    sort_map.extend(first_index..new_len);
+                    reverse_sort_map.extend(first_index..new_len);
+                    states.resize(new_len, Default::default());
+                    collider_insides.resize(new_len, Default::default());
 
                     let (input_positions, input_position_gradients): (
                         Vec<Vector3<T>>,
@@ -116,6 +120,7 @@ impl State {
                             )
                         })
                         .unzip();
+
                     positions.extend(input_positions.into_iter());
                     position_gradients.extend(input_position_gradients.into_iter());
 
@@ -125,6 +130,7 @@ impl State {
                             .chunks_exact(3)
                             .map(Vector3::from_column_slice),
                     );
+                    velocities.resize(new_len, Vector3::zeros());
 
                     let input_initial_volumes = input
                         .sizes
@@ -148,34 +154,54 @@ impl State {
 
                     // TODO:
 
-                    velocity_gradients.extend(repeat_n(Matrix3::zeros(), n));
-                    elastic_energies.extend(repeat_n(0., n));
+                    velocity_gradients.resize(new_len, Matrix3::zeros());
+                    elastic_energies.resize(new_len, 0.);
+
+                    let check = |actual: usize, name: &'static str| {
+                        if actual != input.flags.len() {
+                            Err(StateInitializationError::ParticleInvalidNumber {
+                                name,
+                                actual,
+                                expected: input.flags.len(),
+                            })
+                        } else {
+                            Ok(())
+                        }
+                    };
 
                     for (i, flags) in input.flags.iter().enumerate() {
-                        let flags = ParticleFlags(*flags);
+                        let viscosity = if flags.contains(ParticleFlags::UseViscosity) {
+                            check(input.viscosities_dynamic.len(), "Dynamic Viscosity")?;
+                            check(input.viscosities_bulk.len(), "Bulk Viscosity")?;
 
-                        let mu = mu_stable_neo_hookean(
-                            input.youngs_moduluses[i],
-                            input.poissons_ratios[i],
-                        );
-                        let lambda = lambda_stable_neo_hookean(
-                            input.youngs_moduluses[i],
-                            input.poissons_ratios[i],
-                        );
-                        let exponent = input.exponents[i];
-                        let bulk_modulus = input.bulk_moduluses[i];
-
-                        let viscosity = flags.contains(ParticleFlags::UseViscosity).then_some(
-                            ViscosityParameters {
+                            Some(ViscosityParameters {
                                 dynamic: input.viscosities_dynamic[i],
                                 bulk: input.viscosities_bulk[i],
-                            },
-                        );
-                        let sand_alpha = flags
-                            .contains(ParticleFlags::UseSandAlpha)
-                            .then_some(input.sand_alphas[i]);
+                            })
+                        } else {
+                            None
+                        };
 
                         parameters.push(if flags.contains(ParticleFlags::IsSolid) {
+                            check(input.youngs_moduluses.len(), "Young's Modulus")?;
+                            check(input.poissons_ratios.len(), "Poisson's Ratio")?;
+
+                            let mu = mu_stable_neo_hookean(
+                                input.youngs_moduluses[i],
+                                input.poissons_ratios[i],
+                            );
+                            let lambda = lambda_stable_neo_hookean(
+                                input.youngs_moduluses[i],
+                                input.poissons_ratios[i],
+                            );
+
+                            let sand_alpha = if flags.contains(ParticleFlags::UseSandAlpha) {
+                                check(input.sand_alphas.len(), "Sand Alpha")?;
+                                Some(input.sand_alphas[i])
+                            } else {
+                                None
+                            };
+
                             ParticleParameters::Solid {
                                 mu,
                                 lambda,
@@ -183,6 +209,12 @@ impl State {
                                 sand_alpha,
                             }
                         } else if flags.contains(ParticleFlags::IsFluid) {
+                            check(input.exponents.len(), "Exponent")?;
+                            check(input.bulk_moduluses.len(), "Bulk Modulus")?;
+
+                            let exponent = input.exponents[i];
+                            let bulk_modulus = input.bulk_moduluses[i];
+
                             ParticleParameters::Fluid {
                                 exponent,
                                 bulk_modulus,
@@ -193,7 +225,7 @@ impl State {
                         });
                     }
 
-                    particle_object.particles = (first_index..first_index + n).collect();
+                    particle_object.particles = (first_index..new_len).collect();
                 }
                 InputObject::Collider { .. } => {
                     let object_index = ObjectIndex::Collider(collider_objects.len());

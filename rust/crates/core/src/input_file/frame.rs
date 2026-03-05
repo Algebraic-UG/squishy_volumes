@@ -12,9 +12,11 @@ use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
+use crate::ParticleFlags;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
 pub struct ParticlesInput {
-    pub flags: Vec<i32>,
+    pub flags: Vec<ParticleFlags>,
     pub transforms: Vec<f32>,
     pub sizes: Vec<f32>,
     pub densities: Vec<f32>,

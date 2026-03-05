@@ -147,11 +147,15 @@ def capture_input_frame(
             if triangle_indices:
                 bulk = triangles_to_numpy_array(mesh=mesh)
             else:
+                if python_name not in attributes:
+                    return
                 bulk = attribute_to_numpy_array(
                     mesh=mesh,
                     attribute=attributes[python_name],
                 )
-            if bulk.dtype == "float32":
+            if bulk.dtype == "bool":
+                simulation_input.record_input_bool(meta=meta, bulk=bulk)
+            elif bulk.dtype == "float32":
                 simulation_input.record_input_float(meta=meta, bulk=bulk)
             elif bulk.dtype == "int32":
                 simulation_input.record_input_int(meta=meta, bulk=bulk)
@@ -159,7 +163,15 @@ def capture_input_frame(
                 raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
         if input_type == INPUT_TYPE_PARTICLES:
-            record(python_name="squishy_volumes_flags", rust_name="Flags")
+            record(python_name="squishy_volumes_is_solid", rust_name="IsSolid")
+            record(python_name="squishy_volumes_is_fluid", rust_name="IsFluid")
+            record(
+                python_name="squishy_volumes_use_viscosity", rust_name="UseViscosity"
+            )
+            record(
+                python_name="squishy_volumes_use_sand_alpha", rust_name="UseSandAlpha"
+            )
+            record(python_name="squishy_volumes_has_goal", rust_name="HasGoal")
             record(python_name="squishy_volumes_transform", rust_name="Transforms")
             record(python_name="squishy_volumes_size", rust_name="Sizes")
             record(python_name="squishy_volumes_density", rust_name="Densities")

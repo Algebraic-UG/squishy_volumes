@@ -58,29 +58,21 @@ impl State {
             .zip(b.particles_input.iter())
             .map(|((name_a, input_a), (name_b, input_b))| {
                 ensure!(name_a == name_b);
-                ensure!(input_a.goal_stiffnesses.len() == input_b.goal_stiffnesses.len());
                 ensure!(input_a.goal_positions.len() == input_b.goal_positions.len());
 
+                let flags = input_a.flags.clone();
                 let goal_positions = input_a
                     .goal_positions
                     .iter()
                     .zip(&input_b.goal_positions)
                     .map(|(position_a, position_b)| factor_a * position_a + factor_b * position_b)
                     .collect();
-                let goal_stiffnesses = input_a
-                    .goal_stiffnesses
-                    .iter()
-                    .zip(&input_b.goal_stiffnesses)
-                    .map(|(stiffness_a, stiffness_b)| {
-                        factor_a * stiffness_a + factor_b * stiffness_b
-                    })
-                    .collect();
 
                 Ok((
                     name_a.clone(),
                     InterpolatedInputParticles {
+                        flags,
                         goal_positions,
-                        goal_stiffnesses,
                     },
                 ))
             })
