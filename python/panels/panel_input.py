@@ -489,15 +489,6 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
         )
 
         obj = get_selected_input_object(context.scene)
-        if obj is not None:
-            (header, body) = self.layout.panel(
-                "input_object_settings", default_closed=True
-            )
-            header.label(text=f"Settings for {obj.name}")
-            if body is not None:
-                body.operator(
-                    OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals.bl_idname
-                )
 
         self.layout.prop(simulation, "capture_start_frame")
         self.layout.prop(simulation, "capture_frames")
@@ -529,11 +520,25 @@ classes = [
 ]
 
 
+def menu_func_add_goals(self, _context):
+    self.layout.operator(
+        OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals.bl_idname,
+        icon="MODIFIER",
+    )
+
+
+menu_funcs = [menu_func_add_goals]
+
+
 def register_panel_input():
     for cls in classes:
         bpy.utils.register_class(cls)
+    for menu_func in menu_funcs:
+        bpy.types.VIEW3D_MT_object.append(menu_func)
 
 
 def unregister_panel_input():
+    for menu_func in menu_funcs:
+        bpy.types.VIEW3D_MT_object.remove(menu_func)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
