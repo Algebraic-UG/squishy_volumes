@@ -46,6 +46,22 @@ impl SimulationInput {
         })
     }
 
+    pub fn record_input_bool<'py>(
+        &self,
+        meta: &str,
+        bulk: PyReadonlyArray1<'py, bool>,
+    ) -> Result<()> {
+        try_with_context(|context| {
+            context
+                .get_simulation_input()
+                .context("Not recording input")?
+                .record_input(
+                    from_str(meta).context("Meta string isn't valid JSON")?,
+                    InputBulk::Bool(bulk.as_slice()?),
+                )
+        })
+    }
+
     pub fn record_input_float<'py>(
         &self,
         meta: &str,
