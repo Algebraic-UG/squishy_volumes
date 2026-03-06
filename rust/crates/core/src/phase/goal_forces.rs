@@ -30,13 +30,17 @@ impl State {
                 self.particle_objects[*index].particles.iter().enumerate()
             {
                 let flags = &particles_input.flags[particle_object_index];
-                let particle_world_index = self.particles.reverse_sort_map[*particle_world_index];
-                let goal_position = &particles_input.goal_positions[particle_object_index];
-                let position = &self.particles.positions[particle_world_index];
-
                 if !flags.contains(ParticleFlags::HasGoal) {
                     continue;
                 }
+
+                let particle_world_index = self.particles.reverse_sort_map[*particle_world_index];
+                let goal_position = particles_input
+                    .goal_positions
+                    .get(particle_object_index)
+                    .context("Missing goal position")?;
+                let position = &self.particles.positions[particle_world_index];
+
                 self.particles.velocities[particle_world_index] =
                     (goal_position - position) / time_step;
             }
