@@ -19,7 +19,10 @@ use tracing::info;
 
 use crate::{
     ParticleFlags, Report, ReportInfo,
-    elastic::{lambda_stable_neo_hookean, mu_stable_neo_hookean},
+    elastic::{
+        bulk_modulus_in_bounds, exponent_in_bounds, lambda_stable_neo_hookean,
+        mu_stable_neo_hookean, poissons_ratio_in_bounds, youngs_modulus_in_bounds,
+    },
     input_file::{InputFrame, InputHeader, InputObject},
     state::{
         ObjectIndex,
@@ -42,6 +45,14 @@ pub enum StateInitializationError {
         actual: usize,
         expected: usize,
     },
+    #[error("The value for Young's Modulus of particle {0} was negative")]
+    YoungsModulusOutOfBounds(usize),
+    #[error("The value for Poisson's Ratio of particle {0} wasn't between 0 and 0.5")]
+    PoissonsRatioOutOfBounds(usize),
+    #[error("The value for Exponent of particle {0} wasn't at least 1")]
+    ExponentOutOfBounds(usize),
+    #[error("The value for Bulk Modulus of particle {0} was negative")]
+    BulkModulusOutOfBounds(usize),
 }
 
 impl State {
@@ -157,7 +168,7 @@ impl State {
                     velocity_gradients.resize(new_len, Matrix3::zeros());
                     elastic_energies.resize(new_len, 0.);
 
-                    let check = |actual: usize, name: &'static str| {
+                    let check_len = |actual: usize, name: &'static str| {
                         if actual != input.flags.len() {
                             Err(StateInitializationError::ParticleInvalidNumber {
                                 name,
@@ -171,8 +182,8 @@ impl State {
 
                     for (i, flags) in input.flags.iter().enumerate() {
                         let viscosity = if flags.contains(ParticleFlags::UseViscosity) {
-                            check(input.viscosities_dynamic.len(), "Dynamic Viscosity")?;
-                            check(input.viscosities_bulk.len(), "Bulk Viscosity")?;
+                            check_len(input.viscosities_dynamic.len(), "Dynamic Viscosity")?;
+                            check_len(input.viscosities_bulk.len(), "Bulk Viscosity")?;
 
                             Some(ViscosityParameters {
                                 dynamic: input.viscosities_dynamic[i],
@@ -183,20 +194,24 @@ impl State {
                         };
 
                         parameters.push(if flags.contains(ParticleFlags::IsSolid) {
-                            check(input.youngs_moduluses.len(), "Young's Modulus")?;
-                            check(input.poissons_ratios.len(), "Poisson's Ratio")?;
+                            check_len(input.youngs_moduluses.len(), "Young's Modulus")?;
+                            check_len(input.poissons_ratios.len(), "Poisson's Ratio")?;
 
-                            let mu = mu_stable_neo_hookean(
-                                input.youngs_moduluses[i],
-                                input.poissons_ratios[i],
-                            );
-                            let lambda = lambda_stable_neo_hookean(
-                                input.youngs_moduluses[i],
-                                input.poissons_ratios[i],
-                            );
+                            let youngs_modulus = input.youngs_moduluses[i];
+                            let poissons_ratio = input.poissons_ratios[i];
+
+                            if !youngs_modulus_in_bounds(youngs_modulus) {
+                                return Err(StateInitializationError::YoungsModulusOutOfBounds(i));
+                            }
+                            if !poissons_ratio_in_bounds(poissons_ratio) {
+                                return Err(StateInitializationError::PoissonsRatioOutOfBounds(i));
+                            }
+
+                            let mu = mu_stable_neo_hookean(youngs_modulus, poissons_ratio);
+                            let lambda = lambda_stable_neo_hookean(youngs_modulus, poissons_ratio);
 
                             let sand_alpha = if flags.contains(ParticleFlags::UseSandAlpha) {
-                                check(input.sand_alphas.len(), "Sand Alpha")?;
+                                check_len(input.sand_alphas.len(), "Sand Alpha")?;
                                 Some(input.sand_alphas[i])
                             } else {
                                 None
@@ -209,11 +224,18 @@ impl State {
                                 sand_alpha,
                             }
                         } else if flags.contains(ParticleFlags::IsFluid) {
-                            check(input.exponents.len(), "Exponent")?;
-                            check(input.bulk_moduluses.len(), "Bulk Modulus")?;
+                            check_len(input.exponents.len(), "Exponent")?;
+                            check_len(input.bulk_moduluses.len(), "Bulk Modulus")?;
 
                             let exponent = input.exponents[i];
                             let bulk_modulus = input.bulk_moduluses[i];
+
+                            if !exponent_in_bounds(exponent) {
+                                return Err(StateInitializationError::ExponentOutOfBounds(i));
+                            }
+                            if !bulk_modulus_in_bounds(bulk_modulus) {
+                                return Err(StateInitializationError::BulkModulusOutOfBounds(i));
+                            }
 
                             ParticleParameters::Fluid {
                                 exponent,

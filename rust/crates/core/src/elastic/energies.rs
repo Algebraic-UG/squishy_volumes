@@ -23,18 +23,25 @@ pub enum EnergyError {
     PositionGradientNonPositive,
 }
 
+pub fn youngs_modulus_in_bounds(value: T) -> bool {
+    value >= 0.
+}
+
+pub fn poissons_ratio_in_bounds(value: T) -> bool {
+    (0. ..0.5).contains(&value)
+}
+
 // Wikipedia: Lamé parameters (this is the "second")
 pub fn mu(youngs_modulus: T, poissons_ratio: T) -> T {
-    assert!(youngs_modulus >= 0.);
-    assert!(poissons_ratio >= 0.);
+    assert!(youngs_modulus_in_bounds(youngs_modulus));
+    assert!(poissons_ratio_in_bounds(poissons_ratio));
     youngs_modulus / 2. / (1. + poissons_ratio)
 }
 
 // Wikipedia: Lamé parameters (this is the "first")
 pub fn lambda(youngs_modulus: T, poissons_ratio: T) -> T {
-    assert!(youngs_modulus >= 0.);
-    assert!(poissons_ratio >= 0.);
-    assert!(poissons_ratio < 0.5);
+    assert!(youngs_modulus_in_bounds(youngs_modulus));
+    assert!(poissons_ratio_in_bounds(poissons_ratio));
     youngs_modulus * poissons_ratio / (1. + poissons_ratio) / (1. - 2. * poissons_ratio)
 }
 
@@ -468,12 +475,20 @@ pub fn hessian_neo_hookean_svd(
     big_uv * singular_space_hessian * big_uv.transpose()
 }
 
+pub fn bulk_modulus_in_bounds(value: T) -> bool {
+    value >= 0.
+}
+
+pub fn exponent_in_bounds(value: i32) -> bool {
+    value > 1
+}
+
 // Something like
 // Multi-species simulation of porous sand and water mixtures (11)
 // Weakly compressible SPH for free surface flows (7)
 pub fn elastic_energy_inviscid_by_invariant(bulk_modulus: T, exponent: i32, invariant_3: T) -> T {
-    assert!(bulk_modulus >= 0.);
-    assert!(exponent > 1);
+    assert!(bulk_modulus_in_bounds(bulk_modulus));
+    assert!(exponent_in_bounds(exponent));
     // https://github.com/Algebraic-UG/squishy_volumes/issues/125
     let at_rest = bulk_modulus * (1. - 1. / (1. - exponent as T));
     bulk_modulus * (invariant_3 - invariant_3.powi(1 - exponent) / (1. - exponent as T)) - at_rest
