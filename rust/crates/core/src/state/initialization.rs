@@ -157,7 +157,7 @@ impl State {
                     velocity_gradients.resize(new_len, Matrix3::zeros());
                     elastic_energies.resize(new_len, 0.);
 
-                    let check = |actual: usize, name: &'static str| {
+                    let check_len = |actual: usize, name: &'static str| {
                         if actual != input.flags.len() {
                             Err(StateInitializationError::ParticleInvalidNumber {
                                 name,
@@ -171,8 +171,8 @@ impl State {
 
                     for (i, flags) in input.flags.iter().enumerate() {
                         let viscosity = if flags.contains(ParticleFlags::UseViscosity) {
-                            check(input.viscosities_dynamic.len(), "Dynamic Viscosity")?;
-                            check(input.viscosities_bulk.len(), "Bulk Viscosity")?;
+                            check_len(input.viscosities_dynamic.len(), "Dynamic Viscosity")?;
+                            check_len(input.viscosities_bulk.len(), "Bulk Viscosity")?;
 
                             Some(ViscosityParameters {
                                 dynamic: input.viscosities_dynamic[i],
@@ -196,7 +196,7 @@ impl State {
                             );
 
                             let sand_alpha = if flags.contains(ParticleFlags::UseSandAlpha) {
-                                check(input.sand_alphas.len(), "Sand Alpha")?;
+                                check_len(input.sand_alphas.len(), "Sand Alpha")?;
                                 Some(input.sand_alphas[i])
                             } else {
                                 None
@@ -209,8 +209,8 @@ impl State {
                                 sand_alpha,
                             }
                         } else if flags.contains(ParticleFlags::IsFluid) {
-                            check(input.exponents.len(), "Exponent")?;
-                            check(input.bulk_moduluses.len(), "Bulk Modulus")?;
+                            check_len(input.exponents.len(), "Exponent")?;
+                            check_len(input.bulk_moduluses.len(), "Bulk Modulus")?;
 
                             let exponent = input.exponents[i];
                             let bulk_modulus = input.bulk_moduluses[i];
