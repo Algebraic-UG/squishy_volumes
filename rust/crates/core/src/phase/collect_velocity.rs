@@ -28,7 +28,7 @@ impl State {
     // Update the particles' velocity and velocity gradients to be transported.
     pub fn collect_velocity(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("collect_velocity");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
         self.particles
             .positions
             .par_iter()
@@ -65,7 +65,10 @@ impl State {
 
                                 let incompatibility =
                                     self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                                        find_worst_incompatibility(collider_inside, grid_node)
+                                        find_worst_incompatibility(
+                                            collider_inside,
+                                            grid_node.assume_ref(),
+                                        )
                                     });
                                 let grid_node_position = grid_idx.map(|i| i as T) * grid_node_size;
                                 let to_grid_node = grid_node_position - position;

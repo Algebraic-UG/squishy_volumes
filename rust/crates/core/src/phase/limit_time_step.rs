@@ -42,7 +42,7 @@ impl State {
     // Effective time step restrictions for explicit MPM simulation 4.1 Sound Speed
     fn limit_time_step_by_speed_of_sound(&self, phase_input: &mut PhaseInput) -> Option<T> {
         profile!("limit_time_step_by_speed_of_sound");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
         self.particles
             .parameters
             .par_iter()
@@ -137,7 +137,7 @@ impl State {
 
     fn limit_time_step_by_isolated_particles(&self, phase_input: &mut PhaseInput) -> Option<T> {
         profile!("limit_time_step_by_isolated_particles");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
         self.particles
             .parameters
             .par_iter()
@@ -202,7 +202,7 @@ impl State {
     // Effective time step restrictions for explicit MPM simulation 4.2-4
     pub fn limit_time_step_before_integrate(self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("limit_time_step_before_integrate");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
         phase_input.time_step_by_velocity = self
             .particles
             .velocities

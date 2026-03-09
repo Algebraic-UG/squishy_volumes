@@ -26,7 +26,7 @@ impl State {
     // with the node's 3d integer position. The data vectors are effectively invalidated.
     pub fn update_momentum_maps(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("update_momentum_maps");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         {
             profile!("prune");
@@ -74,7 +74,7 @@ impl State {
                 kernel_quadratic_unrolled!(|grid_idx| {
                     let grid_idx = grid_idx + shift;
                     let incompatibility = self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                        find_worst_incompatibility(collider_inside, grid_node)
+                        find_worst_incompatibility(collider_inside, grid_node.assume_ref())
                     });
 
                     if let Some(collider_idx) = incompatibility {

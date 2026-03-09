@@ -21,7 +21,7 @@ use tracing::{debug, info};
 
 use squishy_volumes_api::T;
 
-use crate::{state::State, stats::StateStats};
+use crate::{input_file::InputConsts, state::State, stats::StateStats};
 
 use super::state::attributes::Attribute;
 
@@ -190,7 +190,7 @@ impl Cache {
 
     pub fn fetch_flat_attribute(
         &self,
-        grid_node_size: T,
+        consts: &InputConsts,
         frame: usize,
         attribute: Attribute,
     ) -> Result<Vec<T>, CacheError> {
@@ -200,7 +200,7 @@ impl Cache {
             .as_ref()
             .unwrap()
             .1
-            .fetch_flat_attribute(grid_node_size, attribute)
+            .fetch_flat_attribute(consts, attribute)
             .map_err(CacheReadingError::Attribute)?)
     }
 

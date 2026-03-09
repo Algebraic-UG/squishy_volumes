@@ -1,13 +1,13 @@
 {
     "blender_version": "5.0.1",
-    "tree_clipper_version": "0.1.5",
+    "tree_clipper_version": "0.1.6",
     "node_trees": [
         {
             "id": 0,
             "data": {
-                "name": "Inside Object",
+                "name": "Squishy Volumes Inside Object",
                 "use_fake_user": false,
-                "use_extra_user": true,
+                "use_extra_user": false,
                 "is_runtime_data": false,
                 "tag": false,
                 "color_tag": "NONE",
@@ -36,6 +36,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": false,
+                                            "select": false,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -59,6 +60,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": false,
+                                            "select": false,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -81,6 +83,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": false,
+                                            "select": false,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -112,6 +115,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": false,
+                                            "select": true,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -132,7 +136,7 @@
                 "nodes": {
                     "id": 7,
                     "data": {
-                        "active": 48,
+                        "active": 8,
                         "items": [
                             {
                                 "id": 8,
@@ -721,7 +725,7 @@
                                                         "hide_value": false,
                                                         "pin_gizmo": false,
                                                         "type": "STRING",
-                                                        "display_shape": "LINE",
+                                                        "display_shape": "CIRCLE",
                                                         "default_value": ""
                                                     }
                                                 },
@@ -737,7 +741,7 @@
                                                         "hide_value": false,
                                                         "pin_gizmo": false,
                                                         "type": "STRING",
-                                                        "display_shape": "LINE",
+                                                        "display_shape": "CIRCLE",
                                                         "default_value": ""
                                                     }
                                                 },
@@ -844,7 +848,7 @@
                                         0.6079999804496765,
                                         0.6079999804496765
                                     ],
-                                    "select": true,
+                                    "select": false,
                                     "show_options": true,
                                     "show_preview": false,
                                     "hide": false,
@@ -1475,6 +1479,7 @@
                     }
                 },
                 "is_tool": false,
+                "node_tool_idname": "",
                 "is_modifier": false,
                 "is_mode_object": false,
                 "is_mode_edit": false,
@@ -1503,7 +1508,7 @@
                 "interface": {
                     "id": 94,
                     "data": {
-                        "active_index": 3,
+                        "active_index": 1,
                         "items_tree": {
                             "id": 95,
                             "data": {
@@ -1522,6 +1527,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": false,
+                                            "select": false,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -1544,6 +1550,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": false,
+                                            "select": true,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -1554,32 +1561,6 @@
                                     },
                                     {
                                         "id": 98,
-                                        "data": {
-                                            "name": "Stiffness",
-                                            "description": "",
-                                            "socket_type": "NodeSocketFloat",
-                                            "hide_value": false,
-                                            "hide_in_modifier": false,
-                                            "force_non_field": false,
-                                            "is_inspect_output": false,
-                                            "is_panel_toggle": false,
-                                            "layer_selection_field": false,
-                                            "menu_expanded": false,
-                                            "optional_label": false,
-                                            "attribute_domain": "POINT",
-                                            "default_attribute_name": "",
-                                            "structure_type": "AUTO",
-                                            "default_input": "VALUE",
-                                            "in_out": "INPUT",
-                                            "item_type": "SOCKET",
-                                            "subtype": "NONE",
-                                            "default_value": 1000.0,
-                                            "min_value": 0.0,
-                                            "max_value": 3.4028234663852886e+38
-                                        }
-                                    },
-                                    {
-                                        "id": 99,
                                         "data": {
                                             "name": "Choose",
                                             "description": "",
@@ -1592,6 +1573,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": true,
+                                            "select": false,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -1602,7 +1584,7 @@
                                         }
                                     },
                                     {
-                                        "id": 100,
+                                        "id": 99,
                                         "data": {
                                             "name": "Move",
                                             "description": "",
@@ -1615,6 +1597,7 @@
                                             "layer_selection_field": false,
                                             "menu_expanded": false,
                                             "optional_label": true,
+                                            "select": false,
                                             "attribute_domain": "POINT",
                                             "default_attribute_name": "",
                                             "structure_type": "AUTO",
@@ -1630,19 +1613,19 @@
                     }
                 },
                 "nodes": {
-                    "id": 101,
+                    "id": 100,
                     "data": {
-                        "active": 102,
+                        "active": 151,
                         "items": [
                             {
-                                "id": 102,
+                                "id": 101,
                                 "data": {
                                     "location": [
                                         30.0,
                                         -156.0
                                     ],
                                     "location_absolute": [
-                                        -740.0,
+                                        -700.0,
                                         -60.0
                                     ],
                                     "width": 140.0,
@@ -1663,17 +1646,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 103,
+                                        "id": 102,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 104,
+                                        "id": 103,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 105,
+                                                    "id": 104,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -1688,23 +1671,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 106,
-                                                    "data": {
-                                                        "name": "Stiffness",
-                                                        "description": "",
-                                                        "hide": true,
-                                                        "enabled": true,
-                                                        "link_limit": 4095,
-                                                        "show_expanded": false,
-                                                        "hide_value": false,
-                                                        "pin_gizmo": false,
-                                                        "type": "VALUE",
-                                                        "display_shape": "DIAMOND",
-                                                        "default_value": 0.0
-                                                    }
-                                                },
-                                                {
-                                                    "id": 107,
+                                                    "id": 105,
                                                     "data": {
                                                         "name": "Choose",
                                                         "description": "",
@@ -1720,7 +1687,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 108,
+                                                    "id": 106,
                                                     "data": {
                                                         "name": "Move",
                                                         "description": "",
@@ -1736,7 +1703,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 109,
+                                                    "id": 107,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -1754,19 +1721,19 @@
                                         }
                                     },
                                     "bl_idname": "NodeGroupInput",
-                                    "parent": 287
+                                    "parent": 283
                                 }
                             },
                             {
-                                "id": 110,
+                                "id": 108,
                                 "data": {
                                     "location": [
                                         2060.0,
-                                        -100.0
+                                        -20.0
                                     ],
                                     "location_absolute": [
                                         2060.0,
-                                        -100.0
+                                        -20.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -1786,11 +1753,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 111,
+                                        "id": 109,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 112,
+                                                    "id": 110,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -1805,7 +1772,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 113,
+                                                    "id": 111,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -1823,7 +1790,7 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 114,
+                                        "id": 112,
                                         "data": {
                                             "items": []
                                         }
@@ -1834,17 +1801,17 @@
                                 }
                             },
                             {
-                                "id": 115,
+                                "id": 113,
                                 "data": {
                                     "location": [
                                         430.0,
                                         -36.0
                                     ],
                                     "location_absolute": [
-                                        -340.0,
+                                        -300.0,
                                         60.0
                                     ],
-                                    "width": 140.0,
+                                    "width": 280.0,
                                     "height": 100.0,
                                     "name": "Inside Object",
                                     "label": "",
@@ -1862,11 +1829,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 116,
+                                        "id": 114,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 117,
+                                                    "id": 115,
                                                     "data": {
                                                         "name": "Target Geometry",
                                                         "description": "",
@@ -1881,7 +1848,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 118,
+                                                    "id": 116,
                                                     "data": {
                                                         "name": "Position",
                                                         "description": "",
@@ -1901,7 +1868,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 119,
+                                                    "id": 117,
                                                     "data": {
                                                         "name": "Seed",
                                                         "description": "",
@@ -1920,11 +1887,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 120,
+                                        "id": 118,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 121,
+                                                    "id": 119,
                                                     "data": {
                                                         "name": "Boolean",
                                                         "description": "",
@@ -1943,22 +1910,22 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeGroup",
-                                    "parent": 287,
+                                    "parent": 283,
                                     "node_tree": 0
                                 }
                             },
                             {
-                                "id": 122,
+                                "id": 120,
                                 "data": {
                                     "location": [
                                         430.0,
                                         -276.0
                                     ],
                                     "location_absolute": [
-                                        -340.0,
+                                        -300.0,
                                         -180.0
                                     ],
-                                    "width": 140.0,
+                                    "width": 280.0,
                                     "height": 100.0,
                                     "name": "Inside Object.001",
                                     "label": "",
@@ -1976,11 +1943,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 123,
+                                        "id": 121,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 124,
+                                                    "id": 122,
                                                     "data": {
                                                         "name": "Target Geometry",
                                                         "description": "",
@@ -1995,7 +1962,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 125,
+                                                    "id": 123,
                                                     "data": {
                                                         "name": "Position",
                                                         "description": "",
@@ -2015,7 +1982,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 126,
+                                                    "id": 124,
                                                     "data": {
                                                         "name": "Seed",
                                                         "description": "",
@@ -2034,11 +2001,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 127,
+                                        "id": 125,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 128,
+                                                    "id": 126,
                                                     "data": {
                                                         "name": "Boolean",
                                                         "description": "",
@@ -2057,20 +2024,20 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeGroup",
-                                    "parent": 287,
+                                    "parent": 283,
                                     "node_tree": 0
                                 }
                             },
                             {
-                                "id": 129,
+                                "id": 127,
                                 "data": {
                                     "location": [
-                                        630.0,
-                                        -96.0
+                                        790.0,
+                                        -116.0
                                     ],
                                     "location_absolute": [
-                                        -140.0,
-                                        0.0
+                                        60.0,
+                                        -20.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -2090,11 +2057,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 130,
+                                        "id": 128,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 131,
+                                                    "id": 129,
                                                     "data": {
                                                         "name": "Boolean",
                                                         "description": "",
@@ -2110,7 +2077,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 132,
+                                                    "id": 130,
                                                     "data": {
                                                         "name": "Boolean",
                                                         "description": "",
@@ -2129,11 +2096,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 133,
+                                        "id": 131,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 134,
+                                                    "id": 132,
                                                     "data": {
                                                         "name": "Boolean",
                                                         "description": "",
@@ -2152,19 +2119,19 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeBooleanMath",
-                                    "parent": 287,
+                                    "parent": 283,
                                     "operation": "AND"
                                 }
                             },
                             {
-                                "id": 135,
+                                "id": 133,
                                 "data": {
                                     "location": [
                                         210.0,
                                         -116.0
                                     ],
                                     "location_absolute": [
-                                        -560.0,
+                                        -520.0,
                                         -20.0
                                     ],
                                     "width": 140.0,
@@ -2185,11 +2152,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 136,
+                                        "id": 134,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 137,
+                                                    "id": 135,
                                                     "data": {
                                                         "name": "Object",
                                                         "description": "",
@@ -2205,7 +2172,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 138,
+                                                    "id": 136,
                                                     "data": {
                                                         "name": "As Instance",
                                                         "description": "",
@@ -2224,11 +2191,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 139,
+                                        "id": 137,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 140,
+                                                    "id": 138,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -2243,7 +2210,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 141,
+                                                    "id": 139,
                                                     "data": {
                                                         "name": "Location",
                                                         "description": "",
@@ -2263,7 +2230,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 142,
+                                                    "id": 140,
                                                     "data": {
                                                         "name": "Rotation",
                                                         "description": "",
@@ -2283,7 +2250,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 143,
+                                                    "id": 141,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -2303,7 +2270,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 144,
+                                                    "id": 142,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2321,12 +2288,12 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeObjectInfo",
-                                    "parent": 287,
+                                    "parent": 283,
                                     "transform_space": "RELATIVE"
                                 }
                             },
                             {
-                                "id": 145,
+                                "id": 143,
                                 "data": {
                                     "location": [
                                         380.0,
@@ -2354,11 +2321,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 146,
+                                        "id": 144,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 147,
+                                                    "id": 145,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2373,7 +2340,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 148,
+                                                    "id": 146,
                                                     "data": {
                                                         "name": "Selection",
                                                         "description": "",
@@ -2389,7 +2356,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 149,
+                                                    "id": 147,
                                                     "data": {
                                                         "name": "Name",
                                                         "description": "",
@@ -2401,11 +2368,11 @@
                                                         "pin_gizmo": false,
                                                         "type": "STRING",
                                                         "display_shape": "LINE",
-                                                        "default_value": "squishy_volumes_goal_stiffness"
+                                                        "default_value": "squishy_volumes_has_goal"
                                                     }
                                                 },
                                                 {
-                                                    "id": 150,
+                                                    "id": 148,
                                                     "data": {
                                                         "name": "Value",
                                                         "description": "",
@@ -2415,20 +2382,20 @@
                                                         "show_expanded": false,
                                                         "hide_value": false,
                                                         "pin_gizmo": false,
-                                                        "type": "VALUE",
+                                                        "type": "BOOLEAN",
                                                         "display_shape": "DIAMOND",
-                                                        "default_value": 0.0
+                                                        "default_value": true
                                                     }
                                                 }
                                             ]
                                         }
                                     },
                                     "outputs": {
-                                        "id": 151,
+                                        "id": 149,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 152,
+                                                    "id": 150,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2447,20 +2414,20 @@
                                     },
                                     "bl_idname": "GeometryNodeStoreNamedAttribute",
                                     "parent": null,
-                                    "data_type": "FLOAT",
+                                    "data_type": "BOOLEAN",
                                     "domain": "POINT"
                                 }
                             },
                             {
-                                "id": 153,
+                                "id": 151,
                                 "data": {
                                     "location": [
                                         780.0,
-                                        -60.0
+                                        -20.0
                                     ],
                                     "location_absolute": [
                                         780.0,
-                                        -60.0
+                                        -20.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -2480,11 +2447,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 154,
+                                        "id": 152,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 155,
+                                                    "id": 153,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2499,7 +2466,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 156,
+                                                    "id": 154,
                                                     "data": {
                                                         "name": "Selection",
                                                         "description": "",
@@ -2515,7 +2482,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 157,
+                                                    "id": 155,
                                                     "data": {
                                                         "name": "Position",
                                                         "description": "",
@@ -2535,11 +2502,11 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 158,
+                                                    "id": 156,
                                                     "data": {
                                                         "name": "Offset",
                                                         "description": "",
-                                                        "hide": false,
+                                                        "hide": true,
                                                         "enabled": true,
                                                         "link_limit": 1,
                                                         "show_expanded": false,
@@ -2558,11 +2525,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 159,
+                                        "id": 157,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 160,
+                                                    "id": 158,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2584,7 +2551,7 @@
                                 }
                             },
                             {
-                                "id": 161,
+                                "id": 159,
                                 "data": {
                                     "location": [
                                         210.0,
@@ -2612,11 +2579,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 162,
+                                        "id": 160,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 163,
+                                                    "id": 161,
                                                     "data": {
                                                         "name": "Object",
                                                         "description": "",
@@ -2632,7 +2599,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 164,
+                                                    "id": 162,
                                                     "data": {
                                                         "name": "As Instance",
                                                         "description": "",
@@ -2651,11 +2618,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 165,
+                                        "id": 163,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 166,
+                                                    "id": 164,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -2670,7 +2637,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 167,
+                                                    "id": 165,
                                                     "data": {
                                                         "name": "Location",
                                                         "description": "",
@@ -2690,7 +2657,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 168,
+                                                    "id": 166,
                                                     "data": {
                                                         "name": "Rotation",
                                                         "description": "",
@@ -2710,7 +2677,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 169,
+                                                    "id": 167,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -2730,7 +2697,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 170,
+                                                    "id": 168,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2748,12 +2715,12 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeObjectInfo",
-                                    "parent": 284,
+                                    "parent": 280,
                                     "transform_space": "ORIGINAL"
                                 }
                             },
                             {
-                                "id": 171,
+                                "id": 169,
                                 "data": {
                                     "location": [
                                         30.0,
@@ -2781,17 +2748,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 172,
+                                        "id": 170,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 173,
+                                        "id": 171,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 174,
+                                                    "id": 172,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -2806,23 +2773,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 175,
-                                                    "data": {
-                                                        "name": "Stiffness",
-                                                        "description": "",
-                                                        "hide": true,
-                                                        "enabled": true,
-                                                        "link_limit": 4095,
-                                                        "show_expanded": false,
-                                                        "hide_value": false,
-                                                        "pin_gizmo": false,
-                                                        "type": "VALUE",
-                                                        "display_shape": "DIAMOND",
-                                                        "default_value": 0.0
-                                                    }
-                                                },
-                                                {
-                                                    "id": 176,
+                                                    "id": 173,
                                                     "data": {
                                                         "name": "Choose",
                                                         "description": "",
@@ -2838,7 +2789,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 177,
+                                                    "id": 174,
                                                     "data": {
                                                         "name": "Move",
                                                         "description": "",
@@ -2854,7 +2805,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 178,
+                                                    "id": 175,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -2872,11 +2823,11 @@
                                         }
                                     },
                                     "bl_idname": "NodeGroupInput",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 179,
+                                "id": 176,
                                 "data": {
                                     "location": [
                                         1230.0,
@@ -2904,11 +2855,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 180,
+                                        "id": 177,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 181,
+                                                    "id": 178,
                                                     "data": {
                                                         "name": "Vector",
                                                         "description": "",
@@ -2928,7 +2879,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 182,
+                                                    "id": 179,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -2946,11 +2897,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 183,
+                                        "id": 180,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 184,
+                                                    "id": 181,
                                                     "data": {
                                                         "name": "Vector",
                                                         "description": "",
@@ -2973,11 +2924,11 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeTransformPoint",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 185,
+                                "id": 182,
                                 "data": {
                                     "location": [
                                         210.0,
@@ -3005,11 +2956,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 186,
+                                        "id": 183,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 187,
+                                                    "id": 184,
                                                     "data": {
                                                         "name": "Object",
                                                         "description": "",
@@ -3025,7 +2976,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 188,
+                                                    "id": 185,
                                                     "data": {
                                                         "name": "As Instance",
                                                         "description": "",
@@ -3044,11 +2995,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 189,
+                                        "id": 186,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 190,
+                                                    "id": 187,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -3063,7 +3014,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 191,
+                                                    "id": 188,
                                                     "data": {
                                                         "name": "Location",
                                                         "description": "",
@@ -3083,7 +3034,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 192,
+                                                    "id": 189,
                                                     "data": {
                                                         "name": "Rotation",
                                                         "description": "",
@@ -3103,7 +3054,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 193,
+                                                    "id": 190,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -3123,7 +3074,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 194,
+                                                    "id": 191,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -3141,12 +3092,12 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeObjectInfo",
-                                    "parent": 284,
+                                    "parent": 280,
                                     "transform_space": "ORIGINAL"
                                 }
                             },
                             {
-                                "id": 195,
+                                "id": 192,
                                 "data": {
                                     "location": [
                                         730.0,
@@ -3174,11 +3125,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 196,
+                                        "id": 193,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 197,
+                                                    "id": 194,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3193,7 +3144,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 198,
+                                                    "id": 195,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3211,11 +3162,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 199,
+                                        "id": 196,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 200,
+                                                    "id": 197,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3233,18 +3184,18 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeMatrixMultiply",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 201,
+                                "id": 198,
                                 "data": {
                                     "location": [
                                         210.0,
                                         -276.0
                                     ],
                                     "location_absolute": [
-                                        -560.0,
+                                        -520.0,
                                         -180.0
                                     ],
                                     "width": 140.0,
@@ -3265,17 +3216,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 202,
+                                        "id": 199,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 203,
+                                        "id": 200,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 204,
+                                                    "id": 201,
                                                     "data": {
                                                         "name": "Position",
                                                         "description": "",
@@ -3298,11 +3249,11 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeInputPosition",
-                                    "parent": 287
+                                    "parent": 283
                                 }
                             },
                             {
-                                "id": 205,
+                                "id": 202,
                                 "data": {
                                     "location": [
                                         30.0,
@@ -3330,17 +3281,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 206,
+                                        "id": 203,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 207,
+                                        "id": 204,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 208,
+                                                    "id": 205,
                                                     "data": {
                                                         "name": "Self Object",
                                                         "description": "",
@@ -3359,11 +3310,11 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeSelfObject",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 209,
+                                "id": 206,
                                 "data": {
                                     "location": [
                                         210.0,
@@ -3391,11 +3342,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 210,
+                                        "id": 207,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 211,
+                                                    "id": 208,
                                                     "data": {
                                                         "name": "Object",
                                                         "description": "",
@@ -3411,7 +3362,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 212,
+                                                    "id": 209,
                                                     "data": {
                                                         "name": "As Instance",
                                                         "description": "",
@@ -3430,11 +3381,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 213,
+                                        "id": 210,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 214,
+                                                    "id": 211,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -3449,7 +3400,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 215,
+                                                    "id": 212,
                                                     "data": {
                                                         "name": "Location",
                                                         "description": "",
@@ -3469,7 +3420,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 216,
+                                                    "id": 213,
                                                     "data": {
                                                         "name": "Rotation",
                                                         "description": "",
@@ -3489,7 +3440,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 217,
+                                                    "id": 214,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -3509,7 +3460,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 218,
+                                                    "id": 215,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -3527,12 +3478,12 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeObjectInfo",
-                                    "parent": 284,
+                                    "parent": 280,
                                     "transform_space": "ORIGINAL"
                                 }
                             },
                             {
-                                "id": 219,
+                                "id": 216,
                                 "data": {
                                     "location": [
                                         970.0,
@@ -3560,17 +3511,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 220,
+                                        "id": 217,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 221,
+                                        "id": 218,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 222,
+                                                    "id": 219,
                                                     "data": {
                                                         "name": "Position",
                                                         "description": "",
@@ -3593,11 +3544,11 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeInputPosition",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 223,
+                                "id": 220,
                                 "data": {
                                     "location": [
                                         410.0,
@@ -3625,11 +3576,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 224,
+                                        "id": 221,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 225,
+                                                    "id": 222,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3647,11 +3598,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 226,
+                                        "id": 223,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 227,
+                                                    "id": 224,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3666,7 +3617,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 228,
+                                                    "id": 225,
                                                     "data": {
                                                         "name": "Invertible",
                                                         "description": "",
@@ -3685,11 +3636,11 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeInvertMatrix",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 229,
+                                "id": 226,
                                 "data": {
                                     "location": [
                                         730.0,
@@ -3717,11 +3668,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 230,
+                                        "id": 227,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 231,
+                                                    "id": 228,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3736,7 +3687,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 232,
+                                                    "id": 229,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3754,11 +3705,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 233,
+                                        "id": 230,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 234,
+                                                    "id": 231,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -3776,11 +3727,11 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeMatrixMultiply",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 235,
+                                "id": 232,
                                 "data": {
                                     "location": [
                                         30.0,
@@ -3808,17 +3759,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 236,
+                                        "id": 233,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 237,
+                                        "id": 234,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 238,
+                                                    "id": 235,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -3833,23 +3784,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 239,
-                                                    "data": {
-                                                        "name": "Stiffness",
-                                                        "description": "",
-                                                        "hide": true,
-                                                        "enabled": true,
-                                                        "link_limit": 4095,
-                                                        "show_expanded": false,
-                                                        "hide_value": false,
-                                                        "pin_gizmo": false,
-                                                        "type": "VALUE",
-                                                        "display_shape": "DIAMOND",
-                                                        "default_value": 0.0
-                                                    }
-                                                },
-                                                {
-                                                    "id": 240,
+                                                    "id": 236,
                                                     "data": {
                                                         "name": "Choose",
                                                         "description": "",
@@ -3865,7 +3800,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 241,
+                                                    "id": 237,
                                                     "data": {
                                                         "name": "Move",
                                                         "description": "",
@@ -3881,7 +3816,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 242,
+                                                    "id": 238,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -3899,11 +3834,11 @@
                                         }
                                     },
                                     "bl_idname": "NodeGroupInput",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 243,
+                                "id": 239,
                                 "data": {
                                     "location": [
                                         30.0,
@@ -3931,17 +3866,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 244,
+                                        "id": 240,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 245,
+                                        "id": 241,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 246,
+                                                    "id": 242,
                                                     "data": {
                                                         "name": "Self Object",
                                                         "description": "",
@@ -3960,11 +3895,11 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeSelfObject",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 247,
+                                "id": 243,
                                 "data": {
                                     "location": [
                                         210.0,
@@ -3992,11 +3927,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 248,
+                                        "id": 244,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 249,
+                                                    "id": 245,
                                                     "data": {
                                                         "name": "Object",
                                                         "description": "",
@@ -4012,7 +3947,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 250,
+                                                    "id": 246,
                                                     "data": {
                                                         "name": "As Instance",
                                                         "description": "",
@@ -4031,11 +3966,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 251,
+                                        "id": 247,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 252,
+                                                    "id": 248,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -4050,7 +3985,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 253,
+                                                    "id": 249,
                                                     "data": {
                                                         "name": "Location",
                                                         "description": "",
@@ -4070,7 +4005,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 254,
+                                                    "id": 250,
                                                     "data": {
                                                         "name": "Rotation",
                                                         "description": "",
@@ -4090,7 +4025,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 255,
+                                                    "id": 251,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -4110,7 +4045,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 256,
+                                                    "id": 252,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -4128,12 +4063,12 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeObjectInfo",
-                                    "parent": 284,
+                                    "parent": 280,
                                     "transform_space": "ORIGINAL"
                                 }
                             },
                             {
-                                "id": 257,
+                                "id": 253,
                                 "data": {
                                     "location": [
                                         970.0,
@@ -4161,11 +4096,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 258,
+                                        "id": 254,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 259,
+                                                    "id": 255,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -4180,7 +4115,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 260,
+                                                    "id": 256,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -4198,11 +4133,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 261,
+                                        "id": 257,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 262,
+                                                    "id": 258,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -4220,11 +4155,11 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeMatrixMultiply",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 263,
+                                "id": 259,
                                 "data": {
                                     "location": [
                                         410.0,
@@ -4252,11 +4187,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 264,
+                                        "id": 260,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 265,
+                                                    "id": 261,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -4274,11 +4209,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 266,
+                                        "id": 262,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 267,
+                                                    "id": 263,
                                                     "data": {
                                                         "name": "Matrix",
                                                         "description": "",
@@ -4293,7 +4228,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 268,
+                                                    "id": 264,
                                                     "data": {
                                                         "name": "Invertible",
                                                         "description": "",
@@ -4312,11 +4247,11 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeInvertMatrix",
-                                    "parent": 284
+                                    "parent": 280
                                 }
                             },
                             {
-                                "id": 269,
+                                "id": 265,
                                 "data": {
                                     "location": [
                                         710.0,
@@ -4324,7 +4259,7 @@
                                     ],
                                     "location_absolute": [
                                         1740.0,
-                                        -40.0
+                                        40.0
                                     ],
                                     "width": 240.0,
                                     "height": 100.0,
@@ -4344,11 +4279,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 270,
+                                        "id": 266,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 271,
+                                                    "id": 267,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -4363,7 +4298,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 272,
+                                                    "id": 268,
                                                     "data": {
                                                         "name": "Selection",
                                                         "description": "",
@@ -4379,7 +4314,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 273,
+                                                    "id": 269,
                                                     "data": {
                                                         "name": "Name",
                                                         "description": "",
@@ -4395,7 +4330,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 274,
+                                                    "id": 270,
                                                     "data": {
                                                         "name": "Value",
                                                         "description": "",
@@ -4418,11 +4353,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 275,
+                                        "id": 271,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 276,
+                                                    "id": 272,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -4440,21 +4375,21 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeStoreNamedAttribute",
-                                    "parent": 277,
+                                    "parent": 273,
                                     "data_type": "FLOAT_VECTOR",
                                     "domain": "POINT"
                                 }
                             },
                             {
-                                "id": 277,
+                                "id": 273,
                                 "data": {
                                     "location": [
                                         1030.0,
-                                        -4.0
+                                        76.0
                                     ],
                                     "location_absolute": [
                                         1030.0,
-                                        -4.0
+                                        76.0
                                     ],
                                     "width": 980.0,
                                     "height": 389.0,
@@ -4474,13 +4409,13 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 278,
+                                        "id": 274,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 279,
+                                        "id": 275,
                                         "data": {
                                             "items": []
                                         }
@@ -4493,7 +4428,7 @@
                                 }
                             },
                             {
-                                "id": 280,
+                                "id": 276,
                                 "data": {
                                     "location": [
                                         230.0,
@@ -4501,7 +4436,7 @@
                                     ],
                                     "location_absolute": [
                                         1260.0,
-                                        -160.0
+                                        -80.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -4521,17 +4456,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 281,
+                                        "id": 277,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 282,
+                                        "id": 278,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 283,
+                                                    "id": 279,
                                                     "data": {
                                                         "name": "Position",
                                                         "description": "",
@@ -4554,11 +4489,11 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeInputPosition",
-                                    "parent": 277
+                                    "parent": 273
                                 }
                             },
                             {
-                                "id": 284,
+                                "id": 280,
                                 "data": {
                                     "location": [
                                         -730.0,
@@ -4586,13 +4521,13 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 285,
+                                        "id": 281,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 286,
+                                        "id": 282,
                                         "data": {
                                             "items": []
                                         }
@@ -4605,17 +4540,17 @@
                                 }
                             },
                             {
-                                "id": 287,
+                                "id": 283,
                                 "data": {
                                     "location": [
-                                        -770.0,
+                                        -730.0,
                                         96.0
                                     ],
                                     "location_absolute": [
-                                        -770.0,
+                                        -730.0,
                                         96.0
                                     ],
-                                    "width": 800.0,
+                                    "width": 960.0,
                                     "height": 446.0,
                                     "name": "Frame.001",
                                     "label": "Detect Choosen Particles",
@@ -4633,13 +4568,13 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 288,
+                                        "id": 284,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 289,
+                                        "id": 285,
                                         "data": {
                                             "items": []
                                         }
@@ -4652,15 +4587,15 @@
                                 }
                             },
                             {
-                                "id": 290,
+                                "id": 286,
                                 "data": {
                                     "location": [
-                                        140.0,
-                                        160.0
+                                        120.0,
+                                        200.0
                                     ],
                                     "location_absolute": [
-                                        140.0,
-                                        160.0
+                                        120.0,
+                                        200.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -4680,17 +4615,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 291,
+                                        "id": 287,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 292,
+                                        "id": 288,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 293,
+                                                    "id": 289,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -4705,23 +4640,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 294,
-                                                    "data": {
-                                                        "name": "Stiffness",
-                                                        "description": "",
-                                                        "hide": false,
-                                                        "enabled": true,
-                                                        "link_limit": 4095,
-                                                        "show_expanded": false,
-                                                        "hide_value": false,
-                                                        "pin_gizmo": false,
-                                                        "type": "VALUE",
-                                                        "display_shape": "DIAMOND",
-                                                        "default_value": 0.0
-                                                    }
-                                                },
-                                                {
-                                                    "id": 295,
+                                                    "id": 290,
                                                     "data": {
                                                         "name": "Choose",
                                                         "description": "",
@@ -4737,7 +4656,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 296,
+                                                    "id": 291,
                                                     "data": {
                                                         "name": "Move",
                                                         "description": "",
@@ -4753,7 +4672,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 297,
+                                                    "id": 292,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -4775,7 +4694,7 @@
                                 }
                             },
                             {
-                                "id": 298,
+                                "id": 293,
                                 "data": {
                                     "location": [
                                         450.0,
@@ -4783,7 +4702,7 @@
                                     ],
                                     "location_absolute": [
                                         1480.0,
-                                        -160.0
+                                        -80.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -4803,11 +4722,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 299,
+                                        "id": 294,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 300,
+                                                    "id": 295,
                                                     "data": {
                                                         "name": "Vector",
                                                         "description": "",
@@ -4827,7 +4746,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 301,
+                                                    "id": 296,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -4845,11 +4764,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 302,
+                                        "id": 297,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 303,
+                                                    "id": 298,
                                                     "data": {
                                                         "name": "Vector",
                                                         "description": "",
@@ -4872,11 +4791,11 @@
                                         }
                                     },
                                     "bl_idname": "FunctionNodeTransformPoint",
-                                    "parent": 277
+                                    "parent": 273
                                 }
                             },
                             {
-                                "id": 304,
+                                "id": 299,
                                 "data": {
                                     "location": [
                                         30.0,
@@ -4884,7 +4803,7 @@
                                     ],
                                     "location_absolute": [
                                         1060.0,
-                                        -300.0
+                                        -220.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -4904,17 +4823,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 305,
+                                        "id": 300,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 306,
+                                        "id": 301,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 307,
+                                                    "id": 302,
                                                     "data": {
                                                         "name": "Self Object",
                                                         "description": "",
@@ -4933,11 +4852,11 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeSelfObject",
-                                    "parent": 277
+                                    "parent": 273
                                 }
                             },
                             {
-                                "id": 308,
+                                "id": 303,
                                 "data": {
                                     "location": [
                                         230.0,
@@ -4945,7 +4864,7 @@
                                     ],
                                     "location_absolute": [
                                         1260.0,
-                                        -260.0
+                                        -180.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -4965,11 +4884,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 309,
+                                        "id": 304,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 310,
+                                                    "id": 305,
                                                     "data": {
                                                         "name": "Object",
                                                         "description": "",
@@ -4985,7 +4904,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 311,
+                                                    "id": 306,
                                                     "data": {
                                                         "name": "As Instance",
                                                         "description": "",
@@ -5004,11 +4923,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 312,
+                                        "id": 307,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 313,
+                                                    "id": 308,
                                                     "data": {
                                                         "name": "Transform",
                                                         "description": "",
@@ -5023,7 +4942,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 314,
+                                                    "id": 309,
                                                     "data": {
                                                         "name": "Location",
                                                         "description": "",
@@ -5043,7 +4962,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 315,
+                                                    "id": 310,
                                                     "data": {
                                                         "name": "Rotation",
                                                         "description": "",
@@ -5063,7 +4982,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 316,
+                                                    "id": 311,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -5083,7 +5002,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 317,
+                                                    "id": 312,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -5101,7 +5020,7 @@
                                         }
                                     },
                                     "bl_idname": "GeometryNodeObjectInfo",
-                                    "parent": 277,
+                                    "parent": 273,
                                     "transform_space": "ORIGINAL"
                                 }
                             }
@@ -5111,16 +5030,61 @@
                 "bl_idname": "GeometryNodeTree",
                 "annotation": null,
                 "links": {
-                    "id": 318,
+                    "id": 313,
                     "data": {
                         "items": [
+                            {
+                                "id": 314,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 119,
+                                    "to_socket": 129
+                                }
+                            },
+                            {
+                                "id": 315,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 126,
+                                    "to_socket": 130
+                                }
+                            },
+                            {
+                                "id": 316,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 142,
+                                    "to_socket": 115
+                                }
+                            },
+                            {
+                                "id": 317,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 142,
+                                    "to_socket": 122
+                                }
+                            },
+                            {
+                                "id": 318,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 105,
+                                    "to_socket": 135
+                                }
+                            },
                             {
                                 "id": 319,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 121,
-                                    "to_socket": 131
+                                    "from_socket": 132,
+                                    "to_socket": 146
                                 }
                             },
                             {
@@ -5128,8 +5092,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 128,
-                                    "to_socket": 132
+                                    "from_socket": 174,
+                                    "to_socket": 161
                                 }
                             },
                             {
@@ -5137,8 +5101,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 144,
-                                    "to_socket": 117
+                                    "from_socket": 201,
+                                    "to_socket": 123
                                 }
                             },
                             {
@@ -5146,8 +5110,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 144,
-                                    "to_socket": 124
+                                    "from_socket": 201,
+                                    "to_socket": 116
                                 }
                             },
                             {
@@ -5155,8 +5119,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 107,
-                                    "to_socket": 137
+                                    "from_socket": 150,
+                                    "to_socket": 153
                                 }
                             },
                             {
@@ -5164,8 +5128,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 134,
-                                    "to_socket": 148
+                                    "from_socket": 205,
+                                    "to_socket": 208
                                 }
                             },
                             {
@@ -5173,8 +5137,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 177,
-                                    "to_socket": 163
+                                    "from_socket": 219,
+                                    "to_socket": 178
                                 }
                             },
                             {
@@ -5182,8 +5146,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 204,
-                                    "to_socket": 125
+                                    "from_socket": 181,
+                                    "to_socket": 155
                                 }
                             },
                             {
@@ -5191,8 +5155,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 204,
-                                    "to_socket": 118
+                                    "from_socket": 187,
+                                    "to_socket": 222
                                 }
                             },
                             {
@@ -5200,8 +5164,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 152,
-                                    "to_socket": 155
+                                    "from_socket": 132,
+                                    "to_socket": 154
                                 }
                             },
                             {
@@ -5209,8 +5173,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 208,
-                                    "to_socket": 211
+                                    "from_socket": 258,
+                                    "to_socket": 179
                                 }
                             },
                             {
@@ -5218,8 +5182,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 222,
-                                    "to_socket": 181
+                                    "from_socket": 236,
+                                    "to_socket": 184
                                 }
                             },
                             {
@@ -5227,8 +5191,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 184,
-                                    "to_socket": 157
+                                    "from_socket": 242,
+                                    "to_socket": 245
                                 }
                             },
                             {
@@ -5236,8 +5200,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 190,
-                                    "to_socket": 225
+                                    "from_socket": 211,
+                                    "to_socket": 229
                                 }
                             },
                             {
@@ -5245,8 +5209,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 134,
-                                    "to_socket": 156
+                                    "from_socket": 224,
+                                    "to_socket": 228
                                 }
                             },
                             {
@@ -5254,8 +5218,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 262,
-                                    "to_socket": 182
+                                    "from_socket": 197,
+                                    "to_socket": 255
                                 }
                             },
                             {
@@ -5263,8 +5227,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 240,
-                                    "to_socket": 187
+                                    "from_socket": 231,
+                                    "to_socket": 256
                                 }
                             },
                             {
@@ -5272,8 +5236,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 246,
-                                    "to_socket": 249
+                                    "from_socket": 248,
+                                    "to_socket": 261
                                 }
                             },
                             {
@@ -5281,8 +5245,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 214,
-                                    "to_socket": 232
+                                    "from_socket": 263,
+                                    "to_socket": 194
                                 }
                             },
                             {
@@ -5290,8 +5254,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 227,
-                                    "to_socket": 231
+                                    "from_socket": 164,
+                                    "to_socket": 195
                                 }
                             },
                             {
@@ -5299,8 +5263,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 200,
-                                    "to_socket": 259
+                                    "from_socket": 158,
+                                    "to_socket": 267
                                 }
                             },
                             {
@@ -5308,8 +5272,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 234,
-                                    "to_socket": 260
+                                    "from_socket": 272,
+                                    "to_socket": 110
                                 }
                             },
                             {
@@ -5317,8 +5281,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 252,
-                                    "to_socket": 265
+                                    "from_socket": 298,
+                                    "to_socket": 270
                                 }
                             },
                             {
@@ -5326,8 +5290,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 267,
-                                    "to_socket": 197
+                                    "from_socket": 289,
+                                    "to_socket": 145
                                 }
                             },
                             {
@@ -5335,8 +5299,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 166,
-                                    "to_socket": 198
+                                    "from_socket": 279,
+                                    "to_socket": 295
                                 }
                             },
                             {
@@ -5344,8 +5308,8 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 160,
-                                    "to_socket": 271
+                                    "from_socket": 302,
+                                    "to_socket": 305
                                 }
                             },
                             {
@@ -5353,68 +5317,15 @@
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 276,
-                                    "to_socket": 112
-                                }
-                            },
-                            {
-                                "id": 346,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 303,
-                                    "to_socket": 274
-                                }
-                            },
-                            {
-                                "id": 347,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 293,
-                                    "to_socket": 147
-                                }
-                            },
-                            {
-                                "id": 348,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 294,
-                                    "to_socket": 150
-                                }
-                            },
-                            {
-                                "id": 349,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 283,
-                                    "to_socket": 300
-                                }
-                            },
-                            {
-                                "id": 350,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 307,
-                                    "to_socket": 310
-                                }
-                            },
-                            {
-                                "id": 351,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 313,
-                                    "to_socket": 301
+                                    "from_socket": 308,
+                                    "to_socket": 296
                                 }
                             }
                         ]
                     }
                 },
                 "is_tool": false,
+                "node_tool_idname": "",
                 "is_modifier": true,
                 "is_mode_object": false,
                 "is_mode_edit": false,

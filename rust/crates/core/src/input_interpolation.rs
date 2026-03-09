@@ -15,7 +15,8 @@ use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
 use crate::{
-    input_file::{InputFrame, InputReader},
+    ParticleFlags,
+    input_file::{InputConsts, InputFrame, InputReader},
     math::NORMALIZATION_EPS,
     profile,
 };
@@ -29,27 +30,28 @@ pub struct InterpolatedInput {
 
 impl InterpolatedInput {
     fn new(
+        consts: &InputConsts,
         InputFrame {
             gravity,
             particles_inputs,
             collider_inputs,
         }: InputFrame,
     ) -> Result<Self> {
+        let read_positions = |flat: &[T]| -> Vec<Vector3<T>> {
+            flat.chunks_exact(3)
+                .map(|chunk| Vector3::from_column_slice(chunk).scale(1. / consts.simulation_scale))
+                .collect()
+        };
         let particles_input = particles_inputs
             .into_iter()
             .map(|(name, input)| {
-                let goal_positions = input
-                    .goal_positions
-                    .chunks_exact(3)
-                    .map(Vector3::from_column_slice)
-                    .collect();
-
-                let goal_stiffnesses = input.goal_stiffnesses;
+                let flags = input.flags;
+                let goal_positions = read_positions(&input.goal_positions);
                 (
                     name.clone(),
                     InterpolatedInputParticles {
+                        flags,
                         goal_positions,
-                        goal_stiffnesses,
                     },
                 )
             })
@@ -59,11 +61,7 @@ impl InterpolatedInput {
         let collider_input = collider_inputs
             .into_iter()
             .map(|(name, input)| {
-                let vertex_positions: Vec<_> = input
-                    .vertex_positions
-                    .chunks_exact(3)
-                    .map(Vector3::from_column_slice)
-                    .collect();
+                let vertex_positions: Vec<_> = read_positions(&input.vertex_positions);
                 let vertex_velocities = vec![Vector3::zeros(); vertex_positions.len()];
                 let triangles: Vec<_> = input
                     .triangles
@@ -148,7 +146,6 @@ impl InterpolatedInput {
                         triangles,
                         edges_with_opposites,
                         triangle_frictions: input.triangle_frictions,
-                        triangle_stickynesses: input.triangle_stickynesses,
                     },
                 )
             })
@@ -168,8 +165,8 @@ impl InterpolatedInput {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct InterpolatedInputParticles {
+    pub flags: Vec<ParticleFlags>,
     pub goal_positions: Vec<Vector3<T>>,
-    pub goal_stiffnesses: Vec<T>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -179,7 +176,6 @@ pub struct InterpolatedInputCollider {
     pub vertex_velocities: Vec<Vector3<T>>,
     pub triangles: Vec<[u32; 3]>,
     pub triangle_frictions: Vec<T>,
-    pub triangle_stickynesses: Vec<T>,
     pub edges_with_opposites: FxHashMap<[u32; 2], [u32; 2]>,
 }
 
@@ -204,7 +200,7 @@ impl InputInterpolation {
         })
     }
 
-    pub fn load(&mut self, frame: usize) -> Result<()> {
+    pub fn load(&mut self, consts: &InputConsts, frame: usize) -> Result<()> {
         profile!("load interpolants");
 
         let max_frame = self.input_reader.len() - 1;
@@ -225,7 +221,7 @@ impl InputInterpolation {
             self.a = Some(b);
         } else {
             let input_frame = self.input_reader.read_frame(frame)?;
-            let interpolant = InterpolatedInput::new(input_frame)?;
+            let interpolant = InterpolatedInput::new(consts, input_frame)?;
             self.a = Some(InputInterpolationPoint { frame, interpolant })
         }
 
@@ -237,7 +233,7 @@ impl InputInterpolation {
         // load b
         let frame = frame + 1;
         let input_frame = self.input_reader.read_frame(frame)?;
-        let interpolant = InterpolatedInput::new(input_frame)?;
+        let interpolant = InterpolatedInput::new(consts, input_frame)?;
         self.b = Some(InputInterpolationPoint { frame, interpolant });
 
         Ok(())

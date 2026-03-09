@@ -164,6 +164,11 @@ each frame."""
 
             if input_name is not None:
                 output_settings.input_name = input_name
+                if input_name not in bpy.data.objects:
+                    self.report(
+                        {"WARNING"},
+                        f"Couldn't find input object '{input_name}', skinning might not work.",
+                    )
 
             if self.add_default_visualization:
                 create_default_visualization(obj, self.uuid)
@@ -288,6 +293,8 @@ each frame."""
             grid.label(text="FLOAT_VECTOR")
             grid.prop(self, "particle_velocities")
             grid.label(text="FLOAT_VECTOR")
+            grid.prop(self, "particle_sizes")
+            grid.label(text="FLOAT")
             grid.prop(self, "particle_transformations")
             grid.label(text="FLOAT4X4")
             grid.prop(self, "particle_energies")

@@ -39,6 +39,7 @@ from .magic_consts import (
     GRID_MOMENTUM_CONFORMED,
     GRID_MOMENTUM_FREE,
     INPUT_MESH,
+    SQUISHY_VOLUMES_SIZE,
 )
 
 from .nodes import (
@@ -71,6 +72,9 @@ def create_default_visualization(obj, uuid):
     if output_type == PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
         modifier["Socket_9"] = create_material_display_uvw()
+        modifier["Socket_12"] = bpy.data.objects.get(
+            obj.squishy_volumes_object.output_settings.input_name
+        )
     if output_type == COLLIDER_SAMPLES:
         modifier.node_group = create_geometry_nodes_surface_samples()
 
@@ -217,6 +221,13 @@ def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, fram
                 ffa("Velocities"),
                 SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
+            )
+        if output_settings.particle_sizes:
+            add_attribute(
+                obj.data,
+                ffa("Sizes"),
+                SQUISHY_VOLUMES_SIZE,
+                "FLOAT",
             )
         if output_settings.particle_transformations:
             add_attribute(

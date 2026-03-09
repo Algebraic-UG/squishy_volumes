@@ -17,7 +17,7 @@ use crate::{
     kernels::{KERNEL_QUADRATIC_LENGTH, kernel_quadratic},
     math::{NORMALIZATION_EPS, safe_inverse::SafeInverse},
     profile,
-    state::{particles::ParticleState, util::check_shifted_quadratic},
+    state::{grids::Rasterized, particles::ParticleState, util::check_shifted_quadratic},
 };
 
 use super::{PhaseInput, State};
@@ -30,7 +30,7 @@ impl State {
         profile!("collect_insides");
 
         let time_step = phase_input.time_step;
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         // Since the grid has only partial information about the distances,
         // we need to do MLS interpolation.
@@ -89,9 +89,12 @@ impl State {
                                 j as T - shifted.y,
                                 k as T - shifted.z,
                             );
-                            for (collider_idx, info) in grid_node.infos.iter() {
+                            for (collider_idx, rasterized) in grid_node.assume_ref().iter() {
+                                let Rasterized::Valid(info) = rasterized else {
+                                    panic!("Invalid collider info");
+                                };
                                 let distance_helper =
-                                    distance_helpers.entry(*collider_idx).or_default();
+                                    distance_helpers.entry(*collider_idx as usize).or_default();
                                 distance_helper.distance_and_gradient +=
                                     linear_basis * info.distance * weight;
                                 distance_helper.matrix +=

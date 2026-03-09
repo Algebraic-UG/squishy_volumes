@@ -37,6 +37,10 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
+      - name: Vendorize Tree Clipper
+        working-directory: python
+        run: uv run python-vendorize
+
       # =================================================================
       # Download all wheel artifacts
       # =================================================================

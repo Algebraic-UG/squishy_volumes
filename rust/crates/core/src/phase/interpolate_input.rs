@@ -28,7 +28,7 @@ impl State {
         // this should be a no-op for all in-between-frame-steps
         phase_input
             .input_interpolation
-            .load(frame_time.floor() as usize)?;
+            .load(&phase_input.consts, frame_time.floor() as usize)?;
 
         let a = phase_input
             .input_interpolation
@@ -58,29 +58,21 @@ impl State {
             .zip(b.particles_input.iter())
             .map(|((name_a, input_a), (name_b, input_b))| {
                 ensure!(name_a == name_b);
-                ensure!(input_a.goal_stiffnesses.len() == input_b.goal_stiffnesses.len());
                 ensure!(input_a.goal_positions.len() == input_b.goal_positions.len());
 
+                let flags = input_a.flags.clone();
                 let goal_positions = input_a
                     .goal_positions
                     .iter()
                     .zip(&input_b.goal_positions)
                     .map(|(position_a, position_b)| factor_a * position_a + factor_b * position_b)
                     .collect();
-                let goal_stiffnesses = input_a
-                    .goal_stiffnesses
-                    .iter()
-                    .zip(&input_b.goal_stiffnesses)
-                    .map(|(stiffness_a, stiffness_b)| {
-                        factor_a * stiffness_a + factor_b * stiffness_b
-                    })
-                    .collect();
 
                 Ok((
                     name_a.clone(),
                     InterpolatedInputParticles {
+                        flags,
                         goal_positions,
-                        goal_stiffnesses,
                     },
                 ))
             })
@@ -129,14 +121,6 @@ impl State {
                     .zip(&input_b.triangle_frictions)
                     .map(|(friction_a, friction_b)| factor_a * friction_a + factor_b * friction_b)
                     .collect();
-                let triangle_stickynesses = input_a
-                    .triangle_stickynesses
-                    .iter()
-                    .zip(&input_b.triangle_stickynesses)
-                    .map(|(stickyness_a, stickyness_b)| {
-                        factor_a * stickyness_a + factor_b * stickyness_b
-                    })
-                    .collect();
 
                 Ok((
                     name_a.clone(),
@@ -145,7 +129,6 @@ impl State {
                         vertex_normals,
                         vertex_velocities,
                         triangle_frictions,
-                        triangle_stickynesses,
 
                         // assume topology constant from a
                         triangles: input_a.triangles.clone(),

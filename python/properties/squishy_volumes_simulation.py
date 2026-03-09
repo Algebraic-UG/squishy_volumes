@@ -156,6 +156,7 @@ Overwrite the cache to manifest changes.""",
         default=0.5,
         min=0.001,
         precision=5,
+        subtype="DISTANCE",
         options=set(),  # can't be animated
     )  # type: ignore
     frames_per_second: bpy.props.IntProperty(
@@ -186,29 +187,16 @@ you can set this to 100.""",
         precision=6,
         options=set(),  # can't be animated
     )  # type: ignore
-    domain_min: bpy.props.FloatVectorProperty(
-        name="Domain Min",
-        description="""The min corner of the domain AABB.
-Particles that fall below this are deactivated.""",
-        default=(-100.0, -100.0, -100.0),
-        options=set(),  # can't be animated
-    )  # type: ignore
-    domain_max: bpy.props.FloatVectorProperty(
-        name="Domain Max",
-        description="""The max corner of the domain AABB
-Particles that rise above this are deactivated.""",
-        default=(100.0, 100.0, 100.0),
-        options=set(),  # can't be animated
-    )  # type: ignore
 
     # ----------------------------------------------------------------
     # These can be animated over time
     # ----------------------------------------------------------------
     gravity: bpy.props.FloatVectorProperty(
         name="Gravity",
-        description="It is currently the only volumetric force and it is constant.",
+        description="Acts on all the particles and can be key-framed.",
         default=(0.0, 0.0, -9.8),
         options={"ANIMATABLE"},
+        subtype="VELOCITY",
     )  # type: ignore
 
     # ----------------------------------------------------------------

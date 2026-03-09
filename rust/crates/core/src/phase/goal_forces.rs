@@ -8,7 +8,7 @@
 
 use anyhow::{Context, Result, bail};
 
-use crate::{phase::PhaseInput, profile, state::ObjectIndex};
+use crate::{ParticleFlags, phase::PhaseInput, profile, state::ObjectIndex};
 
 use super::State;
 
@@ -29,13 +29,20 @@ impl State {
             for (particle_object_index, particle_world_index) in
                 self.particle_objects[*index].particles.iter().enumerate()
             {
-                let particle_world_index = self.particles.reverse_sort_map[*particle_world_index];
-                let goal_position = particles_input.goal_positions[particle_object_index];
-                let goal_stiffness = particles_input.goal_stiffnesses[particle_object_index];
-                let position = self.particles.positions[particle_world_index];
+                let flags = &particles_input.flags[particle_object_index];
+                if !flags.contains(ParticleFlags::HasGoal) {
+                    continue;
+                }
 
-                self.particles.velocities[particle_world_index] +=
-                    time_step * goal_stiffness * (goal_position - position);
+                let particle_world_index = self.particles.reverse_sort_map[*particle_world_index];
+                let goal_position = particles_input
+                    .goal_positions
+                    .get(particle_object_index)
+                    .context("Missing goal position")?;
+                let position = &self.particles.positions[particle_world_index];
+
+                self.particles.velocities[particle_world_index] =
+                    (goal_position - position) / time_step;
             }
         }
         Ok(self)

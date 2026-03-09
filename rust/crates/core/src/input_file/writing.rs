@@ -36,10 +36,10 @@ impl InputWriter {
         })
     }
 
-    pub fn record_frame(&mut self, frame: InputFrame) -> Result<(), InputError> {
+    pub fn record_frame(&mut self, frame: &InputFrame) -> Result<(), InputError> {
         let current_offset = self.writer.stream_position()?;
         self.frame_offsets.push(current_offset);
-        serialize_into(&mut self.writer, &frame)?;
+        serialize_into(&mut self.writer, frame)?;
         Ok(())
     }
 

@@ -14,11 +14,21 @@ use squishy_volumes_api::T;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputConsts {
-    pub grid_node_size: T,
+    grid_node_size: T,
     pub simulation_scale: T,
     pub frames_per_second: u32,
     pub domain_min: Vector3<T>,
     pub domain_max: Vector3<T>,
+}
+
+impl InputConsts {
+    pub fn scaled_grid_node_size(&self) -> T {
+        self.grid_node_size / self.simulation_scale
+    }
+
+    pub fn unscaled_grid_node_size(&self) -> T {
+        self.grid_node_size
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

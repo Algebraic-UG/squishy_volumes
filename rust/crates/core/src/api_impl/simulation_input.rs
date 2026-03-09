@@ -20,7 +20,6 @@ use squishy_volumes_api::{InputBulk, SimulationInput, T};
 use tracing::{debug, error};
 
 use crate::{
-    api_impl::simulation_input,
     directory_lock::DirectoryLock,
     input_file::{
         ColliderInput, InputFrame, InputHeader, InputObject, InputWriter, ParticlesInput,
@@ -54,7 +53,11 @@ pub enum BulkAttribute {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkParticles {
-    Flags,
+    IsSolid,
+    IsFluid,
+    UseViscosity,
+    UseSandAlpha,
+    HasGoal,
     Transforms,
     Sizes,
     Densities,
@@ -68,7 +71,6 @@ pub enum FrameBulkParticles {
     BulkModulus,
     SandAlpha,
     GoalPositions,
-    GoalStiffnesses,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -76,10 +78,9 @@ pub enum FrameBulkCollider {
     VertexPositions,
     Triangles,
     TriangleFrictions,
-    TriangleStickynesses,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct ParticleFlags(pub i32);
 
 bitflags! {
@@ -88,6 +89,7 @@ bitflags! {
         const IsFluid = 1 << 1;
         const UseViscosity = 1 << 2;
         const UseSandAlpha = 1 << 3;
+        const HasGoal = 1 << 4;
         const _ = !0;
     }
 }
@@ -126,8 +128,6 @@ impl SimulationInputImpl {
 
 impl SimulationInput for SimulationInputImpl {
     fn start_frame(&mut self, frame_start: Value) -> Result<()> {
-        ensure!(self.current_frame.is_none(), "Not finished prior frame.");
-
         let FrameStart { gravity } = from_value(frame_start)?;
 
         let input_frame = InputFrame {
@@ -174,7 +174,29 @@ impl SimulationInput for SimulationInputImpl {
                     .get_mut(&object_name)
                     .context("Missing input particle object")?;
                 match captured_attribute {
-                    FrameBulkParticles::Flags => ps.flags = bulk.try_into()?,
+                    FrameBulkParticles::IsSolid
+                    | FrameBulkParticles::IsFluid
+                    | FrameBulkParticles::UseViscosity
+                    | FrameBulkParticles::UseSandAlpha
+                    | FrameBulkParticles::HasGoal => {
+                        ps.flags.resize(bulk.len(), Default::default());
+                        let flag = match captured_attribute {
+                            FrameBulkParticles::IsSolid => ParticleFlags::IsSolid,
+                            FrameBulkParticles::IsFluid => ParticleFlags::IsFluid,
+                            FrameBulkParticles::UseViscosity => ParticleFlags::UseViscosity,
+                            FrameBulkParticles::UseSandAlpha => ParticleFlags::UseSandAlpha,
+                            FrameBulkParticles::HasGoal => ParticleFlags::HasGoal,
+                            _ => unreachable!(),
+                        };
+                        ps.flags
+                            .iter_mut()
+                            .zip(bulk.as_bools()?)
+                            .for_each(|(flags, &value)| {
+                                if value {
+                                    *flags |= flag.clone()
+                                }
+                            });
+                    }
                     FrameBulkParticles::Transforms => {
                         ensure!(bulk.len() % 16 == 0);
                         ps.transforms = bulk.try_into()?;
@@ -199,7 +221,6 @@ impl SimulationInput for SimulationInputImpl {
                     FrameBulkParticles::BulkModulus => ps.bulk_moduluses = bulk.try_into()?,
                     FrameBulkParticles::SandAlpha => ps.sand_alphas = bulk.try_into()?,
                     FrameBulkParticles::GoalPositions => ps.goal_positions = bulk.try_into()?,
-                    FrameBulkParticles::GoalStiffnesses => ps.goal_stiffnesses = bulk.try_into()?,
                 }
             }
             BulkAttribute::Collider(captured_attribute) => {
@@ -213,9 +234,6 @@ impl SimulationInput for SimulationInputImpl {
                     FrameBulkCollider::TriangleFrictions => {
                         cs.triangle_frictions = bulk.try_into()?
                     }
-                    FrameBulkCollider::TriangleStickynesses => {
-                        cs.triangle_stickynesses = bulk.try_into()?
-                    }
                 }
             }
         }
@@ -228,47 +246,40 @@ impl SimulationInput for SimulationInputImpl {
         };
 
         for ParticlesInput {
+            // these have to be complete
             flags,
             transforms,
             sizes,
             densities,
-            youngs_moduluses,
-            poissons_ratios,
             initial_positions,
-            initial_velocities,
-            viscosities_dynamic,
-            viscosities_bulk,
-            exponents,
-            bulk_moduluses,
-            sand_alphas,
-            goal_positions,
-            goal_stiffnesses,
+
+            youngs_moduluses: _,
+            poissons_ratios: _,
+            initial_velocities: _,
+            viscosities_dynamic: _,
+            viscosities_bulk: _,
+            exponents: _,
+            bulk_moduluses: _,
+            sand_alphas: _,
+            goal_positions: _,
+            goal_stiffnesses: _,
         } in current_frame.particles_inputs.values()
         {
             let n = flags.len();
             ensure!(n == transforms.len() / 16);
             ensure!(n == sizes.len());
             ensure!(n == densities.len());
-            ensure!(n == youngs_moduluses.len());
-            ensure!(n == poissons_ratios.len());
             ensure!(n == initial_positions.len() / 3);
-            ensure!(n == initial_velocities.len() / 3);
-            ensure!(n == viscosities_dynamic.len());
-            ensure!(n == viscosities_bulk.len());
-            ensure!(n == exponents.len());
-            ensure!(n == bulk_moduluses.len());
-            ensure!(n == sand_alphas.len());
-            ensure!(n == goal_positions.len() / 3);
-            ensure!(n == goal_stiffnesses.len());
         }
 
         for (
             name,
             ColliderInput {
+                // these have to be complete
                 vertex_positions,
                 triangles,
-                triangle_frictions,
-                triangle_stickynesses,
+
+                triangle_frictions: _,
             },
         ) in current_frame.collider_inputs.iter()
         {
@@ -284,12 +295,9 @@ impl SimulationInput for SimulationInputImpl {
             ensure!(triangles.iter().all(|&vertex_idx| {
                 vertex_idx >= 0 && (vertex_idx as usize) < vertex_positions.len()
             }));
-            let n = triangles.len() / 3;
-            ensure!(n == triangle_frictions.len());
-            ensure!(n == triangle_stickynesses.len());
         }
 
-        self.input_writer.record_frame(current_frame)?;
+        self.input_writer.record_frame(&current_frame)?;
 
         ensure!(
             self.input_writer.size()? < self.max_bytes_on_disk,

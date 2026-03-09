@@ -43,6 +43,7 @@ pub enum Phase {
     Sort,
     ScatterColliderDistances,
     CollectInsides,
+    GoalForces,
     UpdateMomentumMaps,
     RegisterContributors,
     LimitTimeStepBeforeForce,
@@ -54,7 +55,6 @@ pub enum Phase {
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
     AdvectParticles,
-    GoalForces,
     //MoveCollider,
     CullParticles,
 }
@@ -66,6 +66,7 @@ impl Phase {
             Self::Sort => State::sort,
             Self::ScatterColliderDistances => State::scatter_collider_distances,
             Self::CollectInsides => State::collect_insides,
+            Self::GoalForces => State::goal_forces,
             Self::UpdateMomentumMaps => State::update_momentum_maps,
             Self::RegisterContributors => State::register_contributors,
             Self::LimitTimeStepBeforeForce => State::limit_time_step_before_force,
@@ -77,7 +78,6 @@ impl Phase {
             Self::CollectVelocity => State::collect_velocity,
             Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,
             Self::AdvectParticles => State::advect_particles,
-            Self::GoalForces => State::goal_forces,
             //Self::MoveCollider => State::move_collider,
             Self::CullParticles => State::cull_particles,
         }

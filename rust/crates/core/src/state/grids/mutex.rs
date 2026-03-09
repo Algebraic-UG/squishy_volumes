@@ -14,7 +14,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct Mutex<T: ?Sized>(std::sync::Mutex<T>);
+pub struct Mutex<T: ?Sized>(pub std::sync::Mutex<T>);
 //pub struct Mutex<T: ?Sized>(spin::Mutex<T>);
 impl<T> Deref for Mutex<T> {
     type Target = std::sync::Mutex<T>;

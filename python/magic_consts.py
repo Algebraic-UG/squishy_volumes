@@ -37,6 +37,7 @@ OUTPUT_TYPES = [
 # synchronisable attributes
 SQUISHY_VOLUMES_INSTANCE_COLOR = "squishy_volumes_instance_color"
 SQUISHY_VOLUMES_ELASTIC_ENERGY = "squishy_volumes_elastic_energy"
+SQUISHY_VOLUMES_SIZE = "squishy_volumes_size"
 SQUISHY_VOLUMES_TRANSFORM = "squishy_volumes_transform"
 SQUISHY_VOLUMES_COLLIDER_INSIDE = "squishy_volumes_collider_inside"
 SQUISHY_VOLUMES_INITIAL_POSITION = "squishy_volumes_initial_position"

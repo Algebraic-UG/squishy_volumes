@@ -6,29 +6,15 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use iter_enumeration::{IntoIterEnum2, IntoIterEnum3 as _};
+use iter_enumeration::IntoIterEnum2;
 use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
 
 use crate::{
     math::{Aabb, NORMALIZATION_EPS},
-    state::grids::ColliderInfo,
+    state::grids::{ColliderInfo, Rasterized},
 };
-
-pub enum Rasterized {
-    Invalid(T),
-    Valid(ColliderInfo),
-}
-
-impl Rasterized {
-    pub fn distance_abs(&self) -> T {
-        match self {
-            Rasterized::Invalid(distance) => *distance,
-            Rasterized::Valid(info) => info.distance.abs(),
-        }
-    }
-}
 
 pub struct RasterizationVertex<'a> {
     pub position: &'a Vector3<T>,
@@ -42,7 +28,6 @@ pub fn rasterize<'a>(
     [a, b, c]: [RasterizationVertex<'a>; 3],
     [d, e, f]: [Option<&Vector3<T>>; 3],
     friction: T,
-    stickyness: T,
 ) -> impl Iterator<Item = (Vector3<i32>, Rasterized)> {
     let ab = a.position - b.position;
     let bc = b.position - c.position;
@@ -70,11 +55,11 @@ pub fn rasterize<'a>(
             move |grid_node: Vector3<i32>| -> Option<(Vector3<i32>, Rasterized)> {
                 let p = grid_node.map(|c| c as T * spacing);
 
-                let bary_a = (p - b.position).dot(&normal.cross(&ab)) / area_2;
-                let bary_b = (p - c.position).dot(&normal.cross(&bc)) / area_2;
-                let bary_c = (p - a.position).dot(&normal.cross(&ca)) / area_2;
+                let bary_c = (p - b.position).dot(&normal.cross(&ab)) / area_2;
+                let bary_a = (p - c.position).dot(&normal.cross(&bc)) / area_2;
+                let bary_b = (p - a.position).dot(&normal.cross(&ca)) / area_2;
 
-                let velocity = *a.velocity; // * bary_a + b.velocity * bary_b + c.velocity * bary_c;
+                let velocity = -*a.velocity * bary_a - b.velocity * bary_b - c.velocity * bary_c;
 
                 let sa = bary_a < 0.;
                 let sb = bary_b < 0.;
@@ -89,7 +74,6 @@ pub fn rasterize<'a>(
 
                             velocity,
                             friction,
-                            stickyness,
                         },
                     ))
                 } else {
@@ -142,7 +126,6 @@ pub fn rasterize<'a>(
 
                                 velocity,
                                 friction,
-                                stickyness,
                             }));
                         };
 

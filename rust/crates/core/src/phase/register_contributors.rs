@@ -24,7 +24,7 @@ impl State {
     // contribute. Then just use Mutexes to avoid data races.
     pub fn register_contributors(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("register_contributors");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         // to avoid frequent reallocations we add nodes with generous capacity
         let initial_capacity = 1 << 4;
@@ -49,7 +49,7 @@ impl State {
                 kernel_quadratic_unrolled!(|grid_idx| {
                     let grid_idx = grid_idx + shift;
                     let incompatibility = self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                        find_worst_incompatibility(collider_inside, grid_node)
+                        find_worst_incompatibility(collider_inside, grid_node.assume_ref())
                     });
 
                     let grid = if let Some(collider_idx) = incompatibility {

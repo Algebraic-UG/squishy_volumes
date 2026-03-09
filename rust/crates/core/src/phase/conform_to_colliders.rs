@@ -9,7 +9,11 @@
 use anyhow::Result;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
-use crate::{phase::PhaseInput, profile, state::State};
+use crate::{
+    phase::PhaseInput,
+    profile,
+    state::{State, grids::Rasterized},
+};
 
 impl State {
     // Conform the collider's grids to their scripted velocity,
@@ -22,10 +26,10 @@ impl State {
             keys.into_par_iter()
                 .zip(&mut grid_momentum.velocities)
                 .for_each(|(grid_idx, velocity)| {
-                    let Some(info) = self
+                    let Some(Rasterized::Valid(info)) = self
                         .grid_collider
                         .get(grid_idx)
-                        .and_then(|node| node.infos.get(&collider_idx))
+                        .and_then(|node| node.assume_ref().get(&(collider_idx as u8)))
                     else {
                         return;
                     };
@@ -37,7 +41,6 @@ impl State {
                     let normal_velocity = normal * normal_part;
                     let tangent_velocity = relative_velocity - normal_velocity;
 
-                    // TODO: stickyness
                     if normal_part < 0. {
                         let tangent_velocity_applied_friction =
                             (1. + normal_part * info.friction).max(0.) * tangent_velocity;

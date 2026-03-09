@@ -26,6 +26,7 @@ from .properties.squishy_volumes_object_input_settings import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )
+from .preferences import get_domain_min, get_domain_max
 
 
 def create_input_header(simulation):
@@ -35,16 +36,10 @@ def create_input_header(simulation):
     grid_node_size = simulation.grid_node_size
     simulation_scale = simulation.simulation_scale
     frames_per_second = simulation.frames_per_second
-    domain_min = [
-        simulation.domain_min[0],
-        simulation.domain_min[1],
-        simulation.domain_min[2],
-    ]
-    domain_max = [
-        simulation.domain_max[0],
-        simulation.domain_max[1],
-        simulation.domain_max[2],
-    ]
+    domain_min = get_domain_min()
+    domain_min = [domain_min[0], domain_min[1], domain_min[2]]
+    domain_max = get_domain_max()
+    domain_max = [domain_max[0], domain_max[1], domain_max[2]]
 
     consts = {
         "grid_node_size": grid_node_size,
@@ -152,11 +147,15 @@ def capture_input_frame(
             if triangle_indices:
                 bulk = triangles_to_numpy_array(mesh=mesh)
             else:
+                if python_name not in attributes:
+                    return
                 bulk = attribute_to_numpy_array(
                     mesh=mesh,
                     attribute=attributes[python_name],
                 )
-            if bulk.dtype == "float32":
+            if bulk.dtype == "bool":
+                simulation_input.record_input_bool(meta=meta, bulk=bulk)
+            elif bulk.dtype == "float32":
                 simulation_input.record_input_float(meta=meta, bulk=bulk)
             elif bulk.dtype == "int32":
                 simulation_input.record_input_int(meta=meta, bulk=bulk)
@@ -164,7 +163,15 @@ def capture_input_frame(
                 raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
         if input_type == INPUT_TYPE_PARTICLES:
-            record(python_name="squishy_volumes_flags", rust_name="Flags")
+            record(python_name="squishy_volumes_is_solid", rust_name="IsSolid")
+            record(python_name="squishy_volumes_is_fluid", rust_name="IsFluid")
+            record(
+                python_name="squishy_volumes_use_viscosity", rust_name="UseViscosity"
+            )
+            record(
+                python_name="squishy_volumes_use_sand_alpha", rust_name="UseSandAlpha"
+            )
+            record(python_name="squishy_volumes_has_goal", rust_name="HasGoal")
             record(python_name="squishy_volumes_transform", rust_name="Transforms")
             record(python_name="squishy_volumes_size", rust_name="Sizes")
             record(python_name="squishy_volumes_density", rust_name="Densities")
@@ -207,9 +214,6 @@ def capture_input_frame(
             record(python_name=None, rust_name="Triangles", triangle_indices=True)
             record(
                 python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
-            )
-            record(
-                python_name="squishy_volumes_sticky", rust_name="TriangleStickynesses"
             )
 
     simulation_input.finish_frame()

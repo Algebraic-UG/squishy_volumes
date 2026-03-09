@@ -26,6 +26,7 @@ from .output import (
     sync_output,
 )
 
+from .preferences import get_print_debug_info
 from .bridge import Simulation
 from .util import frame_to_load
 from .properties.squishy_volumes_object import get_output_objects
@@ -92,11 +93,12 @@ def frame_change_handler(scene):
     start = time.time()
     sync(scene)
     end = time.time()
-    print("Squishy Volumes: sync took " + str(end - start))
+    if get_print_debug_info():
+        print("Squishy Volumes: sync took " + str(end - start))
 
 
 def check_interface_locked(scene):
-    if not scene.render.use_lock_interface:
+    if not scene.render.use_lock_interface and scene.squishy_volumes_scene.simulations:
         scene.render.use_lock_interface = True
         print(
             "Squishy Volumes: Locked interface for rendering. See also https://docs.blender.org/api/master/bpy.app.handlers.html#note-on-altering-data"
@@ -106,18 +108,22 @@ def check_interface_locked(scene):
 def register_handler():
     if check_interface_locked not in bpy.app.handlers.render_pre:
         bpy.app.handlers.render_pre.append(check_interface_locked)  # ty:ignore[invalid-argument-type]
-        print("Squishy Volumes render pre check registered.")
+        if get_print_debug_info():
+            print("Squishy Volumes render pre check registered.")
 
     if frame_change_handler not in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.append(frame_change_handler)  # ty:ignore[invalid-argument-type]
-        print("Squishy Volumes frame change handler registered.")
+        if get_print_debug_info():
+            print("Squishy Volumes frame change handler registered.")
 
 
 def unregister_handler():
     if frame_change_handler in bpy.app.handlers.frame_change_pre:
         bpy.app.handlers.frame_change_pre.remove(frame_change_handler)
-        print("Squishy Volumes frame change handler unregistered.")
+        if get_print_debug_info():
+            print("Squishy Volumes frame change handler unregistered.")
 
     if check_interface_locked in bpy.app.handlers.render_pre:
         bpy.app.handlers.render_pre.remove(check_interface_locked)
-        print("Squishy Volumes render pre check unregistered.")
+        if get_print_debug_info():
+            print("Squishy Volumes render pre check unregistered.")

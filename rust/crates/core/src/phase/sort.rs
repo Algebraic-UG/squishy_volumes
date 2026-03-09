@@ -19,7 +19,7 @@ impl State {
     // This is only to optimize memory access.
     pub fn sort(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("sort");
-        let grid_node_size = phase_input.consts.grid_node_size;
+        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         // Probably many other alternatives exist, e.g. one could do a z-order curve.
         // This seemed to be faster though. Maybe try again with cached keys?
