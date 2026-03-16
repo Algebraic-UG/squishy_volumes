@@ -18,7 +18,7 @@ jobs:
     runs-on: [ubuntu-22.04]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
 
       - name: Get version from Cargo.toml
         working-directory: rust/crates/wrap
@@ -47,7 +47,7 @@ jobs:
     needs: [bundle-extension]
     runs-on: [ubuntu-22.04]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
 
       - name: Clear release directory
         run: rm -rf release

@@ -33,7 +33,7 @@ jobs:
     runs-on: [ubuntu-22.04]
     needs: [build-linux, build-windows, build-macos]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: astral-sh/setup-uv@v6
 
