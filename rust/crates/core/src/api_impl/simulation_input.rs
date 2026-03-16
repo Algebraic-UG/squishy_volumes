@@ -262,7 +262,6 @@ impl SimulationInput for SimulationInputImpl {
             bulk_moduluses: _,
             sand_alphas: _,
             goal_positions: _,
-            goal_stiffnesses: _,
         } in current_frame.particles_inputs.values()
         {
             let n = flags.len();
