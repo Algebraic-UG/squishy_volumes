@@ -73,21 +73,6 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    sync_once: bpy.props.BoolProperty(
-        name="Sync Once",
-        description="Instead of continously synchronizing, load only a specific frame.",
-        default=False,
-    )  # type: ignore
-    sync_once_frame: bpy.props.IntProperty(
-        name="Sync Once Frame",
-        description="""Simulation frame to synchronize on.
-
-Only used if 'Sync Once' is active.
-When the outputs of a simulation are synchronized on a different frame,
-this object is left untouched.""",
-        default=0,
-    )  # type: ignore
-
     # ----------------------------------------------------------------
     # Attribute syncing
     # ----------------------------------------------------------------
