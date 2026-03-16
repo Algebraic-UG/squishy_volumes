@@ -62,7 +62,9 @@ impl StoreThread {
     }
 
     pub fn store(&self, state: State) -> Result<(), CacheWritingError> {
-        Ok(self.store_tx.send(state)?)
+        self.store_tx
+            .send(state)
+            .map_err(|_| CacheWritingError::Sending)
     }
 
     pub fn check(&mut self) -> Result<(), CacheWritingError> {
