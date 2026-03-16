@@ -35,7 +35,6 @@ def _start_compute(
     sim.start_compute(
         time_step=simulation.time_step,
         explicit=simulation.explicit,
-        debug_mode=simulation.debug_mode,
         adaptive_time_steps=simulation.adaptive_time_steps,
         next_frame=next_frame,
         number_of_frames=number_of_frames,
