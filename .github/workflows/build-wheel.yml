@@ -42,7 +42,7 @@ jobs:
       # =================================================================
       # license related
       # =================================================================
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check licenses
         working-directory: rust/crates/wrap
