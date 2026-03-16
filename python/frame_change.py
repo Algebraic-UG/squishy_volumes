@@ -37,6 +37,10 @@ from .properties.squishy_volumes_object_input_settings import INPUT_TYPE_COLLIDE
 def sync(scene):
     for simulation in scene.squishy_volumes_scene.simulations.values():
         if not simulation.sync:
+            # https://github.com/Algebraic-UG/squishy_volumes/issues/175
+            for obj in get_output_objects(simulation):
+                if obj.data is not None:
+                    obj.data.update_tag()
             continue
         sim = Simulation.get(uuid=simulation.uuid)
         if sim is None:

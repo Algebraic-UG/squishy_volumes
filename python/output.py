@@ -98,9 +98,6 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
 def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, frame: int):
     output_settings = obj.squishy_volumes_object.output_settings  # ty:ignore[unresolved-attribute]
 
-    if output_settings.sync_once and frame != output_settings.sync_once_frame:
-        return
-
     if output_settings.output_type == INPUT_MESH:
         raise RuntimeError("Not implemented yet")
 
