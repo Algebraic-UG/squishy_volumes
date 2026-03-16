@@ -66,7 +66,7 @@ def update_drivers(removed_simulation_idx):
         if not obj.animation_data:
             continue
         for driver in obj.animation_data.drivers:
-            for variable in driver.driver.variables:  # ty:ignore[possibly-missing-attribute]
+            for variable in driver.driver.variables:
                 for target in variable.targets:
                     re_match = re.match(DRIVER_PATTERN, target.data_path)
                     if re_match:

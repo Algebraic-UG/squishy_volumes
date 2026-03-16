@@ -72,15 +72,15 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
 
     def draw_item(
         self,
-        context: bpy.types.Context,
-        layout: bpy.types.UILayout,
-        data: Any | None,
-        item: Any | None,
-        icon: int | None,
-        active_data: Any,
-        active_property: str | None,
-        index: int | None,
-        flt_flag: int | None,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index,
+        flt_flag,
     ):
         assert isinstance(item, bpy.types.Object)
         row = layout.row()
@@ -130,7 +130,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
                 or not add_default_generation(obj)
             ):
                 continue
-            input_type = obj.squishy_volumes_object.input_settings.input_type  # ty:ignore[unresolved-attribute]
+            input_type = obj.squishy_volumes_object.input_settings.input_type
             if input_type == INPUT_TYPE_PARTICLES:
                 node_group_generate_particles = (
                     create_geometry_nodes_generate_particles()
@@ -172,11 +172,12 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
         force_ui_redraw()
         return {"FINISHED"}
 
-    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        return context.window_manager.invoke_props_dialog(self, width=600)  # ty:ignore[possibly-missing-attribute]
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw(self, context):
-        self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
+        assert isinstance(self.layout, bpy.types.UILayout)
+        self.layout.template_list(
             listtype_name="SCENE_UL_Squishy_Volumes_Particle_Input_Object_List",
             list_id="",
             dataptr=bpy.data,
@@ -279,14 +280,15 @@ Note that this also discards all computed frames in the cache."""
 
         return {"FINISHED"}
 
-    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+    def invoke(self, context, event):
+        simulation = get_selected_simulation(context.scene)
         if simulation_input_exists(simulation) and get_confirm_bake_overwrite():
-            return context.window_manager.invoke_props_dialog(self)  # ty:ignore[possibly-missing-attribute]
+            return context.window_manager.invoke_props_dialog(self)
         else:
             return self.execute(context)
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         sim = Simulation.get(uuid=self.uuid)
         if sim is None:
             prior_frames = 0
@@ -305,24 +307,24 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
 
     _timer = None
 
-    def invoke(self, context: bpy.types.Context, event: bpy.types.Event):
-        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+    def invoke(self, context, event):
+        simulation = get_selected_simulation(context.scene)
 
-        self._timer = context.window_manager.event_timer_add(  # ty:ignore[possibly-missing-attribute]
+        self._timer = context.window_manager.event_timer_add(
             time_step=0, window=context.window
         )
-        context.window_manager.progress_begin(0, simulation.capture_frames)  # ty:ignore[possibly-missing-attribute]
-        context.window_manager.modal_handler_add(self)  # ty:ignore[possibly-missing-attribute]
+        context.window_manager.progress_begin(0, simulation.capture_frames)
+        context.window_manager.modal_handler_add(self)
 
         return {"RUNNING_MODAL"}
 
-    def modal(self, context: bpy.types.Context, event: bpy.types.Event):
+    def modal(self, context, event):
         global SIMULATION_INPUT
         assert isinstance(SIMULATION_INPUT, SimulationInput)
-        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+        simulation = get_selected_simulation(context.scene)
 
         if event.type in {"RIGHTMOUSE", "ESC"}:
-            context.window_manager.event_timer_remove(self._timer)  # ty:ignore[possibly-missing-attribute, invalid-argument-type]
+            context.window_manager.event_timer_remove(self._timer)
             SIMULATION_INPUT.drop()
             self.report(
                 {"WARNING"},
@@ -330,7 +332,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
             )
             return {"CANCELLED"}
 
-        captured_frames = context.scene.frame_current - simulation.capture_start_frame  # ty:ignore[possibly-missing-attribute]
+        captured_frames = context.scene.frame_current - simulation.capture_start_frame
         assert captured_frames >= 0
 
         if captured_frames < simulation.capture_frames:
@@ -343,13 +345,13 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
                 SIMULATION_INPUT.drop()
                 raise
 
-            context.window_manager.progress_update(captured_frames)  # ty:ignore[possibly-missing-attribute]
+            context.window_manager.progress_update(captured_frames)
 
         if captured_frames + 1 < simulation.capture_frames:
-            context.scene.frame_set(context.scene.frame_current + 1)  # ty:ignore[possibly-missing-attribute]
+            context.scene.frame_set(context.scene.frame_current + 1)
             return {"RUNNING_MODAL"}
 
-        context.window_manager.progress_end()  # ty:ignore[possibly-missing-attribute]
+        context.window_manager.progress_end()
 
         self.report({"INFO"}, f"Finished capturing input for {simulation.name}")
 
@@ -372,8 +374,8 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
 
 
 class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
-    def filter_items(self, context: bpy.types.Context, data: Any | None, property: str):
-        simulation = get_selected_simulation(context.scene)  # ty:ignore[invalid-argument-type]
+    def filter_items(self, context, data, property):
+        simulation = get_selected_simulation(context.scene)
         if simulation is None:
             return [0] * len(bpy.data.objects), []
 
@@ -385,15 +387,15 @@ class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
 
     def draw_item(
         self,
-        context: bpy.types.Context,
-        layout: bpy.types.UILayout,
-        data: Any | None,
-        item: Any | None,
-        icon: int | None,
-        active_data: Any,
-        active_property: str | None,
-        index: int | None,
-        flt_flag: int | None,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index,
+        flt_flag,
     ):
         assert isinstance(item, bpy.types.Object)
         layout.label(text=item.name)
@@ -451,6 +453,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
         )
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         simulation = get_selected_simulation(context.scene)
 
         (header, body) = self.layout.panel("constants", default_closed=True)

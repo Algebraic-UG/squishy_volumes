@@ -129,12 +129,13 @@ This is useful when reloading a Blender filer with multiple simulations."""
             return self.execute(context)
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         locked = locked_simulations(context)
         if locked:
-            self.layout.label(text="WARNING: these caches contain lock files:")  # ty:ignore[possibly-missing-attribute]
+            self.layout.label(text="WARNING: these caches contain lock files:")
             for simulation in locked:
-                self.layout.label(text=f"{simulation.name}")  # ty:ignore[possibly-missing-attribute]
-            self.layout.label(text="Confirm to remove them.")  # ty:ignore[possibly-missing-attribute]
+                self.layout.label(text=f"{simulation.name}")
+            self.layout.label(text="Confirm to remove them.")
 
 
 class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
@@ -231,12 +232,13 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         return context.mode == "OBJECT"
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         layout = self.layout
 
         if len(unloaded_simulations(context)) > 1:
-            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)  # ty:ignore[possibly-missing-attribute]
+            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
         for simulation in context.scene.squishy_volumes_scene.simulations:
-            (header, body) = layout.panel(  # ty:ignore[possibly-missing-attribute]
+            (header, body) = layout.panel(
                 simulation.uuid, default_closed=not simulation_input_exists(simulation)
             )
             sim = Simulation.get(uuid=simulation.uuid)
@@ -344,11 +346,11 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
 
-        layout.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")  # ty:ignore[possibly-missing-attribute]
+        layout.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
 
         if len(context.scene.squishy_volumes_scene.simulations) > 1:
-            layout.separator()  # ty:ignore[possibly-missing-attribute]
-            layout.prop(  # ty:ignore[possibly-missing-attribute]
+            layout.separator()
+            layout.prop(
                 context.scene.squishy_volumes_scene,
                 "selected_simulation",
                 text="Select",

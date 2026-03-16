@@ -35,8 +35,8 @@ def get_input_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if obj.squishy_volumes_object.io == IO_INPUT  # ty:ignore[unresolved-attribute]
-        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
+        if obj.squishy_volumes_object.io == IO_INPUT
+        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid
     ]
 
 
@@ -44,8 +44,8 @@ def get_output_objects(simulation):
     return [
         obj
         for obj in bpy.data.objects
-        if obj.squishy_volumes_object.io == IO_OUTPUT  # ty:ignore[unresolved-attribute]
-        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid  # ty:ignore[unresolved-attribute]
+        if obj.squishy_volumes_object.io == IO_OUTPUT
+        and obj.squishy_volumes_object.simulation_uuid == simulation.uuid
     ]
 
 

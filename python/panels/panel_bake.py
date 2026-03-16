@@ -196,6 +196,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         return simulation is not None and Simulation.exists(uuid=simulation.uuid)
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         simulation = get_selected_simulation(context.scene)
         sim = Simulation.get(uuid=simulation.uuid)
         assert sim is not None

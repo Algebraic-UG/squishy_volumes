@@ -46,10 +46,10 @@ classes = [
 def register_properties():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(
+    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Object
     )
-    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(
+    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
         type=Squishy_Volumes_Scene
     )
     subscribe_to_selection()
@@ -60,8 +60,8 @@ def register_properties():
 
 def unregister_properties():
     unsubscribe_from_selection()
-    del bpy.types.Scene.squishy_volumes_scene
-    del bpy.types.Object.squishy_volumes_object
+    del bpy.types.Scene.squishy_volumes_scene  # ty:ignore[unresolved-attribute]
+    del bpy.types.Object.squishy_volumes_object  # ty:ignore[unresolved-attribute]
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
     if get_print_debug_info():
