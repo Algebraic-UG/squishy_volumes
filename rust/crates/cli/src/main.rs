@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use squishy_volumes_api::{ComputeSettings, Simulation as _};
+use squishy_volumes_api::{ComputeSettings, Simulation as _, T};
 use squishy_volumes_core::SimulationImpl;
 use std::{
     path::PathBuf,
@@ -30,7 +30,7 @@ struct Cli {
     directory: PathBuf,
 
     #[arg(long, value_name = "TIME_STEP")]
-    time_step: f32,
+    time_step: T,
 
     #[arg(long)]
     explicit: bool,

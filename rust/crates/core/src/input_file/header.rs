@@ -21,6 +21,19 @@ pub struct InputConsts {
     pub domain_max: Vector3<T>,
 }
 
+#[cfg(test)]
+impl Default for InputConsts {
+    fn default() -> Self {
+        Self {
+            grid_node_size: 0.5,
+            simulation_scale: 1.,
+            frames_per_second: 24,
+            domain_min: Vector3::repeat(-100.),
+            domain_max: Vector3::repeat(100.),
+        }
+    }
+}
+
 impl InputConsts {
     pub fn scaled_grid_node_size(&self) -> T {
         self.grid_node_size / self.simulation_scale

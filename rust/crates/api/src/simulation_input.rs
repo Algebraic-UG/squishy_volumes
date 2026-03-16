@@ -9,6 +9,8 @@
 use anyhow::{Result, bail};
 use serde_json::Value;
 
+use crate::T;
+
 pub trait SimulationInput {
     fn start_frame(&mut self, frame_start: Value) -> Result<()>;
     fn record_input(&mut self, meta: Value, bulk: InputBulk) -> Result<()>;
@@ -18,16 +20,16 @@ pub trait SimulationInput {
 #[derive(Debug)]
 pub enum InputBulk<'a> {
     Bool(&'a [bool]),
-    F32(&'a [f32]),
-    I32(&'a [i32]),
+    Floats(&'a [T]),
+    Ints(&'a [i32]),
 }
 
 impl InputBulk<'_> {
     pub fn len(&self) -> usize {
         match self {
             InputBulk::Bool(slice) => slice.len(),
-            InputBulk::F32(slice) => slice.len(),
-            InputBulk::I32(slice) => slice.len(),
+            InputBulk::Floats(slice) => slice.len(),
+            InputBulk::Ints(slice) => slice.len(),
         }
     }
 
@@ -38,15 +40,15 @@ impl InputBulk<'_> {
         Ok(slice)
     }
 
-    pub fn as_floats(&self) -> Result<&[f32]> {
-        let InputBulk::F32(slice) = self else {
+    pub fn as_floats(&self) -> Result<&[T]> {
+        let InputBulk::Floats(slice) = self else {
             bail!("input bulk should be floats");
         };
         Ok(slice)
     }
 
     pub fn as_ints(&self) -> Result<&[i32]> {
-        let InputBulk::I32(slice) = self else {
+        let InputBulk::Ints(slice) = self else {
             bail!("input bulk should be ints");
         };
         Ok(slice)
@@ -61,7 +63,7 @@ impl TryFrom<InputBulk<'_>> for Vec<bool> {
     }
 }
 
-impl TryFrom<InputBulk<'_>> for Vec<f32> {
+impl TryFrom<InputBulk<'_>> for Vec<T> {
     type Error = anyhow::Error;
 
     fn try_from(input_bulk: InputBulk<'_>) -> std::result::Result<Self, Self::Error> {

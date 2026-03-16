@@ -6,25 +6,23 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::{Matrix3, SVD, Vector3};
 #[cfg_attr(
     not(feature = "f64"),
     deny(The tests only work with double precision)
 )]
-use squishy_volumes_api::T;
+use crate::T;
+use nalgebra::{Matrix3, SVD, Vector3};
 
-use crate::{
-    math::{
-        Matrix9, Vector9,
-        safe_inverse::{self, SafeInverse},
-    },
-    simulation::elastic::{
-        first_piola_stress_inviscid_svd, first_piola_stress_inviscid_svd_in_diagonal_space,
-        first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
-        first_piola_stress_stable_neo_hookean_svd, hessian_neo_hookean_svd,
-        second_derivative_inviscid_svd_in_diagonal_space,
-        second_derivative_neo_hookean_svd_in_diagonal_space,
-    },
+use super::{
+    first_piola_stress_inviscid_svd, first_piola_stress_inviscid_svd_in_diagonal_space,
+    first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
+    first_piola_stress_stable_neo_hookean_svd, hessian_neo_hookean_svd,
+    second_derivative_inviscid_svd_in_diagonal_space,
+    second_derivative_neo_hookean_svd_in_diagonal_space,
+};
+use crate::math::{
+    Matrix9, Vector9,
+    safe_inverse::{self, SafeInverse},
 };
 
 use super::{

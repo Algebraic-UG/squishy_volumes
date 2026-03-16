@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 use serde_json::from_str;
-use squishy_volumes_api::InputBulk;
+use squishy_volumes_api::{InputBulk, T};
 
 use crate::hot_reloadable::{try_with_context, with_context};
 
@@ -65,7 +65,7 @@ impl SimulationInput {
     pub fn record_input_float<'py>(
         &self,
         meta: &str,
-        bulk: PyReadonlyArray1<'py, f32>,
+        bulk: PyReadonlyArray1<'py, T>,
     ) -> Result<()> {
         try_with_context(|context| {
             context
@@ -73,7 +73,7 @@ impl SimulationInput {
                 .context("Not recording input")?
                 .record_input(
                     from_str(meta).context("Meta string isn't valid JSON")?,
-                    InputBulk::F32(bulk.as_slice()?),
+                    InputBulk::Floats(bulk.as_slice()?),
                 )
         })
     }
@@ -89,7 +89,7 @@ impl SimulationInput {
                 .context("Not recording input")?
                 .record_input(
                     from_str(meta).context("Meta string isn't valid JSON")?,
-                    InputBulk::I32(bulk.as_slice()?),
+                    InputBulk::Ints(bulk.as_slice()?),
                 )
         })
     }
