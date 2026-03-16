@@ -200,10 +200,6 @@ def capture_input_frame(
             record(
                 python_name="squishy_volumes_goal_position", rust_name="GoalPositions"
             )
-            record(
-                python_name="squishy_volumes_goal_stiffness",
-                rust_name="GoalStiffnesses",
-            )
 
         if input_type == INPUT_TYPE_COLLIDER:
             assert len(mesh.polygons) == len(mesh.loop_triangles), (
