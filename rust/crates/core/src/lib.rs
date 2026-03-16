@@ -15,7 +15,6 @@ mod compute_thread;
 mod directory_lock;
 #[allow(unused)]
 mod elastic;
-mod error_messages;
 mod input_file;
 pub mod kernels;
 mod math;
