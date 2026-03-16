@@ -428,8 +428,8 @@ class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
 
         move.parent = choose
 
-        modifier["Socket_3"] = choose
-        modifier["Socket_4"] = move
+        modifier["Socket_2"] = choose
+        modifier["Socket_3"] = move
 
         obj.update_tag()
         context.view_layer.update()
