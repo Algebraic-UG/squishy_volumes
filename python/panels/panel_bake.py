@@ -35,7 +35,6 @@ def _start_compute(
     sim.start_compute(
         time_step=simulation.time_step,
         explicit=simulation.explicit,
-        debug_mode=simulation.debug_mode,
         adaptive_time_steps=simulation.adaptive_time_steps,
         next_frame=next_frame,
         number_of_frames=number_of_frames,
@@ -196,6 +195,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         return simulation is not None and Simulation.exists(uuid=simulation.uuid)
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         simulation = get_selected_simulation(context.scene)
         sim = Simulation.get(uuid=simulation.uuid)
         assert sim is not None

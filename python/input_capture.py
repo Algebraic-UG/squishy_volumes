@@ -111,7 +111,7 @@ def triangles_to_numpy_array(
 ) -> np.ndarray:
     n = len(mesh.loop_triangles) * 3
     array = np.empty(n, dtype="int32")
-    mesh.loop_triangles.foreach_get("vertices", array)  # ty:ignore[unresolved-attribute]
+    mesh.loop_triangles.foreach_get("vertices", array)
 
     return array
 

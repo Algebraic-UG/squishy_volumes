@@ -81,15 +81,15 @@ class Squishy_Volumes_New_Output_Object(bpy.types.PropertyGroup):
 class SCENE_UL_Squishy_Volumes_New_Output_Object_List(bpy.types.UIList):
     def draw_item(
         self,
-        context: bpy.types.Context,
-        layout: bpy.types.UILayout,
-        data: Any | None,
-        item: Any | None,
-        icon: int | None,
-        active_data: Any,
-        active_property: str | None,
-        index: int | None,
-        flt_flag: int | None,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index,
+        flt_flag,
     ):
         assert isinstance(item, Squishy_Volumes_New_Output_Object)
         row = layout.row()
@@ -156,10 +156,10 @@ each frame."""
             obj = bpy.data.objects.new(output_name, bpy.data.meshes.new(output_name))
             context.collection.objects.link(obj)
 
-            obj.squishy_volumes_object.io = IO_OUTPUT  # ty:ignore[unresolved-attribute]
-            obj.squishy_volumes_object.simulation_uuid = self.uuid  # ty:ignore[unresolved-attribute]
+            obj.squishy_volumes_object.io = IO_OUTPUT
+            obj.squishy_volumes_object.simulation_uuid = self.uuid
 
-            output_settings = obj.squishy_volumes_object.output_settings  # ty:ignore[unresolved-attribute]
+            output_settings = obj.squishy_volumes_object.output_settings
             copy_simple_property_group(self, output_settings)
 
             if input_name is not None:
@@ -240,14 +240,15 @@ each frame."""
         return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw_selection_list(self):
+        assert isinstance(self.layout, bpy.types.UILayout)
         propname = {
             PARTICLES: "particle_outputs",
             GRID_MOMENTUM_CONFORMED: "collider_outputs",
         }.get(self.output_type)  # ty:ignore[unresolved-attribute]
         if propname is None:
             return
-        self.layout.prop(self, "select_action", expand=True)  # ty:ignore[possibly-missing-attribute]
-        self.layout.template_list(  # ty:ignore[possibly-missing-attribute]
+        self.layout.prop(self, "select_action", expand=True)
+        self.layout.template_list(
             listtype_name="SCENE_UL_Squishy_Volumes_New_Output_Object_List",
             list_id="",
             dataptr=self,
@@ -257,11 +258,12 @@ each frame."""
         )
 
     def draw_object_attributes(self):
+        assert isinstance(self.layout, bpy.types.UILayout)
         output_type = self.output_type  # ty:ignore[unresolved-attribute]
         if output_type == INPUT_MESH:
             return
 
-        box = self.layout.box()  # ty:ignore[possibly-missing-attribute]
+        box = self.layout.box()
         box.label(text="These attributes will be loaded each frame.")
         box.label(
             text="The default selection is needed by the default visualization, but you might need less!"
@@ -308,6 +310,7 @@ each frame."""
             grid.label(text="FLOAT_VECTOR")
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         self.layout.prop(self, "output_type")
 
         self.draw_selection_list()
@@ -366,15 +369,15 @@ class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
 
     def draw_item(
         self,
-        context: bpy.types.Context,
-        layout: bpy.types.UILayout,
-        data: Any | None,
-        item: Any | None,
-        icon: int | None,
-        active_data: Any,
-        active_property: str | None,
-        index: int | None,
-        flt_flag: int | None,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index,
+        flt_flag,
     ):
         assert isinstance(item, bpy.types.Object)
         layout.label(text=item.name)
@@ -396,17 +399,18 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         return simulation is not None and Simulation.exists(uuid=simulation.uuid)
 
     def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
         simulation = get_selected_simulation(context.scene)
-        self.layout.prop(simulation, "display_start_frame")  # ty:ignore[possibly-missing-attribute]
+        self.layout.prop(simulation, "display_start_frame")
 
-        col = self.layout.column()  # ty:ignore[possibly-missing-attribute]
+        col = self.layout.column()
         if simulation.has_loaded_frame:
             col.enabled = False
             col.prop(simulation, "loaded_frame")
         else:
             col.label(text="No frame loaded")
 
-        row = self.layout.row()  # ty:ignore[possibly-missing-attribute]
+        row = self.layout.row()
         row.column().template_list(
             "SCENE_UL_Squishy_Volumes_Output_Object_List",
             "",
