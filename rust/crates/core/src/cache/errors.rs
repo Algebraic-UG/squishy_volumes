@@ -6,22 +6,16 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{io, sync::mpsc::SendError};
+use std::io;
 
 use thiserror::Error;
 
-use crate::{
-    directory_lock::DirectoryLockingError,
-    input_file::InputError,
-    state::{State, attributes::AttributeError},
-};
+use crate::{directory_lock::DirectoryLockingError, state::attributes::AttributeError};
 
 #[derive(Error, Debug)]
 pub enum CacheError {
     #[error("Failed to lock down cache: {0}")]
     Lock(#[from] DirectoryLockingError),
-    #[error("An error occured while recording for cache: {0}")]
-    Recording(#[from] CacheRecordingError),
     #[error("An error occured while writing to cache: {0}")]
     Writing(#[from] CacheWritingError),
     #[error("An error occured while reading the cache: {0}")]
@@ -37,16 +31,6 @@ pub enum CacheCleanupError {
 }
 
 #[derive(Error, Debug)]
-pub enum CacheRecordingError {
-    #[error("Failed to write header: {0}")]
-    WriteHeader(InputError),
-    #[error("Failed to record frame: {0}")]
-    RecordFrame(InputError),
-    #[error("Failed to finish recording: {0}")]
-    FinishRecording(InputError),
-}
-
-#[derive(Error, Debug)]
 pub enum CacheWritingError {
     #[error("Failed to create output frame: {0}")]
     CreateFrame(io::Error),
@@ -56,8 +40,8 @@ pub enum CacheWritingError {
     MoveFrame(io::Error),
     #[error("Failed to serialize state: {0}")]
     Serialization(#[from] bincode::Error),
-    #[error("Failed to forward output frame to writing thread: {0}")]
-    Sending(#[from] SendError<State>),
+    #[error("Failed to forward output frame to writing thread")]
+    Sending,
     #[error("Store thread is gone")]
     ThreadGone,
     #[error("Store thread stopped")]
@@ -70,12 +54,6 @@ pub enum CacheWritingError {
 
 #[derive(Error, Debug)]
 pub enum CacheReadingError {
-    #[error("Failed to open setup: {0}")]
-    Open(InputError),
-    #[error("Failed to write header: {0}")]
-    ReadHeader(InputError),
-    #[error("Failed to read input frame: {0}")]
-    ReadInputFrame(InputError),
     #[error("Some frames are missing from the sequence")]
     FrameSequenceBroken,
     #[error("Frame is not computed yet")]

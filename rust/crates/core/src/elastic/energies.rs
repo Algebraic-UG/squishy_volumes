@@ -8,7 +8,6 @@
 
 use crate::{
     ensure_err,
-    error_messages::INVERTED_PARTICLE,
     math::{Matrix9, SINGULAR_VALUE_SEPARATION, Vector9, safe_inverse::SafeInverse},
 };
 use nalgebra::{Matrix3, Normed, SVD, U3, Vector3, stack};

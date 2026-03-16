@@ -13,8 +13,6 @@ use std::{
 
 use squishy_volumes_api::Task;
 
-pub const REPORT_STRIDE: usize = 1 << 12;
-
 // TODO: this should also include the run flag
 #[derive(Clone)]
 pub enum Report {

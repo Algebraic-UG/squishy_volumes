@@ -10,7 +10,7 @@ use nalgebra::Vector3;
 use rustc_hash::FxHashMap;
 use squishy_volumes_api::T;
 
-use crate::state::grids::{ColliderInfos, Rasterized};
+use crate::state::grids::ColliderInfos;
 
 pub fn check_shifted_quadratic(shifted: Vector3<T>) -> bool {
     shifted.x >= 0.5

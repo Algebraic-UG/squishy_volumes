@@ -57,7 +57,7 @@ pub enum StateInitializationError {
 
 impl State {
     pub fn new(
-        run: Arc<AtomicBool>,
+        _run: Arc<AtomicBool>,
         report: Report,
         input_header: InputHeader,
         first_frame: InputFrame,

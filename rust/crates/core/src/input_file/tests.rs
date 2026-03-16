@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use std::{
+    fmt,
     fs::OpenOptions,
     io::{Seek, SeekFrom, Write},
     path::{Path, PathBuf},
@@ -15,10 +16,9 @@ use std::{
 use rand::{SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::{Builder, TempDir};
 
-use super::{
-    BulkData, InputFrame, InputHeader, InputReader, InputWriter,
-    common::{InputError, MAGIC_LEN},
-};
+use crate::input_file::{InputConsts, InputError, InputObject, InputOffsetReadingError};
+
+use super::{InputFrame, InputHeader, InputReader, InputWriter, common::MAGIC_LEN};
 
 fn test_file() -> (PathBuf, TempDir) {
     let tmp_dir = Builder::new()
@@ -29,37 +29,26 @@ fn test_file() -> (PathBuf, TempDir) {
 }
 
 fn test_header() -> InputHeader {
-    InputHeader {
-        test_param_a: "foo".to_string(),
-        test_param_b: "bar".to_string(),
-        test_param_c: "car".to_string(),
-    }
+    let consts = InputConsts::default();
+    let objects = [
+        ("foo".to_string(), InputObject::Particles),
+        ("bar".to_string(), InputObject::Particles),
+        (
+            "car".to_string(),
+            InputObject::Collider { num_vertices: 100 },
+        ),
+    ]
+    .into_iter()
+    .collect();
+
+    InputHeader { consts, objects }
 }
 
 fn test_frames() -> Vec<InputFrame> {
     vec![
-        InputFrame {
-            bulk: Default::default(),
-        },
-        InputFrame {
-            bulk: [(
-                "Some float attribute".to_string(),
-                BulkData::F32(vec![1., 2., 3., 42.]),
-            )]
-            .into_iter()
-            .collect(),
-        },
-        InputFrame {
-            bulk: Default::default(),
-        },
-        InputFrame {
-            bulk: [(
-                "Some int attribute".to_string(),
-                BulkData::I32(vec![1, 2, 3, 42]),
-            )]
-            .into_iter()
-            .collect(),
-        },
+        InputFrame::test_input_0(),
+        InputFrame::test_input_1(),
+        InputFrame::test_input_2(),
     ]
 }
 
@@ -77,21 +66,21 @@ fn test_creating_tempdir() {
 #[test]
 fn test_write_start() {
     let (path, _guard) = test_file();
-    InputWriter::new(path, test_header()).unwrap();
+    InputWriter::new(path, &test_header()).unwrap();
 }
 
 #[test]
 fn test_write_partial() {
     let (path, _guard) = test_file();
-    let mut writer = InputWriter::new(path, test_header()).unwrap();
-    for frame in test_frames().into_iter().take(2) {
+    let mut writer = InputWriter::new(path, &test_header()).unwrap();
+    for frame in test_frames().iter().take(2) {
         writer.record_frame(frame).unwrap();
     }
 }
 
-fn write_full<P: AsRef<Path>>(path: P) {
-    let mut writer = InputWriter::new(path, test_header()).unwrap();
-    for frame in test_frames() {
+fn write_full<P: AsRef<Path> + fmt::Debug>(path: P) {
+    let mut writer = InputWriter::new(path, &test_header()).unwrap();
+    for frame in &test_frames() {
         writer.record_frame(frame).unwrap();
     }
     writer.flush().unwrap();
@@ -187,9 +176,9 @@ fn test_index_offset_mishap_io() {
     }
     assert!(matches!(
         InputReader::new(path),
-        Err(InputError::OffsetReading(
-            crate::input::common::InputOffsetReadingError::IoError(_)
-        ))
+        Err(InputError::OffsetReading(InputOffsetReadingError::IoError(
+            _
+        )))
     ));
 }
 
@@ -205,7 +194,7 @@ fn test_index_offset_mishap_bincode() {
     assert!(matches!(
         InputReader::new(path),
         Err(InputError::OffsetReading(
-            crate::input::common::InputOffsetReadingError::BincodeError(_)
+            InputOffsetReadingError::BincodeError(_)
         ))
     ));
 }

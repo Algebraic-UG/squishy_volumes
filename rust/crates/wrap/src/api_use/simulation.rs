@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use numpy::PyArray1;
 use pyo3::{prelude::*, types::PyList};
 use serde_json::{from_str, to_string};
-use squishy_volumes_api::ComputeSettings;
+use squishy_volumes_api::{ComputeSettings, T};
 
 use crate::hot_reloadable::{try_with_context, with_context};
 
@@ -69,14 +69,10 @@ impl Simulation {
         })
     }
 
-    // TODO: not sure how to improve this (too_many_arguments)
-    // might need another #[pyclass]
-    #[allow(clippy::too_many_arguments)]
     pub fn start_compute(
         &self,
-        time_step: f32,
+        time_step: T,
         explicit: bool,
-        debug_mode: bool,
         adaptive_time_steps: bool,
         next_frame: usize,
         number_of_frames: usize,
@@ -89,7 +85,6 @@ impl Simulation {
                 .start_compute(ComputeSettings {
                     time_step,
                     explicit,
-                    debug_mode,
                     adaptive_time_steps,
                     next_frame,
                     number_of_frames,
@@ -138,7 +133,7 @@ impl Simulation {
         py: Python<'py>,
         frame: usize,
         attribute: &str,
-    ) -> Result<Bound<'py, PyArray1<f32>>> {
+    ) -> Result<Bound<'py, PyArray1<T>>> {
         try_with_context(|context| {
             let flat_attribute = context
                 .get_simulation(&self.0)

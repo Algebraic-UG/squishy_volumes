@@ -6,10 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{
-    mem::take,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 use nalgebra::Vector3;
 use rustc_hash::FxHashMap;

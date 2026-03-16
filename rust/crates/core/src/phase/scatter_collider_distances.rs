@@ -6,14 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{
-    mem::take,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        mpsc::channel,
-    },
-    thread::spawn,
-};
+use std::{mem::take, sync::mpsc::channel, thread::spawn};
 
 use anyhow::{Context as _, Result, bail};
 use nalgebra::Vector3;
@@ -22,7 +15,6 @@ use rayon::iter::{
     IntoParallelRefMutIterator, ParallelExtend, ParallelIterator,
 };
 use rustc_hash::FxHashMap;
-use tracing::info;
 
 use crate::{
     math::RASTERIZATION_LAYERS,

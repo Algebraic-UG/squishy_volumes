@@ -270,7 +270,6 @@ Note that this also discards all computed frames in the cache."""
             sim.start_compute(
                 time_step=simulation.time_step,
                 explicit=simulation.explicit,
-                debug_mode=simulation.debug_mode,
                 adaptive_time_steps=simulation.adaptive_time_steps,
                 next_frame=0,
                 number_of_frames=simulation.bake_frames,
@@ -362,7 +361,6 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
             sim.start_compute(
                 time_step=simulation.time_step,
                 explicit=simulation.explicit,
-                debug_mode=simulation.debug_mode,
                 adaptive_time_steps=simulation.adaptive_time_steps,
                 next_frame=0,
                 number_of_frames=simulation.bake_frames,

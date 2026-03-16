@@ -8,8 +8,6 @@
 
 use thiserror::Error;
 
-use crate::{elastic::EnergyError, mesh::MeshError};
-
 #[derive(Error, Debug)]
 pub enum InputError {
     #[error("The magic number didn't match, this is not a squishy volumes input file")]
@@ -32,18 +30,4 @@ pub enum InputOffsetReadingError {
     IoError(#[from] std::io::Error),
     #[error("Unknown bincode error")]
     BincodeError(#[from] bincode::Error),
-}
-
-#[derive(Error, Debug)]
-pub enum InputGenerationError {
-    #[error("Dialation must be positive")]
-    DilationError,
-    #[error("Initial energy calculation failed")]
-    Energy(#[from] EnergyError),
-    #[error("Something is wrong with the mesh")]
-    Mesh(#[from] MeshError),
-    #[error("Sampling returned nothing")]
-    NoSamples,
-    #[error("The key for this bulk data was already present: {0}")]
-    KeyAlreadyPresent(String),
 }
