@@ -100,7 +100,6 @@ pub struct PhaseInput {
     pub time_step_by_deformation: Option<T>,
     pub time_step_by_isolated: Option<T>,
     pub time_step_by_sound: Option<T>,
-    pub time_step_by_sound_simple: Option<T>,
     pub time_step: T,
     pub time_step_prior: VecDeque<T>,
     pub adaptive_time_steps: bool,

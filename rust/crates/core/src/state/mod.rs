@@ -25,8 +25,6 @@ use grids::GridMomentum;
 use object::{ObjectCollider, ObjectParticles};
 use particles::Particles;
 
-mod errors;
-
 #[derive(Clone, Serialize, Deserialize)]
 pub struct State {
     pub time: f64,

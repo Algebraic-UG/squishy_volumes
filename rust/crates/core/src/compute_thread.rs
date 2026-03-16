@@ -111,7 +111,6 @@ impl ComputeThread {
                     time_step_by_deformation: None,
                     time_step_by_isolated: None,
                     time_step_by_sound: None,
-                    time_step_by_sound_simple: None,
                     time_step_prior: Default::default(),
                     adaptive_time_steps,
                     explicit,

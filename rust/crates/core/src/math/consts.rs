@@ -8,10 +8,7 @@
 
 use squishy_volumes_api::T;
 
-pub const SURFACE_DISK_SIZE_FACTOR: T = 0.5;
 pub const NORMALIZATION_EPS: T = 1e-5;
-pub const COLLIDER_SIGN_DIST_MARGIN: T = 1e-5;
-pub const SLERP_EPS: T = 1e-3;
 pub const INVERSE_EPS: T = 1e-3;
 pub const RASTERIZATION_LAYERS: usize = 3;
 

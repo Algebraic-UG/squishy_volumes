@@ -17,8 +17,6 @@ pub trait AabbVector:
     fn splat(value: T) -> Self;
     fn min(&self, other: &Self) -> Self;
     fn max(&self, other: &Self) -> Self;
-
-    fn lattice(min: Self, extents: Self, spacing: T) -> (usize, impl Iterator<Item = Self>);
 }
 
 impl AabbVector for Vector2<T> {
@@ -33,18 +31,6 @@ impl AabbVector for Vector2<T> {
     fn max(&self, other: &Self) -> Self {
         self.sup(other)
     }
-
-    fn lattice(min: Self, extents: Self, spacing: T) -> (usize, impl Iterator<Item = Self>) {
-        let n = (extents / spacing).map(|x| x.max(1.) as usize);
-        (
-            n.product(),
-            (0..=n.x).flat_map(move |i| {
-                (0..=n.y).map(move |j| {
-                    min + extents.component_mul(&Self::new(i as T / n.x as T, j as T / n.y as T))
-                })
-            }),
-        )
-    }
 }
 
 impl AabbVector for Vector3<T> {
@@ -58,24 +44,6 @@ impl AabbVector for Vector3<T> {
 
     fn max(&self, other: &Self) -> Self {
         self.sup(other)
-    }
-
-    fn lattice(min: Self, extents: Self, spacing: T) -> (usize, impl Iterator<Item = Self>) {
-        let n = (extents / spacing).map(|x| x.max(1.) as usize);
-        (
-            n.product(),
-            (0..=n.x).flat_map(move |i| {
-                (0..=n.y).flat_map(move |j| {
-                    (0..=n.z).map(move |k| {
-                        min + extents.component_mul(&Self::new(
-                            i as T / n.x as T,
-                            j as T / n.y as T,
-                            k as T / n.z as T,
-                        ))
-                    })
-                })
-            }),
-        )
     }
 }
 
@@ -104,13 +72,5 @@ impl<V: AabbVector> Aabb<V> {
             min: self.min.min(&point),
             max: self.max.max(&point),
         }
-    }
-
-    pub fn extents(&self) -> V {
-        self.max - self.min
-    }
-
-    pub fn lattice(&self, spacing: T) -> (usize, impl Iterator<Item = V> + use<V>) {
-        V::lattice(self.min, self.extents(), spacing)
     }
 }
