@@ -23,7 +23,7 @@ jobs:
       # =================================================================
       # tools, these should all be cached
       # =================================================================
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.11
 
@@ -31,11 +31,11 @@ jobs:
         with:
           targets: ${{ inputs.target-triple }}
 
-      - uses: baptiste0928/cargo-install@v3.3.1
+      - uses: baptiste0928/cargo-install@v3.4.0
         with:
           crate: cargo-deny
 
-      - uses: baptiste0928/cargo-install@v3.3.1
+      - uses: baptiste0928/cargo-install@v3.4.0
         with:
           crate: cargo-cyclonedx
 
@@ -69,7 +69,7 @@ jobs:
           args: --no-default-features --release --out dist
 
       - name: Upload Wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ inputs.artifact-name }}
           path: rust/crates/wrap/dist/*.whl

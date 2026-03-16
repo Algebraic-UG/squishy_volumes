@@ -52,7 +52,7 @@ jobs:
       - name: Clear release directory
         run: rm -rf release
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: squishy-volumes-extension
           path: release/
@@ -67,7 +67,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.1
         with:
           draft: ${{ github.event.inputs.draft }}
           prerelease: ${{ github.event.inputs.prerelease }}
