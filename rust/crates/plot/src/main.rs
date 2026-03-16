@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .draw_series(LineSeries::new(
             (-250..=250)
                 .map(|x| x as f32 / 50.0)
-                .map(|x| (x, kernel_linear(x))),
+                .map(|x| (x, kernel_linear(x.into()) as f32)),
             &RED,
         ))?
         .label("linear")
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .draw_series(LineSeries::new(
             (-250..=250)
                 .map(|x| x as f32 / 50.0)
-                .map(|x| (x, kernel_quadratic(x))),
+                .map(|x| (x, kernel_quadratic(x.into()) as f32)),
             &GREEN,
         ))?
         .label("quadratic")
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .draw_series(LineSeries::new(
             (-250..=250)
                 .map(|x| x as f32 / 50.0)
-                .map(|x| (x, kernel_cubic(x))),
+                .map(|x| (x, kernel_cubic(x.into()) as f32)),
             &BLUE,
         ))?
         .label("cubic")
