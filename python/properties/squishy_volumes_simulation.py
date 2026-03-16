@@ -254,12 +254,6 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
         default=True,
         options=set(),
     )  # type: ignore
-    debug_mode: bpy.props.BoolProperty(
-        name="Debug Mode",
-        description="""TODO""",
-        default=False,
-        options=set(),
-    )  # type: ignore
     adaptive_time_steps: bpy.props.BoolProperty(
         name="Adaptive Time Steps",
         description="""Automatically determine a good 'Time Step'.

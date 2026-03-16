@@ -52,7 +52,6 @@ pub struct ComputeThreadSettings {
     pub next_frame: usize,
     pub adaptive_time_steps: bool,
     pub explicit: bool,
-    pub debug_mode: bool,
 }
 
 impl ComputeThread {
@@ -67,7 +66,6 @@ impl ComputeThread {
             mut next_frame,
             adaptive_time_steps,
             explicit,
-            debug_mode,
         }: ComputeThreadSettings,
     ) -> Result<Self> {
         info!("starting compute thread");
@@ -117,7 +115,6 @@ impl ComputeThread {
                     time_step_prior: Default::default(),
                     adaptive_time_steps,
                     explicit,
-                    debug_mode,
                 };
 
                 let mut frame_times = VecDeque::new();

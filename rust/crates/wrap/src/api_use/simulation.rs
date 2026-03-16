@@ -69,14 +69,10 @@ impl Simulation {
         })
     }
 
-    // TODO: not sure how to improve this (too_many_arguments)
-    // might need another #[pyclass]
-    #[allow(clippy::too_many_arguments)]
     pub fn start_compute(
         &self,
         time_step: T,
         explicit: bool,
-        debug_mode: bool,
         adaptive_time_steps: bool,
         next_frame: usize,
         number_of_frames: usize,
@@ -89,7 +85,6 @@ impl Simulation {
                 .start_compute(ComputeSettings {
                     time_step,
                     explicit,
-                    debug_mode,
                     adaptive_time_steps,
                     next_frame,
                     number_of_frames,

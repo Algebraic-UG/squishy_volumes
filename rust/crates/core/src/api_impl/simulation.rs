@@ -105,7 +105,6 @@ impl Simulation for SimulationImpl {
         ComputeSettings {
             time_step,
             explicit,
-            debug_mode,
             adaptive_time_steps,
             next_frame,
             number_of_frames,
@@ -154,7 +153,6 @@ impl Simulation for SimulationImpl {
             next_frame,
             adaptive_time_steps,
             explicit,
-            debug_mode,
         })?);
         Ok(())
     }

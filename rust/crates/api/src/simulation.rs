@@ -31,7 +31,6 @@ pub trait Simulation {
 pub struct ComputeSettings {
     pub time_step: T,
     pub explicit: bool,
-    pub debug_mode: bool,
     pub adaptive_time_steps: bool,
     pub next_frame: usize,
     pub number_of_frames: usize,

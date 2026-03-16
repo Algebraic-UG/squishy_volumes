@@ -141,7 +141,6 @@ class Simulation:
         *,
         time_step: float,
         explicit: bool,
-        debug_mode: bool,
         adaptive_time_steps: bool,
         next_frame: int,
         number_of_frames: int,
@@ -150,7 +149,6 @@ class Simulation:
         self.handle.start_compute(
             time_step,
             explicit,
-            debug_mode,
             adaptive_time_steps,
             next_frame,
             number_of_frames,

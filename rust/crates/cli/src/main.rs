@@ -36,9 +36,6 @@ struct Cli {
     explicit: bool,
 
     #[arg(long)]
-    debug_mode: bool,
-
-    #[arg(long)]
     adaptive_time_steps: bool,
 
     #[arg(long, value_name = "NUMBER_OF_FRAMES")]
@@ -57,7 +54,6 @@ fn main() -> Result<()> {
         directory,
         time_step,
         explicit,
-        debug_mode,
         adaptive_time_steps,
         next_frame,
         number_of_frames,
@@ -71,7 +67,6 @@ fn main() -> Result<()> {
     simulation.start_compute(ComputeSettings {
         time_step,
         explicit,
-        debug_mode,
         adaptive_time_steps,
         next_frame,
         number_of_frames,
