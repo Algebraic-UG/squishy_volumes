@@ -3509,7 +3509,7 @@
                                                         "pin_gizmo": false,
                                                         "type": "MATERIAL",
                                                         "display_shape": "LINE",
-                                                        "default_value": 1043
+                                                        "default_value": 1099
                                                     }
                                                 }
                                             ]
@@ -12220,7 +12220,7 @@
                                             "default_input": "VALUE",
                                             "in_out": "INPUT",
                                             "item_type": "SOCKET",
-                                            "default_value": "Deformed Cubes"
+                                            "default_value": "Points"
                                         }
                                     },
                                     {
@@ -12536,7 +12536,7 @@
                 "nodes": {
                     "id": 822,
                     "data": {
-                        "active": 988,
+                        "active": 1025,
                         "items": [
                             {
                                 "id": 823,
@@ -13525,7 +13525,7 @@
                                     "hide": false,
                                     "mute": false,
                                     "show_texture": false,
-                                    "active_index": 2,
+                                    "active_index": 0,
                                     "data_type": "GEOMETRY",
                                     "inputs": {
                                         "id": 885,
@@ -13549,7 +13549,7 @@
                                                 {
                                                     "id": 887,
                                                     "data": {
-                                                        "name": "Deformed Cubes",
+                                                        "name": "Points",
                                                         "description": "",
                                                         "hide": false,
                                                         "enabled": true,
@@ -13564,7 +13564,7 @@
                                                 {
                                                     "id": 888,
                                                     "data": {
-                                                        "name": "Reconstructed",
+                                                        "name": "Deformed Cubes",
                                                         "description": "",
                                                         "hide": false,
                                                         "enabled": true,
@@ -13579,7 +13579,7 @@
                                                 {
                                                     "id": 889,
                                                     "data": {
-                                                        "name": "Skin",
+                                                        "name": "Reconstructed",
                                                         "description": "",
                                                         "hide": false,
                                                         "enabled": true,
@@ -13593,6 +13593,21 @@
                                                 },
                                                 {
                                                     "id": 890,
+                                                    "data": {
+                                                        "name": "Skin",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 891,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -13610,11 +13625,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 891,
+                                        "id": 892,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 892,
+                                                    "id": 893,
                                                     "data": {
                                                         "name": "Output",
                                                         "description": "",
@@ -13629,7 +13644,23 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 893,
+                                                    "id": 894,
+                                                    "data": {
+                                                        "name": "Points",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "LINE",
+                                                        "default_value": false
+                                                    }
+                                                },
+                                                {
+                                                    "id": 895,
                                                     "data": {
                                                         "name": "Deformed Cubes",
                                                         "description": "",
@@ -13645,7 +13676,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 894,
+                                                    "id": 896,
                                                     "data": {
                                                         "name": "Reconstructed",
                                                         "description": "",
@@ -13661,7 +13692,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 895,
+                                                    "id": 897,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -13681,25 +13712,32 @@
                                     },
                                     "bl_idname": "GeometryNodeMenuSwitch",
                                     "enum_items": {
-                                        "id": 896,
+                                        "id": 898,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 897,
+                                                    "id": 899,
+                                                    "data": {
+                                                        "name": "Points",
+                                                        "description": ""
+                                                    }
+                                                },
+                                                {
+                                                    "id": 900,
                                                     "data": {
                                                         "name": "Deformed Cubes",
                                                         "description": ""
                                                     }
                                                 },
                                                 {
-                                                    "id": 898,
+                                                    "id": 901,
                                                     "data": {
                                                         "name": "Reconstructed",
                                                         "description": ""
                                                     }
                                                 },
                                                 {
-                                                    "id": 899,
+                                                    "id": 902,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": ""
@@ -13712,7 +13750,7 @@
                                 }
                             },
                             {
-                                "id": 900,
+                                "id": 903,
                                 "data": {
                                     "location": [
                                         2020.0,
@@ -13740,11 +13778,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 901,
+                                        "id": 904,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 902,
+                                                    "id": 905,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -13759,7 +13797,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 903,
+                                                    "id": 906,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -13777,7 +13815,7 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 904,
+                                        "id": 907,
                                         "data": {
                                             "items": []
                                         }
@@ -13788,7 +13826,7 @@
                                 }
                             },
                             {
-                                "id": 905,
+                                "id": 908,
                                 "data": {
                                     "location": [
                                         -80.0,
@@ -13816,17 +13854,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 906,
+                                        "id": 909,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 907,
+                                        "id": 910,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 908,
+                                                    "id": 911,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -13841,7 +13879,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 909,
+                                                    "id": 912,
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
@@ -13857,7 +13895,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 910,
+                                                    "id": 913,
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
@@ -13872,7 +13910,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 911,
+                                                    "id": 914,
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
@@ -13887,7 +13925,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 912,
+                                                    "id": 915,
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
@@ -13903,7 +13941,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 913,
+                                                    "id": 916,
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
@@ -13919,7 +13957,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 914,
+                                                    "id": 917,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -13935,7 +13973,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 915,
+                                                    "id": 918,
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
@@ -13951,7 +13989,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 916,
+                                                    "id": 919,
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
@@ -13967,7 +14005,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 917,
+                                                    "id": 920,
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
@@ -13983,7 +14021,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 918,
+                                                    "id": 921,
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
@@ -13999,7 +14037,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 919,
+                                                    "id": 922,
                                                     "data": {
                                                         "name": "Input Object",
                                                         "description": "",
@@ -14015,7 +14053,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 920,
+                                                    "id": 923,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -14031,7 +14069,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 921,
+                                                    "id": 924,
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
@@ -14047,7 +14085,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 922,
+                                                    "id": 925,
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
@@ -14063,7 +14101,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 923,
+                                                    "id": 926,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -14085,7 +14123,7 @@
                                 }
                             },
                             {
-                                "id": 924,
+                                "id": 927,
                                 "data": {
                                     "location": [
                                         1160.0,
@@ -14113,17 +14151,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 925,
+                                        "id": 928,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 926,
+                                        "id": 929,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 927,
+                                                    "id": 930,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -14138,7 +14176,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 928,
+                                                    "id": 931,
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
@@ -14154,7 +14192,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 929,
+                                                    "id": 932,
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
@@ -14169,7 +14207,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 930,
+                                                    "id": 933,
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
@@ -14184,7 +14222,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 931,
+                                                    "id": 934,
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
@@ -14200,7 +14238,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 932,
+                                                    "id": 935,
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
@@ -14216,7 +14254,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 933,
+                                                    "id": 936,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -14232,7 +14270,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 934,
+                                                    "id": 937,
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
@@ -14248,7 +14286,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 935,
+                                                    "id": 938,
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
@@ -14264,7 +14302,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 936,
+                                                    "id": 939,
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
@@ -14280,7 +14318,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 937,
+                                                    "id": 940,
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
@@ -14296,7 +14334,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 938,
+                                                    "id": 941,
                                                     "data": {
                                                         "name": "Input Object",
                                                         "description": "",
@@ -14312,7 +14350,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 939,
+                                                    "id": 942,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -14328,7 +14366,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 940,
+                                                    "id": 943,
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
@@ -14344,7 +14382,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 941,
+                                                    "id": 944,
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
@@ -14360,7 +14398,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 942,
+                                                    "id": 945,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -14382,7 +14420,7 @@
                                 }
                             },
                             {
-                                "id": 943,
+                                "id": 946,
                                 "data": {
                                     "location": [
                                         960.0,
@@ -14410,17 +14448,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 944,
+                                        "id": 947,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 945,
+                                        "id": 948,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 946,
+                                                    "id": 949,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -14435,7 +14473,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 947,
+                                                    "id": 950,
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
@@ -14451,7 +14489,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 948,
+                                                    "id": 951,
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
@@ -14466,7 +14504,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 949,
+                                                    "id": 952,
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
@@ -14481,7 +14519,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 950,
+                                                    "id": 953,
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
@@ -14497,7 +14535,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 951,
+                                                    "id": 954,
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
@@ -14513,7 +14551,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 952,
+                                                    "id": 955,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -14529,7 +14567,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 953,
+                                                    "id": 956,
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
@@ -14545,7 +14583,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 954,
+                                                    "id": 957,
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
@@ -14561,7 +14599,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 955,
+                                                    "id": 958,
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
@@ -14577,7 +14615,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 956,
+                                                    "id": 959,
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
@@ -14593,7 +14631,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 957,
+                                                    "id": 960,
                                                     "data": {
                                                         "name": "Input Object",
                                                         "description": "",
@@ -14609,7 +14647,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 958,
+                                                    "id": 961,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -14625,7 +14663,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 959,
+                                                    "id": 962,
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
@@ -14641,7 +14679,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 960,
+                                                    "id": 963,
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
@@ -14657,7 +14695,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 961,
+                                                    "id": 964,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -14679,7 +14717,7 @@
                                 }
                             },
                             {
-                                "id": 962,
+                                "id": 965,
                                 "data": {
                                     "location": [
                                         1200.0,
@@ -14707,11 +14745,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 963,
+                                        "id": 966,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 964,
+                                                    "id": 967,
                                                     "data": {
                                                         "name": "Switch",
                                                         "description": "",
@@ -14727,7 +14765,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 965,
+                                                    "id": 968,
                                                     "data": {
                                                         "name": "False",
                                                         "description": "",
@@ -14742,7 +14780,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 966,
+                                                    "id": 969,
                                                     "data": {
                                                         "name": "True",
                                                         "description": "",
@@ -14760,11 +14798,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 967,
+                                        "id": 970,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 968,
+                                                    "id": 971,
                                                     "data": {
                                                         "name": "Output",
                                                         "description": "",
@@ -14787,15 +14825,15 @@
                                 }
                             },
                             {
-                                "id": 969,
+                                "id": 972,
                                 "data": {
                                     "location": [
-                                        1580.0,
-                                        -120.0
+                                        1400.0,
+                                        520.0
                                     ],
                                     "location_absolute": [
-                                        1580.0,
-                                        -120.0
+                                        1400.0,
+                                        520.0
                                     ],
                                     "width": 140.0,
                                     "height": 100.0,
@@ -14815,17 +14853,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 970,
+                                        "id": 973,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 971,
+                                        "id": 974,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 972,
+                                                    "id": 975,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -14840,7 +14878,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 973,
+                                                    "id": 976,
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
@@ -14856,7 +14894,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 974,
+                                                    "id": 977,
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
@@ -14871,7 +14909,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 975,
+                                                    "id": 978,
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
@@ -14886,7 +14924,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 976,
+                                                    "id": 979,
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
@@ -14902,7 +14940,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 977,
+                                                    "id": 980,
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
@@ -14918,7 +14956,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 978,
+                                                    "id": 981,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -14934,7 +14972,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 979,
+                                                    "id": 982,
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
@@ -14950,7 +14988,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 980,
+                                                    "id": 983,
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
@@ -14966,7 +15004,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 981,
+                                                    "id": 984,
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
@@ -14982,7 +15020,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 982,
+                                                    "id": 985,
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
@@ -14998,7 +15036,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 983,
+                                                    "id": 986,
                                                     "data": {
                                                         "name": "Input Object",
                                                         "description": "",
@@ -15014,7 +15052,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 984,
+                                                    "id": 987,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -15030,7 +15068,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 985,
+                                                    "id": 988,
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
@@ -15046,7 +15084,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 986,
+                                                    "id": 989,
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
@@ -15062,7 +15100,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 987,
+                                                    "id": 990,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -15084,7 +15122,7 @@
                                 }
                             },
                             {
-                                "id": 988,
+                                "id": 991,
                                 "data": {
                                     "location": [
                                         1360.0,
@@ -15112,11 +15150,11 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 989,
+                                        "id": 992,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 990,
+                                                    "id": 993,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -15131,7 +15169,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 991,
+                                                    "id": 994,
                                                     "data": {
                                                         "name": "Input Object",
                                                         "description": "",
@@ -15147,7 +15185,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 992,
+                                                    "id": 995,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -15166,11 +15204,11 @@
                                         }
                                     },
                                     "outputs": {
-                                        "id": 993,
+                                        "id": 996,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 994,
+                                                    "id": 997,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -15193,7 +15231,7 @@
                                 }
                             },
                             {
-                                "id": 995,
+                                "id": 998,
                                 "data": {
                                     "location": [
                                         1160.0,
@@ -15221,17 +15259,17 @@
                                     "mute": false,
                                     "show_texture": false,
                                     "inputs": {
-                                        "id": 996,
+                                        "id": 999,
                                         "data": {
                                             "items": []
                                         }
                                     },
                                     "outputs": {
-                                        "id": 997,
+                                        "id": 1000,
                                         "data": {
                                             "items": [
                                                 {
-                                                    "id": 998,
+                                                    "id": 1001,
                                                     "data": {
                                                         "name": "Geometry",
                                                         "description": "",
@@ -15246,7 +15284,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 999,
+                                                    "id": 1002,
                                                     "data": {
                                                         "name": "Grid Node Size",
                                                         "description": "",
@@ -15262,7 +15300,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1000,
+                                                    "id": 1003,
                                                     "data": {
                                                         "name": "Display as",
                                                         "description": "",
@@ -15277,7 +15315,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1001,
+                                                    "id": 1004,
                                                     "data": {
                                                         "name": "Coloring",
                                                         "description": "",
@@ -15292,7 +15330,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1002,
+                                                    "id": 1005,
                                                     "data": {
                                                         "name": "Divide by 10^x",
                                                         "description": "",
@@ -15308,7 +15346,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1003,
+                                                    "id": 1006,
                                                     "data": {
                                                         "name": "Collider Idx",
                                                         "description": "",
@@ -15324,7 +15362,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1004,
+                                                    "id": 1007,
                                                     "data": {
                                                         "name": "Scale",
                                                         "description": "",
@@ -15340,7 +15378,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1005,
+                                                    "id": 1008,
                                                     "data": {
                                                         "name": "Threshold",
                                                         "description": "",
@@ -15356,7 +15394,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1006,
+                                                    "id": 1009,
                                                     "data": {
                                                         "name": "Material",
                                                         "description": "",
@@ -15372,7 +15410,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1007,
+                                                    "id": 1010,
                                                     "data": {
                                                         "name": "Shade Smooth",
                                                         "description": "",
@@ -15388,7 +15426,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1008,
+                                                    "id": 1011,
                                                     "data": {
                                                         "name": "Blur Iterations",
                                                         "description": "",
@@ -15404,7 +15442,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1009,
+                                                    "id": 1012,
                                                     "data": {
                                                         "name": "Input Object",
                                                         "description": "",
@@ -15420,7 +15458,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1010,
+                                                    "id": 1013,
                                                     "data": {
                                                         "name": "Skin",
                                                         "description": "",
@@ -15436,7 +15474,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1011,
+                                                    "id": 1014,
                                                     "data": {
                                                         "name": "Velocity",
                                                         "description": "",
@@ -15452,7 +15490,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1012,
+                                                    "id": 1015,
                                                     "data": {
                                                         "name": "Velocity Scale",
                                                         "description": "",
@@ -15468,7 +15506,7 @@
                                                     }
                                                 },
                                                 {
-                                                    "id": 1013,
+                                                    "id": 1016,
                                                     "data": {
                                                         "name": "",
                                                         "description": "",
@@ -15488,6 +15526,751 @@
                                     "bl_idname": "NodeGroupInput",
                                     "parent": null
                                 }
+                            },
+                            {
+                                "id": 1017,
+                                "data": {
+                                    "location": [
+                                        1220.0,
+                                        360.0
+                                    ],
+                                    "location_absolute": [
+                                        1220.0,
+                                        360.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Mesh to Points",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 1018,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1019,
+                                                    "data": {
+                                                        "name": "Mesh",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1020,
+                                                    "data": {
+                                                        "name": "Selection",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": true,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": true
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1021,
+                                                    "data": {
+                                                        "name": "Position",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": true,
+                                                        "pin_gizmo": false,
+                                                        "type": "VECTOR",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": [
+                                                            0.0,
+                                                            0.0,
+                                                            0.0
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1022,
+                                                    "data": {
+                                                        "name": "Radius",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": 0.05000000074505806
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 1023,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1024,
+                                                    "data": {
+                                                        "name": "Points",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeMeshToPoints",
+                                    "parent": null,
+                                    "mode": "VERTICES"
+                                }
+                            },
+                            {
+                                "id": 1025,
+                                "data": {
+                                    "location": [
+                                        600.0,
+                                        360.0
+                                    ],
+                                    "location_absolute": [
+                                        600.0,
+                                        360.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Group Input.006",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 1026,
+                                        "data": {
+                                            "items": []
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 1027,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1028,
+                                                    "data": {
+                                                        "name": "Geometry",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "GEOMETRY",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1029,
+                                                    "data": {
+                                                        "name": "Grid Node Size",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 0.25
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1030,
+                                                    "data": {
+                                                        "name": "Display as",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MENU",
+                                                        "display_shape": "LINE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1031,
+                                                    "data": {
+                                                        "name": "Coloring",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MENU",
+                                                        "display_shape": "CIRCLE"
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1032,
+                                                    "data": {
+                                                        "name": "Divide by 10^x",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 3.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1033,
+                                                    "data": {
+                                                        "name": "Collider Idx",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "INT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1034,
+                                                    "data": {
+                                                        "name": "Scale",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 1.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1035,
+                                                    "data": {
+                                                        "name": "Threshold",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 0.5
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1036,
+                                                    "data": {
+                                                        "name": "Material",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "MATERIAL",
+                                                        "display_shape": "LINE",
+                                                        "default_value": null
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1037,
+                                                    "data": {
+                                                        "name": "Shade Smooth",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": true
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1038,
+                                                    "data": {
+                                                        "name": "Blur Iterations",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "INT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": 1
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1039,
+                                                    "data": {
+                                                        "name": "Input Object",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "OBJECT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": null
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1040,
+                                                    "data": {
+                                                        "name": "Skin",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "OBJECT",
+                                                        "display_shape": "LINE",
+                                                        "default_value": null
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1041,
+                                                    "data": {
+                                                        "name": "Velocity",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "LINE",
+                                                        "default_value": false
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1042,
+                                                    "data": {
+                                                        "name": "Velocity Scale",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 1.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1043,
+                                                    "data": {
+                                                        "name": "",
+                                                        "description": "",
+                                                        "hide": true,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "CUSTOM",
+                                                        "display_shape": "CIRCLE"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "NodeGroupInput",
+                                    "parent": null
+                                }
+                            },
+                            {
+                                "id": 1044,
+                                "data": {
+                                    "location": [
+                                        760.0,
+                                        120.0
+                                    ],
+                                    "location_absolute": [
+                                        760.0,
+                                        120.0
+                                    ],
+                                    "width": 180.0,
+                                    "height": 100.0,
+                                    "name": "Named Attribute.001",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 1045,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1046,
+                                                    "data": {
+                                                        "name": "Name",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "STRING",
+                                                        "display_shape": "LINE",
+                                                        "default_value": "squishy_volumes_size"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 1047,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1048,
+                                                    "data": {
+                                                        "name": "Attribute",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": 0.0
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1049,
+                                                    "data": {
+                                                        "name": "Exists",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "BOOLEAN",
+                                                        "display_shape": "DIAMOND",
+                                                        "default_value": false
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "GeometryNodeInputNamedAttribute",
+                                    "parent": null,
+                                    "data_type": "FLOAT"
+                                }
+                            },
+                            {
+                                "id": 1050,
+                                "data": {
+                                    "location": [
+                                        800.0,
+                                        280.0
+                                    ],
+                                    "location_absolute": [
+                                        800.0,
+                                        280.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Math",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 1051,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1052,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.5
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1053,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.5
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1054,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": false,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.5
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 1055,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1056,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.0
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "ShaderNodeMath",
+                                    "parent": null,
+                                    "operation": "MULTIPLY",
+                                    "use_clamp": false
+                                }
+                            },
+                            {
+                                "id": 1057,
+                                "data": {
+                                    "location": [
+                                        1020.0,
+                                        240.0
+                                    ],
+                                    "location_absolute": [
+                                        1020.0,
+                                        240.0
+                                    ],
+                                    "width": 140.0,
+                                    "height": 100.0,
+                                    "name": "Math.001",
+                                    "label": "",
+                                    "warning_propagation": "ALL",
+                                    "use_custom_color": false,
+                                    "color": [
+                                        0.6079999804496765,
+                                        0.6079999804496765,
+                                        0.6079999804496765
+                                    ],
+                                    "select": false,
+                                    "show_options": true,
+                                    "show_preview": false,
+                                    "hide": false,
+                                    "mute": false,
+                                    "show_texture": false,
+                                    "inputs": {
+                                        "id": 1058,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1059,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.5
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1060,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.5
+                                                    }
+                                                },
+                                                {
+                                                    "id": 1061,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": false,
+                                                        "link_limit": 1,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.5
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "outputs": {
+                                        "id": 1062,
+                                        "data": {
+                                            "items": [
+                                                {
+                                                    "id": 1063,
+                                                    "data": {
+                                                        "name": "Value",
+                                                        "description": "",
+                                                        "hide": false,
+                                                        "enabled": true,
+                                                        "link_limit": 4095,
+                                                        "show_expanded": false,
+                                                        "hide_value": false,
+                                                        "pin_gizmo": false,
+                                                        "type": "VALUE",
+                                                        "display_shape": "CIRCLE",
+                                                        "default_value": 0.0
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "bl_idname": "ShaderNodeMath",
+                                    "parent": null,
+                                    "operation": "MULTIPLY",
+                                    "use_clamp": false
+                                }
                             }
                         ]
                     }
@@ -15495,11 +16278,11 @@
                 "bl_idname": "GeometryNodeTree",
                 "annotation": null,
                 "links": {
-                    "id": 1014,
+                    "id": 1064,
                     "data": {
                         "items": [
                             {
-                                "id": 1015,
+                                "id": 1065,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -15508,7 +16291,7 @@
                                 }
                             },
                             {
-                                "id": 1016,
+                                "id": 1066,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -15517,7 +16300,7 @@
                                 }
                             },
                             {
-                                "id": 1017,
+                                "id": 1067,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -15526,7 +16309,7 @@
                                 }
                             },
                             {
-                                "id": 1018,
+                                "id": 1068,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -15535,7 +16318,7 @@
                                 }
                             },
                             {
-                                "id": 1019,
+                                "id": 1069,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -15545,34 +16328,34 @@
                                 }
                             },
                             {
-                                "id": 1020,
+                                "id": 1070,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 968,
-                                    "to_socket": 887
-                                }
-                            },
-                            {
-                                "id": 1021,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 878,
+                                    "from_socket": 971,
                                     "to_socket": 888
                                 }
                             },
                             {
-                                "id": 1022,
+                                "id": 1071,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 892,
-                                    "to_socket": 902
+                                    "from_socket": 878,
+                                    "to_socket": 889
                                 }
                             },
                             {
-                                "id": 1023,
+                                "id": 1072,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 893,
+                                    "to_socket": 905
+                                }
+                            },
+                            {
+                                "id": 1073,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
@@ -15582,174 +16365,228 @@
                                 }
                             },
                             {
-                                "id": 1024,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 908,
-                                    "to_socket": 844
-                                }
-                            },
-                            {
-                                "id": 1025,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 914,
-                                    "to_socket": 845
-                                }
-                            },
-                            {
-                                "id": 1026,
+                                "id": 1074,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
                                     "from_socket": 911,
+                                    "to_socket": 844
+                                }
+                            },
+                            {
+                                "id": 1075,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 917,
+                                    "to_socket": 845
+                                }
+                            },
+                            {
+                                "id": 1076,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 914,
                                     "to_socket": 851
                                 }
                             },
                             {
-                                "id": 1027,
+                                "id": 1077,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 912,
+                                    "from_socket": 915,
                                     "to_socket": 852
                                 }
                             },
                             {
-                                "id": 1028,
+                                "id": 1078,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 913,
+                                    "from_socket": 916,
                                     "to_socket": 853
                                 }
                             },
                             {
-                                "id": 1029,
+                                "id": 1079,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 927,
+                                    "from_socket": 930,
                                     "to_socket": 871
                                 }
                             },
                             {
-                                "id": 1030,
+                                "id": 1080,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 928,
+                                    "from_socket": 931,
                                     "to_socket": 872
                                 }
                             },
                             {
-                                "id": 1031,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 934,
-                                    "to_socket": 873
-                                }
-                            },
-                            {
-                                "id": 1032,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 935,
-                                    "to_socket": 874
-                                }
-                            },
-                            {
-                                "id": 1033,
-                                "data": {
-                                    "is_valid": true,
-                                    "is_muted": false,
-                                    "from_socket": 936,
-                                    "to_socket": 875
-                                }
-                            },
-                            {
-                                "id": 1034,
+                                "id": 1081,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
                                     "from_socket": 937,
+                                    "to_socket": 873
+                                }
+                            },
+                            {
+                                "id": 1082,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 938,
+                                    "to_socket": 874
+                                }
+                            },
+                            {
+                                "id": 1083,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 939,
+                                    "to_socket": 875
+                                }
+                            },
+                            {
+                                "id": 1084,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 940,
                                     "to_socket": 876
                                 }
                             },
                             {
-                                "id": 1035,
+                                "id": 1085,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
                                     "from_socket": 883,
-                                    "to_socket": 966
+                                    "to_socket": 969
                                 }
                             },
                             {
-                                "id": 1036,
+                                "id": 1086,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
                                     "from_socket": 855,
-                                    "to_socket": 965
+                                    "to_socket": 968
                                 }
                             },
                             {
-                                "id": 1037,
+                                "id": 1087,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 959,
-                                    "to_socket": 964
+                                    "from_socket": 962,
+                                    "to_socket": 967
                                 }
                             },
                             {
-                                "id": 1038,
+                                "id": 1088,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 974,
+                                    "from_socket": 977,
                                     "to_socket": 886
                                 }
                             },
                             {
-                                "id": 1039,
+                                "id": 1089,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 1009,
-                                    "to_socket": 991
+                                    "from_socket": 1012,
+                                    "to_socket": 994
                                 }
                             },
                             {
-                                "id": 1040,
+                                "id": 1090,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 1010,
-                                    "to_socket": 992
+                                    "from_socket": 1013,
+                                    "to_socket": 995
                                 }
                             },
                             {
-                                "id": 1041,
+                                "id": 1091,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 998,
-                                    "to_socket": 990
+                                    "from_socket": 1001,
+                                    "to_socket": 993
                                 }
                             },
                             {
-                                "id": 1042,
+                                "id": 1092,
                                 "data": {
                                     "is_valid": true,
                                     "is_muted": false,
-                                    "from_socket": 994,
-                                    "to_socket": 889
+                                    "from_socket": 997,
+                                    "to_socket": 890
+                                }
+                            },
+                            {
+                                "id": 1093,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 1028,
+                                    "to_socket": 1019
+                                }
+                            },
+                            {
+                                "id": 1094,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 1024,
+                                    "to_socket": 887
+                                }
+                            },
+                            {
+                                "id": 1095,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 1034,
+                                    "to_socket": 1052
+                                }
+                            },
+                            {
+                                "id": 1096,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 1048,
+                                    "to_socket": 1060
+                                }
+                            },
+                            {
+                                "id": 1097,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 1056,
+                                    "to_socket": 1059
+                                }
+                            },
+                            {
+                                "id": 1098,
+                                "data": {
+                                    "is_valid": true,
+                                    "is_muted": false,
+                                    "from_socket": 1063,
+                                    "to_socket": 1022
                                 }
                             }
                         ]
@@ -15771,7 +16608,7 @@
         }
     ],
     "external": {
-        "1043": {
+        "1099": {
             "description": "Hint for Import",
             "fixed_type_name": "Material",
             "scene_id": null

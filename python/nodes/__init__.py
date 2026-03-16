@@ -90,7 +90,7 @@ def create_geometry_nodes_particles() -> bpy.types.NodeTree:
     colored_instances = create_material_colored_instances()
     return _load_tree_clipper_tree(
         "geometry_nodes_particles.json",
-        [(1043, colored_instances)],
+        [(1099, colored_instances)],
     )
 
 
