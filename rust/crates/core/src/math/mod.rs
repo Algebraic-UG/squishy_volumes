@@ -19,4 +19,3 @@ pub use aabb::Aabb;
 pub use basis_from_direction::*;
 pub use consts::*;
 pub use typedefs::*;
-pub use velocity_gradient::*;

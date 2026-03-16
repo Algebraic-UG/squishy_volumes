@@ -16,6 +16,7 @@ use crate::{
     state::{State, attributes::AttributeError},
 };
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Error, Debug)]
 pub enum CacheError {
     #[error("Failed to lock down cache: {0}")]
@@ -46,6 +47,7 @@ pub enum CacheRecordingError {
     FinishRecording(InputError),
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Error, Debug)]
 pub enum CacheWritingError {
     #[error("Failed to create output frame: {0}")]
