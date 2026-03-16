@@ -28,7 +28,6 @@ use crate::{
 pub struct SimulationImpl {
     directory_lock: DirectoryLock,
 
-    input_reader: InputReader,
     input_header: InputHeader,
 
     cache: Arc<Cache>,
@@ -73,7 +72,6 @@ impl SimulationImpl {
 
         Ok(Self {
             directory_lock,
-            input_reader,
             input_header,
             cache,
             compute_thread: None,
