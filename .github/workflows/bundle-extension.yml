@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7.6.0
 
       - name: Vendorize Tree Clipper
         working-directory: python
@@ -69,7 +69,7 @@ jobs:
         run: cp LICENSE_GPLv3 python/
 
       - name: Get build script
-        run: curl https://raw.githubusercontent.com/blender/blender/refs/tags/v4.5.0/scripts/addons_core/bl_pkg/cli/blender_ext.py --output blender_ext.py
+        run: curl https://raw.githubusercontent.com/blender/blender/refs/tags/v5.0.1/scripts/addons_core/bl_pkg/cli/blender_ext.py --output blender_ext.py
 
       # =================================================================
       # Bundle and upload

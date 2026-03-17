@@ -67,7 +67,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Release
-        uses: softprops/action-gh-release@v2.6.1
+        uses: softprops/action-gh-release@v2.6.0
         with:
           draft: ${{ github.event.inputs.draft }}
           prerelease: ${{ github.event.inputs.prerelease }}
