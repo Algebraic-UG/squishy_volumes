@@ -65,27 +65,21 @@ This is most likely only relevant to developers of other extensions.""",
 
 
 def get_confirm_bake_overwrite() -> bool:
-    return bpy.context.preferences.addons.get(  # ty:ignore[unresolved-attribute]
+    return bpy.context.preferences.addons.get(
         __package__
     ).preferences.confirm_bake_overwrite
 
 
 def get_domain_min() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(  # ty:ignore[unresolved-attribute]
-        __package__
-    ).preferences.domain_min
+    return bpy.context.preferences.addons.get(__package__).preferences.domain_min
 
 
 def get_domain_max() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(  # ty:ignore[unresolved-attribute]
-        __package__
-    ).preferences.domain_max
+    return bpy.context.preferences.addons.get(__package__).preferences.domain_max
 
 
 def get_print_debug_info() -> bool:
-    return bpy.context.preferences.addons.get(  # ty:ignore[unresolved-attribute]
-        __package__
-    ).preferences.print_debug_info
+    return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info
 
 
 def register_preferences():
