@@ -28,6 +28,7 @@ impl Simulation {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (*, uuid, directory))]
     pub fn load(uuid: String, directory: String) -> Result<Self> {
         try_with_context(move |context| {
             context.load_simulation(uuid.clone(), directory.into())?;
@@ -69,6 +70,10 @@ impl Simulation {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature =
+        (*, time_step, gpu, explicit, adaptive_time_steps, next_frame, number_of_frames, max_bytes_on_disk)
+    )]
     pub fn start_compute(
         &self,
         time_step: T,
@@ -113,6 +118,7 @@ impl Simulation {
         })
     }
 
+    #[pyo3(signature = (*, frame))]
     pub fn available_attributes<'py>(
         &self,
         py: Python<'py>,
@@ -130,6 +136,7 @@ impl Simulation {
         })
     }
 
+    #[pyo3(signature = (*, frame, attribute))]
     pub fn fetch_flat_attribute<'py>(
         &self,
         py: Python<'py>,

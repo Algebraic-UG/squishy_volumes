@@ -20,6 +20,7 @@ pub struct SimulationInput;
 #[pymethods]
 impl SimulationInput {
     #[staticmethod]
+    #[pyo3(signature = (*, uuid, directory, input_header, max_bytes_on_disk))]
     pub fn new(
         uuid: String,
         directory: String,
@@ -37,6 +38,7 @@ impl SimulationInput {
         })
     }
 
+    #[pyo3(signature = (*, frame_start))]
     pub fn start_frame(&self, frame_start: &str) -> Result<()> {
         try_with_context(|context| {
             context
@@ -46,6 +48,7 @@ impl SimulationInput {
         })
     }
 
+    #[pyo3(signature = (*, meta, bulk))]
     pub fn record_input_bool<'py>(
         &self,
         meta: &str,
@@ -62,6 +65,7 @@ impl SimulationInput {
         })
     }
 
+    #[pyo3(signature = (*, meta, bulk))]
     pub fn record_input_float<'py>(
         &self,
         meta: &str,
@@ -78,6 +82,7 @@ impl SimulationInput {
         })
     }
 
+    #[pyo3(signature = (*, meta, bulk))]
     pub fn record_input_int<'py>(
         &self,
         meta: &str,
