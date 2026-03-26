@@ -80,3 +80,22 @@ pub fn get_subgroup_size() -> u32 {
         .subgroup_size()
         .get()
 }
+
+pub fn sort_on_cpu_by_bits(
+    bit_count: u32,
+    bit_offset: u32,
+    indices: &[u32],
+    keys: &[u32],
+) -> Vec<u32> {
+    let counter_count = 1 << bit_count;
+    let mask = counter_count - 1;
+
+    let mut indices = indices.to_vec();
+
+    indices.sort_by_key(|index| {
+        let key = keys[*index as usize];
+        (key >> bit_offset) & mask
+    });
+
+    indices
+}
