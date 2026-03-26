@@ -33,6 +33,9 @@ struct Cli {
     time_step: T,
 
     #[arg(long)]
+    gpu: bool,
+
+    #[arg(long)]
     explicit: bool,
 
     #[arg(long)]
@@ -53,6 +56,7 @@ fn main() -> Result<()> {
     let Cli {
         directory,
         time_step,
+        gpu,
         explicit,
         adaptive_time_steps,
         next_frame,
@@ -66,6 +70,7 @@ fn main() -> Result<()> {
 
     simulation.start_compute(ComputeSettings {
         time_step,
+        gpu,
         explicit,
         adaptive_time_steps,
         next_frame,
