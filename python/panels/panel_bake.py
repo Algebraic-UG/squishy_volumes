@@ -34,6 +34,7 @@ def _start_compute(
     sim.last_error = None
     sim.start_compute(
         time_step=simulation.time_step,
+        gpu=simulation.gpu,
         explicit=simulation.explicit,
         adaptive_time_steps=simulation.adaptive_time_steps,
         next_frame=next_frame,
@@ -206,6 +207,7 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
             )
         else:
             self.layout.prop(simulation, "time_step")
+            self.layout.prop(simulation, "gpu")
             # TODO: make implicit viable
             # col.prop(simulation, "explicit")
             # col.prop(simulation, "debug_mode")

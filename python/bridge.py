@@ -59,28 +59,28 @@ class SimulationInput:
     ) -> Self:
         return SimulationInput(
             handle=squishy_volumes_wrap.SimulationInput.new(
-                uuid,
-                directory,
-                json.dumps(input_header),
-                max_bytes_on_disk,
+                uuid=uuid,
+                directory=directory,
+                input_header=json.dumps(input_header),
+                max_bytes_on_disk=max_bytes_on_disk,
             )
         )  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     def start_frame(self, *, frame_start: dict[str, Any]):
-        self.handle.start_frame(json.dumps(frame_start))
+        self.handle.start_frame(frame_start=json.dumps(frame_start))
 
     @hint_at_info
     def record_input_bool(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
-        self.handle.record_input_bool(json.dumps(meta), bulk)
+        self.handle.record_input_bool(meta=json.dumps(meta), bulk=bulk)
 
     @hint_at_info
     def record_input_float(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
-        self.handle.record_input_float(json.dumps(meta), bulk)
+        self.handle.record_input_float(meta=json.dumps(meta), bulk=bulk)
 
     @hint_at_info
     def record_input_int(self, *, meta: dict[str, Any], bulk: numpy.ndarray):
-        self.handle.record_input_int(json.dumps(meta), bulk)
+        self.handle.record_input_int(meta=json.dumps(meta), bulk=bulk)
 
     @hint_at_info
     def finish_frame(self):
@@ -117,7 +117,12 @@ class Simulation:
     @hint_at_info
     @staticmethod
     def load(*, uuid: str, directory: str) -> Self:
-        return Simulation(handle=squishy_volumes_wrap.Simulation.load(uuid, directory))  # ty:ignore[invalid-return-type]
+        return Simulation(
+            handle=squishy_volumes_wrap.Simulation.load(
+                uuid=uuid,
+                directory=directory,
+            )
+        )  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     def input_header(self) -> dict[str, Any]:
@@ -140,6 +145,7 @@ class Simulation:
         self,
         *,
         time_step: float,
+        gpu: bool,
         explicit: bool,
         adaptive_time_steps: bool,
         next_frame: int,
@@ -147,12 +153,13 @@ class Simulation:
         max_bytes_on_disk: int,
     ):
         self.handle.start_compute(
-            time_step,
-            explicit,
-            adaptive_time_steps,
-            next_frame,
-            number_of_frames,
-            max_bytes_on_disk,
+            time_step=time_step,
+            gpu=gpu,
+            explicit=explicit,
+            adaptive_time_steps=adaptive_time_steps,
+            next_frame=next_frame,
+            number_of_frames=number_of_frames,
+            max_bytes_on_disk=max_bytes_on_disk,
         )
 
     @hint_at_info
@@ -165,13 +172,16 @@ class Simulation:
 
     @hint_at_info
     def available_attributes(self, *, frame: int) -> list[dict[str, Any]]:
-        return [json.loads(s) for s in self.handle.available_attributes(frame)]
+        return [json.loads(s) for s in self.handle.available_attributes(frame=frame)]
 
     @hint_at_info
     def fetch_flat_attribute(
         self, *, frame: int, attribute: dict[str, Any]
     ) -> numpy.ndarray:
-        return self.handle.fetch_flat_attribute(frame, json.dumps(attribute))
+        return self.handle.fetch_flat_attribute(
+            frame=frame,
+            attribute=json.dumps(attribute),
+        )
 
     @hint_at_info
     def stats(self) -> dict[str, Any]:

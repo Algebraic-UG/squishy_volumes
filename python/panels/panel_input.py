@@ -270,6 +270,7 @@ Note that this also discards all computed frames in the cache."""
             sim.last_error = None
             sim.start_compute(
                 time_step=simulation.time_step,
+                gpu=simulation.gpu,
                 explicit=simulation.explicit,
                 adaptive_time_steps=simulation.adaptive_time_steps,
                 next_frame=0,
@@ -362,6 +363,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
             sim.last_error = None
             sim.start_compute(
                 time_step=simulation.time_step,
+                gpu=simulation.gpu,
                 explicit=simulation.explicit,
                 adaptive_time_steps=simulation.adaptive_time_steps,
                 next_frame=0,

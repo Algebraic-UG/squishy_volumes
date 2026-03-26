@@ -248,6 +248,12 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
         precision=5,
         options=set(),
     )  # type: ignore
+    gpu: bpy.props.BoolProperty(
+        name="GPU",
+        description="""TODO""",
+        default=True,
+        options=set(),
+    )  # type: ignore
     explicit: bpy.props.BoolProperty(
         name="Explicit",
         description="""TODO""",
