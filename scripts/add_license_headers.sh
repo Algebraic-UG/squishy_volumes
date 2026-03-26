@@ -74,4 +74,20 @@ git ls-files "*.rs" | while read -r file; do
 done
 cd -
 
+# Add headers to WGSL files
+echo "checking wgsl files"
+cd rust
+git ls-files "*.wgsl" | while read -r file; do
+    echo "checking $file"
+    if ! has_header "$file"; then
+        echo "Adding header to $file"
+        tmp_file=$(mktemp)
+        echo "$RS_HEADER" > "$tmp_file"
+        echo "" >> "$tmp_file"
+        cat "$file" >> "$tmp_file"
+        mv "$tmp_file" "$file"
+    fi
+done
+cd -
+
 echo "✅ Headers added where missing."
