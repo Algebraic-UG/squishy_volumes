@@ -99,3 +99,9 @@ pub fn sort_on_cpu_by_bits(
 
     indices
 }
+
+pub fn sort_on_cpu(indices: &[u32], keys: &[u32]) -> Vec<u32> {
+    let mut indices = indices.to_vec();
+    indices.sort_by_key(|index| keys[*index as usize]);
+    indices
+}

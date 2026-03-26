@@ -9,17 +9,21 @@
 mod context;
 mod count_subkeys;
 mod error;
+mod prefix_sort;
 mod prefix_sum;
 mod reorder;
 mod util;
 
 use util::*;
 
+use count_subkeys::*;
+use prefix_sum::*;
+use reorder::*;
+
 #[cfg(test)]
 mod test_util;
 #[cfg(test)]
 use test_util::*;
 
-pub use error::*;
-
 pub use context::GpuContext;
+pub use error::*;
