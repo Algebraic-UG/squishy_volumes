@@ -8,7 +8,11 @@
 
 mod context;
 mod error;
+mod util;
+
+use util::*;
 
 pub use error::*;
 
 pub use context::GpuContext;
+
