@@ -8,6 +8,7 @@
 
 mod context;
 mod error;
+mod prefix_sum;
 mod util;
 
 use util::*;
@@ -15,4 +16,3 @@ use util::*;
 pub use error::*;
 
 pub use context::GpuContext;
-
