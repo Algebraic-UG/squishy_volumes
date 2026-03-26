@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: MIT
-//
-// Copyright 2025  Algebraic UG (haftungsbeschränkt)
-//
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE_MIT file or at
-// https://opensource.org/licenses/MIT.
-
 use wgpu::util::DeviceExt as _;
 
 use super::*;
@@ -18,7 +10,7 @@ fn test_simple() {
     assert_eq!(
         sort_on_cpu(&indices, &keys),
         run_prefix_sort(
-            PrefixSortSettings {
+            RadixSortSettings {
                 prefix_sum_workgroup_size: 64,
                 count_subkeys_workgroup_size: 64,
                 reorder_workgroup_size: 64,
@@ -44,7 +36,7 @@ fn test_random() {
     assert_eq!(
         sort_on_cpu(&indices, &keys),
         run_prefix_sort(
-            PrefixSortSettings {
+            RadixSortSettings {
                 prefix_sum_workgroup_size: 64,
                 count_subkeys_workgroup_size: 64,
                 reorder_workgroup_size: 64,
@@ -56,11 +48,11 @@ fn test_random() {
     );
 }
 
-fn run_prefix_sort(settings: PrefixSortSettings, indices: &[u32], keys: &[u32]) -> Vec<u32> {
+fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -> Vec<u32> {
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let prefix_sort = PrefixSort::new(&context, settings);
+    let prefix_sort = RadixSort::new(&context, settings);
 
     let key_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("keys"),
@@ -114,7 +106,7 @@ fn run_prefix_sort(settings: PrefixSortSettings, indices: &[u32], keys: &[u32]) 
     let swapped = prefix_sort.compute_in_pass(
         &context,
         &mut compute_pass,
-        PrefixSortBufferBindings {
+        RadixSortBufferBindings {
             keys: key_buffer.as_entire_buffer_binding(),
             indices: index_buffers,
             counts: count_buffer.as_entire_buffer_binding(),

@@ -9,8 +9,8 @@
 mod context;
 mod count_subkeys;
 mod error;
-mod prefix_sort;
 mod prefix_sum;
+mod radix_sort;
 mod reorder;
 mod util;
 
@@ -18,6 +18,7 @@ use util::*;
 
 use count_subkeys::*;
 use prefix_sum::*;
+use radix_sort::*;
 use reorder::*;
 
 #[cfg(test)]

@@ -14,21 +14,21 @@ use super::*;
 #[cfg(test)]
 mod test;
 
-pub struct PrefixSort {
+pub struct RadixSort {
     bit_count: u32,
     count_subkeys: CountSubkeys,
     prefix_sum: PrefixSum,
     reorder: Reorder,
 }
 
-pub struct PrefixSortSettings {
+pub struct RadixSortSettings {
     pub prefix_sum_workgroup_size: u32,
     pub count_subkeys_workgroup_size: u32,
     pub reorder_workgroup_size: u32,
     pub bit_count: u32,
 }
 
-pub struct PrefixSortBufferBindings<'a> {
+pub struct RadixSortBufferBindings<'a> {
     pub keys: wgpu::BufferBinding<'a>,
     pub indices: DoubleBuffer<'a>,
 
@@ -36,15 +36,15 @@ pub struct PrefixSortBufferBindings<'a> {
     pub prefixes: wgpu::BufferBinding<'a>,
 }
 
-impl PrefixSort {
+impl RadixSort {
     pub fn new(
         context: &GpuContext,
-        PrefixSortSettings {
+        RadixSortSettings {
             prefix_sum_workgroup_size,
             count_subkeys_workgroup_size,
             reorder_workgroup_size,
             bit_count,
-        }: PrefixSortSettings,
+        }: RadixSortSettings,
     ) -> Self {
         let count_subkeys = CountSubkeys::new(context, count_subkeys_workgroup_size, bit_count);
         let prefix_sum = PrefixSum::new(context, prefix_sum_workgroup_size);
@@ -69,12 +69,12 @@ impl PrefixSort {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        PrefixSortBufferBindings {
+        RadixSortBufferBindings {
             keys,
             mut indices,
             counts,
             prefixes,
-        }: PrefixSortBufferBindings,
+        }: RadixSortBufferBindings,
     ) -> bool {
         for round in 0..32u32.div_ceil(self.bit_count) {
             let bit_offset = round * self.bit_count;
