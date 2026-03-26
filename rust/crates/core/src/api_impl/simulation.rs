@@ -18,6 +18,7 @@ use crate::{
     cache::{Cache, clean_up_frames},
     compute_thread::{ComputeThread, ComputeThreadSettings},
     directory_lock::DirectoryLock,
+    gpu::{GpuContext, GpuError},
     input_file::{InputHeader, InputReader},
     math::flat::Flat3,
     simulation_input_path,
@@ -33,6 +34,8 @@ pub struct SimulationImpl {
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
     cached_compute_stats: Option<ComputeStats>,
+
+    gpu_context: Result<GpuContext, GpuError>,
 }
 
 impl SimulationImpl {
@@ -70,12 +73,15 @@ impl SimulationImpl {
             max_bytes_on_disk,
         )?);
 
+        let gpu_context = GpuContext::new(input_header.consts.max_num_particles);
+
         Ok(Self {
             directory_lock,
             input_header,
             cache,
             compute_thread: None,
             cached_compute_stats: None,
+            gpu_context,
         })
     }
 }
@@ -112,6 +118,10 @@ impl Simulation for SimulationImpl {
             max_bytes_on_disk,
         }: ComputeSettings,
     ) -> Result<()> {
+        if gpu && let Err(e) = self.gpu_context.as_ref() {
+            Err(e.clone())?;
+        }
+
         info!("starting compute");
         self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
 

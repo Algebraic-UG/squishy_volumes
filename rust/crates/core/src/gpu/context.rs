@@ -19,7 +19,7 @@ pub struct GpuContext {
     subgroup_size: NonZeroU32,
 }
 
-fn requirements(max_num_particles: usize) -> (wgpu::Features, wgpu::Limits) {
+fn requirements(max_num_particles: u32) -> (wgpu::Features, wgpu::Limits) {
     let mut features = wgpu::Features::empty();
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
@@ -37,7 +37,7 @@ fn requirements(max_num_particles: usize) -> (wgpu::Features, wgpu::Limits) {
 }
 
 impl GpuContext {
-    pub fn new(max_num_particles: usize) -> Result<Self, GpuError> {
+    pub fn new(max_num_particles: u32) -> Result<Self, GpuError> {
         let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
         instance_descriptor.backends = wgpu::Backends::PRIMARY;
 

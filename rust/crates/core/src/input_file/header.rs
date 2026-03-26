@@ -15,6 +15,7 @@ use squishy_volumes_api::T;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputConsts {
     grid_node_size: T,
+    pub max_num_particles: u32,
     pub simulation_scale: T,
     pub frames_per_second: u32,
     pub domain_min: Vector3<T>,
@@ -25,6 +26,7 @@ pub struct InputConsts {
 impl Default for InputConsts {
     fn default() -> Self {
         Self {
+            max_num_particles: 10000000,
             grid_node_size: 0.5,
             simulation_scale: 1.,
             frames_per_second: 24,

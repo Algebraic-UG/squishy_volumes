@@ -8,14 +8,15 @@
 
 use thiserror::Error;
 
-#[derive(Debug)]
+#[allow(dead_code)] // fields are read in the error below
+#[derive(Debug, Clone)]
 pub struct ExceedingLimit {
     pub name: &'static str,
     pub required: u64,
     pub allowed: u64,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum GpuError {
     #[error("Failed to request the adapter: {0}")]
     RequestAdapterError(#[from] wgpu::RequestAdapterError),
