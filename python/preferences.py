@@ -57,11 +57,20 @@ This is most likely only relevant to developers of other extensions.""",
         options=set(),  # can't be animated
     )  # type: ignore
 
+    max_num_particles: bpy.props.IntProperty(
+        name="Max Num Particles",
+        description="TODO",
+        default=10000000,
+        min=0,
+        options=set(),  # can't be animated
+    )  # type: ignore
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "confirm_bake_overwrite")
         self.layout.prop(self, "domain_min")
         self.layout.prop(self, "domain_max")
         self.layout.prop(self, "print_debug_info")
+        self.layout.prop(self, "max_num_particles")
 
 
 def get_confirm_bake_overwrite() -> bool:
@@ -80,6 +89,10 @@ def get_domain_max() -> mathutils.Vector:
 
 def get_print_debug_info() -> bool:
     return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info
+
+
+def get_max_num_particles() -> int:
+    return bpy.context.preferences.addons.get(__package__).preferences.max_num_particles
 
 
 def register_preferences():

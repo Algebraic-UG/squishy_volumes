@@ -26,7 +26,7 @@ from .properties.squishy_volumes_object_input_settings import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )
-from .preferences import get_domain_min, get_domain_max
+from .preferences import get_domain_min, get_domain_max, get_max_num_particles
 
 
 def create_input_header(simulation):
@@ -41,12 +41,15 @@ def create_input_header(simulation):
     domain_max = get_domain_max()
     domain_max = [domain_max[0], domain_max[1], domain_max[2]]
 
+    max_num_particles = get_max_num_particles()
+
     consts = {
         "grid_node_size": grid_node_size,
         "simulation_scale": simulation_scale,
         "frames_per_second": frames_per_second,
         "domain_min": domain_min,
         "domain_max": domain_max,
+        "max_num_particles": max_num_particles,
     }
 
     objects = {}
