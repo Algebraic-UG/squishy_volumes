@@ -1,3 +1,11 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright 2025  Algebraic UG (haftungsbeschränkt)
+//
+// Use of this source code is governed by an MIT-style
+// license that can be found in the LICENSE_MIT file or at
+// https://opensource.org/licenses/MIT.
+
 // This implementation of radix sort is heavily inspired by
 // Harada, Takahiro, and Lee Howes. "Introduction to GPU radix sort." Heterogeneous Computing with OpenCL. Morgan Kaufman (2011).
 
