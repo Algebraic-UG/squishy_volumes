@@ -1,3 +1,6 @@
+// This implementation of radix sort is heavily inspired by
+// Harada, Takahiro, and Lee Howes. "Introduction to GPU radix sort." Heterogeneous Computing with OpenCL. Morgan Kaufman (2011).
+
 use super::*;
 
 #[cfg(test)]
