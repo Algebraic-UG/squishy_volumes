@@ -1,3 +1,5 @@
 squishy_volumes_extension-*.zip
 wheels/
 **/__pycache__/*
+_vendor/
+uv.lock
