@@ -89,15 +89,3 @@ pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
 
     xyz
 }
-
-#[cfg(test)]
-pub fn prefix_sum_on_cpu(input: &[u32]) -> Vec<u32> {
-    input
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            let result = Some(*prefix_sum);
-            *prefix_sum += item;
-            result
-        })
-        .collect()
-}
