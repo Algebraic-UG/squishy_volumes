@@ -72,6 +72,7 @@ impl Simulation {
     pub fn start_compute(
         &self,
         time_step: T,
+        gpu: bool,
         explicit: bool,
         adaptive_time_steps: bool,
         next_frame: usize,
@@ -84,6 +85,7 @@ impl Simulation {
                 .with_context(|| format!("No simulation found for {}", self.0))?
                 .start_compute(ComputeSettings {
                     time_step,
+                    gpu,
                     explicit,
                     adaptive_time_steps,
                     next_frame,

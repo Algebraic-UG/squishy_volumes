@@ -104,6 +104,7 @@ impl Simulation for SimulationImpl {
         &mut self,
         ComputeSettings {
             time_step,
+            gpu,
             explicit,
             adaptive_time_steps,
             next_frame,
