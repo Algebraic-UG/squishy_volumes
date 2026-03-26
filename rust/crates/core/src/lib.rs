@@ -16,13 +16,12 @@ mod directory_lock;
 #[allow(unused)]
 mod elastic;
 mod input_file;
+mod input_interpolation;
 pub mod kernels;
 mod math;
-mod report;
-//mod setup;
-mod input_interpolation;
 mod phase;
 mod rasterization;
+mod report;
 mod state;
 mod stats;
 
