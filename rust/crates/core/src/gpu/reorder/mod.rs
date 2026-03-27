@@ -42,10 +42,10 @@ impl Reorder {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
             entries: &[
-                bind_group_layout_u32_entry(0, true),
-                bind_group_layout_u32_entry(1, true),
-                bind_group_layout_u32_entry(2, true),
-                bind_group_layout_u32_entry(3, false),
+                bind_group_layout_entry::<u32>(0, true),
+                bind_group_layout_entry::<u32>(1, true),
+                bind_group_layout_entry::<u32>(2, true),
+                bind_group_layout_entry::<u32>(3, false),
             ],
         });
 

@@ -34,7 +34,7 @@ impl PrefixSum {
             let bind_group_layout =
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label,
-                    entries: &[bind_group_layout_u32_entry(0, false)],
+                    entries: &[bind_group_layout_entry::<u32>(0, false)],
                 });
 
             let compute_pipeline =
@@ -70,8 +70,8 @@ impl PrefixSum {
                 device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     label,
                     entries: &[
-                        bind_group_layout_u32_entry(0, true),
-                        bind_group_layout_u32_entry(1, false),
+                        bind_group_layout_entry::<u32>(0, true),
+                        bind_group_layout_entry::<u32>(1, false),
                     ],
                 });
 

@@ -11,6 +11,8 @@ use std::{
     num::{NonZeroU32, NonZeroU64},
 };
 
+use nalgebra::Vector4;
+
 pub struct CompiledModule {
     pub label: Option<&'static str>,
     pub bind_group_layout: wgpu::BindGroupLayout,
@@ -28,13 +30,22 @@ pub fn elements_in_binding(element_size: &NonZeroU64, binding: &wgpu::BufferBind
     NonZeroU32::try_from((binding_size(binding).get() / element_size.get()) as u32).unwrap()
 }
 
-pub fn bind_group_layout_u32_entry(binding: u32, read_only: bool) -> wgpu::BindGroupLayoutEntry {
+trait AllowedInBinding {}
+
+impl AllowedInBinding for u32 {}
+impl AllowedInBinding for f32 {}
+impl AllowedInBinding for Vector4<f32> {}
+
+pub fn bind_group_layout_entry<T: AllowedInBinding>(
+    binding: u32,
+    read_only: bool,
+) -> wgpu::BindGroupLayoutEntry {
     wgpu::BindGroupLayoutEntry {
         binding,
         visibility: wgpu::ShaderStages::COMPUTE,
         ty: wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Storage { read_only },
-            min_binding_size: Some(NonZeroU64::new(4).unwrap()),
+            min_binding_size: Some(NonZeroU64::new(size_of::<T>() as u64).unwrap()),
             has_dynamic_offset: false,
         },
         count: None,
