@@ -20,8 +20,19 @@ pub struct PositionsToKeys {
     compiled_module: CompiledModule,
 }
 
+pub struct PositionsToKeysSettings {
+    pub workgroup_size: u32,
+    pub cell_size: f32,
+}
+
 impl PositionsToKeys {
-    pub fn new(context: &GpuContext, workgroup_size: u32, cell_size: f32) -> Self {
+    pub fn new(
+        context: &GpuContext,
+        PositionsToKeysSettings {
+            workgroup_size,
+            cell_size,
+        }: PositionsToKeysSettings,
+    ) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));

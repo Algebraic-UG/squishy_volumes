@@ -19,10 +19,15 @@ fn test_simple() {
         sort_on_cpu(&indices, &keys),
         run_prefix_sort(
             RadixSortSettings {
-                prefix_sum_workgroup_size: 64,
-                count_subkeys_workgroup_size: 64,
-                reorder_workgroup_size: 64,
-                bit_count: 2,
+                count_subkeys_settings: CountSubkeysSettings {
+                    workgroup_size: 64,
+                    bit_count: 2
+                },
+                prefix_sum_settings: PrefixSumSettings { workgroup_size: 64 },
+                reorder_settings: ReorderSettings {
+                    workgroup_size: 64,
+                    bit_count: 2
+                },
             },
             &indices,
             &keys,
@@ -45,10 +50,15 @@ fn test_random() {
         sort_on_cpu(&indices, &keys),
         run_prefix_sort(
             RadixSortSettings {
-                prefix_sum_workgroup_size: 64,
-                count_subkeys_workgroup_size: 64,
-                reorder_workgroup_size: 64,
-                bit_count: 2,
+                count_subkeys_settings: CountSubkeysSettings {
+                    workgroup_size: 64,
+                    bit_count: 2
+                },
+                prefix_sum_settings: PrefixSumSettings { workgroup_size: 64 },
+                reorder_settings: ReorderSettings {
+                    workgroup_size: 64,
+                    bit_count: 2
+                },
             },
             &indices,
             &keys,

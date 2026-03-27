@@ -123,7 +123,13 @@ fn run_subkey_count(
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let count_subkeys = CountSubkeys::new(&context, workgroup_size, bit_count);
+    let count_subkeys = CountSubkeys::new(
+        &context,
+        CountSubkeysSettings {
+            workgroup_size,
+            bit_count,
+        },
+    );
 
     let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("indices"),

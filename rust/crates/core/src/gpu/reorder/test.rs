@@ -95,7 +95,13 @@ fn run_reorder(
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let reorder = Reorder::new(&context, workgroup_size, bit_count);
+    let reorder = Reorder::new(
+        &context,
+        ReorderSettings {
+            workgroup_size,
+            bit_count,
+        },
+    );
 
     let key_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("keys_in"),

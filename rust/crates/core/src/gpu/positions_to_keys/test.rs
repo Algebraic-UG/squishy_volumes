@@ -91,7 +91,13 @@ fn run_positions_to_keys(
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let positions_to_keys = PositionsToKeys::new(&context, workgroup_size, cell_size);
+    let positions_to_keys = PositionsToKeys::new(
+        &context,
+        PositionsToKeysSettings {
+            workgroup_size,
+            cell_size,
+        },
+    );
 
     let position_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("positions"),

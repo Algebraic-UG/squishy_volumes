@@ -25,8 +25,19 @@ pub struct ReorderBufferBindings<'a> {
     pub indices_out: wgpu::BufferBinding<'a>,
 }
 
+pub struct ReorderSettings {
+    pub workgroup_size: u32,
+    pub bit_count: u32,
+}
+
 impl Reorder {
-    pub fn new(context: &GpuContext, workgroup_size: u32, bit_count: u32) -> Self {
+    pub fn new(
+        context: &GpuContext,
+        ReorderSettings {
+            workgroup_size,
+            bit_count,
+        }: ReorderSettings,
+    ) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));

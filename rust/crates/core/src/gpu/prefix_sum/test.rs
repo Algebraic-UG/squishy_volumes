@@ -49,7 +49,7 @@ fn run_prefix_sum(workgroup_size: u32, numbers: &[u32]) -> Vec<u32> {
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let prefix_sum = PrefixSum::new(&context, workgroup_size);
+    let prefix_sum = PrefixSum::new(&context, PrefixSumSettings { workgroup_size });
 
     let data_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("data"),

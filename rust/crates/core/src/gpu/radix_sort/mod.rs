@@ -22,10 +22,9 @@ pub struct RadixSort {
 }
 
 pub struct RadixSortSettings {
-    pub prefix_sum_workgroup_size: u32,
-    pub count_subkeys_workgroup_size: u32,
-    pub reorder_workgroup_size: u32,
-    pub bit_count: u32,
+    pub count_subkeys_settings: CountSubkeysSettings,
+    pub prefix_sum_settings: PrefixSumSettings,
+    pub reorder_settings: ReorderSettings,
 }
 
 pub struct RadixSortBufferBindings<'a> {
@@ -40,15 +39,17 @@ impl RadixSort {
     pub fn new(
         context: &GpuContext,
         RadixSortSettings {
-            prefix_sum_workgroup_size,
-            count_subkeys_workgroup_size,
-            reorder_workgroup_size,
-            bit_count,
+            count_subkeys_settings,
+            prefix_sum_settings,
+            reorder_settings,
         }: RadixSortSettings,
     ) -> Self {
-        let count_subkeys = CountSubkeys::new(context, count_subkeys_workgroup_size, bit_count);
-        let prefix_sum = PrefixSum::new(context, prefix_sum_workgroup_size);
-        let reorder = Reorder::new(context, reorder_workgroup_size, bit_count);
+        assert_eq!(count_subkeys_settings.bit_count, reorder_settings.bit_count);
+        let bit_count = count_subkeys_settings.bit_count;
+
+        let count_subkeys = CountSubkeys::new(context, count_subkeys_settings);
+        let prefix_sum = PrefixSum::new(context, prefix_sum_settings);
+        let reorder = Reorder::new(context, reorder_settings);
 
         Self {
             bit_count,

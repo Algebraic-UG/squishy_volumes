@@ -18,8 +18,15 @@ pub struct PrefixSum {
     fill_final: CompiledModule,
 }
 
+pub struct PrefixSumSettings {
+    pub workgroup_size: u32,
+}
+
 impl PrefixSum {
-    pub fn new(context: &GpuContext, workgroup_size: u32) -> Self {
+    pub fn new(
+        context: &GpuContext,
+        PrefixSumSettings { workgroup_size }: PrefixSumSettings,
+    ) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));
