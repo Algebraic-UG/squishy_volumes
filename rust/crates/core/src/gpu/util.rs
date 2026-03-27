@@ -26,15 +26,17 @@ pub fn binding_size(binding: &wgpu::BufferBinding) -> NonZeroU64 {
     })
 }
 
-pub fn elements_in_binding(element_size: &NonZeroU64, binding: &wgpu::BufferBinding) -> NonZeroU32 {
-    NonZeroU32::try_from((binding_size(binding).get() / element_size.get()) as u32).unwrap()
+pub trait AllowedInBinding: Sized {
+    const MIN_BINDING_SIZE: NonZeroU64 = NonZeroU64::new(size_of::<Self>() as u64).unwrap();
 }
-
-trait AllowedInBinding {}
 
 impl AllowedInBinding for u32 {}
 impl AllowedInBinding for f32 {}
 impl AllowedInBinding for Vector4<f32> {}
+
+pub fn elements_in_binding<T: AllowedInBinding>(binding: &wgpu::BufferBinding) -> NonZeroU32 {
+    NonZeroU32::try_from((binding_size(binding).get() / T::MIN_BINDING_SIZE.get()) as u32).unwrap()
+}
 
 pub fn bind_group_layout_entry<T: AllowedInBinding>(
     binding: u32,
@@ -45,7 +47,7 @@ pub fn bind_group_layout_entry<T: AllowedInBinding>(
         visibility: wgpu::ShaderStages::COMPUTE,
         ty: wgpu::BindingType::Buffer {
             ty: wgpu::BufferBindingType::Storage { read_only },
-            min_binding_size: Some(NonZeroU64::new(size_of::<T>() as u64).unwrap()),
+            min_binding_size: Some(T::MIN_BINDING_SIZE),
             has_dynamic_offset: false,
         },
         count: None,

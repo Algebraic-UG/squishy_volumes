@@ -9,8 +9,6 @@
 #[cfg(test)]
 mod test;
 
-use std::num::NonZeroU64;
-
 use super::*;
 
 pub struct CountSubkeys {
@@ -94,10 +92,9 @@ impl CountSubkeys {
     ) {
         let device = context.device();
 
-        let element_size = NonZeroU64::new(4).unwrap();
-        let index_count = elements_in_binding(&element_size, &indices);
-        let key_count = elements_in_binding(&element_size, &keys);
-        let count_count = elements_in_binding(&element_size, &counts);
+        let index_count = elements_in_binding::<u32>(&indices);
+        let key_count = elements_in_binding::<u32>(&keys);
+        let count_count = elements_in_binding::<u32>(&counts);
         assert_eq!(index_count, key_count);
         assert!(count_count.get() >= self.min_counts(key_count.get()));
 

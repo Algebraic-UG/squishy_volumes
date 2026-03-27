@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::num::NonZeroU64;
-
 use super::*;
 
 #[cfg(test)]
@@ -116,9 +114,8 @@ impl PrefixSum {
         input: wgpu::BufferBinding,
         output: wgpu::BufferBinding,
     ) {
-        let element_size = NonZeroU64::new(4).unwrap();
-        let element_count = elements_in_binding(&element_size, &input);
-        assert!(element_count == elements_in_binding(&element_size, &output));
+        let element_count = elements_in_binding::<u32>(&input);
+        assert!(element_count == elements_in_binding::<u32>(&output));
 
         let element_count = element_count.get();
         let max_level = (element_count * self.subgroup_size - 1).ilog(self.subgroup_size);

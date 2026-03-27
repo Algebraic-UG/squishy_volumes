@@ -9,8 +9,6 @@
 #[cfg(test)]
 mod test;
 
-use std::num::NonZeroU64;
-
 use super::*;
 
 pub struct Reorder {
@@ -105,11 +103,10 @@ impl Reorder {
     ) {
         let device = context.device();
 
-        let element_size = NonZeroU64::new(4).unwrap();
-        let key_count = elements_in_binding(&element_size, &keys);
-        assert!(key_count == elements_in_binding(&element_size, &indices_in));
-        assert!(key_count == elements_in_binding(&element_size, &indices_out));
-        let prefix_count = elements_in_binding(&element_size, &prefixes);
+        let key_count = elements_in_binding::<u32>(&keys);
+        assert!(key_count == elements_in_binding::<u32>(&indices_in));
+        assert!(key_count == elements_in_binding::<u32>(&indices_out));
+        let prefix_count = elements_in_binding::<u32>(&prefixes);
         assert!(prefix_count.get() >= self.min_prefixes(key_count.get()));
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
