@@ -72,11 +72,11 @@ impl RadixSort {
         compute_pass: &mut wgpu::ComputePass,
         RadixSortBufferBindings {
             keys,
-            mut indices,
+            indices,
             counts,
             prefixes,
-        }: RadixSortBufferBindings,
-    ) -> bool {
+        }: &mut RadixSortBufferBindings,
+    ) {
         for round in 0..32u32.div_ceil(self.bit_count) {
             let bit_offset = round * self.bit_count;
 
@@ -108,7 +108,5 @@ impl RadixSort {
 
             indices.swap();
         }
-
-        !indices.swapped()
     }
 }

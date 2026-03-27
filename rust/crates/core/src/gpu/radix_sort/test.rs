@@ -121,19 +121,16 @@ fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    let swapped = prefix_sort.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        RadixSortBufferBindings {
-            keys: key_buffer.as_entire_buffer_binding(),
-            indices: index_buffers,
-            counts: count_buffer.as_entire_buffer_binding(),
-            prefixes: prefix_buffer.as_entire_buffer_binding(),
-        },
-    );
+    let mut buffer_bindings = RadixSortBufferBindings {
+        keys: key_buffer.as_entire_buffer_binding(),
+        indices: index_buffers,
+        counts: count_buffer.as_entire_buffer_binding(),
+        prefixes: prefix_buffer.as_entire_buffer_binding(),
+    };
+    prefix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings);
 
     drop(compute_pass);
-    let last_index_buffer = if swapped {
+    let last_index_buffer = if buffer_bindings.indices.swapped() {
         index_buffer_front
     } else {
         index_buffer_back
