@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use nalgebra::Vector4;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 
 use crate::gpu::GpuContext;
@@ -112,4 +113,21 @@ pub fn sort_on_cpu(indices: &[u32], keys: &[u32]) -> Vec<u32> {
     let mut indices = indices.to_vec();
     indices.sort_by_key(|index| keys[*index as usize]);
     indices
+}
+
+pub fn i32_to_u32_offset(x: i32) -> u32 {
+    (x as u32) ^ 0x8000_0000
+}
+
+pub fn u32_to_i32_offset(x: u32) -> i32 {
+    (x as i32) ^ 0x8000_0000u32 as i32
+}
+
+pub fn positions_to_keys(positions: &[Vector4<f32>], cell_size: f32, dimension: u32) -> Vec<u32> {
+    positions
+        .iter()
+        .map(
+            |position| i32_to_u32_offset((position[dimension as usize] / cell_size).floor() as i32),
+        )
+        .collect()
 }
