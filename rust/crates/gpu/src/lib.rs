@@ -13,20 +13,20 @@ mod positions_to_keys;
 mod prefix_sum;
 mod radix_sort;
 mod reorder;
+mod sort_positions_into_cells;
 mod util;
 
-use util::*;
-
-use count_subkeys::*;
-use positions_to_keys::*;
-use prefix_sum::*;
-use radix_sort::*;
-use reorder::*;
+pub use context::*;
+pub use count_subkeys::*;
+pub use error::*;
+pub use positions_to_keys::*;
+pub use prefix_sum::*;
+pub use radix_sort::*;
+pub use reorder::*;
+pub use sort_positions_into_cells::*;
+pub use util::*;
 
 #[cfg(test)]
 mod test_util;
 #[cfg(test)]
 use test_util::*;
-
-pub use context::GpuContext;
-pub use error::*;

@@ -11,6 +11,7 @@ use std::{num::NonZero, path::PathBuf, sync::Arc};
 use anyhow::{Result, ensure};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
+use squishy_volumes_gpu::{GpuContext, GpuError};
 use tracing::{info, warn};
 
 use crate::{
@@ -18,7 +19,6 @@ use crate::{
     cache::{Cache, clean_up_frames},
     compute_thread::{ComputeThread, ComputeThreadSettings},
     directory_lock::DirectoryLock,
-    gpu::{GpuContext, GpuError},
     input_file::{InputHeader, InputReader},
     math::flat::Flat3,
     simulation_input_path,

@@ -6,12 +6,15 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use std::{
     mem::swap,
     num::{NonZeroU32, NonZeroU64},
 };
 
 use nalgebra::Vector4;
+
+pub const MAX_NUM_PARTICLES: u32 = 10000000;
 
 pub struct CompiledModule {
     pub label: Option<&'static str>,
@@ -101,4 +104,26 @@ pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
     }
 
     xyz
+}
+
+pub fn shuffle<T>(v: &mut [T], seed: u64) {
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
+    v.shuffle(&mut rng);
+}
+
+pub fn prefix_sum_on_cpu(input: &[u32]) -> Vec<u32> {
+    input
+        .iter()
+        .scan(0, |prefix_sum, item| {
+            let result = Some(*prefix_sum);
+            *prefix_sum += item;
+            result
+        })
+        .collect()
+}
+
+pub fn sort_on_cpu(indices: &[u32], keys: &[u32]) -> Vec<u32> {
+    let mut indices = indices.to_vec();
+    indices.sort_by_key(|index| keys[*index as usize]);
+    indices
 }

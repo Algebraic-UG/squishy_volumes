@@ -1908,17 +1908,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nalgebra-sparse"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1107e2587bc373090389bd5b54e05ac3184fd02d7c102decf5d76b8feb84b2d0"
-dependencies = [
- "nalgebra",
- "num-traits",
- "serde",
-]
-
-[[package]]
 name = "ndarray"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3320,14 +3309,10 @@ dependencies = [
  "bitflags 2.11.0",
  "build-info",
  "build-info-build",
- "bytemuck",
  "coarse-prof",
- "env_logger",
  "iter_enumeration",
  "itertools",
  "nalgebra",
- "nalgebra-sparse",
- "pollster",
  "rand 0.10.0",
  "rayon",
  "roots",
@@ -3336,10 +3321,39 @@ dependencies = [
  "serde_json",
  "small-map",
  "squishy_volumes_api",
+ "squishy_volumes_gpu",
  "strum",
  "strum_macros",
  "tempfile",
  "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "squishy_volumes_gpu"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "env_logger",
+ "nalgebra",
+ "pollster",
+ "rand 0.10.0",
+ "thiserror 2.0.18",
+ "tracing",
+ "tracing-subscriber",
+ "wgpu",
+]
+
+[[package]]
+name = "squishy_volumes_gpu_cli"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "clap",
+ "env_logger",
+ "pollster",
+ "squishy_volumes_gpu",
  "tracing",
  "tracing-subscriber",
  "wgpu",

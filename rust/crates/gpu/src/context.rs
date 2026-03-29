@@ -8,7 +8,7 @@
 
 use std::num::NonZeroU32;
 
-use crate::gpu::{ExceedingLimit, GpuError};
+use crate::{ExceedingLimit, GpuError};
 
 pub struct GpuContext {
     instance: wgpu::Instance,

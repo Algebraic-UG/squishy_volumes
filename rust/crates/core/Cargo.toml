@@ -18,16 +18,8 @@ base64 = "0.22.1"
 iter_enumeration = "0.1.0"
 rayon = "1.10.0"
 rustc-hash = "2.1.1"
-nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand", "bytemuck"] }
-nalgebra-sparse = { version = "0.10.0", features = ["serde-serialize"] }
 tempfile = "3.23.0"
 rand = { version = "0.10.0", features = ["chacha"] }
-wgpu = "29.0.1"
-wgpu-profiler = "0.27.0"
-pollster = "0.4.0"
-bytemuck = "1.25.0"
-env_logger = "0.11.9"
-winit = "0.30.13"
 
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -37,6 +29,7 @@ serde.workspace = true
 bincode.workspace = true
 thiserror.workspace = true
 build-info.workspace = true
+nalgebra.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
@@ -44,6 +37,7 @@ itertools = "0.14.0"
 roots = "0.0.8"
 
 squishy_volumes_api.path = "../api"
+squishy_volumes_gpu.path = "../gpu"
 bitflags = "2.10.0"
 small-map = { version = "0.1.5", features = ["serde"] }
 

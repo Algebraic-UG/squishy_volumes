@@ -15,7 +15,6 @@ mod compute_thread;
 mod directory_lock;
 #[allow(unused)]
 mod elastic;
-mod gpu;
 mod input_file;
 mod input_interpolation;
 pub mod kernels;

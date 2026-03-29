@@ -11,9 +11,9 @@ profile = [ "squishy_volumes_core/profile", "dep:coarse-prof" ]
 plotters = "0.3.7"
 squishy_volumes_api.path = "../api"
 squishy_volumes_core.path = "../core"
-clap = { version = "4.5.23", features = ["derive"] }
 ctrlc = "3.4.5"
 
+clap.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
 tracing.workspace = true

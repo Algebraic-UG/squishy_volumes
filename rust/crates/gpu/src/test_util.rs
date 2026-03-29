@@ -7,22 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector4;
-use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 
-use crate::gpu::GpuContext;
-
-pub const MAX_NUM_PARTICLES: u32 = 10000000;
-
-pub fn prefix_sum_on_cpu(input: &[u32]) -> Vec<u32> {
-    input
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            let result = Some(*prefix_sum);
-            *prefix_sum += item;
-            result
-        })
-        .collect()
-}
+use crate::{GpuContext, MAX_NUM_PARTICLES};
 
 // This one is ugly.
 // We're emulating the behaviour on the GPU which is influenced by the fact that we have to
@@ -37,7 +23,7 @@ pub fn count_subkeys_on_cpu(
     indices: &[u32],
     keys: &[u32],
 ) -> Vec<u32> {
-    use crate::gpu::find_x_y_z;
+    use crate::find_x_y_z;
 
     let counter_count = 1 << bit_count;
     let mask = counter_count - 1;
@@ -78,11 +64,6 @@ pub fn count_subkeys_on_cpu(
         .collect()
 }
 
-pub fn shuffle<T>(v: &mut [T], seed: u64) {
-    let mut rng = ChaCha8Rng::seed_from_u64(seed);
-    v.shuffle(&mut rng);
-}
-
 pub fn get_subgroup_size() -> u32 {
     GpuContext::new(MAX_NUM_PARTICLES)
         .unwrap()
@@ -106,12 +87,6 @@ pub fn sort_on_cpu_by_bits(
         (key >> bit_offset) & mask
     });
 
-    indices
-}
-
-pub fn sort_on_cpu(indices: &[u32], keys: &[u32]) -> Vec<u32> {
-    let mut indices = indices.to_vec();
-    indices.sort_by_key(|index| keys[*index as usize]);
     indices
 }
 
