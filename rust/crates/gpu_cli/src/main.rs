@@ -48,13 +48,13 @@ struct Cli {
 
     #[arg(
         long,
-        value_name = "input file containing the numbers, defaults to <mode>-<task>-in.bin"
+        value_name = "input file containing the numbers, defaults to test_data/<task>-in.bin"
     )]
     input_file: Option<PathBuf>,
 
     #[arg(
         long,
-        value_name = "output file for the prefix sums, defaults to <mode>-<task>-out.bin"
+        value_name = "output file for the prefix sums, defaults to test_data/<mode>-<task>-out.bin"
     )]
     output_file: Option<PathBuf>,
 
@@ -88,8 +88,11 @@ fn main() {
         bit_count,
     } = Cli::parse();
 
-    let input_file = input_file.unwrap_or(format!("{mode:?}-{task:?}-in").into());
-    let output_file = output_file.unwrap_or(format!("{mode:?}-{task:?}-out").into());
+    let test_data = PathBuf::from("test_data");
+    let input_file =
+        input_file.unwrap_or(test_data.join(format!("{task:?}-in.bin").to_lowercase()));
+    let output_file =
+        output_file.unwrap_or(test_data.join(format!("{mode:?}-{task:?}-out.bin").to_lowercase()));
 
     if let Some(generate) = generate {
         let mut input: Vec<_> = (0..generate).collect();
