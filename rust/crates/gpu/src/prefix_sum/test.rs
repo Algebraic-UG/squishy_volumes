@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use wgpu::util::DeviceExt as _;
-
 use super::*;
 
 #[test]
@@ -46,26 +44,15 @@ fn test_random() {
 }
 
 fn run_prefix_sum(workgroup_size: u32, numbers: &[u32]) -> Vec<u32> {
-    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
     let prefix_sum = PrefixSum::new(&context, PrefixSumSettings { workgroup_size });
-
-    let data_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("data"),
-        contents: bytemuck::cast_slice(numbers),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-    let final_data_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("final_data"),
-        size: data_buffer.size(),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
+    let buffers = prefix_sum.create_buffers(&context, PrefixSumBufferInput { numbers });
 
     let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download"),
-        size: final_data_buffer.size(),
+        size: buffers.prefix_sums.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
@@ -73,15 +60,10 @@ fn run_prefix_sum(workgroup_size: u32, numbers: &[u32]) -> Vec<u32> {
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    prefix_sum.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        data_buffer.as_entire_buffer_binding(),
-        final_data_buffer.as_entire_buffer_binding(),
-    );
+    prefix_sum.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&final_data_buffer, 0, &download_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(&buffers.prefix_sums, 0, &download_buffer, 0, None);
 
     context.queue().submit([encoder.finish()]);
     let data_buffer_slice = download_buffer.slice(..);

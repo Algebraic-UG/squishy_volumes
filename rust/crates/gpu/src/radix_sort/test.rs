@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use wgpu::util::DeviceExt as _;
-
 use super::*;
 
 #[test]
@@ -67,73 +65,32 @@ fn test_random() {
 }
 
 fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -> Vec<u32> {
-    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let prefix_sort = RadixSort::new(&context, settings);
+    let radix_sort = RadixSort::new(&context, settings);
 
-    let key_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("keys"),
-        contents: bytemuck::cast_slice(keys),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-
-    let index_buffer_front = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("index_front"),
-        contents: bytemuck::cast_slice(indices),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-    });
-    let index_buffer_back = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("index_back"),
-        size: index_buffer_front.size(),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
-    let count_size = prefix_sort.min_counts(keys.len() as u32) * 4;
-    let prefix_size = prefix_sort.min_prefixes(keys.len() as u32) * 4;
-
-    let count_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("count"),
-        size: count_size as u64,
-        usage: wgpu::BufferUsages::STORAGE,
-        mapped_at_creation: false,
-    });
-    let prefix_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("prefix"),
-        size: prefix_size as u64,
-        usage: wgpu::BufferUsages::STORAGE,
-        mapped_at_creation: false,
-    });
+    let buffers = radix_sort.create_buffers(&context, RadixSortBufferInput { keys, indices });
 
     let download_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download_indices"),
-        size: index_buffer_front.size(),
+        size: buffers.indices_back.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
 
-    let index_buffers = DoubleBuffer::new(
-        index_buffer_front.as_entire_buffer_binding(),
-        index_buffer_back.as_entire_buffer_binding(),
-    );
+    let mut buffer_bindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    let mut buffer_bindings = RadixSortBufferBindings {
-        keys: key_buffer.as_entire_buffer_binding(),
-        indices: index_buffers,
-        counts: count_buffer.as_entire_buffer_binding(),
-        prefixes: prefix_buffer.as_entire_buffer_binding(),
-    };
-    prefix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings);
+    radix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings, &mut ());
 
     drop(compute_pass);
     let last_index_buffer = if buffer_bindings.indices.swapped() {
-        index_buffer_front
+        buffers.indices_back
     } else {
-        index_buffer_back
+        buffers.indices_front
     };
     encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_index_buffer, 0, None);
 

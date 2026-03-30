@@ -3336,6 +3336,7 @@ version = "0.1.0"
 dependencies = [
  "bytemuck",
  "env_logger",
+ "lazy_static",
  "nalgebra",
  "pollster",
  "rand 0.10.0",

@@ -6,6 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use nalgebra::Vector4;
+use wgpu::util::DeviceExt as _;
+
 use super::*;
 
 #[cfg(test)]
@@ -21,18 +24,48 @@ pub struct SortPositionsIntoCellsSettings {
     pub radix_sort_setttings: RadixSortSettings,
 }
 
-pub struct SortPositionsIntoCellsBufferBindings<'a> {
-    pub positions: wgpu::BufferBinding<'a>,
-    pub radix_sort_buffer_bindings: RadixSortBufferBindings<'a>,
+pub struct SortPositionsIntoCellsBufferInput<'a> {
+    pub indices: &'a [u32],
+    pub positions: &'a [Vector4<f32>],
 }
 
-impl SortPositionsIntoCells {
-    pub fn new(
+pub struct SortPositionsIntoCellsBuffers {
+    pub positions: wgpu::Buffer,
+    pub radix_sort: RadixSortBuffers,
+}
+
+pub struct SortPositionsIntoCellsBufferBindings<'a> {
+    pub positions: wgpu::BufferBinding<'a>,
+    pub radix_sort: RadixSortBufferBindings<'a>,
+}
+
+impl<'a> From<&'a SortPositionsIntoCellsBuffers> for SortPositionsIntoCellsBufferBindings<'a> {
+    fn from(
+        SortPositionsIntoCellsBuffers {
+            positions,
+            radix_sort,
+        }: &'a SortPositionsIntoCellsBuffers,
+    ) -> Self {
+        Self {
+            positions: positions.as_entire_buffer_binding(),
+            radix_sort: radix_sort.into(),
+        }
+    }
+}
+
+impl PipelinePart for SortPositionsIntoCells {
+    type Settings = SortPositionsIntoCellsSettings;
+    type Parameters = ();
+    type BufferInput<'a> = SortPositionsIntoCellsBufferInput<'a>;
+    type Buffers = SortPositionsIntoCellsBuffers;
+    type BufferBindings<'a> = SortPositionsIntoCellsBufferBindings<'a>;
+
+    fn new(
         context: &GpuContext,
-        SortPositionsIntoCellsSettings {
+        Self::Settings {
             positions_to_keys_settings,
             radix_sort_setttings,
-        }: SortPositionsIntoCellsSettings,
+        }: Self::Settings,
     ) -> Self {
         let positions_to_keys = PositionsToKeys::new(context, positions_to_keys_settings);
         let radix_sort = RadixSort::new(context, radix_sort_setttings);
@@ -43,25 +76,57 @@ impl SortPositionsIntoCells {
         }
     }
 
-    pub fn compute_in_pass(
+    fn create_buffers<'a>(
+        &self,
+        context: &GpuContext,
+        Self::BufferInput { indices, positions }: Self::BufferInput<'a>,
+    ) -> Self::Buffers {
+        assert_eq!(indices.len(), positions.len());
+        let device = context.device();
+        let n = positions.len();
+
+        let positions = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("positions"),
+            contents: bytemuck::cast_slice(positions),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        let radix_sort = self.radix_sort.create_buffers(
+            context,
+            RadixSortBufferInput {
+                keys: &vec![0; n],
+                indices,
+            },
+        );
+
+        Self::Buffers {
+            positions,
+            radix_sort,
+        }
+    }
+
+    fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        SortPositionsIntoCellsBufferBindings {
+        Self::BufferBindings {
             positions,
-            radix_sort_buffer_bindings,
-        }: &mut SortPositionsIntoCellsBufferBindings,
+            radix_sort,
+        }: &mut Self::BufferBindings<'a>,
+        _: &mut Self::Parameters,
     ) {
-        for dimension in [0, 1, 2] {
+        for dimension in [0] {
+            //, 1, 2] {
             self.positions_to_keys.compute_in_pass(
                 context,
                 compute_pass,
-                positions.clone(),
-                radix_sort_buffer_bindings.keys.clone(),
-                dimension,
+                &mut PositionsToKeysBufferBindings {
+                    positions: positions.clone(),
+                    keys: radix_sort.keys.clone(),
+                },
+                &mut PositionsToKeysParameters { dimension },
             );
             self.radix_sort
-                .compute_in_pass(context, compute_pass, radix_sort_buffer_bindings);
+                .compute_in_pass(context, compute_pass, radix_sort, &mut ());
         }
     }
 }

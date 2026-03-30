@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use wgpu::util::DeviceExt as _;
+
 use super::*;
 
 #[cfg(test)]
@@ -22,11 +24,42 @@ pub struct PrefixSumSettings {
     pub workgroup_size: u32,
 }
 
-impl PrefixSum {
-    pub fn new(
-        context: &GpuContext,
-        PrefixSumSettings { workgroup_size }: PrefixSumSettings,
+pub struct PrefixSumBufferInput<'a> {
+    pub numbers: &'a [u32],
+}
+
+pub struct PrefixSumBuffers {
+    pub numbers: wgpu::Buffer,
+    pub prefix_sums: wgpu::Buffer,
+}
+
+pub struct PrefixSumBufferBindings<'a> {
+    pub numbers: wgpu::BufferBinding<'a>,
+    pub prefix_sums: wgpu::BufferBinding<'a>,
+}
+
+impl<'a> From<&'a PrefixSumBuffers> for PrefixSumBufferBindings<'a> {
+    fn from(
+        PrefixSumBuffers {
+            numbers,
+            prefix_sums,
+        }: &'a PrefixSumBuffers,
     ) -> Self {
+        Self {
+            numbers: numbers.as_entire_buffer_binding(),
+            prefix_sums: prefix_sums.as_entire_buffer_binding(),
+        }
+    }
+}
+
+impl PipelinePart for PrefixSum {
+    type Settings = PrefixSumSettings;
+    type Parameters = ();
+    type BufferInput<'a> = PrefixSumBufferInput<'a>;
+    type Buffers = PrefixSumBuffers;
+    type BufferBindings<'a> = PrefixSumBufferBindings<'a>;
+
+    fn new(context: &GpuContext, Self::Settings { workgroup_size }: Self::Settings) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));
@@ -114,15 +147,42 @@ impl PrefixSum {
         }
     }
 
-    pub fn compute_in_pass(
+    fn create_buffers<'a>(
+        &self,
+        context: &GpuContext,
+        Self::BufferInput { numbers }: Self::BufferInput<'a>,
+    ) -> Self::Buffers {
+        let device = context.device();
+        let numbers = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("numbers"),
+            contents: bytemuck::cast_slice(numbers),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        let prefix_sums = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("prefix_sums"),
+            size: numbers.size(),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        Self::Buffers {
+            numbers,
+            prefix_sums,
+        }
+    }
+
+    fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        input: wgpu::BufferBinding,
-        output: wgpu::BufferBinding,
+        Self::BufferBindings {
+            numbers,
+            prefix_sums,
+        }: &mut Self::BufferBindings<'a>,
+        _: &mut Self::Parameters,
     ) {
-        let element_count = elements_in_binding::<u32>(&input);
-        assert!(element_count == elements_in_binding::<u32>(&output));
+        let element_count = elements_in_binding::<u32>(&numbers);
+        assert!(element_count == elements_in_binding::<u32>(&prefix_sums));
 
         let element_count = element_count.get();
         let max_level = (element_count * self.subgroup_size - 1).ilog(self.subgroup_size);
@@ -133,7 +193,7 @@ impl PrefixSum {
             layout: &self.build_levels.bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer(input.clone()),
+                resource: wgpu::BindingResource::Buffer(numbers.clone()),
             }],
         });
         let bind_group_fill_final = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -142,11 +202,11 @@ impl PrefixSum {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::Buffer(input),
+                    resource: wgpu::BindingResource::Buffer(numbers.clone()),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Buffer(output),
+                    resource: wgpu::BindingResource::Buffer(prefix_sums.clone()),
                 },
             ],
         });

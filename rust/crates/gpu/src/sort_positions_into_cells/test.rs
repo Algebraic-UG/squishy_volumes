@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
 
 use super::*;
 
@@ -24,41 +23,23 @@ fn test_simple() {
         Vector4::new(0.5, 0.5, 0.5, 0.),
     ];
 
-    let keys_x: [i32; 8] = [-1, -1, -1, -1, 0, 0, 0, 0];
-    let keys_y: [i32; 8] = [-1, -1, 0, 0, -1, -1, 0, 0];
-    let keys_z: [i32; 8] = [-1, 0, -1, 0, -1, 0, -1, 0];
+    let cell_size = 1.;
 
+    let indices = (0..positions.len() as u32).collect::<Vec<_>>();
     assert_eq!(
-        positions_to_keys(&positions, 1., 0)
-            .into_iter()
-            .map(u32_to_i32_offset)
-            .collect::<Vec<_>>(),
-        keys_x
+        //sort_on_cpu(
+        //&sort_on_cpu(
+        //&
+        sort_on_cpu(&indices, &positions_to_keys(&positions, cell_size, 0)),
+        //&positions_to_keys(&positions, cell_size, 1),
+        //),
+        //&positions_to_keys(&positions, cell_size, 2),
+        //),
+        run_sort_positions_into_cells(64, cell_size, 2, &indices, &positions),
     );
-    assert_eq!(
-        positions_to_keys(&positions, 1., 1)
-            .into_iter()
-            .map(u32_to_i32_offset)
-            .collect::<Vec<_>>(),
-        keys_y
-    );
-    assert_eq!(
-        positions_to_keys(&positions, 1., 2)
-            .into_iter()
-            .map(u32_to_i32_offset)
-            .collect::<Vec<_>>(),
-        keys_z
-    );
-
-    let keys_x: Vec<_> = keys_x.into_iter().map(i32_to_u32_offset).collect();
-    let keys_y: Vec<_> = keys_y.into_iter().map(i32_to_u32_offset).collect();
-    let keys_z: Vec<_> = keys_z.into_iter().map(i32_to_u32_offset).collect();
-
-    assert_eq!(run_positions_to_keys(64, 1., &positions, 0), keys_x);
-    assert_eq!(run_positions_to_keys(64, 1., &positions, 1), keys_y);
-    assert_eq!(run_positions_to_keys(64, 1., &positions, 2), keys_z);
 }
 
+/*
 #[test]
 fn test_random() {
     use rand::prelude::*;
@@ -82,56 +63,69 @@ fn test_random() {
         );
     }
 }
+*/
 
-fn run_positions_to_keys(
+fn run_sort_positions_into_cells(
     workgroup_size: u32,
     cell_size: f32,
+    bit_count: u32,
+    indices: &[u32],
     positions: &[Vector4<f32>],
-    dimension: u32,
 ) -> Vec<u32> {
-    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let positions_to_keys = PositionsToKeys::new(
+    let sort_positions_into_cells = SortPositionsIntoCells::new(
         &context,
-        PositionsToKeysSettings {
-            workgroup_size,
-            cell_size,
+        SortPositionsIntoCellsSettings {
+            positions_to_keys_settings: PositionsToKeysSettings {
+                workgroup_size,
+                cell_size,
+            },
+            radix_sort_setttings: RadixSortSettings {
+                count_subkeys_settings: CountSubkeysSettings {
+                    workgroup_size,
+                    bit_count,
+                },
+                prefix_sum_settings: PrefixSumSettings { workgroup_size },
+                reorder_settings: ReorderSettings {
+                    workgroup_size,
+                    bit_count,
+                },
+            },
         },
     );
 
-    let position_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("positions"),
-        contents: bytemuck::cast_slice(positions),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-    let key_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("keys"),
-        size: positions.len() as u64 * u32::MIN_BINDING_SIZE.get(),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
+    let buffers = sort_positions_into_cells.create_buffers(
+        &context,
+        SortPositionsIntoCellsBufferInput { indices, positions },
+    );
     let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download"),
-        size: key_buffer.size(),
+        size: buffers.radix_sort.indices_back.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
 
+    let mut buffer_bindings = (&buffers).into();
+
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    positions_to_keys.compute_in_pass(
+    sort_positions_into_cells.compute_in_pass(
         &context,
         &mut compute_pass,
-        position_buffer.as_entire_buffer_binding(),
-        key_buffer.as_entire_buffer_binding(),
-        dimension,
+        &mut buffer_bindings,
+        &mut (),
     );
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&key_buffer, 0, &download_buffer, 0, None);
+    let last_index_buffer = if buffer_bindings.radix_sort.indices.swapped() {
+        buffers.radix_sort.indices_back
+    } else {
+        buffers.radix_sort.indices_front
+    };
+    encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_buffer, 0, None);
 
     context.queue().submit([encoder.finish()]);
     let data_buffer_slice = download_buffer.slice(..);

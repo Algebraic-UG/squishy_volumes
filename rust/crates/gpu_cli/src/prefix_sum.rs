@@ -1,5 +1,6 @@
-use squishy_volumes_gpu::{GpuContext, MAX_NUM_PARTICLES, PrefixSum, PrefixSumSettings};
-use wgpu::util::DeviceExt as _;
+use squishy_volumes_gpu::{
+    GpuContext, MAX_NUM_PARTICLES, PipelinePart, PrefixSum, PrefixSumBufferInput, PrefixSumSettings,
+};
 
 use crate::{Tool, window::run_with_window};
 
@@ -12,26 +13,15 @@ pub fn prefix_sum_on_gpu(
     let device = context.device();
 
     let prefix_sum = PrefixSum::new(&context, settings);
-
-    let data_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("data"),
-        contents: bytemuck::cast_slice(input),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-    let final_data_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("final_data"),
-        size: data_buffer.size(),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
+    let buffers = prefix_sum.create_buffers(&context, PrefixSumBufferInput { numbers: input });
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
             prefix_sum.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                data_buffer.as_entire_buffer_binding(),
-                final_data_buffer.as_entire_buffer_binding(),
+                &mut (&buffers).into(),
+                &mut (),
             );
         });
         return Default::default();
@@ -39,7 +29,7 @@ pub fn prefix_sum_on_gpu(
 
     let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download"),
-        size: data_buffer.size(),
+        size: buffers.prefix_sums.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
@@ -53,15 +43,10 @@ pub fn prefix_sum_on_gpu(
         let mut scope = profiler.scope("run_prefix_sum", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        prefix_sum.compute_in_pass(
-            &context,
-            &mut compute_pass,
-            data_buffer.as_entire_buffer_binding(),
-            final_data_buffer.as_entire_buffer_binding(),
-        );
+        prefix_sum.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
     }
 
-    encoder.copy_buffer_to_buffer(&final_data_buffer, 0, &download_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(&buffers.prefix_sums, 0, &download_buffer, 0, None);
 
     profiler.resolve_queries(&mut encoder);
 
@@ -85,4 +70,3 @@ pub fn prefix_sum_on_gpu(
 
     result.to_vec()
 }
-

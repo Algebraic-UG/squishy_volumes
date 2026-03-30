@@ -17,6 +17,7 @@ use crate::{prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu};
 
 mod prefix_sum;
 mod radix_sort;
+mod sort_positions_into_cells;
 mod window;
 
 #[derive(Debug, ValueEnum, Clone)]
@@ -36,6 +37,7 @@ enum Tool {
 enum Task {
     Sum,
     Sort,
+    SortIntoCells,
 }
 
 #[derive(Parser)]
@@ -115,6 +117,7 @@ fn main() {
     let output = match (mode, task) {
         (Mode::Cpu, Task::Sum) => prefix_sum_on_cpu(input),
         (Mode::Cpu, Task::Sort) => sort_on_cpu(&indices, input),
+        (Mode::Cpu, Task::SortIntoCells) => sort_on_cpu(&indices, input),
         (Mode::Gpu, Task::Sum) => {
             prefix_sum_on_gpu(tool, PrefixSumSettings { workgroup_size }, input)
         }

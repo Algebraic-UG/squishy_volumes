@@ -9,6 +9,8 @@
 #[cfg(test)]
 mod test;
 
+use wgpu::util::DeviceExt as _;
+
 use super::*;
 
 pub struct Reorder {
@@ -18,25 +20,66 @@ pub struct Reorder {
     compiled_module: CompiledModule,
 }
 
-pub struct ReorderBufferBindings<'a> {
-    pub keys: wgpu::BufferBinding<'a>,
-    pub prefixes: wgpu::BufferBinding<'a>,
-    pub indices_in: wgpu::BufferBinding<'a>,
-    pub indices_out: wgpu::BufferBinding<'a>,
-}
-
 pub struct ReorderSettings {
     pub workgroup_size: u32,
     pub bit_count: u32,
 }
 
-impl Reorder {
-    pub fn new(
+pub struct ReorderParameters {
+    pub bit_offset: u32,
+}
+
+pub struct ReorderBufferInput<'a> {
+    pub keys: &'a [u32],
+    pub indices: &'a [u32],
+    pub prefix_sums: &'a [u32],
+}
+
+pub struct ReorderBuffers {
+    pub keys: wgpu::Buffer,
+    pub prefix_sums: wgpu::Buffer,
+    pub indices_in: wgpu::Buffer,
+    pub indices_out: wgpu::Buffer,
+}
+
+pub struct ReorderBufferBindings<'a> {
+    pub keys: wgpu::BufferBinding<'a>,
+    pub prefix_sums: wgpu::BufferBinding<'a>,
+    pub indices_in: wgpu::BufferBinding<'a>,
+    pub indices_out: wgpu::BufferBinding<'a>,
+}
+
+impl<'a> From<&'a ReorderBuffers> for ReorderBufferBindings<'a> {
+    fn from(
+        ReorderBuffers {
+            keys,
+            prefix_sums,
+            indices_in,
+            indices_out,
+        }: &'a ReorderBuffers,
+    ) -> Self {
+        Self {
+            keys: keys.as_entire_buffer_binding(),
+            prefix_sums: prefix_sums.as_entire_buffer_binding(),
+            indices_in: indices_in.as_entire_buffer_binding(),
+            indices_out: indices_out.as_entire_buffer_binding(),
+        }
+    }
+}
+
+impl PipelinePart for Reorder {
+    type Settings = ReorderSettings;
+    type Parameters = ReorderParameters;
+    type BufferInput<'a> = ReorderBufferInput<'a>;
+    type Buffers = ReorderBuffers;
+    type BufferBindings<'a> = ReorderBufferBindings<'a>;
+
+    fn new(
         context: &GpuContext,
-        ReorderSettings {
+        Self::Settings {
             workgroup_size,
             bit_count,
-        }: ReorderSettings,
+        }: Self::Settings,
     ) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(workgroup_size > 0);
@@ -93,31 +136,65 @@ impl Reorder {
         }
     }
 
-    pub fn min_prefixes(&self, key_count: u32) -> u32 {
-        let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
-        let workgroup_count = key_count.div_ceil(self.workgroup_size);
-        let actual_workgroup_count = find_x_y_z(workgroup_count).into_iter().product::<u32>();
-        actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
+    fn create_buffers<'a>(
+        &self,
+        context: &GpuContext,
+        Self::BufferInput {
+            keys,
+            indices,
+            prefix_sums,
+        }: Self::BufferInput<'a>,
+    ) -> Self::Buffers {
+        let device = context.device();
+        let keys = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("keys"),
+            contents: bytemuck::cast_slice(keys),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        let prefix_sums = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("prefix_sums"),
+            contents: bytemuck::cast_slice(prefix_sums),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
+        let indices_in = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("indices_in"),
+            contents: bytemuck::cast_slice(indices),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        let indices_out = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("indices_out"),
+            size: indices_in.size(),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        Self::Buffers {
+            keys,
+            prefix_sums,
+            indices_in,
+            indices_out,
+        }
     }
 
-    pub fn compute_in_pass(
+    fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        ReorderBufferBindings {
+        Self::BufferBindings {
             keys,
-            prefixes,
+            prefix_sums,
             indices_in,
             indices_out,
-        }: ReorderBufferBindings,
-        bit_offset: u32,
+        }: &mut Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: &mut Self::Parameters,
     ) {
         let device = context.device();
 
         let key_count = elements_in_binding::<u32>(&keys);
         assert!(key_count == elements_in_binding::<u32>(&indices_in));
         assert!(key_count == elements_in_binding::<u32>(&indices_out));
-        let prefix_count = elements_in_binding::<u32>(&prefixes);
+        let prefix_count = elements_in_binding::<u32>(&prefix_sums);
         assert!(prefix_count.get() >= self.min_prefixes(key_count.get()));
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -126,29 +203,38 @@ impl Reorder {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::Buffer(keys),
+                    resource: wgpu::BindingResource::Buffer(keys.clone()),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Buffer(prefixes),
+                    resource: wgpu::BindingResource::Buffer(prefix_sums.clone()),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::Buffer(indices_in),
+                    resource: wgpu::BindingResource::Buffer(indices_in.clone()),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::Buffer(indices_out),
+                    resource: wgpu::BindingResource::Buffer(indices_out.clone()),
                 },
             ],
         });
 
         compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
+        compute_pass.set_immediates(0, bytemuck::bytes_of(bit_offset));
 
         let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
         let [x, y, z] = find_x_y_z(workgroup_count);
         compute_pass.dispatch_workgroups(x, y, z);
+    }
+}
+
+impl Reorder {
+    pub fn min_prefixes(&self, key_count: u32) -> u32 {
+        let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
+        let workgroup_count = key_count.div_ceil(self.workgroup_size);
+        let actual_workgroup_count = find_x_y_z(workgroup_count).into_iter().product::<u32>();
+        actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
     }
 }

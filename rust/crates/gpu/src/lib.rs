@@ -9,6 +9,7 @@
 mod context;
 mod count_subkeys;
 mod error;
+mod pipeline_part;
 mod positions_to_keys;
 mod prefix_sum;
 mod radix_sort;
@@ -19,6 +20,7 @@ mod util;
 pub use context::*;
 pub use count_subkeys::*;
 pub use error::*;
+pub use pipeline_part::*;
 pub use positions_to_keys::*;
 pub use prefix_sum::*;
 pub use radix_sort::*;

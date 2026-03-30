@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use wgpu::util::DeviceExt as _;
-
 use super::*;
 
 #[test]
@@ -120,7 +118,7 @@ fn run_subkey_count(
     indices: &[u32],
     keys: &[u32],
 ) -> Vec<u32> {
-    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
     let count_subkeys = CountSubkeys::new(
@@ -131,30 +129,11 @@ fn run_subkey_count(
         },
     );
 
-    let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("indices"),
-        contents: bytemuck::cast_slice(indices),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-
-    let key_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("keys"),
-        contents: bytemuck::cast_slice(keys),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-
-    let count_size = count_subkeys.min_counts(keys.len() as u32) * 4;
-
-    let count_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("counts"),
-        size: count_size as u64,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
+    let buffers = count_subkeys.create_buffers(&context, CountSubkeysBufferInput { indices, keys });
 
     let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download"),
-        size: count_buffer.size(),
+        size: buffers.counts.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
@@ -165,14 +144,12 @@ fn run_subkey_count(
     count_subkeys.compute_in_pass(
         &context,
         &mut compute_pass,
-        index_buffer.as_entire_buffer_binding(),
-        key_buffer.as_entire_buffer_binding(),
-        count_buffer.as_entire_buffer_binding(),
-        bit_offset,
+        &mut (&buffers).into(),
+        &mut CountSubkeysParamters { bit_offset },
     );
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&count_buffer, 0, &download_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(&buffers.counts, 0, &download_buffer, 0, None);
 
     context.queue().submit([encoder.finish()]);
     let data_buffer_slice = download_buffer.slice(..);

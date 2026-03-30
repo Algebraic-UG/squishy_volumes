@@ -1,8 +1,6 @@
 use squishy_volumes_gpu::{
-    DoubleBuffer, GpuContext, MAX_NUM_PARTICLES, RadixSort, RadixSortBufferBindings,
-    RadixSortSettings,
+    GpuContext, MAX_NUM_PARTICLES, PipelinePart, RadixSort, RadixSortBufferInput, RadixSortSettings,
 };
-use wgpu::util::DeviceExt as _;
 
 use crate::{Tool, window::run_with_window};
 
@@ -15,60 +13,17 @@ pub fn radix_sort_on_gpu(
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let prefix_sort = RadixSort::new(&context, settings);
+    let radix_sort = RadixSort::new(&context, settings);
 
-    let key_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("keys"),
-        contents: bytemuck::cast_slice(keys),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-
-    let index_buffer_front = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("index_front"),
-        contents: bytemuck::cast_slice(&indices),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-    });
-    let index_buffer_back = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("index_back"),
-        size: index_buffer_front.size(),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
-
-    let count_size = prefix_sort.min_counts(keys.len() as u32) * 4;
-    let prefix_size = prefix_sort.min_prefixes(keys.len() as u32) * 4;
-
-    let count_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("count"),
-        size: count_size as u64,
-        usage: wgpu::BufferUsages::STORAGE,
-        mapped_at_creation: false,
-    });
-    let prefix_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("prefix"),
-        size: prefix_size as u64,
-        usage: wgpu::BufferUsages::STORAGE,
-        mapped_at_creation: false,
-    });
-
-    let index_buffers = DoubleBuffer::new(
-        index_buffer_front.as_entire_buffer_binding(),
-        index_buffer_back.as_entire_buffer_binding(),
-    );
-
-    let mut radix_sort_buffers = RadixSortBufferBindings {
-        keys: key_buffer.as_entire_buffer_binding(),
-        indices: index_buffers,
-        counts: count_buffer.as_entire_buffer_binding(),
-        prefixes: prefix_buffer.as_entire_buffer_binding(),
-    };
+    let buffers = radix_sort.create_buffers(&context, RadixSortBufferInput { keys, indices });
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            prefix_sort.compute_in_pass(
+            radix_sort.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &mut radix_sort_buffers,
+                &mut (&buffers).into(),
+                &mut (),
             );
         });
         return Default::default();
@@ -76,10 +31,12 @@ pub fn radix_sort_on_gpu(
 
     let download_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download_indices"),
-        size: index_buffer_front.size(),
+        size: buffers.indices_back.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
+
+    let mut buffer_bindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
@@ -88,13 +45,13 @@ pub fn radix_sort_on_gpu(
         let mut scope = profiler.scope("run_prefix_sort", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        prefix_sort.compute_in_pass(&context, &mut compute_pass, &mut radix_sort_buffers);
+        radix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings, &mut ());
     };
 
-    let last_index_buffer = if radix_sort_buffers.indices.swapped() {
-        index_buffer_front
+    let last_index_buffer = if buffer_bindings.indices.swapped() {
+        buffers.indices_front
     } else {
-        index_buffer_back
+        buffers.indices_back
     };
     encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_index_buffer, 0, None);
 

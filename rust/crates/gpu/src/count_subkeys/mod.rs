@@ -9,6 +9,8 @@
 #[cfg(test)]
 mod test;
 
+use wgpu::util::DeviceExt as _;
+
 use super::*;
 
 pub struct CountSubkeys {
@@ -23,13 +25,56 @@ pub struct CountSubkeysSettings {
     pub bit_count: u32,
 }
 
-impl CountSubkeys {
-    pub fn new(
+pub struct CountSubkeysParamters {
+    pub bit_offset: u32,
+}
+
+pub struct CountSubkeysBufferInput<'a> {
+    pub indices: &'a [u32],
+    pub keys: &'a [u32],
+}
+
+pub struct CountSubkeysBuffers {
+    pub indices: wgpu::Buffer,
+    pub keys: wgpu::Buffer,
+    pub counts: wgpu::Buffer,
+}
+
+pub struct CountSubkeysBufferBindings<'a> {
+    pub indices: wgpu::BufferBinding<'a>,
+    pub keys: wgpu::BufferBinding<'a>,
+    pub counts: wgpu::BufferBinding<'a>,
+}
+
+impl<'a> From<&'a CountSubkeysBuffers> for CountSubkeysBufferBindings<'a> {
+    fn from(
+        CountSubkeysBuffers {
+            indices,
+            keys,
+            counts,
+        }: &'a CountSubkeysBuffers,
+    ) -> Self {
+        Self {
+            indices: indices.as_entire_buffer_binding(),
+            keys: keys.as_entire_buffer_binding(),
+            counts: counts.as_entire_buffer_binding(),
+        }
+    }
+}
+
+impl PipelinePart for CountSubkeys {
+    type Settings = CountSubkeysSettings;
+    type Parameters = CountSubkeysParamters;
+    type BufferInput<'a> = CountSubkeysBufferInput<'a>;
+    type Buffers = CountSubkeysBuffers;
+    type BufferBindings<'a> = CountSubkeysBufferBindings<'a>;
+
+    fn new(
         context: &GpuContext,
-        CountSubkeysSettings {
+        Self::Settings {
             workgroup_size,
             bit_count,
-        }: CountSubkeysSettings,
+        }: Self::Settings,
     ) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(workgroup_size > 0);
@@ -85,21 +130,52 @@ impl CountSubkeys {
         }
     }
 
-    pub fn min_counts(&self, key_count: u32) -> u32 {
-        let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
-        let workgroup_count = key_count.div_ceil(self.workgroup_size);
-        let actual_workgroup_count = find_x_y_z(workgroup_count).into_iter().product::<u32>();
-        actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
+    fn create_buffers<'a>(
+        &self,
+        context: &GpuContext,
+        Self::BufferInput { indices, keys }: Self::BufferInput<'a>,
+    ) -> Self::Buffers {
+        assert_eq!(indices.len(), keys.len());
+
+        let count_size = self.min_counts(keys.len() as u32) * 4;
+
+        let device = context.device();
+        let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("indices"),
+            contents: bytemuck::cast_slice(indices),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
+        let keys = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("keys"),
+            contents: bytemuck::cast_slice(keys),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
+        let counts = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("counts"),
+            size: count_size as u64,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        Self::Buffers {
+            indices,
+            keys,
+            counts,
+        }
     }
 
-    pub fn compute_in_pass(
+    fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        indices: wgpu::BufferBinding,
-        keys: wgpu::BufferBinding,
-        counts: wgpu::BufferBinding,
-        bit_offset: u32,
+        Self::BufferBindings {
+            indices,
+            keys,
+            counts,
+        }: &mut Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: &mut Self::Parameters,
     ) {
         let device = context.device();
 
@@ -115,25 +191,33 @@ impl CountSubkeys {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::Buffer(indices),
+                    resource: wgpu::BindingResource::Buffer(indices.clone()),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Buffer(keys),
+                    resource: wgpu::BindingResource::Buffer(keys.clone()),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: wgpu::BindingResource::Buffer(counts),
+                    resource: wgpu::BindingResource::Buffer(counts.clone()),
                 },
             ],
         });
 
         compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
-
+        compute_pass.set_immediates(0, bytemuck::bytes_of(bit_offset));
         let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
         let [x, y, z] = find_x_y_z(workgroup_count);
         compute_pass.dispatch_workgroups(x, y, z);
+    }
+}
+
+impl CountSubkeys {
+    pub fn min_counts(&self, key_count: u32) -> u32 {
+        let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
+        let workgroup_count = key_count.div_ceil(self.workgroup_size);
+        let actual_workgroup_count = find_x_y_z(workgroup_count).into_iter().product::<u32>();
+        actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
     }
 }

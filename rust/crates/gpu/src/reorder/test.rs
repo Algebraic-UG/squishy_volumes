@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use wgpu::util::DeviceExt as _;
-
 use super::*;
 
 #[test]
@@ -90,9 +88,9 @@ fn run_reorder(
     bit_offset: u32,
     indices: &[u32],
     keys: &[u32],
-    prefixes: &[u32],
+    prefix_sums: &[u32],
 ) -> Vec<u32> {
-    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
     let reorder = Reorder::new(
@@ -103,37 +101,23 @@ fn run_reorder(
         },
     );
 
-    let key_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("keys_in"),
-        contents: bytemuck::cast_slice(keys),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-
     assert_eq!(
-        prefixes.len() as u32,
+        prefix_sums.len() as u32,
         reorder.min_prefixes(keys.len() as u32)
     );
-    let prefix_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("prefixes"),
-        contents: bytemuck::cast_slice(prefixes),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
 
-    let index_in_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("index_in"),
-        contents: bytemuck::cast_slice(indices),
-        usage: wgpu::BufferUsages::STORAGE,
-    });
-    let index_out_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("index_out"),
-        size: index_in_buffer.size(),
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        mapped_at_creation: false,
-    });
+    let buffers = reorder.create_buffers(
+        &context,
+        ReorderBufferInput {
+            keys,
+            indices,
+            prefix_sums,
+        },
+    );
 
     let download_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download_indices"),
-        size: index_out_buffer.size(),
+        size: buffers.indices_out.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
@@ -144,17 +128,12 @@ fn run_reorder(
     reorder.compute_in_pass(
         &context,
         &mut compute_pass,
-        ReorderBufferBindings {
-            keys: key_buffer.as_entire_buffer_binding(),
-            prefixes: prefix_buffer.as_entire_buffer_binding(),
-            indices_in: index_in_buffer.as_entire_buffer_binding(),
-            indices_out: index_out_buffer.as_entire_buffer_binding(),
-        },
-        bit_offset,
+        &mut (&buffers).into(),
+        &mut ReorderParameters { bit_offset },
     );
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&index_out_buffer, 0, &download_index_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(&buffers.indices_out, 0, &download_index_buffer, 0, None);
 
     context.queue().submit([encoder.finish()]);
 

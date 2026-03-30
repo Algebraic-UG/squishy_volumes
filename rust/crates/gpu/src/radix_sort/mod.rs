@@ -9,6 +9,8 @@
 // This implementation of radix sort is heavily inspired by
 // Harada, Takahiro, and Lee Howes. "Introduction to GPU radix sort." Heterogeneous Computing with OpenCL. Morgan Kaufman (2011).
 
+use wgpu::util::DeviceExt as _;
+
 use super::*;
 
 #[cfg(test)]
@@ -27,22 +29,63 @@ pub struct RadixSortSettings {
     pub reorder_settings: ReorderSettings,
 }
 
+pub struct RadixSortBufferInput<'a> {
+    pub keys: &'a [u32],
+    pub indices: &'a [u32],
+}
+
+pub struct RadixSortBuffers {
+    pub keys: wgpu::Buffer,
+    pub indices_front: wgpu::Buffer,
+    pub indices_back: wgpu::Buffer,
+    pub counts: wgpu::Buffer,
+    pub prefix_sums: wgpu::Buffer,
+}
+
 pub struct RadixSortBufferBindings<'a> {
     pub keys: wgpu::BufferBinding<'a>,
     pub indices: DoubleBuffer<'a>,
 
     pub counts: wgpu::BufferBinding<'a>,
-    pub prefixes: wgpu::BufferBinding<'a>,
+    pub prefix_sums: wgpu::BufferBinding<'a>,
 }
 
-impl RadixSort {
-    pub fn new(
+impl<'a> From<&'a RadixSortBuffers> for RadixSortBufferBindings<'a> {
+    fn from(
+        RadixSortBuffers {
+            keys,
+            indices_front,
+            indices_back,
+            counts,
+            prefix_sums,
+        }: &'a RadixSortBuffers,
+    ) -> Self {
+        Self {
+            keys: keys.as_entire_buffer_binding(),
+            indices: DoubleBuffer::new(
+                indices_front.as_entire_buffer_binding(),
+                indices_back.as_entire_buffer_binding(),
+            ),
+            counts: counts.as_entire_buffer_binding(),
+            prefix_sums: prefix_sums.as_entire_buffer_binding(),
+        }
+    }
+}
+
+impl PipelinePart for RadixSort {
+    type Settings = RadixSortSettings;
+    type Parameters = ();
+    type BufferInput<'a> = RadixSortBufferInput<'a>;
+    type Buffers = RadixSortBuffers;
+    type BufferBindings<'a> = RadixSortBufferBindings<'a>;
+
+    fn new(
         context: &GpuContext,
-        RadixSortSettings {
+        Self::Settings {
             count_subkeys_settings,
             prefix_sum_settings,
             reorder_settings,
-        }: RadixSortSettings,
+        }: Self::Settings,
     ) -> Self {
         assert_eq!(count_subkeys_settings.bit_count, reorder_settings.bit_count);
         let bit_count = count_subkeys_settings.bit_count;
@@ -59,23 +102,71 @@ impl RadixSort {
         }
     }
 
-    pub fn min_counts(&self, key_count: u32) -> u32 {
-        self.count_subkeys.min_counts(key_count)
-    }
-    pub fn min_prefixes(&self, key_count: u32) -> u32 {
-        self.reorder.min_prefixes(key_count)
+    fn create_buffers<'a>(
+        &self,
+        context: &GpuContext,
+        Self::BufferInput { keys, indices }: Self::BufferInput<'a>,
+    ) -> Self::Buffers {
+        assert_eq!(indices.len(), keys.len());
+        assert!(indices.len() < u32::MAX as usize);
+        let n = indices.len() as u32;
+
+        let count_size = self.min_counts(n) * 4;
+        let prefix_size = self.min_prefixes(n) * 4;
+
+        let device = context.device();
+
+        let keys = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("keys"),
+            contents: bytemuck::cast_slice(keys),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+
+        let indices_front = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("indices_front"),
+            contents: bytemuck::cast_slice(indices),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        });
+        let indices_back = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("indices_back"),
+            size: indices_front.size(),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+            mapped_at_creation: false,
+        });
+
+        let counts = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("counts"),
+            size: count_size as u64,
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+        let prefix_sums = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("prefix_sums"),
+            size: prefix_size as u64,
+            usage: wgpu::BufferUsages::STORAGE,
+            mapped_at_creation: false,
+        });
+
+        Self::Buffers {
+            keys,
+            indices_front,
+            indices_back,
+            counts,
+            prefix_sums,
+        }
     }
 
-    pub fn compute_in_pass(
+    fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        RadixSortBufferBindings {
+        Self::BufferBindings {
             keys,
             indices,
             counts,
-            prefixes,
-        }: &mut RadixSortBufferBindings,
+            prefix_sums,
+        }: &mut Self::BufferBindings<'a>,
+        _: &mut Self::Parameters,
     ) {
         for round in 0..32u32.div_ceil(self.bit_count) {
             let bit_offset = round * self.bit_count;
@@ -83,30 +174,44 @@ impl RadixSort {
             self.count_subkeys.compute_in_pass(
                 context,
                 compute_pass,
-                indices.front(),
-                keys.clone(),
-                counts.clone(),
-                bit_offset,
+                &mut CountSubkeysBufferBindings {
+                    indices: indices.front(),
+                    keys: keys.clone(),
+                    counts: counts.clone(),
+                },
+                &mut CountSubkeysParamters { bit_offset },
             );
             self.prefix_sum.compute_in_pass(
                 context,
                 compute_pass,
-                counts.clone(),
-                prefixes.clone(),
+                &mut PrefixSumBufferBindings {
+                    numbers: counts.clone(),
+                    prefix_sums: prefix_sums.clone(),
+                },
+                &mut (),
             );
             self.reorder.compute_in_pass(
                 context,
                 compute_pass,
-                ReorderBufferBindings {
+                &mut ReorderBufferBindings {
                     keys: keys.clone(),
-                    prefixes: prefixes.clone(),
+                    prefix_sums: prefix_sums.clone(),
                     indices_in: indices.front(),
                     indices_out: indices.back(),
                 },
-                bit_offset,
+                &mut ReorderParameters { bit_offset },
             );
 
             indices.swap();
         }
+    }
+}
+
+impl RadixSort {
+    pub fn min_counts(&self, key_count: u32) -> u32 {
+        self.count_subkeys.min_counts(key_count)
+    }
+    pub fn min_prefixes(&self, key_count: u32) -> u32 {
+        self.reorder.min_prefixes(key_count)
     }
 }

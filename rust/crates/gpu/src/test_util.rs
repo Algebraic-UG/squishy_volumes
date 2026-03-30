@@ -6,9 +6,20 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::sync::Mutex;
+
 use nalgebra::Vector4;
 
 use crate::{GpuContext, MAX_NUM_PARTICLES};
+
+// Maybe we can avoid this once this is fixed?
+// https://github.com/gfx-rs/wgpu/issues/5270
+// https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
+use lazy_static::lazy_static;
+lazy_static! {
+    pub static ref SHARED_CONTEXT: Mutex<GpuContext> =
+        Mutex::new(GpuContext::new(MAX_NUM_PARTICLES).unwrap());
+}
 
 // This one is ugly.
 // We're emulating the behaviour on the GPU which is influenced by the fact that we have to

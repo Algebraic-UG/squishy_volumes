@@ -14,3 +14,5 @@ pollster.workspace = true
 bytemuck.workspace = true
 rand.workspace = true
 env_logger.workspace = true
+
+lazy_static = "1.5.0"
