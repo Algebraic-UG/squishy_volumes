@@ -127,3 +127,17 @@ pub fn sort_on_cpu(indices: &[u32], keys: &[u32]) -> Vec<u32> {
     indices.sort_by_key(|index| keys[*index as usize]);
     indices
 }
+
+pub fn sort_positions_into_cells_on_cpu(
+    indices: &[u32],
+    positions: &[Vector4<f32>],
+    cell_size: f32,
+) -> Vec<u32> {
+    let mut indices = indices.to_vec();
+    indices.sort_by(|a, b| {
+        let a = positions[*a as usize].map(|c| (c / cell_size).floor() as i32);
+        let b = positions[*b as usize].map(|c| (c / cell_size).floor() as i32);
+        a.x.cmp(&b.x).then(a.y.cmp(&b.y)).then(a.z.cmp(&b.z))
+    });
+    indices
+}

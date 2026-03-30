@@ -27,19 +27,11 @@ fn test_simple() {
 
     let indices = (0..positions.len() as u32).collect::<Vec<_>>();
     assert_eq!(
-        //sort_on_cpu(
-        //&sort_on_cpu(
-        //&
-        sort_on_cpu(&indices, &positions_to_keys(&positions, cell_size, 0)),
-        //&positions_to_keys(&positions, cell_size, 1),
-        //),
-        //&positions_to_keys(&positions, cell_size, 2),
-        //),
+        sort_positions_into_cells_on_cpu(&indices, &positions, cell_size),
         run_sort_positions_into_cells(64, cell_size, 2, &indices, &positions),
     );
 }
 
-/*
 #[test]
 fn test_random() {
     use rand::prelude::*;
@@ -56,14 +48,14 @@ fn test_random() {
         .map(Vector4::from_column_slice)
         .collect();
 
-    for dimension in [0, 1, 2] {
-        assert_eq!(
-            positions_to_keys(&positions, cell_size, dimension),
-            run_positions_to_keys(64, cell_size, &positions, dimension),
-        );
-    }
+    let mut indices: Vec<_> = (0..positions.len() as u32).collect();
+    shuffle(&mut indices, 43);
+
+    assert_eq!(
+        sort_positions_into_cells_on_cpu(&indices, &positions, cell_size),
+        run_sort_positions_into_cells(64, cell_size, 2, &indices, &positions),
+    );
 }
-*/
 
 fn run_sort_positions_into_cells(
     workgroup_size: u32,
