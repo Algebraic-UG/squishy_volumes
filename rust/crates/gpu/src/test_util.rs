@@ -8,8 +8,6 @@
 
 use std::sync::Mutex;
 
-use nalgebra::Vector4;
-
 use crate::{GpuContext, MAX_NUM_PARTICLES};
 
 // Maybe we can avoid this once this is fixed?
@@ -99,21 +97,4 @@ pub fn sort_on_cpu_by_bits(
     });
 
     indices
-}
-
-pub fn i32_to_u32_offset(x: i32) -> u32 {
-    (x as u32) ^ 0x8000_0000
-}
-
-pub fn u32_to_i32_offset(x: u32) -> i32 {
-    (x as i32) ^ 0x8000_0000u32 as i32
-}
-
-pub fn positions_to_keys(positions: &[Vector4<f32>], cell_size: f32, dimension: u32) -> Vec<u32> {
-    positions
-        .iter()
-        .map(
-            |position| i32_to_u32_offset((position[dimension as usize] / cell_size).floor() as i32),
-        )
-        .collect()
 }

@@ -26,21 +26,21 @@ fn test_simple() {
     let keys_z: [i32; 8] = [-1, 0, -1, 0, -1, 0, -1, 0];
 
     assert_eq!(
-        positions_to_keys(&positions, 1., 0)
+        positions_to_keys_on_cpu(&positions, 1., 0)
             .into_iter()
             .map(u32_to_i32_offset)
             .collect::<Vec<_>>(),
         keys_x
     );
     assert_eq!(
-        positions_to_keys(&positions, 1., 1)
+        positions_to_keys_on_cpu(&positions, 1., 1)
             .into_iter()
             .map(u32_to_i32_offset)
             .collect::<Vec<_>>(),
         keys_y
     );
     assert_eq!(
-        positions_to_keys(&positions, 1., 2)
+        positions_to_keys_on_cpu(&positions, 1., 2)
             .into_iter()
             .map(u32_to_i32_offset)
             .collect::<Vec<_>>(),
@@ -74,7 +74,7 @@ fn test_random() {
 
     for dimension in [0, 1, 2] {
         assert_eq!(
-            positions_to_keys(&positions, cell_size, dimension),
+            positions_to_keys_on_cpu(&positions, cell_size, dimension),
             run_positions_to_keys(64, cell_size, &positions, dimension),
         );
     }
