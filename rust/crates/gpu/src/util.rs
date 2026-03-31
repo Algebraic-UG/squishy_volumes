@@ -10,6 +10,7 @@ use lazy_static::lazy_static;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use std::io::Cursor;
+use std::sync::atomic::AtomicU32;
 use std::{
     mem::swap,
     num::{NonZeroU32, NonZeroU64},
@@ -40,6 +41,7 @@ impl AllowedInBinding for u32 {}
 impl AllowedInBinding for f32 {}
 impl AllowedInBinding for Vector4<f32> {}
 impl AllowedInBinding for Vector4<i32> {}
+impl AllowedInBinding for AtomicU32 {}
 
 pub fn elements_in_binding<T: AllowedInBinding>(binding: &wgpu::BufferBinding) -> NonZeroU32 {
     NonZeroU32::try_from((binding_size(binding).get() / T::MIN_BINDING_SIZE.get()) as u32).unwrap()
