@@ -8,9 +8,10 @@ use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
 use squishy_volumes_gpu::{
-    CountSubkeysSettings, PositionsToKeysParameters, PositionsToKeysSettings, PrefixSumSettings,
-    RadixSortSettings, ReorderSettings, SortPositionsIntoCellsSettings, positions_to_keys_on_cpu,
-    prefix_sum_on_cpu, shuffle, sort_on_cpu, sort_positions_into_cells_on_cpu,
+    BuildHashTableSettings, CountSubkeysSettings, PositionsToKeysParameters,
+    PositionsToKeysSettings, PrefixSumSettings, RadixSortSettings, ReorderSettings,
+    SortPositionsIntoCellsSettings, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
+    sort_on_cpu, sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
@@ -18,10 +19,12 @@ use tracing_subscriber::FmtSubscriber;
 use clap::{Parser, ValueEnum};
 
 use crate::{
-    positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
-    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+    build_hash_table::build_hash_table_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
+    prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu,
+    sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
+mod build_hash_table;
 mod positions_to_keys;
 mod prefix_sum;
 mod radix_sort;
@@ -47,6 +50,7 @@ enum Task {
     Sort,
     PositionsToKeys,
     SortIntoCells,
+    BuildHashTable,
 }
 
 #[derive(Parser)]
@@ -121,6 +125,13 @@ fn main() {
             }
             Task::PositionsToKeys | Task::SortIntoCells => {
                 let positions: Vec<Vector4<f32>> = (0..generate)
+                    .map(|_| Vector4::new_random())
+                    .take(generate as usize)
+                    .collect();
+                out.write_all(bytemuck::cast_slice(&positions)).unwrap();
+            }
+            Task::BuildHashTable => {
+                let positions: Vec<Vector4<i32>> = (0..generate)
                     .map(|_| Vector4::new_random())
                     .take(generate as usize)
                     .collect();
@@ -205,6 +216,16 @@ fn main() {
                     ),
                 },
                 _ => unreachable!(),
+            };
+            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+        }
+        Task::BuildHashTable => {
+            let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
+            let output = match mode {
+                Mode::Cpu => todo!(),
+                Mode::Gpu => {
+                    build_hash_table_on_gpu(tool, BuildHashTableSettings { workgroup_size }, input)
+                }
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }

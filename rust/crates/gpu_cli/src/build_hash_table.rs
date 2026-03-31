@@ -1,0 +1,79 @@
+use nalgebra::Vector4;
+use squishy_volumes_gpu::{
+    BuildHashTable, BuildHashTableBufferInput, BuildHashTableSettings, GpuContext,
+    MAX_NUM_PARTICLES, PipelinePart,
+};
+
+use crate::{Tool, window::run_with_window};
+
+pub fn build_hash_table_on_gpu(
+    tool: Option<Tool>,
+    settings: BuildHashTableSettings,
+    cells: &[Vector4<i32>],
+) -> Vec<u32> {
+    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let device = context.device();
+
+    let positions_to_keys = BuildHashTable::new(&context, settings);
+    let buffers = positions_to_keys.create_buffers(&context, BuildHashTableBufferInput { cells });
+
+    if let Some(tool) = tool {
+        run_with_window(tool, context, |context, encoder| {
+            positions_to_keys.compute_in_pass(
+                context,
+                &mut encoder.begin_compute_pass(&Default::default()),
+                &mut (&buffers).into(),
+                &mut (),
+            );
+        });
+        return Default::default();
+    }
+
+    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("download"),
+        size: buffers.indices.size(),
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+        mapped_at_creation: false,
+    });
+
+    let mut encoder = context
+        .device()
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+    let mut profiler = wgpu_profiler::GpuProfiler::new(device, Default::default()).unwrap();
+    {
+        let mut scope = profiler.scope("run_positions_to_keys", &mut encoder);
+        let mut compute_pass = scope.scoped_compute_pass("pass");
+
+        positions_to_keys.compute_in_pass(
+            &context,
+            &mut compute_pass,
+            &mut (&buffers).into(),
+            &mut (),
+        );
+    }
+
+    encoder.copy_buffer_to_buffer(&buffers.indices, 0, &download_buffer, 0, None);
+
+    profiler.resolve_queries(&mut encoder);
+
+    context.queue().submit([encoder.finish()]);
+
+    let data_buffer_slice = download_buffer.slice(..);
+    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+    profiler.end_frame().unwrap();
+
+    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+
+    let profiling_data = profiler
+        .process_finished_frame(context.queue().get_timestamp_period())
+        .and_then(|data| data[0].nested_queries[0].time.clone())
+        .map(|time| (time.end - time.start) * 1e6);
+    tracing::info!(?profiling_data);
+    println!("XXX: {}", profiling_data.unwrap());
+
+    let data = data_buffer_slice.get_mapped_range();
+    let result: &[u32] = bytemuck::cast_slice(&data);
+
+    result.to_vec()
+}
