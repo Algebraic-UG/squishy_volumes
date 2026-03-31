@@ -7,7 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use lazy_static::lazy_static;
+use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
+use std::io::Cursor;
 use std::{
     mem::swap,
     num::{NonZeroU32, NonZeroU64},
@@ -190,5 +192,19 @@ pub fn positions_to_keys_on_cpu(
         .map(
             |position| i32_to_u32_offset((position[dimension as usize] / cell_size).floor() as i32),
         )
+        .collect()
+}
+
+pub fn cells_to_murmur_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
+    cells
+        .iter()
+        .map(|cell| {
+            let cell = cell.map(i32_to_u32_offset);
+            let mut bytes = [0u8; 12];
+            bytes[0..4].copy_from_slice(&cell.x.to_le_bytes());
+            bytes[4..8].copy_from_slice(&cell.y.to_le_bytes());
+            bytes[8..12].copy_from_slice(&cell.z.to_le_bytes());
+            murmur3_32(&mut Cursor::new(bytes), 0).unwrap()
+        })
         .collect()
 }

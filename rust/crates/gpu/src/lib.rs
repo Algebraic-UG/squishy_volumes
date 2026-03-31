@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+mod cells_to_murmur;
 mod context;
 mod count_subkeys;
 mod error;
@@ -17,6 +18,7 @@ mod reorder;
 mod sort_positions_into_cells;
 mod util;
 
+pub use cells_to_murmur::*;
 pub use context::*;
 pub use count_subkeys::*;
 pub use error::*;
