@@ -42,7 +42,7 @@ pub fn radix_sort_on_gpu(
 
     let mut profiler = wgpu_profiler::GpuProfiler::new(device, Default::default()).unwrap();
     {
-        let mut scope = profiler.scope("run_prefix_sort", &mut encoder);
+        let mut scope = profiler.scope("run_radix_sort", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
         radix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings, &mut ());

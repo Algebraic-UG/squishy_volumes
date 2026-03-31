@@ -19,6 +19,7 @@ pub struct PositionsToKeys {
     compiled_module: CompiledModule,
 }
 
+#[derive(Clone, Copy)]
 pub struct PositionsToKeysSettings {
     pub workgroup_size: u32,
     pub cell_size: f32,

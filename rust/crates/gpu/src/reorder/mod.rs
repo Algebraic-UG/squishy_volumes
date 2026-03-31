@@ -20,6 +20,7 @@ pub struct Reorder {
     compiled_module: CompiledModule,
 }
 
+#[derive(Clone, Copy)]
 pub struct ReorderSettings {
     pub workgroup_size: u32,
     pub bit_count: u32,

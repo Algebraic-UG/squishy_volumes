@@ -9,8 +9,8 @@ use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
 use squishy_volumes_gpu::{
     CountSubkeysSettings, PositionsToKeysParameters, PositionsToKeysSettings, PrefixSumSettings,
-    RadixSortSettings, ReorderSettings, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
-    sort_on_cpu,
+    RadixSortSettings, ReorderSettings, SortPositionsIntoCellsSettings, positions_to_keys_on_cpu,
+    prefix_sum_on_cpu, shuffle, sort_on_cpu, sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
@@ -19,12 +19,13 @@ use clap::{Parser, ValueEnum};
 
 use crate::{
     positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
-    radix_sort::radix_sort_on_gpu,
+    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
 mod positions_to_keys;
 mod prefix_sum;
 mod radix_sort;
+mod sort_positions_into_cells;
 mod window;
 
 #[derive(Debug, ValueEnum, Clone)]
@@ -33,7 +34,7 @@ enum Mode {
     Gpu,
 }
 
-#[derive(ValueEnum, Clone, Copy, Default)]
+#[derive(ValueEnum, Clone, Copy, Default, Debug)]
 enum Tool {
     #[default]
     RenderDoc,
@@ -132,6 +133,28 @@ fn main() {
 
     let input_bytes = read(input_file).unwrap();
 
+    let cell_size = 1337.;
+    let prefix_sum_settings = PrefixSumSettings { workgroup_size };
+    let radix_sort_settings = RadixSortSettings {
+        count_subkeys_settings: CountSubkeysSettings {
+            workgroup_size,
+            bit_count,
+        },
+        prefix_sum_settings,
+        reorder_settings: ReorderSettings {
+            workgroup_size,
+            bit_count,
+        },
+    };
+    let positions_to_keys_settings = PositionsToKeysSettings {
+        workgroup_size,
+        cell_size,
+    };
+    let sort_positions_into_cells_settings = SortPositionsIntoCellsSettings {
+        positions_to_keys_settings,
+        radix_sort_settings,
+    };
+
     let mut out = File::create(output_file).unwrap();
     match task {
         Task::Sum | Task::Sort => {
@@ -139,9 +162,7 @@ fn main() {
             let output = match task {
                 Task::Sum => match mode {
                     Mode::Cpu => prefix_sum_on_cpu(input),
-                    Mode::Gpu => {
-                        prefix_sum_on_gpu(tool, PrefixSumSettings { workgroup_size }, input)
-                    }
+                    Mode::Gpu => prefix_sum_on_gpu(tool, prefix_sum_settings, input),
                 },
                 Task::Sort => {
                     let mut indices: Vec<u32> = (0..input.len() as u32).collect();
@@ -149,22 +170,7 @@ fn main() {
 
                     match mode {
                         Mode::Cpu => sort_on_cpu(&indices, input),
-                        Mode::Gpu => radix_sort_on_gpu(
-                            tool,
-                            RadixSortSettings {
-                                count_subkeys_settings: CountSubkeysSettings {
-                                    workgroup_size,
-                                    bit_count,
-                                },
-                                prefix_sum_settings: PrefixSumSettings { workgroup_size },
-                                reorder_settings: ReorderSettings {
-                                    workgroup_size,
-                                    bit_count,
-                                },
-                            },
-                            &indices,
-                            input,
-                        ),
+                        Mode::Gpu => radix_sort_on_gpu(tool, radix_sort_settings, &indices, input),
                     }
                 }
                 _ => unreachable!(),
@@ -178,24 +184,25 @@ fn main() {
 
             let output = match task {
                 Task::PositionsToKeys => {
-                    let cell_size = 1337.;
                     let dimension = 1;
                     match mode {
                         Mode::Cpu => positions_to_keys_on_cpu(input, cell_size, dimension),
                         Mode::Gpu => positions_to_keys_on_gpu(
                             tool,
-                            PositionsToKeysSettings {
-                                workgroup_size,
-                                cell_size,
-                            },
+                            positions_to_keys_settings,
                             PositionsToKeysParameters { dimension },
                             input,
                         ),
                     }
                 }
                 Task::SortIntoCells => match mode {
-                    Mode::Cpu => todo!(),
-                    Mode::Gpu => todo!(),
+                    Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
+                    Mode::Gpu => sort_positions_into_cells_on_gpu(
+                        tool,
+                        sort_positions_into_cells_settings,
+                        &indices,
+                        input,
+                    ),
                 },
                 _ => unreachable!(),
             };

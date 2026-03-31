@@ -74,7 +74,7 @@ fn run_sort_positions_into_cells(
                 workgroup_size,
                 cell_size,
             },
-            radix_sort_setttings: RadixSortSettings {
+            radix_sort_settings: RadixSortSettings {
                 count_subkeys_settings: CountSubkeysSettings {
                     workgroup_size,
                     bit_count,

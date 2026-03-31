@@ -20,6 +20,7 @@ pub struct CountSubkeys {
     compiled_module: CompiledModule,
 }
 
+#[derive(Clone, Copy)]
 pub struct CountSubkeysSettings {
     pub workgroup_size: u32,
     pub bit_count: u32,

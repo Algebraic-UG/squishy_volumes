@@ -1,31 +1,33 @@
 use nalgebra::Vector4;
 use squishy_volumes_gpu::{
-    GpuContext, MAX_NUM_PARTICLES, PipelinePart, PositionsToKeys, PositionsToKeysBufferInput,
-    PositionsToKeysParameters, PositionsToKeysSettings,
+    GpuContext, MAX_NUM_PARTICLES, PipelinePart, SortPositionsIntoCells,
+    SortPositionsIntoCellsBufferInput, SortPositionsIntoCellsSettings,
 };
 
 use crate::{Tool, window::run_with_window};
 
-pub fn positions_to_keys_on_gpu(
+pub fn sort_positions_into_cells_on_gpu(
     tool: Option<Tool>,
-    settings: PositionsToKeysSettings,
-    mut paramters: PositionsToKeysParameters,
+    settings: SortPositionsIntoCellsSettings,
+    indices: &[u32],
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     let device = context.device();
 
-    let positions_to_keys = PositionsToKeys::new(&context, settings);
-    let buffers =
-        positions_to_keys.create_buffers(&context, PositionsToKeysBufferInput { positions });
+    let sort_positions_into_cells = SortPositionsIntoCells::new(&context, settings);
+    let buffers = sort_positions_into_cells.create_buffers(
+        &context,
+        SortPositionsIntoCellsBufferInput { indices, positions },
+    );
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            positions_to_keys.compute_in_pass(
+            sort_positions_into_cells.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
                 &mut (&buffers).into(),
-                &mut paramters,
+                &mut (),
             );
         });
         return Default::default();
@@ -33,10 +35,12 @@ pub fn positions_to_keys_on_gpu(
 
     let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download"),
-        size: buffers.keys.size(),
+        size: buffers.radix_sort.indices_back.size(),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
         mapped_at_creation: false,
     });
+
+    let mut buffer_bindings = (&buffers).into();
 
     let mut encoder = context
         .device()
@@ -44,18 +48,23 @@ pub fn positions_to_keys_on_gpu(
 
     let mut profiler = wgpu_profiler::GpuProfiler::new(device, Default::default()).unwrap();
     {
-        let mut scope = profiler.scope("run_positions_to_keys", &mut encoder);
+        let mut scope = profiler.scope("run_sort_positions_into_cells", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        positions_to_keys.compute_in_pass(
+        sort_positions_into_cells.compute_in_pass(
             &context,
             &mut compute_pass,
-            &mut (&buffers).into(),
-            &mut paramters,
+            &mut buffer_bindings,
+            &mut (),
         );
     }
 
-    encoder.copy_buffer_to_buffer(&buffers.keys, 0, &download_buffer, 0, None);
+    let last_index_buffer = if buffer_bindings.radix_sort.indices.swapped() {
+        buffers.radix_sort.indices_front
+    } else {
+        buffers.radix_sort.indices_back
+    };
+    encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_buffer, 0, None);
 
     profiler.resolve_queries(&mut encoder);
 

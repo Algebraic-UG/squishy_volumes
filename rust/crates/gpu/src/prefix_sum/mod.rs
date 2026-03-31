@@ -20,6 +20,7 @@ pub struct PrefixSum {
     fill_final: CompiledModule,
 }
 
+#[derive(Clone, Copy)]
 pub struct PrefixSumSettings {
     pub workgroup_size: u32,
 }

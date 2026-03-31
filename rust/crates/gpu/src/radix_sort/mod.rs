@@ -23,6 +23,7 @@ pub struct RadixSort {
     reorder: Reorder,
 }
 
+#[derive(Clone, Copy)]
 pub struct RadixSortSettings {
     pub count_subkeys_settings: CountSubkeysSettings,
     pub prefix_sum_settings: PrefixSumSettings,
