@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use lazy_static::lazy_static;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use std::{
     mem::swap,
@@ -92,7 +93,36 @@ impl<'a> DoubleBuffer<'a> {
     }
 }
 
+lazy_static! {
+    static ref PRIMES: Vec<u16> = {
+        let mut primes: Vec<u16> = Default::default();
+        for i in 2..u16::MAX {
+            if primes.iter().all(|prime| !i.is_multiple_of(*prime)) {
+                primes.push(i);
+            }
+        }
+        primes
+    };
+}
+
 pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
+    for offset in 0..4 {
+        let workgroup_count = workgroup_count + offset;
+        let mut best_factors = [None, None];
+        for prime in PRIMES.iter() {
+            if workgroup_count.is_multiple_of(*prime as u32) {
+                best_factors[1] = best_factors[0];
+                best_factors[0] = Some(*prime as u32);
+            }
+        }
+        if let [Some(a), Some(b)] = best_factors
+            && workgroup_count / a / b < u16::MAX as u32
+        {
+            assert_eq!(a * b * (workgroup_count / a / b), workgroup_count);
+            return [a, b, workgroup_count / a / b];
+        }
+    }
+
     let root = (workgroup_count as f64).powf(1. / 3.).floor() as u32;
     let mut xyz = [root; 3];
 
