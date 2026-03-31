@@ -65,7 +65,7 @@ impl PipelinePart for CellsToMurmur {
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
             entries: &[
-                bind_group_layout_entry::<Vector4<f32>>(0, true),
+                bind_group_layout_entry::<Vector4<i32>>(0, true),
                 bind_group_layout_entry::<u32>(1, false),
             ],
         });
@@ -131,7 +131,7 @@ impl PipelinePart for CellsToMurmur {
         Self::BufferBindings { cells, hashes }: &mut Self::BufferBindings<'a>,
         _: &mut Self::Parameters,
     ) {
-        let cell_count = elements_in_binding::<Vector4<f32>>(cells);
+        let cell_count = elements_in_binding::<Vector4<i32>>(cells);
         assert!(cell_count == elements_in_binding::<u32>(hashes));
 
         let device = context.device();

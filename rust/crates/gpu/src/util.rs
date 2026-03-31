@@ -39,6 +39,7 @@ pub trait AllowedInBinding: Sized {
 impl AllowedInBinding for u32 {}
 impl AllowedInBinding for f32 {}
 impl AllowedInBinding for Vector4<f32> {}
+impl AllowedInBinding for Vector4<i32> {}
 
 pub fn elements_in_binding<T: AllowedInBinding>(binding: &wgpu::BufferBinding) -> NonZeroU32 {
     NonZeroU32::try_from((binding_size(binding).get() / T::MIN_BINDING_SIZE.get()) as u32).unwrap()
