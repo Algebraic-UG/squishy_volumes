@@ -180,9 +180,9 @@ impl PipelinePart for CountSubkeys {
     ) {
         let device = context.device();
 
-        let index_count = elements_in_binding::<u32>(&indices);
-        let key_count = elements_in_binding::<u32>(&keys);
-        let count_count = elements_in_binding::<u32>(&counts);
+        let index_count = elements_in_binding::<u32>(indices);
+        let key_count = elements_in_binding::<u32>(keys);
+        let count_count = elements_in_binding::<u32>(counts);
         assert_eq!(index_count, key_count);
         assert!(count_count.get() >= self.min_counts(key_count.get()));
 
