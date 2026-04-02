@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+mod build_cells;
 mod build_hash_table;
 mod cells_to_murmur;
 mod context;
@@ -20,6 +21,7 @@ mod reorder;
 mod sort_positions_into_cells;
 mod util;
 
+pub use build_cells::*;
 pub use build_hash_table::*;
 pub use cells_to_murmur::*;
 pub use context::*;

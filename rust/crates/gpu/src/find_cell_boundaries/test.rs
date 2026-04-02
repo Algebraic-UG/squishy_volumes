@@ -60,23 +60,10 @@ fn test_random() {
         .zip(&mut positions)
         .for_each(|(index, position)| *position = lookup[*index as usize]);
 
-    let boundaries = run_find_cell_boundaries(workgroup_size, cell_size, &positions);
-
-    for (index, boundary) in boundaries.into_iter().enumerate() {
-        if index + 1 == positions.len() {
-            assert_eq!(1, boundary);
-            continue;
-        }
-
-        let should_be_boundary = positions[index].map(|c| (c / cell_size).floor() as i32)
-            != positions[index + 1].map(|c| (c / cell_size).floor() as i32);
-
-        match boundary {
-            0 => assert!(!should_be_boundary),
-            1 => assert!(should_be_boundary),
-            _ => panic!(),
-        }
-    }
+    assert_eq!(
+        find_cell_boundaries_on_cpu(&positions, cell_size),
+        run_find_cell_boundaries(workgroup_size, cell_size, &positions),
+    )
 }
 
 fn run_find_cell_boundaries(

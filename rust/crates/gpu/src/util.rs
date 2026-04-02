@@ -10,6 +10,7 @@ use lazy_static::lazy_static;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use std::io::Cursor;
+use std::iter::once;
 use std::sync::atomic::AtomicU32;
 use std::{
     mem::swap,
@@ -209,5 +210,22 @@ pub fn cells_to_murmur_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
             bytes[8..12].copy_from_slice(&cell.z.to_le_bytes());
             murmur3_32(&mut Cursor::new(bytes), 0).unwrap()
         })
+        .collect()
+}
+
+pub fn find_cell_boundaries_on_cpu(positions: &[Vector4<f32>], cell_size: f32) -> Vec<u32> {
+    positions
+        .iter()
+        .zip(positions.iter().skip(1))
+        .map(|(position, next_position)| {
+            if position.map(|c| (c / cell_size).floor() as i32)
+                != next_position.map(|c| (c / cell_size).floor() as i32)
+            {
+                1
+            } else {
+                0
+            }
+        })
+        .chain(once(1))
         .collect()
 }
