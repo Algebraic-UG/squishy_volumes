@@ -27,21 +27,21 @@ fn main(
         (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
         (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
 
-    if global_index == 0 {
-        boundaries[global_index] = 0;
-        return;
-    }
     if global_index >= arrayLength(&positions) {
         return;
     }
+    if global_index + 1 == arrayLength(&positions) {
+        boundaries[global_index] = 1;
+        return;
+    }
 
-    let prev_position = positions[global_index - 1];
     let position = positions[global_index];
+    let next_position = positions[global_index + 1];
 
-    let pref_cell_id = vec3i(floor(prev_position / CELL_SIZE));
     let cell_id = vec3i(floor(position / CELL_SIZE));
+    let next_cell_id = vec3i(floor(next_position / CELL_SIZE));
 
-    let boundary = pref_cell_id != cell_id;
+    let boundary = cell_id != next_cell_id;
 
     if boundary.x || boundary.y || boundary.z {
         boundaries[global_index] = 1;

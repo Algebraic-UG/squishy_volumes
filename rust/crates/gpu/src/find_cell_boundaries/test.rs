@@ -25,7 +25,7 @@ fn test_simple() {
     ];
 
     assert_eq!(
-        vec![0, 0, 0, 1, 0, 0, 1, 0],
+        vec![0, 0, 1, 0, 0, 1, 0, 1],
         run_find_cell_boundaries(workgroup_size, cell_size, &positions)
     );
 }
@@ -63,13 +63,13 @@ fn test_random() {
     let boundaries = run_find_cell_boundaries(workgroup_size, cell_size, &positions);
 
     for (index, boundary) in boundaries.into_iter().enumerate() {
-        if index == 0 {
-            assert_eq!(0, boundary);
+        if index + 1 == positions.len() {
+            assert_eq!(1, boundary);
             continue;
         }
 
-        let should_be_boundary = positions[index - 1].map(|c| (c / cell_size).floor() as i32)
-            != positions[index].map(|c| (c / cell_size).floor() as i32);
+        let should_be_boundary = positions[index].map(|c| (c / cell_size).floor() as i32)
+            != positions[index + 1].map(|c| (c / cell_size).floor() as i32);
 
         match boundary {
             0 => assert!(!should_be_boundary),
