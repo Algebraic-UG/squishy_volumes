@@ -29,6 +29,7 @@ fn main(
 
     if global_index == 0 {
         boundaries[global_index] = 0;
+        return;
     }
     if global_index >= arrayLength(&positions) {
         return;
