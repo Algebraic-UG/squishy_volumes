@@ -15,10 +15,7 @@
 var<storage, read> cells: array<vec3<i32>>;
 
 @group(0) @binding(1)
-var<storage, read_write> locks: array<atomic<u32>>;
-
-@group(0) @binding(2)
-var<storage, read_write> indices: array<u32>;
+var<storage, read_write> indices: array<atomic<u32>>;
 
 override WORKGROUP_SIZE: u32;
 
@@ -95,14 +92,11 @@ fn main(
     );
 
     // table length must be a power of two
-    let mask = arrayLength(&locks) - 1;
+    let mask = arrayLength(&indices) - 1;
     var slot = hash & mask;
 
-    while atomicExchange(&locks[slot], 1) != 0 {
+    while !atomicCompareExchangeWeak(&indices[slot], 0, global_index + 1).exchanged {
         slot += 1;
         slot &= mask;
     }
-
-    // 0 = unoccupied
-    indices[slot] = global_index + 1;
 }

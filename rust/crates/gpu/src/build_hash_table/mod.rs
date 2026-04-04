@@ -31,27 +31,18 @@ pub struct BuildHashTableBufferInput<'a> {
 
 pub struct BuildHashTableBuffers {
     pub cells: wgpu::Buffer,
-    pub locks: wgpu::Buffer,
     pub indices: wgpu::Buffer,
 }
 
 pub struct BuildHashTableBufferBindings<'a> {
     pub cells: wgpu::BufferBinding<'a>,
-    pub locks: wgpu::BufferBinding<'a>,
     pub indices: wgpu::BufferBinding<'a>,
 }
 
 impl<'a> From<&'a BuildHashTableBuffers> for BuildHashTableBufferBindings<'a> {
-    fn from(
-        BuildHashTableBuffers {
-            cells,
-            locks,
-            indices,
-        }: &'a BuildHashTableBuffers,
-    ) -> Self {
+    fn from(BuildHashTableBuffers { cells, indices }: &'a BuildHashTableBuffers) -> Self {
         Self {
             cells: cells.as_entire_buffer_binding(),
-            locks: locks.as_entire_buffer_binding(),
             indices: indices.as_entire_buffer_binding(),
         }
     }
@@ -78,7 +69,6 @@ impl PipelinePart for BuildHashTable {
             entries: &[
                 bind_group_layout_entry::<Vector4<i32>>(0, true),
                 bind_group_layout_entry::<AtomicU32>(1, false),
-                bind_group_layout_entry::<u32>(2, false),
             ],
         });
 
@@ -127,13 +117,6 @@ impl PipelinePart for BuildHashTable {
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let locks = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("locks"),
-            size: n * u32::MIN_BINDING_SIZE.get(),
-            usage: wgpu::BufferUsages::STORAGE,
-            mapped_at_creation: false,
-        });
-
         let indices = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("indices"),
             size: n * u32::MIN_BINDING_SIZE.get(),
@@ -141,29 +124,20 @@ impl PipelinePart for BuildHashTable {
             mapped_at_creation: false,
         });
 
-        Self::Buffers {
-            cells,
-            locks,
-            indices,
-        }
+        Self::Buffers { cells, indices }
     }
 
     fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
-            cells,
-            locks,
-            indices,
-        }: &mut Self::BufferBindings<'a>,
+        Self::BufferBindings { cells, indices }: &mut Self::BufferBindings<'a>,
         _: &mut Self::Parameters,
     ) {
         let cell_count = elements_in_binding::<Vector4<i32>>(cells);
 
-        let lock_count = elements_in_binding::<u32>(locks);
-        assert!(lock_count == elements_in_binding::<u32>(indices));
-        assert!(lock_count >= cell_count); // better if it's much larger ofc
+        let indices_count = elements_in_binding::<AtomicU32>(indices);
+        assert!(indices_count >= cell_count); // better if it's much larger ofc
 
         let device = context.device();
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -176,10 +150,6 @@ impl PipelinePart for BuildHashTable {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Buffer(locks.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
                     resource: wgpu::BindingResource::Buffer(indices.clone()),
                 },
             ],
