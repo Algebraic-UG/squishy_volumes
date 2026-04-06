@@ -30,6 +30,10 @@ pub struct RadixSortSettings {
     pub reorder_settings: ReorderSettings,
 }
 
+pub struct RadixSortParamters {
+    pub bit_offset: u32,
+}
+
 pub struct RadixSortBufferInput<'a> {
     pub keys: &'a [u32],
     pub indices: &'a [u32],
@@ -75,7 +79,7 @@ impl<'a> From<&'a RadixSortBuffers> for RadixSortBufferBindings<'a> {
 
 impl PipelinePart for RadixSort {
     type Settings = RadixSortSettings;
-    type Parameters = ();
+    type Parameters = RadixSortParamters;
     type BufferInput<'a> = RadixSortBufferInput<'a>;
     type Buffers = RadixSortBuffers;
     type BufferBindings<'a> = RadixSortBufferBindings<'a>;
@@ -167,44 +171,42 @@ impl PipelinePart for RadixSort {
             counts,
             prefix_sums,
         }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        Self::Parameters { bit_offset }: &mut Self::Parameters,
     ) {
-        for round in 0..32u32.div_ceil(self.bit_count) {
-            let bit_offset = round * self.bit_count;
-
-            self.count_subkeys.compute_in_pass(
-                context,
-                compute_pass,
-                &mut CountSubkeysBufferBindings {
-                    indices: indices.front(),
-                    keys: keys.clone(),
-                    counts: counts.clone(),
-                },
-                &mut CountSubkeysParamters { bit_offset },
-            );
-            self.prefix_sum.compute_in_pass(
-                context,
-                compute_pass,
-                &mut PrefixSumBufferBindings {
-                    numbers: counts.clone(),
-                    prefix_sums: prefix_sums.clone(),
-                },
-                &mut (),
-            );
-            self.reorder.compute_in_pass(
-                context,
-                compute_pass,
-                &mut ReorderBufferBindings {
-                    keys: keys.clone(),
-                    prefix_sums: prefix_sums.clone(),
-                    indices_in: indices.front(),
-                    indices_out: indices.back(),
-                },
-                &mut ReorderParameters { bit_offset },
-            );
-
-            indices.swap();
-        }
+        self.count_subkeys.compute_in_pass(
+            context,
+            compute_pass,
+            &mut CountSubkeysBufferBindings {
+                indices: indices.front(),
+                keys: keys.clone(),
+                counts: counts.clone(),
+            },
+            &mut CountSubkeysParamters {
+                bit_offset: *bit_offset,
+            },
+        );
+        self.prefix_sum.compute_in_pass(
+            context,
+            compute_pass,
+            &mut PrefixSumBufferBindings {
+                numbers: counts.clone(),
+                prefix_sums: prefix_sums.clone(),
+            },
+            &mut (),
+        );
+        self.reorder.compute_in_pass(
+            context,
+            compute_pass,
+            &mut ReorderBufferBindings {
+                keys: keys.clone(),
+                prefix_sums: prefix_sums.clone(),
+                indices_in: indices.front(),
+                indices_out: indices.back(),
+            },
+            &mut ReorderParameters {
+                bit_offset: *bit_offset,
+            },
+        );
     }
 }
 
@@ -214,5 +216,24 @@ impl RadixSort {
     }
     pub fn min_prefixes(&self, key_count: u32) -> u32 {
         self.reorder.min_prefixes(key_count)
+    }
+
+    pub fn compute_in_pass_all_rounds<'a>(
+        &self,
+        context: &GpuContext,
+        compute_pass: &mut wgpu::ComputePass,
+        buffer_bindings: &mut RadixSortBufferBindings<'a>,
+    ) {
+        for round in 0..32u32.div_ceil(self.bit_count) {
+            self.compute_in_pass(
+                context,
+                compute_pass,
+                buffer_bindings,
+                &mut RadixSortParamters {
+                    bit_offset: round * self.bit_count,
+                },
+            );
+            buffer_bindings.indices.swap();
+        }
     }
 }

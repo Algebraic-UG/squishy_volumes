@@ -126,7 +126,7 @@ impl PipelinePart for SortPositionsIntoCells {
                 &mut PositionsToKeysParameters { dimension },
             );
             self.radix_sort
-                .compute_in_pass(context, compute_pass, radix_sort, &mut ());
+                .compute_in_pass_all_rounds(context, compute_pass, radix_sort);
         }
     }
 }

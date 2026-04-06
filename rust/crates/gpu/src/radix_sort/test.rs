@@ -84,7 +84,7 @@ fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    radix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings, &mut ());
+    radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &mut buffer_bindings);
 
     drop(compute_pass);
     let last_index_buffer = if buffer_bindings.indices.swapped() {

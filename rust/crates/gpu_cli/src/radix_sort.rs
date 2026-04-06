@@ -19,11 +19,10 @@ pub fn radix_sort_on_gpu(
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            radix_sort.compute_in_pass(
+            radix_sort.compute_in_pass_all_rounds(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
                 &mut (&buffers).into(),
-                &mut (),
             );
         });
         return Default::default();
@@ -45,7 +44,7 @@ pub fn radix_sort_on_gpu(
         let mut scope = profiler.scope("run_radix_sort", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        radix_sort.compute_in_pass(&context, &mut compute_pass, &mut buffer_bindings, &mut ());
+        radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &mut buffer_bindings);
     };
 
     let last_index_buffer = if buffer_bindings.indices.swapped() {
