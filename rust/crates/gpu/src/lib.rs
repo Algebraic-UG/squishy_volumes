@@ -8,6 +8,7 @@
 
 mod build_cells;
 mod build_hash_table;
+mod cells_to_colorkeys;
 mod cells_to_murmur;
 mod context;
 mod count_subkeys;
@@ -23,6 +24,7 @@ mod util;
 
 pub use build_cells::*;
 pub use build_hash_table::*;
+pub use cells_to_colorkeys::*;
 pub use cells_to_murmur::*;
 pub use context::*;
 pub use count_subkeys::*;

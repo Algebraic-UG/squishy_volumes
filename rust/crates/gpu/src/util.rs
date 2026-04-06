@@ -229,3 +229,17 @@ pub fn find_cell_boundaries_on_cpu(positions: &[Vector4<f32>], cell_size: f32) -
         .chain(once(1))
         .collect()
 }
+
+pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
+    cells
+        .iter()
+        .map(|cell| {
+            let ucell = cell.map(i32_to_u32_offset);
+            let mut key = 0;
+            key |= ucell.z & 1;
+            key |= (ucell.y & 1) << 1;
+            key |= (ucell.x & 1) << 2;
+            key
+        })
+        .collect()
+}
