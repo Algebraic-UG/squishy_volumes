@@ -142,6 +142,14 @@ pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
     xyz
 }
 
+pub fn find_x_y_z_simple(limit: u32, workgroup_count: u32) -> [u32; 3] {
+    [
+        workgroup_count.min(limit),
+        workgroup_count.div_ceil(limit).min(limit),
+        workgroup_count.div_ceil(limit * limit).min(limit),
+    ]
+}
+
 pub fn shuffle<T>(v: &mut [T], seed: u64) {
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     v.shuffle(&mut rng);
