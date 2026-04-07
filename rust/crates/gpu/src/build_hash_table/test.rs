@@ -21,6 +21,7 @@ fn check(cells: &[Vector4<i32>], indices: &[u32]) {
                 break;
             }
             slot += 1;
+            slot &= mask;
         }
     }
 }
