@@ -17,7 +17,7 @@ fn test_simple() {
 #[test]
 fn test_simple_2() {
     let numbers = [2, 0, 1, 0, 4, 0, 3, 0];
-    assert_eq!(run_prefix_sum(64, &numbers), prefix_sum_on_cpu(&numbers));
+    assert_eq!(prefix_sum_on_cpu(&numbers), run_prefix_sum(64, &numbers));
 }
 
 #[test]
@@ -31,16 +31,7 @@ fn test_random() {
         .take(1000)
         .collect();
 
-    let expected_prefix_sums: Vec<u32> = numbers
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            let result = Some(*prefix_sum);
-            *prefix_sum += item;
-            result
-        })
-        .collect();
-
-    assert_eq!(run_prefix_sum(64, &numbers), expected_prefix_sums);
+    assert_eq!(prefix_sum_on_cpu(&numbers), run_prefix_sum(64, &numbers));
 }
 
 fn run_prefix_sum(workgroup_size: u32, numbers: &[u32]) -> Vec<u32> {
