@@ -20,6 +20,8 @@ fn block_offset(block: u32) -> Vector4<i32> {
 }
 
 fn check(cells: &[Vector4<i32>], slots: &[u32], owns: &[u32]) {
+    println!("{slots:?}");
+    println!("{owns:?}");
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
     for cell in cells {
         for x in 0..2 {
@@ -32,14 +34,16 @@ fn check(cells: &[Vector4<i32>], slots: &[u32], owns: &[u32]) {
     }
     let blocks: Vec<_> = blocks.into_iter().collect();
 
-    let table_size = (cells.len() as u32 * 2).next_power_of_two();
+    let table_size = (cells.len() as u32 * 8 * 2).next_power_of_two();
     let table_mask = table_size - 1;
     let index_mask = (1 << 29) - 1;
 
     for (block_to_find, hash) in blocks.iter().zip(cells_to_murmur_on_cpu(&blocks)) {
+        println!("searching for block: {block_to_find:?}");
         let mut slot = hash & table_mask;
         loop {
             let block_and_index = slots[slot as usize];
+            println!("maybe: {block_and_index}");
             assert!(block_and_index > 0);
             let block = block_and_index >> 29;
             let index = (block_and_index & index_mask) - 1;

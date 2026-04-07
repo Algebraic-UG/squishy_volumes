@@ -99,7 +99,7 @@ fn block_offset(block: u32) -> vec3i {
         offset.y = 1;
     }
     if (block & 4) == 4 {
-        offset.y = 1;
+        offset.z = 1;
     }
     return offset;
 }
