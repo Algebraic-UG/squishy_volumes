@@ -27,6 +27,7 @@ fn requirements(max_num_particles: u32) -> (wgpu::Features, wgpu::Limits) {
 
     let mut limits = wgpu::Limits::downlevel_defaults();
     limits.max_immediate_size = 4;
+    limits.max_storage_buffers_per_shader_stage = 5;
 
     let size_requirement = (max_num_particles * 64) as u64;
 
