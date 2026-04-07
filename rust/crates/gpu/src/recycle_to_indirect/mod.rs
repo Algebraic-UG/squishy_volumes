@@ -19,6 +19,7 @@ pub struct RecycleToIndirect {
 }
 
 pub struct RecycleToIndirectSettings {
+    pub workgroup_size: u32,
     pub dispatch_limit: u32,
 }
 
@@ -61,7 +62,13 @@ impl PipelinePart for RecycleToIndirect {
     type Buffers = RecycleToIndirectBuffers;
     type BufferBindings<'a> = RecycleToIndirectBufferBindings<'a>;
 
-    fn new(context: &GpuContext, Self::Settings { dispatch_limit }: Self::Settings) -> Self {
+    fn new(
+        context: &GpuContext,
+        Self::Settings {
+            workgroup_size,
+            dispatch_limit,
+        }: Self::Settings,
+    ) -> Self {
         let subgroup_size = context.subgroup_size().get();
         assert!(subgroup_size >= 2u32.pow(3));
 
@@ -90,7 +97,10 @@ impl PipelinePart for RecycleToIndirect {
             module: &device.create_shader_module(wgpu::include_wgsl!("recycle_to_indirect.wgsl")),
             entry_point: Some("main"),
             compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[("DISPATCH_LIMIT", dispatch_limit as f64)],
+                constants: &[
+                    ("WORKGROUP_SIZE", workgroup_size as f64),
+                    ("DISPATCH_LIMIT", dispatch_limit as f64),
+                ],
                 ..Default::default()
             },
             cache: None,

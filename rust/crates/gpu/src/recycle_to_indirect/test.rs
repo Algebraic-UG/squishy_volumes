@@ -12,6 +12,7 @@ use super::*;
 
 #[test]
 fn test_simple() {
+    let workgroup_size = 64;
     let subgroup_size = get_subgroup_size();
     let dispatch_limit = 4;
 
@@ -33,17 +34,18 @@ fn test_simple() {
         .collect();
     let indirect = counts
         .iter()
-        .flat_map(|count| find_x_y_z_simple(dispatch_limit, *count))
+        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
         .collect::<Vec<_>>();
 
     assert_eq!(
         (limits, indirect),
-        run_recycle_to_indirect(dispatch_limit, &prefixes),
+        run_recycle_to_indirect(workgroup_size, dispatch_limit, &prefixes),
     );
 }
 
 #[test]
 fn test_random() {
+    let workgroup_size = 64;
     let subgroup_size = get_subgroup_size();
     let dispatch_limit = 100;
 
@@ -69,21 +71,30 @@ fn test_random() {
         .collect();
     let indirect = counts
         .iter()
-        .flat_map(|count| find_x_y_z_simple(dispatch_limit, *count))
+        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
         .collect::<Vec<_>>();
 
     assert_eq!(
         (limits, indirect),
-        run_recycle_to_indirect(dispatch_limit, &prefixes),
+        run_recycle_to_indirect(workgroup_size, dispatch_limit, &prefixes),
     );
 }
 
-fn run_recycle_to_indirect(dispatch_limit: u32, prefix_sums: &[u32]) -> (Vec<u32>, Vec<u32>) {
+fn run_recycle_to_indirect(
+    workgroup_size: u32,
+    dispatch_limit: u32,
+    prefix_sums: &[u32],
+) -> (Vec<u32>, Vec<u32>) {
     let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let recycle_to_indirect =
-        RecycleToIndirect::new(&context, RecycleToIndirectSettings { dispatch_limit });
+    let recycle_to_indirect = RecycleToIndirect::new(
+        &context,
+        RecycleToIndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+        },
+    );
 
     let buffers =
         recycle_to_indirect.create_buffers(&context, RecycleToIndirectBufferInput { prefix_sums });

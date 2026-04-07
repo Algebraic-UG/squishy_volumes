@@ -24,6 +24,9 @@ fn div_ceil(left: u32, right: u32) -> u32 {
     return 1 + ((left - 1) / right);
 }
 
+// this is the size for the dispatch later
+override WORKGROUP_SIZE: u32;
+
 @compute @workgroup_size(8)
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
@@ -49,7 +52,7 @@ fn main(
 
     let count = end - start;
 
-    let x = min(DISPATCH_LIMIT, count);
+    let x = min(DISPATCH_LIMIT, div_ceil(count, WORKGROUP_SIZE));
     let y = min(DISPATCH_LIMIT, div_ceil(count, DISPATCH_LIMIT));
     let z = min(DISPATCH_LIMIT, div_ceil(count, DISPATCH_LIMIT * DISPATCH_LIMIT));
 

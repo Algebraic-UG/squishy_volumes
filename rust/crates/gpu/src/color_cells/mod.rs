@@ -96,6 +96,7 @@ impl PipelinePart for ColorCells {
         let recycle_to_indirect = RecycleToIndirect::new(
             context,
             RecycleToIndirectSettings {
+                workgroup_size,
                 dispatch_limit: context
                     .adapter()
                     .limits()
