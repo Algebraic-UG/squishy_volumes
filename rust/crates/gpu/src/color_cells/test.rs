@@ -10,8 +10,9 @@ use super::*;
 
 fn check(cells: &[Vector4<i32>]) {
     let colorkeys = cells_to_colorkeys_on_cpu(cells);
+    let workgroup_size = 64;
 
-    let (limits, indirect, indices) = run_color_cells(64, cells);
+    let (limits, indirect, indices) = run_color_cells(workgroup_size, cells);
 
     let mut start = 0;
     for color in 0..8 {
@@ -20,7 +21,10 @@ fn check(cells: &[Vector4<i32>]) {
         let end = limits[color];
         let count = end - start;
 
-        assert!(indirect[color * 3..(color + 1) * 3].iter().product::<u32>() >= count);
+        assert!(
+            indirect[color * 3..(color + 1) * 3].iter().product::<u32>()
+                >= count.div_ceil(workgroup_size)
+        );
 
         for index in &indices[start as usize..end as usize] {
             assert_eq!(colorkey, colorkeys[*index as usize]);

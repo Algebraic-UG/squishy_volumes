@@ -52,9 +52,10 @@ fn main(
 
     let count = end - start;
 
-    let x = min(DISPATCH_LIMIT, div_ceil(count, WORKGROUP_SIZE));
-    let y = min(DISPATCH_LIMIT, div_ceil(count, DISPATCH_LIMIT));
-    let z = min(DISPATCH_LIMIT, div_ceil(count, DISPATCH_LIMIT * DISPATCH_LIMIT));
+    let workgroup_count = div_ceil(count, WORKGROUP_SIZE);
+    let x = min(DISPATCH_LIMIT, workgroup_count);
+    let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
+    let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
 
     indirect[global_index * 3 + 0] = x;
     indirect[global_index * 3 + 1] = y;
