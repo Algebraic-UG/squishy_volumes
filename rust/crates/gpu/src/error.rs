@@ -24,6 +24,9 @@ pub enum GpuError {
     #[error("We can not deal with variable subgroup size yet.")]
     VariableSubgroupSize,
 
+    #[error("We can not deal with a small max workgroup dispatch yet.")]
+    SmallMaxWorkGroupPerDimension,
+
     #[error("Subgroup size is zero.")]
     SubgroupSizeZero,
 

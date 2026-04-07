@@ -46,6 +46,9 @@ impl GpuContext {
             pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))?;
         tracing::info!("Running on Adapter: {:#?}", adapter.get_info());
 
+        if adapter.limits().max_compute_workgroups_per_dimension < u16::MAX as u32 {
+            return Err(GpuError::SmallMaxWorkGroupPerDimension);
+        }
         if adapter.get_info().subgroup_min_size != adapter.get_info().subgroup_min_size {
             return Err(GpuError::VariableSubgroupSize);
         }
