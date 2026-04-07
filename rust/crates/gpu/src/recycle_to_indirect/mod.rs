@@ -14,7 +14,6 @@ use wgpu::util::DeviceExt as _;
 use super::*;
 
 pub struct RecycleToIndirect {
-    subgroup_size: u32,
     compiled_module: CompiledModule,
 }
 
@@ -112,10 +111,7 @@ impl PipelinePart for RecycleToIndirect {
             compute_pipeline,
         };
 
-        Self {
-            subgroup_size,
-            compiled_module,
-        }
+        Self { compiled_module }
     }
 
     fn create_buffers<'a>(
