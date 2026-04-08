@@ -164,33 +164,33 @@ impl PipelinePart for ColorCells {
             indirect,
             limits,
             radix_sort,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
         self.cells_to_colorkeys.compute_in_pass(
             context,
             compute_pass,
-            &CellsToColorkeysBufferBindings {
+            CellsToColorkeysBufferBindings {
                 cells: cells.clone(),
                 keys: radix_sort.keys.clone(),
             },
-            &(),
+            (),
         );
         self.radix_sort.compute_in_pass(
             context,
             compute_pass,
-            radix_sort,
-            &RadixSortParamters { bit_offset: 0 },
+            radix_sort.clone(),
+            RadixSortParamters { bit_offset: 0 },
         );
         self.recycle_to_indirect.compute_in_pass(
             context,
             compute_pass,
-            &RecycleToIndirectBufferBindings {
+            RecycleToIndirectBufferBindings {
                 indirect: indirect.clone(),
                 limits: limits.clone(),
                 prefix_sums: radix_sort.prefix_sums.clone(),
             },
-            &(),
+            (),
         );
     }
 }

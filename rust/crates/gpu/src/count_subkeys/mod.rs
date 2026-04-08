@@ -175,14 +175,14 @@ impl PipelinePart for CountSubkeys {
             indices,
             keys,
             counts,
-        }: &Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: Self::Parameters,
     ) {
         let device = context.device();
 
-        let index_count = elements_in_binding::<u32>(indices);
-        let key_count = elements_in_binding::<u32>(keys);
-        let count_count = elements_in_binding::<u32>(counts);
+        let index_count = elements_in_binding::<u32>(&indices);
+        let key_count = elements_in_binding::<u32>(&keys);
+        let count_count = elements_in_binding::<u32>(&counts);
         assert_eq!(index_count, key_count);
         assert!(count_count.get() >= self.min_counts(key_count.get()));
 
@@ -207,7 +207,7 @@ impl PipelinePart for CountSubkeys {
 
         compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.set_immediates(0, bytemuck::bytes_of(bit_offset));
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
         let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
         let [x, y, z] = find_x_y_z(workgroup_count);
         compute_pass.dispatch_workgroups(x, y, z);

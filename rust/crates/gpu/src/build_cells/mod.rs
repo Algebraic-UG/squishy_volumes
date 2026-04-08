@@ -179,13 +179,13 @@ impl PipelinePart for BuildCells {
             prefixed_boundaries,
             cells,
             index_ranges,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let position_count = elements_in_binding::<Vector4<f32>>(positions);
-        assert!(position_count == elements_in_binding::<u32>(prefixed_boundaries));
-        assert!(position_count == elements_in_binding::<Vector4<i32>>(cells));
-        assert!(position_count == elements_in_binding::<u32>(index_ranges));
+        let position_count = elements_in_binding::<Vector4<f32>>(&positions);
+        assert!(position_count == elements_in_binding::<u32>(&prefixed_boundaries));
+        assert!(position_count == elements_in_binding::<Vector4<i32>>(&cells));
+        assert!(position_count == elements_in_binding::<u32>(&index_ranges));
 
         let device = context.device();
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {

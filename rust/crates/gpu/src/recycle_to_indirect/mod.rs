@@ -157,12 +157,12 @@ impl PipelinePart for RecycleToIndirect {
             indirect,
             limits,
             prefix_sums,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
         let device = context.device();
         assert!(
-            elements_in_binding::<u32>(prefix_sums)
+            elements_in_binding::<u32>(&prefix_sums)
                 .get()
                 .is_multiple_of(8)
         );

@@ -99,16 +99,27 @@ fn run_sort_positions_into_cells(
         mapped_at_creation: false,
     });
 
-    let buffer_bindings = (&buffers).into();
+    let buffer_bindings: SortPositionsIntoCellsBufferBindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    sort_positions_into_cells.compute_in_pass(&context, &mut compute_pass, &buffer_bindings, &());
+    sort_positions_into_cells.compute_in_pass(
+        &context,
+        &mut compute_pass,
+        buffer_bindings.clone(),
+        (),
+    );
 
     drop(compute_pass);
     encoder.copy_buffer_to_buffer(
-        buffer_bindings.radix_sort.indices.front().buffer,
+        buffer_bindings
+            .radix_sort
+            .indices
+            .as_ref()
+            .borrow()
+            .front()
+            .buffer,
         0,
         &download_buffer,
         0,

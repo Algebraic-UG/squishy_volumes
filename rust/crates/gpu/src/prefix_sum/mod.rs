@@ -179,11 +179,11 @@ impl PipelinePart for PrefixSum {
         Self::BufferBindings {
             numbers,
             prefix_sums,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let element_count = elements_in_binding::<u32>(numbers);
-        assert!(element_count == elements_in_binding::<u32>(prefix_sums));
+        let element_count = elements_in_binding::<u32>(&numbers);
+        assert!(element_count == elements_in_binding::<u32>(&prefix_sums));
 
         let element_count = element_count.get();
         let max_level = (element_count * self.subgroup_size - 1).ilog(self.subgroup_size);

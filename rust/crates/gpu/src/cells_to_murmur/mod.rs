@@ -128,11 +128,11 @@ impl PipelinePart for CellsToMurmur {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { cells, hashes }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        Self::BufferBindings { cells, hashes }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let cell_count = elements_in_binding::<Vector4<i32>>(cells);
-        assert!(cell_count == elements_in_binding::<u32>(hashes));
+        let cell_count = elements_in_binding::<Vector4<i32>>(&cells);
+        assert!(cell_count == elements_in_binding::<u32>(&hashes));
 
         let device = context.device();
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {

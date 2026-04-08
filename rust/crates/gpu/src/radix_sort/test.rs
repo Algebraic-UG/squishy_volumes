@@ -79,16 +79,16 @@ fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -
         mapped_at_creation: false,
     });
 
-    let buffer_bindings = (&buffers).into();
+    let buffer_bindings: RadixSortBufferBindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &buffer_bindings);
+    radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, buffer_bindings.clone());
 
     drop(compute_pass);
     encoder.copy_buffer_to_buffer(
-        buffer_bindings.indices.front().buffer,
+        buffer_bindings.indices.as_ref().borrow().front().buffer,
         0,
         &download_index_buffer,
         0,

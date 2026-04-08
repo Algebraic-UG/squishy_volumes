@@ -128,8 +128,8 @@ fn run_reorder(
     reorder.compute_in_pass(
         &context,
         &mut compute_pass,
-        &mut (&buffers).into(),
-        &mut ReorderParameters { bit_offset },
+        (&buffers).into(),
+        ReorderParameters { bit_offset },
     );
 
     drop(compute_pass);

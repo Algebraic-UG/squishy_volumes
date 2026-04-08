@@ -35,6 +35,7 @@ pub struct SortPositionsIntoCellsBuffers {
     pub radix_sort: RadixSortBuffers,
 }
 
+#[derive(Clone)]
 pub struct SortPositionsIntoCellsBufferBindings<'a> {
     pub positions: wgpu::BufferBinding<'a>,
     pub radix_sort: RadixSortBufferBindings<'a>,
@@ -112,21 +113,21 @@ impl PipelinePart for SortPositionsIntoCells {
         Self::BufferBindings {
             positions,
             radix_sort,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
         for dimension in [2, 1, 0] {
             self.positions_to_keys.compute_in_pass(
                 context,
                 compute_pass,
-                &PositionsToKeysBufferBindings {
+                PositionsToKeysBufferBindings {
                     positions: positions.clone(),
                     keys: radix_sort.keys.clone(),
                 },
-                &PositionsToKeysParameters { dimension },
+                PositionsToKeysParameters { dimension },
             );
             self.radix_sort
-                .compute_in_pass_all_rounds(context, compute_pass, radix_sort);
+                .compute_in_pass_all_rounds(context, compute_pass, radix_sort.clone());
         }
     }
 }

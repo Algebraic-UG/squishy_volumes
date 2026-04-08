@@ -115,12 +115,7 @@ fn run_recycle_to_indirect(
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    recycle_to_indirect.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        &mut (&buffers).into(),
-        &mut (),
-    );
+    recycle_to_indirect.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
 
     drop(compute_pass);
     encoder.copy_buffer_to_buffer(&buffers.limits, 0, &download_limits_buffer, 0, None);

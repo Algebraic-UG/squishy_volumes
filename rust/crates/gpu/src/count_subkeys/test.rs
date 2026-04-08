@@ -144,8 +144,8 @@ fn run_subkey_count(
     count_subkeys.compute_in_pass(
         &context,
         &mut compute_pass,
-        &mut (&buffers).into(),
-        &mut CountSubkeysParamters { bit_offset },
+        (&buffers).into(),
+        CountSubkeysParamters { bit_offset },
     );
 
     drop(compute_pass);

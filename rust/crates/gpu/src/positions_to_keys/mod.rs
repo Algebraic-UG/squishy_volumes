@@ -143,13 +143,13 @@ impl PipelinePart for PositionsToKeys {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { positions, keys }: &Self::BufferBindings<'a>,
-        Self::Parameters { dimension }: &Self::Parameters,
+        Self::BufferBindings { positions, keys }: Self::BufferBindings<'a>,
+        Self::Parameters { dimension }: Self::Parameters,
     ) {
-        assert!(*dimension < 3);
+        assert!(dimension < 3);
 
-        let position_count = elements_in_binding::<Vector4<f32>>(positions);
-        assert!(position_count == elements_in_binding::<u32>(keys));
+        let position_count = elements_in_binding::<Vector4<f32>>(&positions);
+        assert!(position_count == elements_in_binding::<u32>(&keys));
 
         let device = context.device();
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -173,7 +173,7 @@ impl PipelinePart for PositionsToKeys {
         let workgroup_count = position_count.get().div_ceil(self.workgroup_size) as u32;
         let [x, y, z] = find_x_y_z(workgroup_count);
 
-        compute_pass.set_immediates(0, bytemuck::bytes_of(dimension));
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&dimension));
         compute_pass.dispatch_workgroups(x, y, z);
     }
 }

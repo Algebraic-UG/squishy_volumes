@@ -112,8 +112,8 @@ fn run_positions_to_keys(
     positions_to_keys.compute_in_pass(
         &context,
         &mut compute_pass,
-        &mut (&buffers).into(),
-        &mut PositionsToKeysParameters { dimension },
+        (&buffers).into(),
+        PositionsToKeysParameters { dimension },
     );
 
     drop(compute_pass);

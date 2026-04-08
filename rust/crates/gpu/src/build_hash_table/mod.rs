@@ -131,12 +131,12 @@ impl PipelinePart for BuildHashTable {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { cells, indices }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        Self::BufferBindings { cells, indices }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let cell_count = elements_in_binding::<Vector4<i32>>(cells);
+        let cell_count = elements_in_binding::<Vector4<i32>>(&cells);
 
-        let indices_count = elements_in_binding::<AtomicU32>(indices);
+        let indices_count = elements_in_binding::<AtomicU32>(&indices);
         assert!(indices_count >= cell_count); // better if it's much larger ofc
 
         let device = context.device();

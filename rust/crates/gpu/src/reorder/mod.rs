@@ -187,15 +187,15 @@ impl PipelinePart for Reorder {
             prefix_sums,
             indices_in,
             indices_out,
-        }: &Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: Self::Parameters,
     ) {
         let device = context.device();
 
-        let key_count = elements_in_binding::<u32>(keys);
-        assert!(key_count == elements_in_binding::<u32>(indices_in));
-        assert!(key_count == elements_in_binding::<u32>(indices_out));
-        let prefix_count = elements_in_binding::<u32>(prefix_sums);
+        let key_count = elements_in_binding::<u32>(&keys);
+        assert!(key_count == elements_in_binding::<u32>(&indices_in));
+        assert!(key_count == elements_in_binding::<u32>(&indices_out));
+        let prefix_count = elements_in_binding::<u32>(&prefix_sums);
         assert!(prefix_count.get() >= self.min_prefixes(key_count.get()));
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -223,7 +223,7 @@ impl PipelinePart for Reorder {
 
         compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
-        compute_pass.set_immediates(0, bytemuck::bytes_of(bit_offset));
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
 
         let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
         let [x, y, z] = find_x_y_z(workgroup_count);

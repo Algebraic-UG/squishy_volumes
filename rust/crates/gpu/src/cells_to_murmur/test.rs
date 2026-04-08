@@ -64,7 +64,7 @@ fn run_cells_to_murmur(workgroup_size: u32, cells: &[Vector4<i32>]) -> Vec<u32> 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    cells_to_murmur.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
+    cells_to_murmur.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
 
     drop(compute_pass);
     encoder.copy_buffer_to_buffer(&buffers.hashes, 0, &download_buffer, 0, None);

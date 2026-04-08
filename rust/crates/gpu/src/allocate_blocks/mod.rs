@@ -138,10 +138,10 @@ impl PipelinePart for AllocateBlocks {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { owns, prefix_sum }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        Self::BufferBindings { owns, prefix_sum }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let owns_count = elements_in_binding::<u32>(owns);
+        let owns_count = elements_in_binding::<u32>(&owns);
         assert!(owns_count == elements_in_binding::<u32>(&prefix_sum.numbers));
 
         let device = context.device();
@@ -169,6 +169,6 @@ impl PipelinePart for AllocateBlocks {
         compute_pass.dispatch_workgroups(x, y, z);
 
         self.prefix_sum
-            .compute_in_pass(context, compute_pass, prefix_sum, &());
+            .compute_in_pass(context, compute_pass, prefix_sum, ());
     }
 }

@@ -84,7 +84,7 @@ fn run_color_cells(workgroup_size: u32, cells: &[Vector4<i32>]) -> (Vec<u32>, Ve
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    color_cells.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
+    color_cells.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
 
     drop(compute_pass);
     downloads.copy(&mut encoder);

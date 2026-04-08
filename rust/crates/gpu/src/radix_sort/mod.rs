@@ -9,6 +9,8 @@
 // This implementation of radix sort is heavily inspired by
 // Harada, Takahiro, and Lee Howes. "Introduction to GPU radix sort." Heterogeneous Computing with OpenCL. Morgan Kaufman (2011).
 
+use std::{cell::RefCell, rc::Rc};
+
 use wgpu::util::DeviceExt as _;
 
 use super::*;
@@ -47,9 +49,10 @@ pub struct RadixSortBuffers {
     pub prefix_sums: wgpu::Buffer,
 }
 
+#[derive(Clone)]
 pub struct RadixSortBufferBindings<'a> {
     pub keys: wgpu::BufferBinding<'a>,
-    pub indices: DoubleBuffer<'a>,
+    pub indices: Rc<RefCell<DoubleBuffer<'a>>>,
 
     pub counts: wgpu::BufferBinding<'a>,
     pub prefix_sums: wgpu::BufferBinding<'a>,
@@ -67,10 +70,10 @@ impl<'a> From<&'a RadixSortBuffers> for RadixSortBufferBindings<'a> {
     ) -> Self {
         Self {
             keys: keys.as_entire_buffer_binding(),
-            indices: DoubleBuffer::new(
+            indices: Rc::new(RefCell::new(DoubleBuffer::new(
                 indices_front.as_entire_buffer_binding(),
                 indices_back.as_entire_buffer_binding(),
-            ),
+            ))),
             counts: counts.as_entire_buffer_binding(),
             prefix_sums: prefix_sums.as_entire_buffer_binding(),
         }
@@ -170,42 +173,38 @@ impl PipelinePart for RadixSort {
             indices,
             counts,
             prefix_sums,
-        }: &Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: Self::Parameters,
     ) {
         self.count_subkeys.compute_in_pass(
             context,
             compute_pass,
-            &CountSubkeysBufferBindings {
-                indices: indices.front(),
+            CountSubkeysBufferBindings {
+                indices: indices.as_ref().borrow().front(),
                 keys: keys.clone(),
                 counts: counts.clone(),
             },
-            &CountSubkeysParamters {
-                bit_offset: *bit_offset,
-            },
+            CountSubkeysParamters { bit_offset },
         );
         self.prefix_sum.compute_in_pass(
             context,
             compute_pass,
-            &PrefixSumBufferBindings {
+            PrefixSumBufferBindings {
                 numbers: counts.clone(),
                 prefix_sums: prefix_sums.clone(),
             },
-            &(),
+            (),
         );
         self.reorder.compute_in_pass(
             context,
             compute_pass,
-            &ReorderBufferBindings {
+            ReorderBufferBindings {
                 keys: keys.clone(),
                 prefix_sums: prefix_sums.clone(),
-                indices_in: indices.front(),
-                indices_out: indices.back(),
+                indices_in: indices.as_ref().borrow().front(),
+                indices_out: indices.as_ref().borrow().back(),
             },
-            &ReorderParameters {
-                bit_offset: *bit_offset,
-            },
+            ReorderParameters { bit_offset },
         );
     }
 }
@@ -219,18 +218,18 @@ impl RadixSort {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        buffer_bindings: &RadixSortBufferBindings<'a>,
+        buffer_bindings: RadixSortBufferBindings<'a>,
     ) {
         for round in 0..32u32.div_ceil(self.bit_count) {
             self.compute_in_pass(
                 context,
                 compute_pass,
-                buffer_bindings,
-                &RadixSortParamters {
+                buffer_bindings.clone(),
+                RadixSortParamters {
                     bit_offset: round * self.bit_count,
                 },
             );
-            buffer_bindings.indices.swap();
+            buffer_bindings.indices.as_ref().borrow_mut().swap();
         }
     }
 }

@@ -141,11 +141,11 @@ impl PipelinePart for FindCellBoundaries {
         Self::BufferBindings {
             positions,
             boundaries,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let position_count = elements_in_binding::<Vector4<f32>>(positions);
-        let boundary_count = elements_in_binding::<u32>(boundaries);
+        let position_count = elements_in_binding::<Vector4<f32>>(&positions);
+        let boundary_count = elements_in_binding::<u32>(&boundaries);
         assert_eq!(position_count, boundary_count);
 
         let device = context.device();

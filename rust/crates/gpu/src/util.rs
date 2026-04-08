@@ -9,7 +9,6 @@
 use lazy_static::lazy_static;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
-use std::cell::Cell;
 use std::io::Cursor;
 use std::iter::once;
 use std::num::{NonZeroU32, NonZeroU64};
@@ -63,7 +62,7 @@ pub fn bind_group_layout_entry<T: AllowedInBinding>(
 }
 
 pub struct DoubleBuffer<'a> {
-    swapped: Cell<bool>,
+    swapped: bool,
     front: wgpu::BufferBinding<'a>,
     back: wgpu::BufferBinding<'a>,
 }
@@ -79,12 +78,12 @@ impl<'a> DoubleBuffer<'a> {
         }
     }
 
-    pub fn swap(&self) {
-        self.swapped.set(!self.swapped.get());
+    pub fn swap(&mut self) {
+        self.swapped = !self.swapped;
     }
 
     pub fn swapped(&self) -> bool {
-        self.swapped.get()
+        self.swapped
     }
 
     pub fn front(&self) -> wgpu::BufferBinding<'a> {

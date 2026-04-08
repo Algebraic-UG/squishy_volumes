@@ -201,14 +201,14 @@ impl PipelinePart for BuildHashTableColors {
             indirect,
             slots,
             owns,
-        }: &Self::BufferBindings<'a>,
-        _: &Self::Parameters,
+        }: Self::BufferBindings<'a>,
+        _: Self::Parameters,
     ) {
-        let cell_count = elements_in_binding::<Vector4<i32>>(cells);
-        assert_eq!(cell_count, elements_in_binding::<u32>(indices));
-        assert_eq!(cell_count, elements_in_binding::<u32>(owns));
+        let cell_count = elements_in_binding::<Vector4<i32>>(&cells);
+        assert_eq!(cell_count, elements_in_binding::<u32>(&indices));
+        assert_eq!(cell_count, elements_in_binding::<u32>(&owns));
 
-        let slots_count = elements_in_binding::<AtomicU32>(slots);
+        let slots_count = elements_in_binding::<AtomicU32>(&slots);
         assert!(slots_count >= cell_count); // better if it's much larger ofc
 
         let device = context.device();

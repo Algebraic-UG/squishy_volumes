@@ -148,12 +148,7 @@ fn run_build_hash_table_colors(
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    build_hash_table_colors.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        &mut (&buffers).into(),
-        &mut (),
-    );
+    build_hash_table_colors.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
 
     drop(compute_pass);
     downloads.copy(&mut encoder);

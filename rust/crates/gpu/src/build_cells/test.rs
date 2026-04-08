@@ -126,7 +126,7 @@ fn run_build_cells(
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    build_cells.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
+    build_cells.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
 
     drop(compute_pass);
     encoder.copy_buffer_to_buffer(&buffers.cells, 0, &download_cells_buffer, 0, None);

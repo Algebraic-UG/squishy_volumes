@@ -95,12 +95,7 @@ fn run_find_cell_boundaries(
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    find_cell_boundaries.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        &mut (&buffers).into(),
-        &mut (),
-    );
+    find_cell_boundaries.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
 
     drop(compute_pass);
     encoder.copy_buffer_to_buffer(&buffers.boundaries, 0, &download_buffer, 0, None);
