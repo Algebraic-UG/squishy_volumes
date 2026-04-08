@@ -116,8 +116,8 @@ impl PipelinePart for RadixSort {
         assert!(indices.len() < u32::MAX as usize);
         let n = indices.len() as u32;
 
-        let count_size = self.min_counts(n) * 4;
-        let prefix_size = self.min_prefixes(n) * 4;
+        let count_size = self.min_counts_and_prefixes(n) * 4;
+        let prefix_size = count_size;
 
         let device = context.device();
 
@@ -211,11 +211,8 @@ impl PipelinePart for RadixSort {
 }
 
 impl RadixSort {
-    pub fn min_counts(&self, key_count: u32) -> u32 {
+    pub fn min_counts_and_prefixes(&self, key_count: u32) -> u32 {
         self.count_subkeys.min_counts(key_count)
-    }
-    pub fn min_prefixes(&self, key_count: u32) -> u32 {
-        self.reorder.min_prefixes(key_count)
     }
 
     pub fn compute_in_pass_all_rounds<'a>(

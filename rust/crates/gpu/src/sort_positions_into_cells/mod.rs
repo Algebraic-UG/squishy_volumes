@@ -130,3 +130,9 @@ impl PipelinePart for SortPositionsIntoCells {
         }
     }
 }
+
+impl SortPositionsIntoCells {
+    pub fn min_counts_and_prefixes(&self, key_count: u32) -> u32 {
+        self.radix_sort.min_counts_and_prefixes(key_count)
+    }
+}
