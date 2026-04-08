@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+mod allocate_blocks;
 mod build_cells;
 mod build_hash_table;
 mod build_hash_table_colors;
@@ -26,6 +27,7 @@ mod reorder;
 mod sort_positions_into_cells;
 mod util;
 
+pub use allocate_blocks::*;
 pub use build_cells::*;
 pub use build_hash_table::*;
 pub use build_hash_table_colors::*;
