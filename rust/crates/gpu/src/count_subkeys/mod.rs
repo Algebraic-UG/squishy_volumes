@@ -175,8 +175,8 @@ impl PipelinePart for CountSubkeys {
             indices,
             keys,
             counts,
-        }: &mut Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: &Self::Parameters,
     ) {
         let device = context.device();
 

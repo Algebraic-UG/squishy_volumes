@@ -79,20 +79,21 @@ fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -
         mapped_at_creation: false,
     });
 
-    let mut buffer_bindings = (&buffers).into();
+    let buffer_bindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &mut buffer_bindings);
+    radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &buffer_bindings);
 
     drop(compute_pass);
-    let last_index_buffer = if buffer_bindings.indices.swapped() {
-        buffers.indices_back
-    } else {
-        buffers.indices_front
-    };
-    encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_index_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(
+        buffer_bindings.indices.front().buffer,
+        0,
+        &download_index_buffer,
+        0,
+        None,
+    );
 
     context.queue().submit([encoder.finish()]);
 

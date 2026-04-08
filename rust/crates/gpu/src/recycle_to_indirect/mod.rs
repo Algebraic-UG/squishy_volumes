@@ -157,8 +157,8 @@ impl PipelinePart for RecycleToIndirect {
             indirect,
             limits,
             prefix_sums,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let device = context.device();
         assert!(

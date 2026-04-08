@@ -143,8 +143,8 @@ impl PipelinePart for PositionsToKeys {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { positions, keys }: &mut Self::BufferBindings<'a>,
-        Self::Parameters { dimension }: &mut Self::Parameters,
+        Self::BufferBindings { positions, keys }: &Self::BufferBindings<'a>,
+        Self::Parameters { dimension }: &Self::Parameters,
     ) {
         assert!(*dimension < 3);
 

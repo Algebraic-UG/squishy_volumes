@@ -141,8 +141,8 @@ impl PipelinePart for FindCellBoundaries {
         Self::BufferBindings {
             positions,
             boundaries,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let position_count = elements_in_binding::<Vector4<f32>>(positions);
         let boundary_count = elements_in_binding::<u32>(boundaries);

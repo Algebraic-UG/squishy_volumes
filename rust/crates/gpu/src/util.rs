@@ -9,13 +9,11 @@
 use lazy_static::lazy_static;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
+use std::cell::Cell;
 use std::io::Cursor;
 use std::iter::once;
+use std::num::{NonZeroU32, NonZeroU64};
 use std::sync::atomic::AtomicU32;
-use std::{
-    mem::swap,
-    num::{NonZeroU32, NonZeroU64},
-};
 
 use nalgebra::Vector4;
 
@@ -65,7 +63,7 @@ pub fn bind_group_layout_entry<T: AllowedInBinding>(
 }
 
 pub struct DoubleBuffer<'a> {
-    swapped: bool,
+    swapped: Cell<bool>,
     front: wgpu::BufferBinding<'a>,
     back: wgpu::BufferBinding<'a>,
 }
@@ -75,27 +73,34 @@ impl<'a> DoubleBuffer<'a> {
         assert_eq!(binding_size(&front), binding_size(&back));
 
         Self {
-            swapped: false,
+            swapped: false.into(),
             front,
             back,
         }
     }
 
-    pub fn swap(&mut self) {
-        swap(&mut self.front, &mut self.back);
-        self.swapped = !self.swapped;
+    pub fn swap(&self) {
+        self.swapped.set(!self.swapped.get());
     }
 
     pub fn swapped(&self) -> bool {
-        self.swapped
+        self.swapped.get()
     }
 
     pub fn front(&self) -> wgpu::BufferBinding<'a> {
-        self.front.clone()
+        if self.swapped() {
+            self.back.clone()
+        } else {
+            self.front.clone()
+        }
     }
 
     pub fn back(&self) -> wgpu::BufferBinding<'a> {
-        self.back.clone()
+        if self.swapped() {
+            self.front.clone()
+        } else {
+            self.back.clone()
+        }
     }
 }
 

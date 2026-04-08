@@ -35,7 +35,7 @@ pub fn radix_sort_on_gpu(
         mapped_at_creation: false,
     });
 
-    let mut buffer_bindings = (&buffers).into();
+    let buffer_bindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
@@ -44,15 +44,16 @@ pub fn radix_sort_on_gpu(
         let mut scope = profiler.scope("run_radix_sort", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &mut buffer_bindings);
+        radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &buffer_bindings);
     };
 
-    let last_index_buffer = if buffer_bindings.indices.swapped() {
-        buffers.indices_front
-    } else {
-        buffers.indices_back
-    };
-    encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_index_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(
+        buffer_bindings.indices.front().buffer,
+        0,
+        &download_index_buffer,
+        0,
+        None,
+    );
 
     profiler.resolve_queries(&mut encoder);
 

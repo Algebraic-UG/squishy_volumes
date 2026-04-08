@@ -131,8 +131,8 @@ impl PipelinePart for BuildHashTable {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { cells, indices }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        Self::BufferBindings { cells, indices }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let cell_count = elements_in_binding::<Vector4<i32>>(cells);
 

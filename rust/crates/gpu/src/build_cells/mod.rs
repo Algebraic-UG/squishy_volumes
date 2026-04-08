@@ -179,8 +179,8 @@ impl PipelinePart for BuildCells {
             prefixed_boundaries,
             cells,
             index_ranges,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let position_count = elements_in_binding::<Vector4<f32>>(positions);
         assert!(position_count == elements_in_binding::<u32>(prefixed_boundaries));

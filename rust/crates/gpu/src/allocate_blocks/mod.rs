@@ -138,8 +138,8 @@ impl PipelinePart for AllocateBlocks {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { owns, prefix_sum }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        Self::BufferBindings { owns, prefix_sum }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let owns_count = elements_in_binding::<u32>(owns);
         assert!(owns_count == elements_in_binding::<u32>(&prefix_sum.numbers));

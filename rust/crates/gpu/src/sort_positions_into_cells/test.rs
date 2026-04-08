@@ -99,25 +99,21 @@ fn run_sort_positions_into_cells(
         mapped_at_creation: false,
     });
 
-    let mut buffer_bindings = (&buffers).into();
+    let buffer_bindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    sort_positions_into_cells.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        &mut buffer_bindings,
-        &mut (),
-    );
+    sort_positions_into_cells.compute_in_pass(&context, &mut compute_pass, &buffer_bindings, &());
 
     drop(compute_pass);
-    let last_index_buffer = if buffer_bindings.radix_sort.indices.swapped() {
-        buffers.radix_sort.indices_back
-    } else {
-        buffers.radix_sort.indices_front
-    };
-    encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(
+        buffer_bindings.radix_sort.indices.front().buffer,
+        0,
+        &download_buffer,
+        0,
+        None,
+    );
 
     context.queue().submit([encoder.finish()]);
     let data_buffer_slice = download_buffer.slice(..);

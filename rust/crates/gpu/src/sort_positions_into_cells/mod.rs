@@ -112,8 +112,8 @@ impl PipelinePart for SortPositionsIntoCells {
         Self::BufferBindings {
             positions,
             radix_sort,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         for dimension in [2, 1, 0] {
             self.positions_to_keys.compute_in_pass(

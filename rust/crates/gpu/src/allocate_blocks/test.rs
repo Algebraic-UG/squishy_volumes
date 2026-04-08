@@ -63,7 +63,7 @@ fn run_allocate_blocks(workgroup_size: u32, owns: &[u32]) -> Vec<u32> {
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    allocate_blocks.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
+    allocate_blocks.compute_in_pass(&context, &mut compute_pass, &(&buffers).into(), &());
 
     drop(compute_pass);
     downloads.copy(&mut encoder);

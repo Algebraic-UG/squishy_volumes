@@ -124,8 +124,8 @@ impl PipelinePart for CellsToColorkeys {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { cells, keys }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        Self::BufferBindings { cells, keys }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let cell_count = elements_in_binding::<Vector4<i32>>(cells);
         assert!(cell_count == elements_in_binding::<u32>(keys));

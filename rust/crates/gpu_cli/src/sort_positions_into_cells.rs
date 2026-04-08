@@ -40,7 +40,7 @@ pub fn sort_positions_into_cells_on_gpu(
         mapped_at_creation: false,
     });
 
-    let mut buffer_bindings = (&buffers).into();
+    let buffer_bindings = (&buffers).into();
 
     let mut encoder = context
         .device()
@@ -54,17 +54,18 @@ pub fn sort_positions_into_cells_on_gpu(
         sort_positions_into_cells.compute_in_pass(
             &context,
             &mut compute_pass,
-            &mut buffer_bindings,
-            &mut (),
+            &buffer_bindings,
+            &(),
         );
     }
 
-    let last_index_buffer = if buffer_bindings.radix_sort.indices.swapped() {
-        buffers.radix_sort.indices_front
-    } else {
-        buffers.radix_sort.indices_back
-    };
-    encoder.copy_buffer_to_buffer(&last_index_buffer, 0, &download_buffer, 0, None);
+    encoder.copy_buffer_to_buffer(
+        buffer_bindings.radix_sort.indices.front().buffer,
+        0,
+        &download_buffer,
+        0,
+        None,
+    );
 
     profiler.resolve_queries(&mut encoder);
 

@@ -26,7 +26,7 @@ pub trait PipelinePart {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        buffer_bindings: &mut Self::BufferBindings<'a>,
-        parameters: &mut Self::Parameters,
+        buffer_bindings: &Self::BufferBindings<'a>,
+        parameters: &Self::Parameters,
     );
 }

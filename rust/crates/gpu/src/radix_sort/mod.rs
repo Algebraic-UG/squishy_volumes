@@ -170,8 +170,8 @@ impl PipelinePart for RadixSort {
             indices,
             counts,
             prefix_sums,
-        }: &mut Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        Self::Parameters { bit_offset }: &Self::Parameters,
     ) {
         self.count_subkeys.compute_in_pass(
             context,
@@ -219,7 +219,7 @@ impl RadixSort {
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        buffer_bindings: &mut RadixSortBufferBindings<'a>,
+        buffer_bindings: &RadixSortBufferBindings<'a>,
     ) {
         for round in 0..32u32.div_ceil(self.bit_count) {
             self.compute_in_pass(

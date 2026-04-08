@@ -168,7 +168,7 @@ impl PipelinePart for BuildHashTableColors {
 
         let slots = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("slots"),
-            size: self.min_table(n) as u64 * AtomicU32::MIN_BINDING_SIZE.get(),
+            size: self.max_table(n) as u64 * AtomicU32::MIN_BINDING_SIZE.get(),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
@@ -201,8 +201,8 @@ impl PipelinePart for BuildHashTableColors {
             indirect,
             slots,
             owns,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let cell_count = elements_in_binding::<Vector4<i32>>(cells);
         assert_eq!(cell_count, elements_in_binding::<u32>(indices));
@@ -255,7 +255,7 @@ impl PipelinePart for BuildHashTableColors {
 impl BuildHashTableColors {
     // control load factor to be at most 0.5
     // TODO: this is way too much for most sparsity patterns
-    pub fn min_table(&self, cell_count: u32) -> u32 {
+    pub fn max_table(&self, cell_count: u32) -> u32 {
         //(cell_count * 2).next_power_of_two()
         (cell_count * 8 * 2).next_power_of_two()
     }

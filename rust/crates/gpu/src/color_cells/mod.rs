@@ -164,8 +164,8 @@ impl PipelinePart for ColorCells {
             indirect,
             limits,
             radix_sort,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         self.cells_to_colorkeys.compute_in_pass(
             context,

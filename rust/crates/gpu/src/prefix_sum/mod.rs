@@ -179,8 +179,8 @@ impl PipelinePart for PrefixSum {
         Self::BufferBindings {
             numbers,
             prefix_sums,
-        }: &mut Self::BufferBindings<'a>,
-        _: &mut Self::Parameters,
+        }: &Self::BufferBindings<'a>,
+        _: &Self::Parameters,
     ) {
         let element_count = elements_in_binding::<u32>(&numbers);
         assert!(element_count == elements_in_binding::<u32>(&prefix_sums));
