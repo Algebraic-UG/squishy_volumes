@@ -20,8 +20,8 @@ pub fn prefix_sum_on_gpu(
             prefix_sum.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &mut (&buffers).into(),
-                &mut (),
+                &(&buffers).into(),
+                &(),
             );
         });
         return Default::default();
@@ -43,7 +43,7 @@ pub fn prefix_sum_on_gpu(
         let mut scope = profiler.scope("run_prefix_sum", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        prefix_sum.compute_in_pass(&context, &mut compute_pass, &mut (&buffers).into(), &mut ());
+        prefix_sum.compute_in_pass(&context, &mut compute_pass, &(&buffers).into(), &());
     }
 
     encoder.copy_buffer_to_buffer(&buffers.prefix_sums, 0, &download_buffer, 0, None);

@@ -148,8 +148,8 @@ impl PipelinePart for PositionsToKeys {
     ) {
         assert!(*dimension < 3);
 
-        let position_count = elements_in_binding::<Vector4<f32>>(&positions);
-        assert!(position_count == elements_in_binding::<u32>(&keys));
+        let position_count = elements_in_binding::<Vector4<f32>>(positions);
+        assert!(position_count == elements_in_binding::<u32>(keys));
 
         let device = context.device();
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {

@@ -169,6 +169,6 @@ impl PipelinePart for AllocateBlocks {
         compute_pass.dispatch_workgroups(x, y, z);
 
         self.prefix_sum
-            .compute_in_pass(context, compute_pass, prefix_sum, &mut ());
+            .compute_in_pass(context, compute_pass, prefix_sum, &());
     }
 }

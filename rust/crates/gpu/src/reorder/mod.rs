@@ -192,10 +192,10 @@ impl PipelinePart for Reorder {
     ) {
         let device = context.device();
 
-        let key_count = elements_in_binding::<u32>(&keys);
-        assert!(key_count == elements_in_binding::<u32>(&indices_in));
-        assert!(key_count == elements_in_binding::<u32>(&indices_out));
-        let prefix_count = elements_in_binding::<u32>(&prefix_sums);
+        let key_count = elements_in_binding::<u32>(keys);
+        assert!(key_count == elements_in_binding::<u32>(indices_in));
+        assert!(key_count == elements_in_binding::<u32>(indices_out));
+        let prefix_count = elements_in_binding::<u32>(prefix_sums);
         assert!(prefix_count.get() >= self.min_prefixes(key_count.get()));
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {

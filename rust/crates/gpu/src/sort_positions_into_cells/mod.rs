@@ -119,11 +119,11 @@ impl PipelinePart for SortPositionsIntoCells {
             self.positions_to_keys.compute_in_pass(
                 context,
                 compute_pass,
-                &mut PositionsToKeysBufferBindings {
+                &PositionsToKeysBufferBindings {
                     positions: positions.clone(),
                     keys: radix_sort.keys.clone(),
                 },
-                &mut PositionsToKeysParameters { dimension },
+                &PositionsToKeysParameters { dimension },
             );
             self.radix_sort
                 .compute_in_pass_all_rounds(context, compute_pass, radix_sort);

@@ -176,34 +176,34 @@ impl PipelinePart for RadixSort {
         self.count_subkeys.compute_in_pass(
             context,
             compute_pass,
-            &mut CountSubkeysBufferBindings {
+            &CountSubkeysBufferBindings {
                 indices: indices.front(),
                 keys: keys.clone(),
                 counts: counts.clone(),
             },
-            &mut CountSubkeysParamters {
+            &CountSubkeysParamters {
                 bit_offset: *bit_offset,
             },
         );
         self.prefix_sum.compute_in_pass(
             context,
             compute_pass,
-            &mut PrefixSumBufferBindings {
+            &PrefixSumBufferBindings {
                 numbers: counts.clone(),
                 prefix_sums: prefix_sums.clone(),
             },
-            &mut (),
+            &(),
         );
         self.reorder.compute_in_pass(
             context,
             compute_pass,
-            &mut ReorderBufferBindings {
+            &ReorderBufferBindings {
                 keys: keys.clone(),
                 prefix_sums: prefix_sums.clone(),
                 indices_in: indices.front(),
                 indices_out: indices.back(),
             },
-            &mut ReorderParameters {
+            &ReorderParameters {
                 bit_offset: *bit_offset,
             },
         );
@@ -226,7 +226,7 @@ impl RadixSort {
                 context,
                 compute_pass,
                 buffer_bindings,
-                &mut RadixSortParamters {
+                &RadixSortParamters {
                     bit_offset: round * self.bit_count,
                 },
             );

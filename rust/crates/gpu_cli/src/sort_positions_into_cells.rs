@@ -26,8 +26,8 @@ pub fn sort_positions_into_cells_on_gpu(
             sort_positions_into_cells.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &mut (&buffers).into(),
-                &mut (),
+                &(&buffers).into(),
+                &(),
             );
         });
         return Default::default();

@@ -170,27 +170,27 @@ impl PipelinePart for ColorCells {
         self.cells_to_colorkeys.compute_in_pass(
             context,
             compute_pass,
-            &mut CellsToColorkeysBufferBindings {
+            &CellsToColorkeysBufferBindings {
                 cells: cells.clone(),
                 keys: radix_sort.keys.clone(),
             },
-            &mut (),
+            &(),
         );
         self.radix_sort.compute_in_pass(
             context,
             compute_pass,
             radix_sort,
-            &mut RadixSortParamters { bit_offset: 0 },
+            &RadixSortParamters { bit_offset: 0 },
         );
         self.recycle_to_indirect.compute_in_pass(
             context,
             compute_pass,
-            &mut RecycleToIndirectBufferBindings {
+            &RecycleToIndirectBufferBindings {
                 indirect: indirect.clone(),
                 limits: limits.clone(),
                 prefix_sums: radix_sort.prefix_sums.clone(),
             },
-            &mut (),
+            &(),
         );
     }
 }

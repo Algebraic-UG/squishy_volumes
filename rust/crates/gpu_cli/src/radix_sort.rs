@@ -22,7 +22,7 @@ pub fn radix_sort_on_gpu(
             radix_sort.compute_in_pass_all_rounds(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &mut (&buffers).into(),
+                &(&buffers).into(),
             );
         });
         return Default::default();

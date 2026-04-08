@@ -9,7 +9,7 @@ use crate::{Tool, window::run_with_window};
 pub fn positions_to_keys_on_gpu(
     tool: Option<Tool>,
     settings: PositionsToKeysSettings,
-    mut paramters: PositionsToKeysParameters,
+    paramters: PositionsToKeysParameters,
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
@@ -24,8 +24,8 @@ pub fn positions_to_keys_on_gpu(
             positions_to_keys.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &mut (&buffers).into(),
-                &mut paramters,
+                &(&buffers).into(),
+                &paramters,
             );
         });
         return Default::default();
@@ -50,8 +50,8 @@ pub fn positions_to_keys_on_gpu(
         positions_to_keys.compute_in_pass(
             &context,
             &mut compute_pass,
-            &mut (&buffers).into(),
-            &mut paramters,
+            &(&buffers).into(),
+            &paramters,
         );
     }
 
