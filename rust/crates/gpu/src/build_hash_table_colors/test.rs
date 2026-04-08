@@ -19,7 +19,38 @@ fn block_offset(block: u32) -> Vector4<i32> {
     )
 }
 
-fn check(cells: &[Vector4<i32>], slots: &[u32], owns: &[u32]) {
+fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
+    let colorkeys = cells_to_colorkeys_on_cpu(&cells);
+
+    let counts = (0..8)
+        .map(|colorkey| colorkeys.iter().filter(|key| **key == colorkey).count() as u32)
+        .collect::<Vec<_>>();
+    // inclusive prefix sum here
+    let limits: Vec<u32> = counts
+        .iter()
+        .scan(0, |prefix_sum, item| {
+            *prefix_sum += item;
+            Some(*prefix_sum)
+        })
+        .collect();
+    let indirect = counts
+        .iter()
+        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
+        .collect::<Vec<_>>();
+
+    let mut indices: Vec<u32> = (0..cells.len() as u32).collect();
+    indices.sort_by_key(|index| colorkeys[*index as usize]);
+
+    let (slots, owns) = run_build_hash_table_colors(
+        workgroup_size,
+        BuildHashTableColorsBufferInput {
+            cells: &cells,
+            indices: &indices,
+            limits: &limits,
+            indirect: &indirect,
+        },
+    );
+
     println!("{slots:?}");
     println!("{owns:?}");
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
@@ -74,40 +105,10 @@ fn test_simple() {
 
     let dispatch_limit = u16::MAX as u32;
     let workgroup_size = 64;
-    let colorkeys = cells_to_colorkeys_on_cpu(&cells);
 
-    let counts = (0..8)
-        .map(|colorkey| colorkeys.iter().filter(|key| **key == colorkey).count() as u32)
-        .collect::<Vec<_>>();
-    // inclusive prefix sum here
-    let limits: Vec<u32> = counts
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            *prefix_sum += item;
-            Some(*prefix_sum)
-        })
-        .collect();
-    let indirect = counts
-        .iter()
-        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
-        .collect::<Vec<_>>();
-
-    let mut indices: Vec<u32> = (0..cells.len() as u32).collect();
-    indices.sort_by_key(|index| colorkeys[*index as usize]);
-
-    let (slots, owns) = run_build_hash_table_colors(
-        workgroup_size,
-        BuildHashTableColorsBufferInput {
-            cells: &cells,
-            indices: &indices,
-            limits: &limits,
-            indirect: &indirect,
-        },
-    );
-    check(&cells, &slots, &owns);
+    check(dispatch_limit, workgroup_size, &cells);
 }
 
-/*
 #[test]
 fn test_random() {
     use rand::prelude::*;
@@ -122,9 +123,11 @@ fn test_random() {
         .map(Vector4::from_column_slice)
         .collect();
 
-    check(&cells, &run_build_hash_table(64, &cells));
+    let dispatch_limit = u16::MAX as u32;
+    let workgroup_size = 64;
+
+    check(dispatch_limit, workgroup_size, &cells);
 }
-*/
 
 fn run_build_hash_table_colors(
     workgroup_size: u32,
