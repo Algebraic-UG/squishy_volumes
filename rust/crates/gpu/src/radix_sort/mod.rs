@@ -27,9 +27,9 @@ pub struct RadixSort {
 
 #[derive(Clone, Copy)]
 pub struct RadixSortSettings {
-    pub count_subkeys_settings: CountSubkeysSettings,
-    pub prefix_sum_settings: PrefixSumSettings,
-    pub reorder_settings: ReorderSettings,
+    pub count_subkeys: CountSubkeysSettings,
+    pub prefix_sum: PrefixSumSettings,
+    pub reorder: ReorderSettings,
 }
 
 pub struct RadixSortParamters {
@@ -90,17 +90,17 @@ impl PipelinePart for RadixSort {
     fn new(
         context: &GpuContext,
         Self::Settings {
-            count_subkeys_settings,
-            prefix_sum_settings,
-            reorder_settings,
+            count_subkeys,
+            prefix_sum,
+            reorder,
         }: Self::Settings,
     ) -> Self {
-        assert_eq!(count_subkeys_settings.bit_count, reorder_settings.bit_count);
-        let bit_count = count_subkeys_settings.bit_count;
+        assert_eq!(count_subkeys.bit_count, reorder.bit_count);
+        let bit_count = count_subkeys.bit_count;
 
-        let count_subkeys = CountSubkeys::new(context, count_subkeys_settings);
-        let prefix_sum = PrefixSum::new(context, prefix_sum_settings);
-        let reorder = Reorder::new(context, reorder_settings);
+        let count_subkeys = CountSubkeys::new(context, count_subkeys);
+        let prefix_sum = PrefixSum::new(context, prefix_sum);
+        let reorder = Reorder::new(context, reorder);
 
         Self {
             bit_count,

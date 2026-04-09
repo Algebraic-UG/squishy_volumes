@@ -81,12 +81,12 @@ impl PipelinePart for ColorCells {
         let radix_sort = RadixSort::new(
             context,
             RadixSortSettings {
-                count_subkeys_settings: CountSubkeysSettings {
+                count_subkeys: CountSubkeysSettings {
                     workgroup_size,
                     bit_count,
                 },
-                prefix_sum_settings: PrefixSumSettings { workgroup_size },
-                reorder_settings: ReorderSettings {
+                prefix_sum: PrefixSumSettings { workgroup_size },
+                reorder: ReorderSettings {
                     workgroup_size,
                     bit_count,
                 },

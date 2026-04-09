@@ -21,8 +21,8 @@ pub struct SortPositionsIntoCells {
 
 #[derive(Clone, Copy)]
 pub struct SortPositionsIntoCellsSettings {
-    pub positions_to_keys_settings: PositionsToKeysSettings,
-    pub radix_sort_settings: RadixSortSettings,
+    pub positions_to_keys: PositionsToKeysSettings,
+    pub radix_sort: RadixSortSettings,
 }
 
 pub struct SortPositionsIntoCellsBufferInput<'a> {
@@ -65,12 +65,12 @@ impl PipelinePart for SortPositionsIntoCells {
     fn new(
         context: &GpuContext,
         Self::Settings {
-            positions_to_keys_settings,
-            radix_sort_settings,
+            positions_to_keys,
+            radix_sort,
         }: Self::Settings,
     ) -> Self {
-        let positions_to_keys = PositionsToKeys::new(context, positions_to_keys_settings);
-        let radix_sort = RadixSort::new(context, radix_sort_settings);
+        let positions_to_keys = PositionsToKeys::new(context, positions_to_keys);
+        let radix_sort = RadixSort::new(context, radix_sort);
 
         Self {
             positions_to_keys,

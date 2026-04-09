@@ -17,12 +17,12 @@ fn test_simple() {
         sort_on_cpu(&indices, &keys),
         run_prefix_sort(
             RadixSortSettings {
-                count_subkeys_settings: CountSubkeysSettings {
+                count_subkeys: CountSubkeysSettings {
                     workgroup_size: 64,
                     bit_count: 2
                 },
-                prefix_sum_settings: PrefixSumSettings { workgroup_size: 64 },
-                reorder_settings: ReorderSettings {
+                prefix_sum: PrefixSumSettings { workgroup_size: 64 },
+                reorder: ReorderSettings {
                     workgroup_size: 64,
                     bit_count: 2
                 },
@@ -48,12 +48,12 @@ fn test_random() {
         sort_on_cpu(&indices, &keys),
         run_prefix_sort(
             RadixSortSettings {
-                count_subkeys_settings: CountSubkeysSettings {
+                count_subkeys: CountSubkeysSettings {
                     workgroup_size: 64,
                     bit_count: 2
                 },
-                prefix_sum_settings: PrefixSumSettings { workgroup_size: 64 },
-                reorder_settings: ReorderSettings {
+                prefix_sum: PrefixSumSettings { workgroup_size: 64 },
+                reorder: ReorderSettings {
                     workgroup_size: 64,
                     bit_count: 2
                 },

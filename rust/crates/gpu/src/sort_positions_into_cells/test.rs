@@ -70,17 +70,17 @@ fn run_sort_positions_into_cells(
     let sort_positions_into_cells = SortPositionsIntoCells::new(
         &context,
         SortPositionsIntoCellsSettings {
-            positions_to_keys_settings: PositionsToKeysSettings {
+            positions_to_keys: PositionsToKeysSettings {
                 workgroup_size,
                 cell_size,
             },
-            radix_sort_settings: RadixSortSettings {
-                count_subkeys_settings: CountSubkeysSettings {
+            radix_sort: RadixSortSettings {
+                count_subkeys: CountSubkeysSettings {
                     workgroup_size,
                     bit_count,
                 },
-                prefix_sum_settings: PrefixSumSettings { workgroup_size },
-                reorder_settings: ReorderSettings {
+                prefix_sum: PrefixSumSettings { workgroup_size },
+                reorder: ReorderSettings {
                     workgroup_size,
                     bit_count,
                 },
