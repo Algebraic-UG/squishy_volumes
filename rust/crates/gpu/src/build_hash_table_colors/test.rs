@@ -10,15 +10,6 @@ use std::collections::HashSet;
 
 use super::*;
 
-fn block_offset(block: u32) -> Vector4<i32> {
-    Vector4::new(
-        if (block & 1) == 1 { 1 } else { 0 },
-        if (block & 2) == 2 { 1 } else { 0 },
-        if (block & 4) == 4 { 1 } else { 0 },
-        0,
-    )
-}
-
 fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
     let colorkeys = cells_to_colorkeys_on_cpu(&cells);
 

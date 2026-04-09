@@ -255,3 +255,12 @@ pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
         })
         .collect()
 }
+
+pub fn block_offset(block: u32) -> Vector4<i32> {
+    Vector4::new(
+        if (block & 1) == 1 { 1 } else { 0 },
+        if (block & 2) == 2 { 1 } else { 0 },
+        if (block & 4) == 4 { 1 } else { 0 },
+        0,
+    )
+}
