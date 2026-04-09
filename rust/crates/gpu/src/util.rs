@@ -256,6 +256,18 @@ pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
         .collect()
 }
 
+#[macro_export]
+macro_rules! let_buffer {
+    ($device:expr, $name:ident<$ty:ty> ($count:expr, $usage:expr)) => {
+        let $name = $device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(stringify!($name)),
+            size: $count as u64 * <$ty>::MIN_BINDING_SIZE.get(),
+            usage: $usage,
+            mapped_at_creation: false,
+        });
+    };
+}
+
 pub fn block_offset(block: u32) -> Vector4<i32> {
     Vector4::new(
         if (block & 1) == 1 { 1 } else { 0 },
