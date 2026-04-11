@@ -6,25 +6,40 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat_n;
+
 use super::*;
 
 #[test]
 fn test_simple() {
-    let count = 100;
+    let count = 200;
+    let limits = [100];
+    let indirect = [130, 1, 1];
 
     assert_eq!(
-        (0..100).collect::<Vec<u32>>(),
-        run_generate_indices(64, count),
+        (0..100).chain(repeat_n(0, 100)).collect::<Vec<u32>>(),
+        run_generate_indices(64, count, &limits, &indirect),
     );
 }
-fn run_generate_indices(workgroup_size: u32, count: u32) -> Vec<u32> {
+fn run_generate_indices(
+    workgroup_size: u32,
+    count: u32,
+    limits: &[u32],
+    indirect: &[u32],
+) -> Vec<u32> {
     let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
     let generate_indices =
         GenerateIndices::new(&context, GenerateIndicesSettings { workgroup_size });
-    let buffers =
-        generate_indices.create_buffers(&context, GenerateIndicesBufferInput { count: &count });
+    let buffers = generate_indices.create_buffers(
+        &context,
+        GenerateIndicesBufferInput {
+            count,
+            limits,
+            indirect,
+        },
+    );
 
     let download = DownloadToHost::new(&context, &buffers.indices, "indices");
 

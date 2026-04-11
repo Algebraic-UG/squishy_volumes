@@ -9,10 +9,11 @@
 #[cfg(test)]
 mod test;
 
+use wgpu::util::DeviceExt as _;
+
 use super::*;
 
 pub struct GenerateIndices {
-    workgroup_size: u32,
     compiled_module: CompiledModule,
 }
 
@@ -21,21 +22,35 @@ pub struct GenerateIndicesSettings {
 }
 
 pub struct GenerateIndicesBufferInput<'a> {
-    pub count: &'a u32,
+    pub count: u32,
+    pub limits: &'a [u32],
+    pub indirect: &'a [u32],
 }
 
 pub struct GenerateIndicesBuffers {
     pub indices: wgpu::Buffer,
+    pub limits: wgpu::Buffer,
+    pub indirect: wgpu::Buffer,
 }
 
 pub struct GenerateIndicesBufferBindings<'a> {
     pub indices: wgpu::BufferBinding<'a>,
+    pub limits: wgpu::BufferBinding<'a>,
+    pub indirect: wgpu::BufferBinding<'a>,
 }
 
 impl<'a> From<&'a GenerateIndicesBuffers> for GenerateIndicesBufferBindings<'a> {
-    fn from(GenerateIndicesBuffers { indices }: &'a GenerateIndicesBuffers) -> Self {
+    fn from(
+        GenerateIndicesBuffers {
+            indices,
+            limits,
+            indirect,
+        }: &'a GenerateIndicesBuffers,
+    ) -> Self {
         Self {
             indices: indices.as_entire_buffer_binding(),
+            limits: limits.as_entire_buffer_binding(),
+            indirect: indirect.as_entire_buffer_binding(),
         }
     }
 }
@@ -58,7 +73,10 @@ impl PipelinePart for GenerateIndices {
 
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
-            entries: &[bind_group_layout_entry::<u32>(0, false)],
+            entries: &[
+                bind_group_layout_entry::<u32>(0, true),
+                bind_group_layout_entry::<u32>(1, false),
+            ],
         });
 
         let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
@@ -85,47 +103,70 @@ impl PipelinePart for GenerateIndices {
             compute_pipeline,
         };
 
-        Self {
-            workgroup_size,
-            compiled_module,
-        }
+        Self { compiled_module }
     }
 
     fn create_buffers<'a>(
         &self,
         context: &GpuContext,
-        Self::BufferInput { count }: Self::BufferInput<'a>,
+        Self::BufferInput {
+            count,
+            limits,
+            indirect,
+        }: Self::BufferInput<'a>,
     ) -> Self::Buffers {
-        let_buffer!(context.device(), indices<u32>(*count, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+        let device = context.device();
 
-        Self::Buffers { indices }
+        let limits = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("limits"),
+            contents: bytemuck::cast_slice(limits),
+            usage: wgpu::BufferUsages::STORAGE,
+        });
+        let indirect = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("indirect"),
+            contents: bytemuck::cast_slice(indirect),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDIRECT,
+        });
+
+        let_buffer!(device, indices<u32>(count, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+
+        Self::Buffers {
+            indices,
+            limits,
+            indirect,
+        }
     }
 
     fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { indices }: Self::BufferBindings<'a>,
+        Self::BufferBindings {
+            indices,
+            limits,
+            indirect,
+        }: Self::BufferBindings<'a>,
         _: Self::Parameters,
     ) {
-        let count = elements_in_binding::<u32>(&indices);
-
         let device = context.device();
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: self.compiled_module.label,
             layout: &self.compiled_module.bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(indices),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::Buffer(limits),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Buffer(indices),
+                },
+            ],
         });
 
         compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
         compute_pass.set_bind_group(0, &bind_group, &[]);
 
-        let workgroup_count = count.get().div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z(workgroup_count);
-
-        compute_pass.dispatch_workgroups(x, y, z);
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer, 0);
     }
 }

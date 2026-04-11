@@ -10,6 +10,9 @@
 //enable subgroups;
 
 @group(0) @binding(0)
+var<storage, read> limits: array<u32>;
+
+@group(0) @binding(1)
 var<storage, read_write> indices: array<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -23,7 +26,7 @@ fn main(
         (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
         (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
 
-    if global_index >= arrayLength(&indices) {
+    if global_index >= limits[0] {
         return;
     }
 
