@@ -22,7 +22,10 @@ pub struct PrepareGrid {
     find_cell_boundaries: FindCellBoundaries,
     prefix_sum: PrefixSum,
     build_cells: BuildCells,
+    offsets_to_indirect: OffsetsToIndirect,
+    generate_indices: GenerateIndices,
     color_cells: ColorCells,
+    permute_cells: PermuteCells,
     build_hash_table_colors: BuildHashTableColors,
     allocate_blocks: AllocateBlocks,
 }
@@ -33,7 +36,10 @@ pub struct PrepareGridSettings {
     pub find_cell_boundaries: FindCellBoundariesSettings,
     pub prefix_sum: PrefixSumSettings,
     pub build_cells: BuildCellsSettings,
+    pub offsets_to_indirect: OffsetsToIndirectSettings,
+    pub generate_indices: GenerateIndicesSettings,
     pub color_cells: ColorCellsSettings,
+    pub permute_cells: PermuteCellsSettings,
     pub build_hash_table_colors: BuildHashTableColorsSettings,
     pub allocate_blocks: AllocateBlocksSettings,
 }
@@ -54,7 +60,8 @@ pub struct PrepareGridBuffers {
     pub particle_counts: wgpu::Buffer,
     pub particle_prefix_sums: wgpu::Buffer,
 
-    pub cell_ids: wgpu::Buffer,
+    pub cell_ids_in: wgpu::Buffer,
+    pub cell_ids_out: wgpu::Buffer,
 
     pub cell_indices_front: wgpu::Buffer,
     pub cell_indices_back: wgpu::Buffer,
@@ -82,7 +89,8 @@ pub struct PrepareGridBufferBindings<'a> {
     pub particle_counts: wgpu::BufferBinding<'a>,
     pub particle_prefix_sums: wgpu::BufferBinding<'a>,
 
-    pub cell_ids: wgpu::BufferBinding<'a>,
+    pub cell_ids_in: wgpu::BufferBinding<'a>,
+    pub cell_ids_out: wgpu::BufferBinding<'a>,
 
     pub cell_indices: Rc<RefCell<DoubleBuffer<'a>>>,
 
@@ -109,7 +117,8 @@ impl<'a> From<&'a PrepareGridBuffers> for PrepareGridBufferBindings<'a> {
             particle_keys,
             particle_counts,
             particle_prefix_sums,
-            cell_ids,
+            cell_ids_in,
+            cell_ids_out,
             cell_indices_front,
             cell_indices_back,
             cell_keys,
@@ -132,7 +141,8 @@ impl<'a> From<&'a PrepareGridBuffers> for PrepareGridBufferBindings<'a> {
             particle_keys: particle_keys.as_entire_buffer_binding(),
             particle_counts: particle_counts.as_entire_buffer_binding(),
             particle_prefix_sums: particle_prefix_sums.as_entire_buffer_binding(),
-            cell_ids: cell_ids.as_entire_buffer_binding(),
+            cell_ids_in: cell_ids_in.as_entire_buffer_binding(),
+            cell_ids_out: cell_ids_out.as_entire_buffer_binding(),
             cell_indices: Rc::new(RefCell::new(DoubleBuffer::new(
                 cell_indices_front.as_entire_buffer_binding(),
                 cell_indices_back.as_entire_buffer_binding(),
@@ -164,7 +174,10 @@ impl PipelinePart for PrepareGrid {
             find_cell_boundaries,
             prefix_sum,
             build_cells,
+            offsets_to_indirect,
+            generate_indices,
             color_cells,
+            permute_cells,
             build_hash_table_colors,
             allocate_blocks,
         }: Self::Settings,
@@ -178,7 +191,10 @@ impl PipelinePart for PrepareGrid {
             find_cell_boundaries: FindCellBoundaries::new(context, find_cell_boundaries),
             prefix_sum: PrefixSum::new(context, prefix_sum),
             build_cells: BuildCells::new(context, build_cells),
+            offsets_to_indirect: OffsetsToIndirect::new(context, offsets_to_indirect),
+            generate_indices: GenerateIndices::new(context, generate_indices),
             color_cells: ColorCells::new(context, color_cells),
+            permute_cells: PermuteCells::new(context, permute_cells),
             build_hash_table_colors: BuildHashTableColors::new(context, build_hash_table_colors),
             allocate_blocks: AllocateBlocks::new(context, allocate_blocks),
         }
@@ -214,12 +230,6 @@ impl PipelinePart for PrepareGrid {
             usage: wgpu::BufferUsages::STORAGE,
         });
 
-        let cell_indices_front = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("particle_indices_front"),
-            contents: bytemuck::cast_slice(&(0..cell_n).collect::<Vec<_>>()),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
         let_buffer!(device, particle_positions_out<Vector4<f32>>(particle_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, particle_indices_back<u32>(particle_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, particle_keys<u32>(particle_n, wgpu::BufferUsages::STORAGE));
@@ -227,7 +237,9 @@ impl PipelinePart for PrepareGrid {
         let_buffer!(device, particle_counts<u32>(particle_counts_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, particle_prefix_sums<u32>(particle_counts_n, wgpu::BufferUsages::STORAGE));
 
-        let_buffer!(device, cell_ids<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+        let_buffer!(device, cell_ids_in<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, cell_ids_out<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+        let_buffer!(device, cell_indices_front<u32>(cell_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_indices_back<u32>(cell_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_keys<u32>(cell_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_index_ranges<u32>(cell_n, wgpu::BufferUsages::STORAGE));
@@ -249,7 +261,8 @@ impl PipelinePart for PrepareGrid {
             particle_keys,
             particle_counts,
             particle_prefix_sums,
-            cell_ids,
+            cell_ids_in,
+            cell_ids_out,
             cell_indices_front,
             cell_indices_back,
             cell_keys,
@@ -274,7 +287,8 @@ impl PipelinePart for PrepareGrid {
             particle_keys,
             particle_counts,
             particle_prefix_sums,
-            cell_ids,
+            cell_ids_in,
+            cell_ids_out,
             cell_indices,
             cell_keys,
             cell_counts,
@@ -301,6 +315,7 @@ impl PipelinePart for PrepareGrid {
             },
             (),
         );
+
         self.permute_positions.compute_in_pass(
             context,
             compute_pass,
@@ -311,6 +326,7 @@ impl PipelinePart for PrepareGrid {
             },
             (),
         );
+
         self.find_cell_boundaries.compute_in_pass(
             context,
             compute_pass,
@@ -320,6 +336,7 @@ impl PipelinePart for PrepareGrid {
             },
             (),
         );
+
         self.prefix_sum.compute_in_pass(
             context,
             compute_pass,
@@ -329,22 +346,46 @@ impl PipelinePart for PrepareGrid {
             },
             (),
         );
+
         self.build_cells.compute_in_pass(
             context,
             compute_pass,
             BuildCellsBufferBindings {
                 positions: particle_positions_out.clone(),
                 prefixed_boundaries: particle_indices.borrow().front(), // uggh
-                cells: cell_ids.clone(),
+                cells: cell_ids_in.clone(),
                 index_ranges: cell_index_ranges,
             },
             (),
         );
+
+        self.offsets_to_indirect.compute_in_pass(
+            context,
+            compute_pass,
+            OffsetsToIndirectBufferBindings {
+                prefix_sums: particle_indices.borrow().front(),
+                limits: limits.clone(),
+                indirect: indirect.clone(),
+            },
+            (),
+        );
+
+        self.generate_indices.compute_in_pass(
+            context,
+            compute_pass,
+            GenerateIndicesBufferBindings {
+                indices: cell_indices.borrow().front(),
+                limits: limits.clone(),
+                indirect: indirect.clone(),
+            },
+            (),
+        );
+
         self.color_cells.compute_in_pass(
             context,
             compute_pass,
             ColorCellsBufferBindings {
-                cells: cell_ids.clone(),
+                cells: cell_ids_in.clone(),
                 indirect: indirect.clone(),
                 limits: limits.clone(),
                 radix_sort: RadixSortBufferBindings {
@@ -356,11 +397,23 @@ impl PipelinePart for PrepareGrid {
             },
             (),
         );
+
+        self.permute_cells.compute_in_pass(
+            context,
+            compute_pass,
+            PermuteCellsBufferBindings {
+                permutation: cell_indices.borrow().back(),
+                cells_in: cell_ids_in,
+                cells_out: cell_ids_out.clone(),
+            },
+            (),
+        );
+
         self.build_hash_table_colors.compute_in_pass(
             context,
             compute_pass,
             BuildHashTableColorsBufferBindings {
-                cells: cell_ids,
+                cells: cell_ids_out,
                 indices: cell_indices.borrow().back(),
                 limits: limits.clone(),
                 indirect,
@@ -369,6 +422,7 @@ impl PipelinePart for PrepareGrid {
             },
             (),
         );
+
         self.allocate_blocks.compute_in_pass(
             context,
             compute_pass,

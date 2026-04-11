@@ -143,7 +143,13 @@ fn run_prepare_grid(
         workgroup_size,
         cell_size,
     };
+    let offsets_to_indirect = OffsetsToIndirectSettings {
+        workgroup_size,
+        dispatch_limit: u16::MAX as u32,
+    };
+    let generate_indices = GenerateIndicesSettings { workgroup_size };
     let color_cells = ColorCellsSettings { workgroup_size };
+    let permute_cells = PermuteCellsSettings { workgroup_size };
     let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
     let allocate_blocks = AllocateBlocksSettings {
         workgroup_size,
@@ -158,7 +164,10 @@ fn run_prepare_grid(
             find_cell_boundaries,
             prefix_sum,
             build_cells,
+            offsets_to_indirect,
+            generate_indices,
             color_cells,
+            permute_cells,
             build_hash_table_colors,
             allocate_blocks,
         },
@@ -170,7 +179,7 @@ fn run_prepare_grid(
         &context,
         [
             (&buffers.block_table, "block_table"),
-            (&buffers.cell_ids, "cell_ids"),
+            (&buffers.cell_ids_out, "cell_ids"),
         ],
     );
 
