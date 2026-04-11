@@ -39,15 +39,10 @@ fn main(
 
     let cell_index = prefixed_boundaries[global_index];
 
-    if global_index + 1 == arrayLength(&positions) {
-        let position = positions[global_index];
-        cells[cell_index] = vec3i(floor(position / CELL_SIZE));
-        index_ranges[cell_index] = global_index;
-        return;
-    }
-
-    if cell_index == prefixed_boundaries[global_index + 1] {
-        return;
+    if global_index + 1 != arrayLength(&positions) {
+        if cell_index == prefixed_boundaries[global_index + 1] {
+            return;
+        }
     }
 
     let position = positions[global_index];
