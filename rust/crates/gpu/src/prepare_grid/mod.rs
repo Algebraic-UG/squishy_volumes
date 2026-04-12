@@ -25,7 +25,6 @@ pub struct PrepareGrid {
     offsets_to_indirect: OffsetsToIndirect,
     generate_indices: GenerateIndices,
     color_cells: ColorCells,
-    permute_cells: PermuteCells,
     build_hash_table_colors: BuildHashTableColors,
     allocate_blocks: AllocateBlocks,
 }
@@ -39,7 +38,6 @@ pub struct PrepareGridSettings {
     pub offsets_to_indirect: OffsetsToIndirectSettings,
     pub generate_indices: GenerateIndicesSettings,
     pub color_cells: ColorCellsSettings,
-    pub permute_cells: PermuteCellsSettings,
     pub build_hash_table_colors: BuildHashTableColorsSettings,
     pub allocate_blocks: AllocateBlocksSettings,
 }
@@ -177,7 +175,6 @@ impl PipelinePart for PrepareGrid {
             offsets_to_indirect,
             generate_indices,
             color_cells,
-            permute_cells,
             build_hash_table_colors,
             allocate_blocks,
         }: Self::Settings,
@@ -194,7 +191,6 @@ impl PipelinePart for PrepareGrid {
             offsets_to_indirect: OffsetsToIndirect::new(context, offsets_to_indirect),
             generate_indices: GenerateIndices::new(context, generate_indices),
             color_cells: ColorCells::new(context, color_cells),
-            permute_cells: PermuteCells::new(context, permute_cells),
             build_hash_table_colors: BuildHashTableColors::new(context, build_hash_table_colors),
             allocate_blocks: AllocateBlocks::new(context, allocate_blocks),
         }
@@ -394,17 +390,6 @@ impl PipelinePart for PrepareGrid {
                     counts: cell_counts,
                     prefix_sums: cell_prefix_sums,
                 },
-            },
-            (),
-        );
-
-        self.permute_cells.compute_in_pass(
-            context,
-            compute_pass,
-            PermuteCellsBufferBindings {
-                permutation: cell_indices.borrow().back(),
-                cells_in: cell_ids_in,
-                cells_out: cell_ids_out.clone(),
             },
             (),
         );

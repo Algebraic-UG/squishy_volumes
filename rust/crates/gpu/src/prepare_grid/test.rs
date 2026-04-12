@@ -149,7 +149,6 @@ fn run_prepare_grid(
     };
     let generate_indices = GenerateIndicesSettings { workgroup_size };
     let color_cells = ColorCellsSettings { workgroup_size };
-    let permute_cells = PermuteCellsSettings { workgroup_size };
     let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
     let allocate_blocks = AllocateBlocksSettings {
         workgroup_size,
@@ -167,7 +166,6 @@ fn run_prepare_grid(
             offsets_to_indirect,
             generate_indices,
             color_cells,
-            permute_cells,
             build_hash_table_colors,
             allocate_blocks,
         },
