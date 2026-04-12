@@ -10,11 +10,12 @@ use super::*;
 
 fn check(workgroup_size: u32, dispatch_limit: u32, cells_in: &[Vector4<i32>], limit: u32) {
     let limits = [limit; 8];
-    let indirect = find_x_y_z_simple(limit, limit.div_ceil(workgroup_size))
+    let indirect = find_x_y_z_simple(dispatch_limit, limit.div_ceil(workgroup_size))
         .into_iter()
         .cycle()
         .take(8 * 3)
         .collect::<Vec<_>>();
+    println!("indirect: {indirect:?}");
 
     let (limits, indirect, cells_out) =
         run_color_cells_2(workgroup_size, dispatch_limit, &limits, &indirect, cells_in);
@@ -24,6 +25,8 @@ fn check(workgroup_size: u32, dispatch_limit: u32, cells_in: &[Vector4<i32>], li
     let mut start = 0;
     for color in 0..8 {
         let cell = cells_out[start as usize];
+
+        println!("now checking: {:?}", cell.map(|c| i32_to_u32_offset(c) & 1));
 
         let end = limits[color];
         let count = end - start;
@@ -68,7 +71,7 @@ fn test_simple() {
 }
 
 #[test]
-fn test_ignore_half() {
+fn test_simple_ignore_half() {
     let workgroup_size = 64;
     let dispatch_limit = 10;
     check(
@@ -109,6 +112,32 @@ fn test_random() {
     check(workgroup_size, dispatch_limit, &cells, cells.len() as u32);
 }
 
+#[test]
+fn test_random_ignore_half() {
+    use rand::prelude::*;
+    use rand::rngs::ChaCha8Rng;
+
+    let workgroup_size = 64;
+    let dispatch_limit = 10;
+
+    let cells: Vec<i32> = ChaCha8Rng::seed_from_u64(42)
+        .random_iter::<i32>()
+        .take(1000 * 4)
+        .collect();
+    let cells: Vec<Vector4<i32>> = cells
+        .chunks_exact(4)
+        .map(Vector4::from_column_slice)
+        .map(|cell| cell.xyz().push(0))
+        .collect();
+
+    check(
+        workgroup_size,
+        dispatch_limit,
+        &cells,
+        cells.len() as u32 / 2,
+    );
+}
+
 fn run_color_cells_2(
     workgroup_size: u32,
     dispatch_limit: u32,
@@ -140,6 +169,7 @@ fn run_color_cells_2(
         [
             (&buffers.limits, "limits"),
             (&buffers.indirect, "indirect"),
+            (&buffers.counts, "counts"),
             (&buffers.cells_out, "cells_out"),
         ],
     );
@@ -158,7 +188,9 @@ fn run_color_cells_2(
 
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
-    let [limits, indirect, cells_out] = dowloads.try_into().unwrap();
+    let [limits, indirect, counts, cells_out] = dowloads.try_into().unwrap();
+
+    println!("{:?}", counts.to_vec::<u32>());
 
     (limits.to_vec(), indirect.to_vec(), cells_out.to_vec())
 }

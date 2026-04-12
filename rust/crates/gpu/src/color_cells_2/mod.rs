@@ -225,8 +225,8 @@ impl PipelinePart for ColorCells2 {
         });
 
         let_buffer!(device, cells_out<Vector4<i32>>(n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-        let_buffer!(device, counts<u32>(n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, prefix_sums<u32>(n, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, counts<u32>(n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+        let_buffer!(device, prefix_sums<u32>(n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
 
         Self::Buffers {
             cells_in,
