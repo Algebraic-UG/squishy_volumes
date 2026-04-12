@@ -43,6 +43,7 @@ fn main(
     }
     len = subgroupBroadcast(len, 0u);
 
+    var count_len = 0u;
     {
         let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
         let workgroup_count = div_ceil(len, WORKGROUP_SIZE);
@@ -50,19 +51,16 @@ fn main(
         let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
         let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
         let actual_workgroup_count = x * y * z;
-        len = actual_workgroup_count * subgroups_per_workgroup * 8;
+        count_len = actual_workgroup_count * subgroups_per_workgroup * 8;
     }
 
-    let stride = len / 8;
-    let index = stride - 1 + global_index * stride;
+    let stride = count_len / 8;
+    let start = prefix_sums[global_index * stride];
 
-    var start = 0u;
-    if global_index > 0 {
-        let prev_index = stride - 1 + (global_index - 1) * stride;
-        start = prefix_sums[prev_index];
+    var end = len;
+    if global_index < 7 {
+        end = prefix_sums[(global_index + 1) * stride];
     }
-
-    let end = prefix_sums[index];
 
     limits[global_index] = end;
 

@@ -17,6 +17,21 @@ fn check(workgroup_size: u32, dispatch_limit: u32, cells_in: &[Vector4<i32>], li
         .collect::<Vec<_>>();
     println!("indirect: {indirect:?}");
 
+    {
+        let tmp = cells_in.iter().take(limit as usize);
+        let counts = (0..8)
+            .map(|color| {
+                tmp.clone()
+                    .filter(|cell| {
+                        let cell = cell.map(|c| i32_to_u32_offset(c) & 1);
+                        cell.x | (cell.y << 1) | (cell.z << 2) == color
+                    })
+                    .count()
+            })
+            .collect::<Vec<_>>();
+        println!("actual counts: {counts:?}");
+    }
+
     let (limits, indirect, cells_out) =
         run_color_cells_2(workgroup_size, dispatch_limit, &limits, &indirect, cells_in);
 
