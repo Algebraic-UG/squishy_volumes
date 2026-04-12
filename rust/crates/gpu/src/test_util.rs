@@ -8,7 +8,7 @@
 
 use std::sync::Mutex;
 
-use crate::{GpuContext, MAX_NUM_PARTICLES};
+use crate::{GpuContext, MAX_NUM_PARTICLES, find_x_y_z_simple};
 
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
@@ -25,6 +25,7 @@ lazy_static! {
 // Given that the workgroup size is a multiple of the subgroup size, there can be subgroups
 // that are entirely out of bounds.
 pub fn count_subkeys_on_cpu(
+    dispatch_limit: u32,
     bit_count: u32,
     bit_offset: u32,
     workgroup_size: u32,
@@ -32,15 +33,15 @@ pub fn count_subkeys_on_cpu(
     indices: &[u32],
     keys: &[u32],
 ) -> Vec<u32> {
-    use crate::find_x_y_z;
-
     let counter_count = 1 << bit_count;
     let mask = counter_count - 1;
 
     // this part calculates how many counters there will be
     let subgroups_per_workgroup = workgroup_size / subgroup_size;
     let workgroup_count = (keys.len() as u32).div_ceil(workgroup_size);
-    let actual_workgroup_count = find_x_y_z(workgroup_count).into_iter().product::<u32>();
+    let actual_workgroup_count = find_x_y_z_simple(dispatch_limit, workgroup_count)
+        .into_iter()
+        .product::<u32>();
     let num_subgroups = actual_workgroup_count * subgroups_per_workgroup;
     let num_counter = num_subgroups * counter_count;
 

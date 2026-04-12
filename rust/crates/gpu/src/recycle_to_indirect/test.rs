@@ -18,7 +18,15 @@ fn test_simple() {
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
     let indices: Vec<_> = (0..keys.len() as u32).collect();
-    let counts = count_subkeys_on_cpu(3, 0, 64, subgroup_size, &indices, &keys);
+    let counts = count_subkeys_on_cpu(
+        dispatch_limit,
+        3,
+        0,
+        workgroup_size,
+        subgroup_size,
+        &indices,
+        &keys,
+    );
     let prefixes = prefix_sum_on_cpu(&counts);
 
     let counts = (0..8)
@@ -39,7 +47,12 @@ fn test_simple() {
 
     assert_eq!(
         (limits, indirect),
-        run_recycle_to_indirect(workgroup_size, dispatch_limit, &prefixes),
+        run_recycle_to_indirect(
+            workgroup_size,
+            dispatch_limit,
+            &[keys.len() as u32; 8],
+            &prefixes
+        ),
     );
 }
 
@@ -55,7 +68,15 @@ fn test_random() {
         .take(10000)
         .collect();
     let indices: Vec<_> = (0..keys.len() as u32).collect();
-    let counts = count_subkeys_on_cpu(3, 0, 64, subgroup_size, &indices, &keys);
+    let counts = count_subkeys_on_cpu(
+        dispatch_limit,
+        3,
+        0,
+        workgroup_size,
+        subgroup_size,
+        &indices,
+        &keys,
+    );
     let prefixes = prefix_sum_on_cpu(&counts);
 
     let counts = (0..8)
@@ -76,13 +97,19 @@ fn test_random() {
 
     assert_eq!(
         (limits, indirect),
-        run_recycle_to_indirect(workgroup_size, dispatch_limit, &prefixes),
+        run_recycle_to_indirect(
+            workgroup_size,
+            dispatch_limit,
+            &[keys.len() as u32; 8],
+            &prefixes
+        ),
     );
 }
 
 fn run_recycle_to_indirect(
     workgroup_size: u32,
     dispatch_limit: u32,
+    limits: &[u32],
     prefix_sums: &[u32],
 ) -> (Vec<u32>, Vec<u32>) {
     let context = SHARED_CONTEXT.lock().unwrap();
@@ -100,7 +127,7 @@ fn run_recycle_to_indirect(
         &context,
         RecycleToIndirectBufferInput {
             prefix_sums,
-            limits: &[prefix_sums.len() as u32; 8],
+            limits,
         },
     );
 

@@ -226,7 +226,7 @@ impl PipelinePart for Reorder {
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
 
         let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
-        let [x, y, z] = find_x_y_z(workgroup_count);
+        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
         compute_pass.dispatch_workgroups(x, y, z);
     }
 }
@@ -235,7 +235,9 @@ impl Reorder {
     pub fn min_prefixes(&self, key_count: u32) -> u32 {
         let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
         let workgroup_count = key_count.div_ceil(self.workgroup_size);
-        let actual_workgroup_count = find_x_y_z(workgroup_count).into_iter().product::<u32>();
+        let actual_workgroup_count = find_x_y_z_simple(u16::MAX as u32, workgroup_count)
+            .into_iter()
+            .product::<u32>();
         actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
     }
 }

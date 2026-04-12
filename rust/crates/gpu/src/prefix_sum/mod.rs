@@ -220,7 +220,7 @@ impl PipelinePart for PrefixSum {
             let element_count = element_count.div_ceil(self.subgroup_size.pow(level));
 
             let workgroup_count = element_count.div_ceil(self.workgroup_size) as u32;
-            let [x, y, z] = find_x_y_z(workgroup_count);
+            let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
             tracing::info!(level, element_count, x, y, z);
 
             compute_pass.set_immediates(0, bytemuck::bytes_of(&stride));
@@ -232,7 +232,7 @@ impl PipelinePart for PrefixSum {
         compute_pass.set_immediates(0, bytemuck::bytes_of(&max_level));
 
         let workgroup_count = element_count.div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z(workgroup_count);
+        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
         compute_pass.dispatch_workgroups(x, y, z);
     }
 }

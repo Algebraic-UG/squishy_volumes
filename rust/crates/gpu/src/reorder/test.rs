@@ -20,6 +20,7 @@ fn test_simple() {
     shuffle(&mut indices, 5);
 
     let counts = count_subkeys_on_cpu(
+        u16::MAX as u32,
         bit_count,
         bit_offset,
         workgroup_size,
@@ -60,6 +61,7 @@ fn test_random() {
     shuffle(&mut indices, 6);
 
     let counts = count_subkeys_on_cpu(
+        u16::MAX as u32,
         bit_count,
         bit_offset,
         workgroup_size,

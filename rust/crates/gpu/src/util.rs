@@ -115,6 +115,7 @@ lazy_static! {
     };
 }
 
+/*
 pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
     for offset in 0..4 {
         let workgroup_count = workgroup_count + offset;
@@ -144,7 +145,7 @@ pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
     }
 
     xyz
-}
+}*/
 
 pub fn find_x_y_z_simple(limit: u32, workgroup_count: u32) -> [u32; 3] {
     [

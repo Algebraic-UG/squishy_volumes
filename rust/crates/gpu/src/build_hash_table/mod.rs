@@ -159,7 +159,7 @@ impl PipelinePart for BuildHashTable {
         compute_pass.set_bind_group(0, &bind_group, &[]);
 
         let workgroup_count = cell_count.get().div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z(workgroup_count);
+        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
         compute_pass.dispatch_workgroups(x, y, z);
     }
 }

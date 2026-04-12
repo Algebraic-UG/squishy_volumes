@@ -21,6 +21,7 @@ fn test_simple() {
 
     assert_eq!(
         count_subkeys_on_cpu(
+            u16::MAX as u32,
             bit_count,
             bit_offset,
             workgroup_size,
@@ -45,6 +46,7 @@ fn test_simple_with_offset() {
 
     assert_eq!(
         count_subkeys_on_cpu(
+            u16::MAX as u32,
             bit_count,
             bit_offset,
             workgroup_size,
@@ -69,6 +71,7 @@ fn test_larger() {
 
     assert_eq!(
         count_subkeys_on_cpu(
+            u16::MAX as u32,
             bit_count,
             bit_offset,
             workgroup_size,
@@ -99,6 +102,7 @@ fn test_random() {
     for bit_offset in 0..5 {
         assert_eq!(
             count_subkeys_on_cpu(
+                u16::MAX as u32,
                 bit_count,
                 bit_offset,
                 workgroup_size,
