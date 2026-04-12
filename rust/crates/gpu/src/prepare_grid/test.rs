@@ -115,6 +115,7 @@ fn run_prepare_grid(
 
     let workgroup_size = 64;
     let bit_count = 2;
+    let dispatch_limit = u16::MAX as u32;
 
     let prefix_sum = PrefixSumSettings { workgroup_size };
     let sort_positions_into_cells = SortPositionsIntoCellsSettings {
@@ -145,10 +146,12 @@ fn run_prepare_grid(
     };
     let offsets_to_indirect = OffsetsToIndirectSettings {
         workgroup_size,
-        dispatch_limit: u16::MAX as u32,
+        dispatch_limit,
     };
-    let generate_indices = GenerateIndicesSettings { workgroup_size };
-    let color_cells = ColorCellsSettings { workgroup_size };
+    let color_cells = ColorCells2Settings {
+        workgroup_size,
+        dispatch_limit,
+    };
     let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
     let allocate_blocks = AllocateBlocksSettings {
         workgroup_size,
@@ -164,7 +167,6 @@ fn run_prepare_grid(
             prefix_sum,
             build_cells,
             offsets_to_indirect,
-            generate_indices,
             color_cells,
             build_hash_table_colors,
             allocate_blocks,

@@ -15,15 +15,12 @@
 var<storage, read> cells: array<vec3<i32>>;
 
 @group(0) @binding(1)
-var<storage, read> indices: array<u32>;
-
-@group(0) @binding(2)
 var<storage, read> limits: array<u32>;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> slots: array<atomic<u32>>;
 
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> owns: array<u32>;
 
 var<immediate> color: u32;
@@ -119,8 +116,7 @@ fn main(
     if global_index >= limits[color] {
         return;
     }
-    let index = indices[global_index];
-    let cell = cells[index];
+    let cell = cells[global_index];
 
     // table length must be a power of two
     let table_mask = arrayLength(&slots) - 1;
@@ -128,7 +124,7 @@ fn main(
     var own = 0u;
     for (var block = 0u; block < 8; block++) {
         let offset_cell = cell + block_offset(block);
-        let block_and_index = (block << 29) | (index + 1);
+        let block_and_index = (block << 29) | (global_index + 1);
 
         let hash = murmur_of_cell(offset_cell);
 
@@ -159,6 +155,6 @@ fn main(
         }
     }
 
-    owns[index] = own;
+    owns[global_index] = own;
 }
 

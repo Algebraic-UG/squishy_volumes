@@ -29,14 +29,14 @@ fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
         .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
         .collect::<Vec<_>>();
 
-    let mut indices: Vec<u32> = (0..cells.len() as u32).collect();
-    indices.sort_by_key(|index| colorkeys[*index as usize]);
+    let mut cells: Vec<(usize, &Vector4<i32>)> = cells.iter().enumerate().collect();
+    cells.sort_by_key(|(index, _)| colorkeys[*index as usize]);
+    let (_, cells): (Vec<_>, Vec<_>) = cells.into_iter().unzip();
 
     let (slots, owns) = run_build_hash_table_colors(
         workgroup_size,
         BuildHashTableColorsBufferInput {
             cells: &cells,
-            indices: &indices,
             limits: &limits,
             indirect: &indirect,
         },
@@ -45,7 +45,7 @@ fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
     println!("{slots:?}");
     println!("{owns:?}");
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
-    for cell in cells {
+    for cell in &cells {
         for x in 0..2 {
             for y in 0..2 {
                 for z in 0..2 {
