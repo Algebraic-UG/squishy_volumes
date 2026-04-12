@@ -96,8 +96,13 @@ fn run_recycle_to_indirect(
         },
     );
 
-    let buffers =
-        recycle_to_indirect.create_buffers(&context, RecycleToIndirectBufferInput { prefix_sums });
+    let buffers = recycle_to_indirect.create_buffers(
+        &context,
+        RecycleToIndirectBufferInput {
+            prefix_sums,
+            limits: &[prefix_sums.len() as u32; 8],
+        },
+    );
 
     let download_limits_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("download_limits"),

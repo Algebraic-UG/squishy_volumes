@@ -37,7 +37,13 @@ fn main(
         return;
     }
 
-    let stride = arrayLength(&prefix_sums) / 8;
+    var len = 0u;
+    if global_index == 0 {
+        len = limits[0];
+    }
+    len = subgroupBroadcast(len, 0u);
+
+    let stride = len / 8;
     let index = stride - 1 + global_index * stride;
 
     var start = 0u;

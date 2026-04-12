@@ -23,6 +23,7 @@ pub struct RecycleToIndirectSettings {
 }
 
 pub struct RecycleToIndirectBufferInput<'a> {
+    pub limits: &'a [u32],
     pub prefix_sums: &'a [u32],
 }
 
@@ -117,7 +118,10 @@ impl PipelinePart for RecycleToIndirect {
     fn create_buffers<'a>(
         &self,
         context: &GpuContext,
-        Self::BufferInput { prefix_sums }: Self::BufferInput<'a>,
+        Self::BufferInput {
+            limits,
+            prefix_sums,
+        }: Self::BufferInput<'a>,
     ) -> Self::Buffers {
         assert!(prefix_sums.len().is_multiple_of(8));
 
@@ -127,17 +131,15 @@ impl PipelinePart for RecycleToIndirect {
             contents: bytemuck::cast_slice(prefix_sums),
             usage: wgpu::BufferUsages::STORAGE,
         });
+        let limits = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("limits"),
+            contents: bytemuck::cast_slice(limits),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        });
 
         let indirect = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("indirect"),
             size: 8 * 3 * u32::MIN_BINDING_SIZE.get(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        let limits = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("limits"),
-            size: 8 * u32::MIN_BINDING_SIZE.get(),
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
