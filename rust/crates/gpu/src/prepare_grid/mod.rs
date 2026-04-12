@@ -23,8 +23,7 @@ pub struct PrepareGrid {
     prefix_sum: PrefixSum,
     build_cells: BuildCells,
     offsets_to_indirect: OffsetsToIndirect,
-    generate_indices: GenerateIndices,
-    color_cells: ColorCells,
+    color_cells: ColorCells2,
     build_hash_table_colors: BuildHashTableColors,
     allocate_blocks: AllocateBlocks,
 }
@@ -36,8 +35,7 @@ pub struct PrepareGridSettings {
     pub prefix_sum: PrefixSumSettings,
     pub build_cells: BuildCellsSettings,
     pub offsets_to_indirect: OffsetsToIndirectSettings,
-    pub generate_indices: GenerateIndicesSettings,
-    pub color_cells: ColorCellsSettings,
+    pub color_cells: ColorCells2Settings,
     pub build_hash_table_colors: BuildHashTableColorsSettings,
     pub allocate_blocks: AllocateBlocksSettings,
 }
@@ -173,7 +171,6 @@ impl PipelinePart for PrepareGrid {
             prefix_sum,
             build_cells,
             offsets_to_indirect,
-            generate_indices,
             color_cells,
             build_hash_table_colors,
             allocate_blocks,
@@ -189,8 +186,7 @@ impl PipelinePart for PrepareGrid {
             prefix_sum: PrefixSum::new(context, prefix_sum),
             build_cells: BuildCells::new(context, build_cells),
             offsets_to_indirect: OffsetsToIndirect::new(context, offsets_to_indirect),
-            generate_indices: GenerateIndices::new(context, generate_indices),
-            color_cells: ColorCells::new(context, color_cells),
+            color_cells: ColorCells2::new(context, color_cells),
             build_hash_table_colors: BuildHashTableColors::new(context, build_hash_table_colors),
             allocate_blocks: AllocateBlocks::new(context, allocate_blocks),
         }
@@ -360,17 +356,6 @@ impl PipelinePart for PrepareGrid {
             compute_pass,
             OffsetsToIndirectBufferBindings {
                 prefix_sums: particle_indices.borrow().front(),
-                limits: limits.clone(),
-                indirect: indirect.clone(),
-            },
-            (),
-        );
-
-        self.generate_indices.compute_in_pass(
-            context,
-            compute_pass,
-            GenerateIndicesBufferBindings {
-                indices: cell_indices.borrow().front(),
                 limits: limits.clone(),
                 indirect: indirect.clone(),
             },
