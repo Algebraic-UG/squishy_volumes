@@ -29,15 +29,8 @@ fn div_ceil(left: u32, right: u32) -> u32 {
     return 1 + ((left - 1) / right);
 }
 
-@compute @workgroup_size(WORKGROUP_SIZE)
-fn main(
-    @builtin(subgroup_size) subgroup_size: u32,
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
-) {
-    if any(global_invocation_id != vec3u(0)) {
-        return;
-    }
-
+@compute @workgroup_size(1)
+fn main() {
     // size cannot be zero.
     let last = arrayLength(&prefix_sums) - 1;
 
