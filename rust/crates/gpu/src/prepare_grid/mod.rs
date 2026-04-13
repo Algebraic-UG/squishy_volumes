@@ -231,7 +231,7 @@ impl PipelinePart for PrepareGrid {
         let_buffer!(device, cell_counts<u32>(cell_counts_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_prefix_sums<u32>(cell_counts_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_index_ranges<u32>(cell_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, cell_owns<u32>(cell_n, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, cell_owns<u32>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
 
         let_buffer!(device, indirect<u32>(8 * 3, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::INDIRECT));
         let_buffer!(device, limits<u32>(8, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));

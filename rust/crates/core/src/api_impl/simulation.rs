@@ -9,9 +9,16 @@
 use std::{num::NonZero, path::PathBuf, sync::Arc};
 
 use anyhow::{Result, ensure};
+use nalgebra::{Vector3, Vector4};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
-use squishy_volumes_gpu::{GpuContext, GpuError};
+use squishy_volumes_gpu::{
+    AllocateBlocksSettings, BuildCellsSettings, BuildHashTableColorsSettings, ColorCells2Settings,
+    CountSubkeysSettings, DownloadsToHost, FindCellBoundariesSettings, GpuContext, GpuError,
+    OffsetsToIndirectSettings, PermutePositionsSettings, PipelinePart, PositionsToKeysSettings,
+    PrefixSumSettings, PrepareGrid, PrepareGridBufferInput, PrepareGridSettings, RadixSortSettings,
+    ReorderSettings, SortPositionsIntoCellsSettings, block_offset, wgpu,
+};
 use tracing::{info, warn};
 
 use crate::{
@@ -22,7 +29,10 @@ use crate::{
     input_file::{InputHeader, InputReader},
     math::flat::Flat3,
     simulation_input_path,
-    state::attributes::{Attribute, AttributeConst},
+    state::{
+        State,
+        attributes::{Attribute, AttributeConst},
+    },
     stats::{ComputeStats, Stats},
 };
 
@@ -150,8 +160,145 @@ impl Simulation for SimulationImpl {
         info!("drop checks");
         self.cache.drop_frames(next_frame)?;
         info!("input checks");
-        let input_reader =
+        let mut input_reader =
             InputReader::new(simulation_input_path(self.directory_lock.directory()))?;
+
+        if gpu && let Ok(context) = self.gpu_context.as_ref() {
+            let cell_size = self.input_header.consts.scaled_grid_node_size() * 2.;
+            let mut state = State::new(input_reader.read_header()?, input_reader.read_frame(0)?)?;
+            let positions: Vec<Vector4<f32>> = state
+                .particles
+                .positions
+                .iter()
+                .map(|p| p.push(0.))
+                .collect();
+            let indices: Vec<u32> = (0..positions.len() as u32).collect();
+
+            let device = context.device();
+            let workgroup_size = 64;
+            let bit_count = 2;
+            let dispatch_limit = u16::MAX as u32;
+
+            let prefix_sum = PrefixSumSettings { workgroup_size };
+            let sort_positions_into_cells = SortPositionsIntoCellsSettings {
+                positions_to_keys: PositionsToKeysSettings {
+                    workgroup_size,
+                    cell_size,
+                },
+                radix_sort: RadixSortSettings {
+                    count_subkeys: CountSubkeysSettings {
+                        workgroup_size,
+                        bit_count,
+                    },
+                    prefix_sum,
+                    reorder: ReorderSettings {
+                        workgroup_size,
+                        bit_count,
+                    },
+                },
+            };
+            let permute_positions = PermutePositionsSettings { workgroup_size };
+            let find_cell_boundaries = FindCellBoundariesSettings {
+                workgroup_size,
+                cell_size,
+            };
+            let build_cells = BuildCellsSettings {
+                workgroup_size,
+                cell_size,
+            };
+            let offsets_to_indirect = OffsetsToIndirectSettings {
+                workgroup_size,
+                dispatch_limit,
+            };
+            let color_cells = ColorCells2Settings {
+                workgroup_size,
+                dispatch_limit,
+            };
+            let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
+            let allocate_blocks = AllocateBlocksSettings {
+                workgroup_size,
+                prefix_sum,
+            };
+
+            let prepare_grid = PrepareGrid::new(
+                &context,
+                PrepareGridSettings {
+                    sort_positions_into_cells,
+                    permute_positions,
+                    find_cell_boundaries,
+                    prefix_sum,
+                    build_cells,
+                    offsets_to_indirect,
+                    color_cells,
+                    build_hash_table_colors,
+                    allocate_blocks,
+                },
+            );
+
+            let buffers = prepare_grid.create_buffers(
+                context,
+                PrepareGridBufferInput {
+                    positions: &positions,
+                    indices: &indices,
+                },
+            );
+            let downloads = DownloadsToHost::new(
+                context,
+                [
+                    (&buffers.cell_ids_out, "cell_ids_out"),
+                    (&buffers.cell_owns, "cell_owns"),
+                    (&buffers.limits, "limits"),
+                ],
+            );
+
+            let mut encoder = context.device().create_command_encoder(&Default::default());
+            let mut compute_pass = encoder.begin_compute_pass(&Default::default());
+
+            prepare_grid.compute_in_pass(context, &mut compute_pass, (&buffers).into(), ());
+            drop(compute_pass);
+            downloads.copy(&mut encoder);
+
+            context.queue().submit([encoder.finish()]);
+
+            let downloads = downloads.prep();
+
+            device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+
+            let [cell_ids_out, cell_owns, limits] = downloads.try_into().unwrap();
+            let cell_ids_out: Vec<Vector4<i32>> = cell_ids_out.to_vec();
+            let cell_owns: Vec<u32> = cell_owns.to_vec();
+            let limits: Vec<u32> = limits.to_vec();
+            let cell_count = *limits.last().unwrap() as usize;
+
+            //info!(?cell_ids_out, ?cell_owns, ?limits);
+
+            for (id, own) in cell_ids_out.into_iter().zip(cell_owns).take(cell_count) {
+                for block in 0..8 {
+                    if own & (1 << block) == 0 {
+                        continue;
+                    }
+
+                    let node_id = (id + block_offset(block)).xyz() * 2 - Vector3::repeat(1);
+                    for x in 0..2 {
+                        for z in 0..2 {
+                            for y in 0..2 {
+                                ensure!(
+                                    state
+                                        .grid_momentum
+                                        .map
+                                        .insert(node_id + Vector3::new(x, y, z), 0)
+                                        .is_none()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.cache.store_frame(state)?;
+            info!("byee");
+            return Ok(());
+        }
 
         info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {

@@ -87,8 +87,8 @@ impl ComputeThread {
                 let mut current_state = if next_frame == 0 {
                     info!("creating initial state");
                     let state = State::new(
-                        run.clone(),
-                        frame_report.clone(),
+                        //run.clone(),
+                        //frame_report.clone(),
                         input_reader.read_header()?,
                         input_reader.read_frame(0)?,
                     )?;

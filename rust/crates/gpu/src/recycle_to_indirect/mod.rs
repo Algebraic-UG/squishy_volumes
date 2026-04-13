@@ -163,11 +163,6 @@ impl PipelinePart for RecycleToIndirect {
         _: Self::Parameters,
     ) {
         let device = context.device();
-        assert!(
-            elements_in_binding::<u32>(&prefix_sums)
-                .get()
-                .is_multiple_of(8)
-        );
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: self.compiled_module.label,
