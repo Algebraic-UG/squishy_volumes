@@ -200,6 +200,8 @@ impl PipelinePart for PrepareGrid {
             .sort_positions_into_cells
             .min_counts_and_prefixes(particle_n);
 
+        let cell_counts_n = self.color_cells.min_counts_and_prefixes(cell_n).max(cell_n);
+
         let block_table_n = self.build_hash_table_colors.max_table(cell_n);
 
         let device = context.device();
@@ -224,15 +226,15 @@ impl PipelinePart for PrepareGrid {
         let_buffer!(device, particle_cell_boundaries<u32>(particle_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, particle_cell_indices<u32>(particle_n, wgpu::BufferUsages::STORAGE));
 
-        let_buffer!(device, cell_ids_in<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, cell_ids_in<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
         let_buffer!(device, cell_ids_out<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-        let_buffer!(device, cell_counts<u32>(cell_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, cell_prefix_sums<u32>(cell_n, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, cell_counts<u32>(cell_counts_n, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, cell_prefix_sums<u32>(cell_counts_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_index_ranges<u32>(cell_n, wgpu::BufferUsages::STORAGE));
         let_buffer!(device, cell_owns<u32>(cell_n, wgpu::BufferUsages::STORAGE));
 
-        let_buffer!(device, indirect<u32>(8 * 3, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDIRECT));
-        let_buffer!(device, limits<u32>(8, wgpu::BufferUsages::STORAGE));
+        let_buffer!(device, indirect<u32>(8 * 3, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::INDIRECT));
+        let_buffer!(device, limits<u32>(8, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
 
         let_buffer!(device, block_table<AtomicU32>(block_table_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
 

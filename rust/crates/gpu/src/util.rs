@@ -72,7 +72,7 @@ impl<'a> DoubleBuffer<'a> {
         assert_eq!(binding_size(&front), binding_size(&back));
 
         Self {
-            swapped: false.into(),
+            swapped: false,
             front,
             back,
         }

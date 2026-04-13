@@ -142,7 +142,7 @@ impl PipelinePart for AllocateBlocks {
         _: Self::Parameters,
     ) {
         let owns_count = elements_in_binding::<u32>(&owns);
-        assert!(owns_count == elements_in_binding::<u32>(&prefix_sum.numbers));
+        assert!(owns_count <= elements_in_binding::<u32>(&prefix_sum.numbers));
 
         let device = context.device();
 
