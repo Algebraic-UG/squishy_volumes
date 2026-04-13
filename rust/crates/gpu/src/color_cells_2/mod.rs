@@ -10,13 +10,14 @@
 mod test;
 
 use nalgebra::Vector4;
-use wgpu::{util::DeviceExt as _, wgc::device::WaitIdleError};
+use wgpu::util::DeviceExt as _;
 
 use super::*;
 
 pub struct ColorCells2 {
     workgroup_size: u32,
     subgroup_size: u32,
+    dispatch_limit: u32,
     count_colors: CompiledModule,
     prefix_sum: PrefixSum,
     finalize_colors: CompiledModule,
@@ -189,6 +190,7 @@ impl PipelinePart for ColorCells2 {
         Self {
             workgroup_size,
             subgroup_size,
+            dispatch_limit,
             count_colors,
             prefix_sum,
             finalize_colors,
@@ -333,10 +335,10 @@ impl PipelinePart for ColorCells2 {
 }
 
 impl ColorCells2 {
-    pub fn min_counts_and_prefixes(&self, dispatch_limit: u32, cell_count: u32) -> u32 {
+    pub fn min_counts_and_prefixes(&self, cell_count: u32) -> u32 {
         let workgroup_count = cell_count.div_ceil(self.workgroup_size);
         self.min_counts_and_prefixes_given_indirect(&find_x_y_z_simple(
-            dispatch_limit,
+            self.dispatch_limit,
             workgroup_count,
         ))
     }
