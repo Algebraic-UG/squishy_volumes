@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+pub use wgpu;
+
 mod allocate_blocks;
 mod build_cells;
 mod build_hash_table;
