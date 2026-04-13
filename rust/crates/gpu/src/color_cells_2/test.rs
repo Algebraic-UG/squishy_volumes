@@ -6,15 +6,18 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat;
+
 use super::*;
 
 fn check(workgroup_size: u32, dispatch_limit: u32, cells_in: &[Vector4<i32>], limit: u32) {
-    let limits = [limit; 8];
+    let limits = [limit, 0, 0, 0, 0, 0, 0, 0];
     let indirect = find_x_y_z_simple(dispatch_limit, limit.div_ceil(workgroup_size))
         .into_iter()
-        .cycle()
+        .chain(repeat(0))
         .take(8 * 3)
         .collect::<Vec<_>>();
+    println!("limit: {limits:?}");
     println!("indirect: {indirect:?}");
 
     {
@@ -26,16 +29,30 @@ fn check(workgroup_size: u32, dispatch_limit: u32, cells_in: &[Vector4<i32>], li
                         let cell = cell.map(|c| i32_to_u32_offset(c) & 1);
                         cell.x | (cell.y << 1) | (cell.z << 2) == color
                     })
-                    .count()
+                    .count() as u32
             })
             .collect::<Vec<_>>();
-        println!("actual counts: {counts:?}");
+        println!("counts: {counts:?}");
+        let limits: Vec<_> = counts
+            .iter()
+            .scan(0, |prefix_sum, item| {
+                *prefix_sum += item;
+                Some(*prefix_sum)
+            })
+            .collect();
+        println!("limits: {limits:?}");
+        let indirect: Vec<_> = counts
+            .iter()
+            .map(|count| find_x_y_z_simple(limit, count.div_ceil(workgroup_size)))
+            .collect();
+        println!("indirect: {indirect:?}");
     }
 
     let (limits, indirect, cells_out) =
         run_color_cells_2(workgroup_size, dispatch_limit, &limits, &indirect, cells_in);
 
-    println!("{limits:?} {indirect:?}");
+    println!("(GPU) limit: {limits:?}");
+    println!("(GPU) indirect: {indirect:?}");
 
     let mut start = 0;
     for color in 0..8 {
@@ -185,6 +202,7 @@ fn run_color_cells_2(
             (&buffers.limits, "limits"),
             (&buffers.indirect, "indirect"),
             (&buffers.counts, "counts"),
+            (&buffers.prefix_sums, "prefix_sums"),
             (&buffers.cells_out, "cells_out"),
         ],
     );
@@ -203,9 +221,10 @@ fn run_color_cells_2(
 
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
-    let [limits, indirect, counts, cells_out] = dowloads.try_into().unwrap();
+    let [limits, indirect, counts, prefix_sums, cells_out] = dowloads.try_into().unwrap();
 
-    println!("{:?}", counts.to_vec::<u32>());
+    println!("(GPU) counts {:?}", counts.to_vec::<u32>());
+    println!("(GPU) prefix_sums {:?}", prefix_sums.to_vec::<u32>());
 
     (limits.to_vec(), indirect.to_vec(), cells_out.to_vec())
 }

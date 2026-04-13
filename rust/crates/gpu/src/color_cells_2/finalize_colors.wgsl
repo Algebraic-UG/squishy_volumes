@@ -48,15 +48,20 @@ fn main(
 
     let counter_end = 1u << BIT_COUNT;
 
+    // these need to be reordered
     var cell = vec3i(0);
     if global_index_valid {
         cell = cells_in[global_index];
     }
+
+    // we reorder by this value
     var key = 0u;
     key |= (i32_to_ordered_u32(cell.z) & 1) << 0;
     key |= (i32_to_ordered_u32(cell.y) & 1) << 1;
     key |= (i32_to_ordered_u32(cell.x) & 1) << 2;
 
+    // this invocation loads the global offset of the respective key value
+    // which might be different from the key above
     let subgroup_index = global_index / subgroup_size;
     let total_num_subgroups = num_subgroups * num_workgroups.x * num_workgroups.y * num_workgroups.z;
     let count_index = total_num_subgroups * subgroup_invocation_id + subgroup_index;

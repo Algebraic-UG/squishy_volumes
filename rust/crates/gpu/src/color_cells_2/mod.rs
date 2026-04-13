@@ -10,11 +10,13 @@
 mod test;
 
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
+use wgpu::{util::DeviceExt as _, wgc::device::WaitIdleError};
 
 use super::*;
 
 pub struct ColorCells2 {
+    workgroup_size: u32,
+    subgroup_size: u32,
     count_colors: CompiledModule,
     prefix_sum: PrefixSum,
     finalize_colors: CompiledModule,
@@ -185,6 +187,8 @@ impl PipelinePart for ColorCells2 {
         );
 
         Self {
+            workgroup_size,
+            subgroup_size,
             count_colors,
             prefix_sum,
             finalize_colors,
@@ -203,6 +207,8 @@ impl PipelinePart for ColorCells2 {
     ) -> Self::Buffers {
         let device = context.device();
         let n = cells.len();
+        let count_n =
+            self.min_counts_and_prefixes_given_indirect(&indirect[0..3].try_into().unwrap());
 
         let cells_in = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("cells_in"),
@@ -225,8 +231,9 @@ impl PipelinePart for ColorCells2 {
         });
 
         let_buffer!(device, cells_out<Vector4<i32>>(n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-        let_buffer!(device, counts<u32>(n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-        let_buffer!(device, prefix_sums<u32>(n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+
+        let_buffer!(device, counts<u32>(count_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
+        let_buffer!(device, prefix_sums<u32>(count_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
 
         Self::Buffers {
             cells_in,
@@ -322,5 +329,21 @@ impl PipelinePart for ColorCells2 {
             },
             (),
         );
+    }
+}
+
+impl ColorCells2 {
+    pub fn min_counts_and_prefixes(&self, dispatch_limit: u32, cell_count: u32) -> u32 {
+        let workgroup_count = cell_count.div_ceil(self.workgroup_size);
+        self.min_counts_and_prefixes_given_indirect(&find_x_y_z_simple(
+            dispatch_limit,
+            workgroup_count,
+        ))
+    }
+
+    pub fn min_counts_and_prefixes_given_indirect(&self, indirect: &[u32; 3]) -> u32 {
+        let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
+        let actual_workgroup_count = indirect.iter().product::<u32>();
+        actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(3)
     }
 }
