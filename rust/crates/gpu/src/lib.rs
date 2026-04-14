@@ -9,6 +9,7 @@
 pub use wgpu;
 
 mod allocate_blocks;
+mod allocator;
 mod build_cells;
 mod build_hash_table;
 mod build_hash_table_colors;
@@ -34,6 +35,7 @@ mod sort_positions_into_cells;
 mod util;
 
 pub use allocate_blocks::*;
+pub use allocator::*;
 pub use build_cells::*;
 pub use build_hash_table::*;
 pub use build_hash_table_colors::*;

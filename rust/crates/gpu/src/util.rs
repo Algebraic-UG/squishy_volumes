@@ -33,6 +33,7 @@ pub fn binding_size(binding: &wgpu::BufferBinding) -> NonZeroU64 {
 
 pub trait AllowedInBinding: Sized {
     const MIN_BINDING_SIZE: NonZeroU64 = NonZeroU64::new(size_of::<Self>() as u64).unwrap();
+    const ALIGNMENT: NonZeroU64 = NonZeroU64::new(size_of::<Self>() as u64).unwrap();
 }
 
 impl AllowedInBinding for u32 {}
