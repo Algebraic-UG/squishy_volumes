@@ -9,6 +9,7 @@
 use lazy_static::lazy_static;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
+use std::collections::HashSet;
 use std::io::Cursor;
 use std::iter::once;
 use std::num::{NonZeroU32, NonZeroU64};
@@ -292,7 +293,7 @@ pub fn gpu_grid_to_cpu_grid(
             (0..8)
                 .filter(move |block| cell_own & (1 << block) > 0)
                 .flat_map(move |block| {
-                    let node_id = (cell_id + block_offset(block)) * 2 - Vector4::repeat(1);
+                    let node_id = (cell_id + block_offset(block)) * 2 - Vector4::new(1, 1, 1, 0);
                     (0..2).flat_map(move |x| {
                         (0..2).flat_map(move |y| {
                             (0..2).map(move |z| node_id + Vector4::new(x, y, z, 0))
@@ -301,4 +302,22 @@ pub fn gpu_grid_to_cpu_grid(
                 })
         })
         .collect()
+}
+
+pub fn grid_on_cpu(
+    cell_size: f32,
+    indices: &[u32],
+    positions: &[Vector4<f32>],
+) -> Vec<Vector4<i32>> {
+    let mut nodes: HashSet<Vector4<i32>> = Default::default();
+    for position in indices.iter().map(|index| positions[*index as usize]) {
+        let cell_id = position.map(|c| (c / cell_size).floor() as i32);
+        for block in 0..8 {
+            let node_id = (cell_id + block_offset(block)) * 2 - Vector4::new(1, 1, 1, 0);
+            nodes.extend((0..2).flat_map(move |x| {
+                (0..2).flat_map(move |y| (0..2).map(move |z| node_id + Vector4::new(x, y, z, 0)))
+            }));
+        }
+    }
+    nodes.into_iter().collect()
 }

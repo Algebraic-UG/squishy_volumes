@@ -12,8 +12,9 @@ use squishy_volumes_gpu::{
     BuildHashTableSettings, ColorCells2Settings, CountSubkeysSettings, FindCellBoundariesSettings,
     OffsetsToIndirectSettings, PermutePositionsSettings, PositionsToKeysParameters,
     PositionsToKeysSettings, PrefixSumSettings, PrepareGridSettings, RadixSortSettings,
-    ReorderSettings, SortPositionsIntoCellsSettings, positions_to_keys_on_cpu, prefix_sum_on_cpu,
-    shuffle, sort_on_cpu, sort_positions_into_cells_on_cpu,
+    ReorderSettings, SortPositionsIntoCellsSettings, grid_on_cpu, i32_to_u32_offset,
+    positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle, sort_on_cpu,
+    sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
@@ -267,8 +268,8 @@ fn main() {
             let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
             let mut indices: Vec<u32> = (0..input.len() as u32).collect();
             shuffle(&mut indices, 42);
-            let output = match mode {
-                Mode::Cpu => todo!(),
+            let mut output = match mode {
+                Mode::Cpu => grid_on_cpu(cell_size, &indices, input),
                 Mode::Gpu => prepare_grid_on_gpu(
                     tool,
                     PrepareGridSettings {
@@ -286,6 +287,11 @@ fn main() {
                     &indices,
                 ),
             };
+            output.sort_by(|a, b| {
+                a.map(i32_to_u32_offset)
+                    .iter()
+                    .cmp(b.map(i32_to_u32_offset).iter())
+            });
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
     }
