@@ -9,7 +9,7 @@
 use std::{num::NonZero, path::PathBuf, sync::Arc};
 
 use anyhow::{Result, ensure};
-use nalgebra::{Vector3, Vector4};
+use nalgebra::Vector4;
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
 use squishy_volumes_gpu::{
@@ -17,7 +17,7 @@ use squishy_volumes_gpu::{
     CountSubkeysSettings, DownloadsToHost, FindCellBoundariesSettings, GpuContext, GpuError,
     OffsetsToIndirectSettings, PermutePositionsSettings, PipelinePart, PositionsToKeysSettings,
     PrefixSumSettings, PrepareGrid, PrepareGridBufferInput, PrepareGridSettings, RadixSortSettings,
-    ReorderSettings, SortPositionsIntoCellsSettings, block_offset, wgpu,
+    ReorderSettings, SortPositionsIntoCellsSettings, gpu_grid_to_cpu_grid, wgpu,
 };
 use tracing::{info, warn};
 
@@ -265,35 +265,17 @@ impl Simulation for SimulationImpl {
             device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
             let [cell_ids_out, cell_owns, limits] = downloads.try_into().unwrap();
-            let cell_ids_out: Vec<Vector4<i32>> = cell_ids_out.to_vec();
-            let cell_owns: Vec<u32> = cell_owns.to_vec();
-            let limits: Vec<u32> = limits.to_vec();
-            let cell_count = *limits.last().unwrap() as usize;
 
-            //info!(?cell_ids_out, ?cell_owns, ?limits);
-
-            for (id, own) in cell_ids_out.into_iter().zip(cell_owns).take(cell_count) {
-                for block in 0..8 {
-                    if own & (1 << block) == 0 {
-                        continue;
-                    }
-
-                    let node_id = (id + block_offset(block)).xyz() * 2 - Vector3::repeat(1);
-                    for x in 0..2 {
-                        for z in 0..2 {
-                            for y in 0..2 {
-                                ensure!(
-                                    state
-                                        .grid_momentum
-                                        .map
-                                        .insert(node_id + Vector3::new(x, y, z), 0)
-                                        .is_none()
-                                );
-                            }
-                        }
-                    }
-                }
+            let nodes = gpu_grid_to_cpu_grid(
+                &limits.to_vec(),
+                &cell_ids_out.to_vec(),
+                &cell_owns.to_vec(),
+            );
+            info!(num_nodes = nodes.len());
+            for node in nodes {
+                ensure!(state.grid_momentum.map.insert(node.xyz(), 0).is_none());
             }
+            info!(in_map = state.grid_momentum.map.len());
 
             self.cache.store_frame(state)?;
             info!("byee");

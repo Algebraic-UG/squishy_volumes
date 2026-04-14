@@ -278,3 +278,27 @@ pub fn block_offset(block: u32) -> Vector4<i32> {
         0,
     )
 }
+
+pub fn gpu_grid_to_cpu_grid(
+    limits: &[u32],
+    cell_ids: &[Vector4<i32>],
+    cell_owns: &[u32],
+) -> Vec<Vector4<i32>> {
+    cell_ids
+        .iter()
+        .zip(cell_owns)
+        .take(*limits.last().unwrap() as usize)
+        .flat_map(move |(cell_id, cell_own)| {
+            (0..8)
+                .filter(move |block| cell_own & (1 << block) > 0)
+                .flat_map(move |block| {
+                    let node_id = (cell_id + block_offset(block)) * 2 - Vector4::repeat(1);
+                    (0..2).flat_map(move |x| {
+                        (0..2).flat_map(move |y| {
+                            (0..2).map(move |z| node_id + Vector4::new(x, y, z, 0))
+                        })
+                    })
+                })
+        })
+        .collect()
+}
