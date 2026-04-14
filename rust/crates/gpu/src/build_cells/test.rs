@@ -11,7 +11,7 @@ use super::*;
 fn check(positions: &[Vector4<f32>], cells: &[Vector4<i32>], index_ranges: &[u32], cell_size: f32) {
     let mut index_start = 0;
     for (index_end, cell) in index_ranges.iter().zip(cells) {
-        for index in index_start..index_end + 1 {
+        for index in index_start..*index_end {
             println!("{index}");
             assert_eq!(
                 positions[index as usize].map(|c| (c / cell_size).floor() as i32),

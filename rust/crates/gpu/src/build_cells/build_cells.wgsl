@@ -47,5 +47,5 @@ fn main(
 
     let position = positions[global_index];
     cells[cell_index] = vec3i(floor(position / CELL_SIZE));
-    index_ranges[cell_index] = global_index;
+    index_ranges[cell_index] = global_index + 1;
 }
