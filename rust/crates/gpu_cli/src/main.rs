@@ -8,10 +8,12 @@ use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
 use squishy_volumes_gpu::{
-    BuildHashTableSettings, CountSubkeysSettings, PositionsToKeysParameters,
-    PositionsToKeysSettings, PrefixSumSettings, RadixSortSettings, ReorderSettings,
-    SortPositionsIntoCellsSettings, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
-    sort_on_cpu, sort_positions_into_cells_on_cpu,
+    AllocateBlocksSettings, BuildCellsSettings, BuildHashTableColorsSettings,
+    BuildHashTableSettings, ColorCells2Settings, CountSubkeysSettings, FindCellBoundariesSettings,
+    OffsetsToIndirectSettings, PermutePositionsSettings, PositionsToKeysParameters,
+    PositionsToKeysSettings, PrefixSumSettings, PrepareGridSettings, RadixSortSettings,
+    ReorderSettings, SortPositionsIntoCellsSettings, positions_to_keys_on_cpu, prefix_sum_on_cpu,
+    shuffle, sort_on_cpu, sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
@@ -20,13 +22,14 @@ use clap::{Parser, ValueEnum};
 
 use crate::{
     build_hash_table::build_hash_table_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
-    prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu,
-    sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+    prefix_sum::prefix_sum_on_gpu, prepare_grid::prepare_grid_on_gpu,
+    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
 mod build_hash_table;
 mod positions_to_keys;
 mod prefix_sum;
+mod prepare_grid;
 mod radix_sort;
 mod sort_positions_into_cells;
 mod window;
@@ -51,6 +54,7 @@ enum Task {
     PositionsToKeys,
     SortIntoCells,
     BuildHashTable,
+    PrepareGrid,
 }
 
 #[derive(Parser)]
@@ -131,7 +135,14 @@ fn main() {
                 out.write_all(bytemuck::cast_slice(&positions)).unwrap();
             }
             Task::BuildHashTable => {
-                let positions: Vec<Vector4<i32>> = (0..generate)
+                let cells: Vec<Vector4<i32>> = (0..generate)
+                    .map(|_| Vector4::new_random())
+                    .take(generate as usize)
+                    .collect();
+                out.write_all(bytemuck::cast_slice(&cells)).unwrap();
+            }
+            Task::PrepareGrid => {
+                let positions: Vec<Vector4<f32>> = (0..generate)
                     .map(|_| Vector4::new_random())
                     .take(generate as usize)
                     .collect();
@@ -144,26 +155,49 @@ fn main() {
 
     let input_bytes = read(input_file).unwrap();
 
+    let dispatch_limit = u16::MAX as u32;
     let cell_size = 1337.;
-    let prefix_sum_settings = PrefixSumSettings { workgroup_size };
-    let radix_sort_settings = RadixSortSettings {
-        count_subkeys_settings: CountSubkeysSettings {
+    let prefix_sum = PrefixSumSettings { workgroup_size };
+    let radix_sort = RadixSortSettings {
+        count_subkeys: CountSubkeysSettings {
             workgroup_size,
             bit_count,
         },
-        prefix_sum_settings,
-        reorder_settings: ReorderSettings {
+        prefix_sum,
+        reorder: ReorderSettings {
             workgroup_size,
             bit_count,
         },
     };
-    let positions_to_keys_settings = PositionsToKeysSettings {
+    let positions_to_keys = PositionsToKeysSettings {
         workgroup_size,
         cell_size,
     };
-    let sort_positions_into_cells_settings = SortPositionsIntoCellsSettings {
-        positions_to_keys_settings,
-        radix_sort_settings,
+    let sort_positions_into_cells = SortPositionsIntoCellsSettings {
+        positions_to_keys,
+        radix_sort,
+    };
+    let permute_positions = PermutePositionsSettings { workgroup_size };
+    let find_cell_boundaries = FindCellBoundariesSettings {
+        workgroup_size,
+        cell_size,
+    };
+    let build_cells = BuildCellsSettings {
+        workgroup_size,
+        cell_size,
+    };
+    let offsets_to_indirect = OffsetsToIndirectSettings {
+        workgroup_size,
+        dispatch_limit,
+    };
+    let color_cells = ColorCells2Settings {
+        workgroup_size,
+        dispatch_limit,
+    };
+    let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
+    let allocate_blocks = AllocateBlocksSettings {
+        workgroup_size,
+        prefix_sum,
     };
 
     let mut out = File::create(output_file).unwrap();
@@ -173,7 +207,7 @@ fn main() {
             let output = match task {
                 Task::Sum => match mode {
                     Mode::Cpu => prefix_sum_on_cpu(input),
-                    Mode::Gpu => prefix_sum_on_gpu(tool, prefix_sum_settings, input),
+                    Mode::Gpu => prefix_sum_on_gpu(tool, prefix_sum, input),
                 },
                 Task::Sort => {
                     let mut indices: Vec<u32> = (0..input.len() as u32).collect();
@@ -181,7 +215,7 @@ fn main() {
 
                     match mode {
                         Mode::Cpu => sort_on_cpu(&indices, input),
-                        Mode::Gpu => radix_sort_on_gpu(tool, radix_sort_settings, &indices, input),
+                        Mode::Gpu => radix_sort_on_gpu(tool, radix_sort, &indices, input),
                     }
                 }
                 _ => unreachable!(),
@@ -200,7 +234,7 @@ fn main() {
                         Mode::Cpu => positions_to_keys_on_cpu(input, cell_size, dimension),
                         Mode::Gpu => positions_to_keys_on_gpu(
                             tool,
-                            positions_to_keys_settings,
+                            positions_to_keys,
                             PositionsToKeysParameters { dimension },
                             input,
                         ),
@@ -210,7 +244,7 @@ fn main() {
                     Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
                     Mode::Gpu => sort_positions_into_cells_on_gpu(
                         tool,
-                        sort_positions_into_cells_settings,
+                        sort_positions_into_cells,
                         &indices,
                         input,
                     ),
@@ -226,6 +260,31 @@ fn main() {
                 Mode::Gpu => {
                     build_hash_table_on_gpu(tool, BuildHashTableSettings { workgroup_size }, input)
                 }
+            };
+            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+        }
+        Task::PrepareGrid => {
+            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
+            let mut indices: Vec<u32> = (0..input.len() as u32).collect();
+            shuffle(&mut indices, 42);
+            let output = match mode {
+                Mode::Cpu => todo!(),
+                Mode::Gpu => prepare_grid_on_gpu(
+                    tool,
+                    PrepareGridSettings {
+                        sort_positions_into_cells,
+                        permute_positions,
+                        find_cell_boundaries,
+                        prefix_sum,
+                        build_cells,
+                        offsets_to_indirect,
+                        color_cells,
+                        build_hash_table_colors,
+                        allocate_blocks,
+                    },
+                    input,
+                    &indices,
+                ),
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }

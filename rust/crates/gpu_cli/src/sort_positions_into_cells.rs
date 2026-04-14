@@ -1,7 +1,8 @@
 use nalgebra::Vector4;
 use squishy_volumes_gpu::{
     GpuContext, MAX_NUM_PARTICLES, PipelinePart, SortPositionsIntoCells,
-    SortPositionsIntoCellsBufferInput, SortPositionsIntoCellsSettings,
+    SortPositionsIntoCellsBufferBindings, SortPositionsIntoCellsBufferInput,
+    SortPositionsIntoCellsSettings,
 };
 
 use crate::{Tool, window::run_with_window};
@@ -26,8 +27,8 @@ pub fn sort_positions_into_cells_on_gpu(
             sort_positions_into_cells.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &(&buffers).into(),
-                &(),
+                (&buffers).into(),
+                (),
             );
         });
         return Default::default();
@@ -40,7 +41,7 @@ pub fn sort_positions_into_cells_on_gpu(
         mapped_at_creation: false,
     });
 
-    let buffer_bindings = (&buffers).into();
+    let buffer_bindings: SortPositionsIntoCellsBufferBindings = (&buffers).into();
 
     let mut encoder = context
         .device()
@@ -54,13 +55,13 @@ pub fn sort_positions_into_cells_on_gpu(
         sort_positions_into_cells.compute_in_pass(
             &context,
             &mut compute_pass,
-            &buffer_bindings,
-            &(),
+            buffer_bindings.clone(),
+            (),
         );
     }
 
     encoder.copy_buffer_to_buffer(
-        buffer_bindings.radix_sort.indices.front().buffer,
+        buffer_bindings.radix_sort.indices.borrow().front().buffer,
         0,
         &download_buffer,
         0,

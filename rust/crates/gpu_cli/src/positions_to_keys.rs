@@ -24,8 +24,8 @@ pub fn positions_to_keys_on_gpu(
             positions_to_keys.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &(&buffers).into(),
-                &paramters,
+                (&buffers).into(),
+                paramters,
             );
         });
         return Default::default();
@@ -50,8 +50,8 @@ pub fn positions_to_keys_on_gpu(
         positions_to_keys.compute_in_pass(
             &context,
             &mut compute_pass,
-            &(&buffers).into(),
-            &paramters,
+            (&buffers).into(),
+            paramters,
         );
     }
 

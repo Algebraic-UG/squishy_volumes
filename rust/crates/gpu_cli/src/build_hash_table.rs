@@ -22,8 +22,8 @@ pub fn build_hash_table_on_gpu(
             positions_to_keys.compute_in_pass(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &(&buffers).into(),
-                &(),
+                (&buffers).into(),
+                (),
             );
         });
         return Default::default();
@@ -45,7 +45,7 @@ pub fn build_hash_table_on_gpu(
         let mut scope = profiler.scope("run_positions_to_keys", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        positions_to_keys.compute_in_pass(&context, &mut compute_pass, &(&buffers).into(), &());
+        positions_to_keys.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
     }
 
     encoder.copy_buffer_to_buffer(&buffers.indices, 0, &download_buffer, 0, None);

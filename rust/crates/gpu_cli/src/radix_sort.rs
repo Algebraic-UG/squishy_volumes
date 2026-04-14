@@ -1,5 +1,6 @@
 use squishy_volumes_gpu::{
-    GpuContext, MAX_NUM_PARTICLES, PipelinePart, RadixSort, RadixSortBufferInput, RadixSortSettings,
+    GpuContext, MAX_NUM_PARTICLES, PipelinePart, RadixSort, RadixSortBufferBindings,
+    RadixSortBufferInput, RadixSortSettings,
 };
 
 use crate::{Tool, window::run_with_window};
@@ -22,7 +23,7 @@ pub fn radix_sort_on_gpu(
             radix_sort.compute_in_pass_all_rounds(
                 context,
                 &mut encoder.begin_compute_pass(&Default::default()),
-                &(&buffers).into(),
+                (&buffers).into(),
             );
         });
         return Default::default();
@@ -35,7 +36,7 @@ pub fn radix_sort_on_gpu(
         mapped_at_creation: false,
     });
 
-    let buffer_bindings = (&buffers).into();
+    let buffer_bindings: RadixSortBufferBindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
@@ -44,11 +45,11 @@ pub fn radix_sort_on_gpu(
         let mut scope = profiler.scope("run_radix_sort", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, &buffer_bindings);
+        radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, buffer_bindings.clone());
     };
 
     encoder.copy_buffer_to_buffer(
-        buffer_bindings.indices.front().buffer,
+        buffer_bindings.indices.borrow().front().buffer,
         0,
         &download_index_buffer,
         0,
