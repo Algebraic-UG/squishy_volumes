@@ -31,6 +31,7 @@ mod prepare_grid;
 mod radix_sort;
 mod recycle_to_indirect;
 mod reorder;
+mod reorder_particles;
 mod sort_positions_into_cells;
 mod util;
 
@@ -57,6 +58,7 @@ pub use prepare_grid::*;
 pub use radix_sort::*;
 pub use recycle_to_indirect::*;
 pub use reorder::*;
+pub use reorder_particles::*;
 pub use sort_positions_into_cells::*;
 pub use util::*;
 
