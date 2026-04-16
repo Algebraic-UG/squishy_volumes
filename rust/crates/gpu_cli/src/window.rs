@@ -23,7 +23,7 @@ struct State<F> {
     f: Option<F>,
 }
 
-impl<F: FnOnce(&GpuContext, &mut wgpu::CommandEncoder)> State<F> {
+impl<F: FnOnce(&mut GpuContext, &mut wgpu::CommandEncoder)> State<F> {
     async fn new(window: Arc<Window>, context: GpuContext, tool: Tool, f: Option<F>) -> Self {
         let size = window.inner_size();
 
@@ -126,7 +126,7 @@ impl<F: FnOnce(&GpuContext, &mut wgpu::CommandEncoder)> State<F> {
         self.first_frame = false;
 
         if run_compute && let Some(f) = self.f.take() {
-            f(&self.context, &mut encoder);
+            f(&mut self.context, &mut encoder);
         }
 
         // Submit the command in the queue to execute
@@ -144,7 +144,7 @@ struct App<F> {
     state: Option<State<F>>,
 }
 
-impl<F: FnOnce(&GpuContext, &mut wgpu::CommandEncoder)> ApplicationHandler for App<F> {
+impl<F: FnOnce(&mut GpuContext, &mut wgpu::CommandEncoder)> ApplicationHandler for App<F> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         // Create window object
         let window = Arc::new(
@@ -186,7 +186,7 @@ impl<F: FnOnce(&GpuContext, &mut wgpu::CommandEncoder)> ApplicationHandler for A
     }
 }
 
-pub fn run_with_window<F: FnOnce(&GpuContext, &mut wgpu::CommandEncoder)>(
+pub fn run_with_window<F: FnOnce(&mut GpuContext, &mut wgpu::CommandEncoder)>(
     tool: Tool,
     context: GpuContext,
     f: F,

@@ -23,12 +23,12 @@ pub enum ComputePass<'a> {
 impl CommandEncoder<'_> {
     pub fn begin_compute_pass<'a>(&'a mut self, label: Option<&'static str>) -> ComputePass<'a> {
         match self {
-            CommandEncoder::Encoder(command_encoder) => ComputePass::Pass(
+            CommandEncoder::Encoder(command_encoder) => ComputePass::Pass({
                 command_encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                     label,
                     ..Default::default()
-                }),
-            ),
+                })
+            }),
             CommandEncoder::Scoped(scope) => {
                 ComputePass::Scoped(scope.scoped_compute_pass(label.unwrap_or("unlabled")))
             }
