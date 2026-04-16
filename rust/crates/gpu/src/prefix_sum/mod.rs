@@ -6,7 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::Vector4;
 use std::num::{NonZeroU32, NonZeroU64};
 
 use super::*;
@@ -57,9 +56,9 @@ impl PipelinePart for PrefixSum {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Vector4::<u32>::MIN_BINDING_SIZE, true),
+                    (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, true),
-                    (Vector4::<u32>::MIN_BINDING_SIZE, false),
+                    (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
                 constants: [
@@ -74,7 +73,7 @@ impl PipelinePart for PrefixSum {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Vector4::<u32>::MIN_BINDING_SIZE, true),
+                    (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
@@ -87,7 +86,7 @@ impl PipelinePart for PrefixSum {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Vector4::<u32>::MIN_BINDING_SIZE, true),
+                    (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
@@ -152,7 +151,7 @@ impl PipelinePart for PrefixSum {
             compute_pass.set_immediates(0, bytemuck::bytes_of(&stride));
             compute_pass.dispatch_workgroups_indirect(
                 indirect_levels.buffer(),
-                level as u64 * Vector4::<u32>::MIN_BINDING_SIZE.get(),
+                level as u64 * Indirect::MIN_BINDING_SIZE.get(),
             );
         }
 
