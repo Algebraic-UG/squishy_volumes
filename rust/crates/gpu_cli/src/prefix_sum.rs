@@ -1,59 +1,63 @@
 use squishy_volumes_gpu::{
-    GpuContext, MAX_NUM_PARTICLES, PipelinePart, PrefixSum, PrefixSumBufferInput, PrefixSumSettings,
+    DownloadToHost, GpuAllocator, GpuContext, MAX_NUM_PARTICLES, PipelinePart, prefix_sum::*,
 };
 
 use crate::{Tool, window::run_with_window};
 
-pub fn prefix_sum_on_gpu(
-    tool: Option<Tool>,
-    settings: PrefixSumSettings,
-    input: &[u32],
-) -> Vec<u32> {
+pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]) -> Vec<u32> {
     let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut allocator =
+        GpuAllocator::new(&context, numbers.len() as u64 * 5, "test allocator").unwrap();
     let device = context.device();
 
     let prefix_sum = PrefixSum::new(&context, settings);
-    let buffers = prefix_sum.create_buffers(&context, PrefixSumBufferInput { numbers: input });
+
+    let standalone::Allocations { numbers, indirect } =
+        standalone::Allocations::new(device, settings, numbers);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            prefix_sum.compute_in_pass(
-                context,
-                &mut encoder.begin_compute_pass(&Default::default()),
-                (&buffers).into(),
-                (),
-            );
+            prefix_sum
+                .compute_in_pass(
+                    context,
+                    &mut allocator,
+                    &mut encoder.begin_compute_pass(&Default::default()),
+                    InputBindings { indirect, numbers },
+                    Parameters,
+                )
+                .unwrap();
         });
         return Default::default();
     }
-
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.prefix_sums.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
 
     let mut encoder = context
         .device()
         .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
     let mut profiler = wgpu_profiler::GpuProfiler::new(device, Default::default()).unwrap();
-    {
+    let OutputBindings { prefix_sums } = {
         let mut scope = profiler.scope("run_prefix_sum", &mut encoder);
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
-        prefix_sum.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
-    }
+        prefix_sum
+            .compute_in_pass(
+                &context,
+                &mut allocator,
+                &mut compute_pass,
+                InputBindings { indirect, numbers },
+                Parameters,
+            )
+            .unwrap()
+    };
 
-    encoder.copy_buffer_to_buffer(&buffers.prefix_sums, 0, &download_buffer, 0, None);
+    let download = DownloadToHost::new(&context, prefix_sums);
+    download.copy(&mut encoder);
 
     profiler.resolve_queries(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+    let download = download.prep();
     profiler.end_frame().unwrap();
 
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
@@ -65,8 +69,5 @@ pub fn prefix_sum_on_gpu(
     tracing::info!(?profiling_data);
     println!("XXX: {}", profiling_data.unwrap());
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
-
-    result.to_vec()
+    download.to_vec()
 }

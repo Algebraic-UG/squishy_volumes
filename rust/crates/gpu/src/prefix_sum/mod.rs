@@ -14,6 +14,8 @@ use super::*;
 #[cfg(test)]
 mod test;
 
+pub mod standalone;
+
 pub struct PrefixSum {
     subgroup_size: u32,
     prepare_indirect: CompiledModule,
@@ -21,12 +23,13 @@ pub struct PrefixSum {
     fill_final: CompiledModule,
 }
 
+#[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
 }
 
-pub struct Paramters;
+pub struct Parameters;
 
 pub struct InputBindings {
     pub indirect: Allocation,
@@ -39,7 +42,7 @@ pub struct OutputBindings {
 
 impl PipelinePart for PrefixSum {
     type Settings = Settings;
-    type Parameters = Paramters;
+    type Parameters = Parameters;
     type InputBindings = InputBindings;
     type OutputBindings = OutputBindings;
 

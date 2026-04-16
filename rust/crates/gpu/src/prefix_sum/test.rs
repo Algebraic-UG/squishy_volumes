@@ -61,26 +61,15 @@ fn test_random() {
     );
 }
 
-fn run_prefix_sum(
-    settings @ prefix_sum::Settings {
-        workgroup_size,
-        dispatch_limit,
-    }: prefix_sum::Settings,
-    numbers: &[u32],
-) -> Vec<u32> {
+fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> Vec<u32> {
     let mut allocator = SHARED_ALLOCATOR.lock().unwrap();
     let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let prefix_sum = PrefixSum::new(&context, settings);
-    let indirect = Indirect::new(IndirectSettings {
-        workgroup_size,
-        dispatch_limit,
-        len: numbers.len() as u32,
-    });
+    let standalone::Allocations { numbers, indirect } =
+        standalone::Allocations::new(device, settings, numbers);
 
-    let numbers = Allocation::new(device, "numbers", numbers);
-    let indirect = Allocation::new(device, "indirect", &[indirect]);
+    let prefix_sum = PrefixSum::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
@@ -91,7 +80,7 @@ fn run_prefix_sum(
             &mut allocator,
             &mut compute_pass,
             prefix_sum::InputBindings { indirect, numbers },
-            prefix_sum::Paramters,
+            prefix_sum::Parameters,
         )
         .unwrap();
     let download = DownloadToHost::new(&context, prefix_sums);
