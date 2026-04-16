@@ -120,10 +120,10 @@ impl PipelinePart for RadixSort {
         }
     }
 
-    fn encode(
+    fn record(
         &self,
         context: &mut GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
+        encoder: &mut CommandEncoder,
         Input {
             indirect,
             keys,
@@ -131,9 +131,9 @@ impl PipelinePart for RadixSort {
         }: Input,
         Parameters { bit_offset }: Parameters,
     ) -> Result<Output, GpuError> {
-        let count_subkeys::Output { counts } = self.count_subkeys.encode(
+        let count_subkeys::Output { counts } = self.count_subkeys.record(
             context,
-            compute_pass,
+            encoder,
             count_subkeys::Input {
                 indirect: indirect.clone(),
                 indices: indices_in.clone(),
@@ -141,18 +141,18 @@ impl PipelinePart for RadixSort {
             },
             count_subkeys::Parameters { bit_offset },
         )?;
-        let prefix_sum::Output { prefix_sums } = self.prefix_sum.encode(
+        let prefix_sum::Output { prefix_sums } = self.prefix_sum.record(
             context,
-            compute_pass,
+            encoder,
             prefix_sum::Input {
                 indirect: indirect.clone(),
                 numbers: counts,
             },
             prefix_sum::Parameters,
         )?;
-        let reorder_indices::Output { indices_out } = self.reorder_indices.encode(
+        let reorder_indices::Output { indices_out } = self.reorder_indices.record(
             context,
-            compute_pass,
+            encoder,
             reorder_indices::Input {
                 indirect,
                 indices_in,
@@ -167,34 +167,33 @@ impl PipelinePart for RadixSort {
 }
 
 impl RadixSort {
-    pub fn compute_in_pass_all_rounds(
+    pub fn record_all_rounds(
         &self,
         context: &mut GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
+        encoder: &mut CommandEncoder,
         Input {
             indirect,
-            mut indices_in,
+            indices_in,
             keys,
         }: Input,
     ) -> Result<Output, GpuError> {
+        let mut indices_out = indices_in;
         for round in 0..32u32.div_ceil(self.bit_count) {
-            let Output { indices_out } = self.encode(
+            let output = self.record(
                 context,
-                compute_pass,
+                encoder,
                 Input {
                     indirect: indirect.clone(),
-                    indices_in,
+                    indices_in: indices_out,
                     keys: keys.clone(),
                 },
                 Parameters {
                     bit_offset: round * self.bit_count,
                 },
             )?;
-            indices_in = indices_out;
+            indices_out = output.indices_out;
         }
 
-        Ok(Output {
-            indices_out: indices_in,
-        })
+        Ok(Output { indices_out })
     }
 }

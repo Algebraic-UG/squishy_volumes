@@ -8,7 +8,7 @@ use std::{
 use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
-use squishy_volumes_gpu::prefix_sum_on_cpu;
+use squishy_volumes_gpu::{prefix_sum_on_cpu, shuffle, sort_on_cpu};
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -16,15 +16,17 @@ use clap::{Parser, ValueEnum};
 
 use squishy_volumes_gpu as gpu;
 
-use crate::prefix_sum::prefix_sum_on_gpu;
+use crate::{prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu};
 
 //mod build_hash_table;
 //mod positions_to_keys;
 mod prefix_sum;
 //mod prepare_grid;
-//mod radix_sort;
+mod radix_sort;
 //mod sort_positions_into_cells;
 mod window;
+
+mod profiler_output;
 
 #[derive(Debug, ValueEnum, Clone)]
 enum Mode {
@@ -84,8 +86,8 @@ struct Cli {
     #[arg(long, default_value_t = NonZeroU32::new(u16::MAX as u32).unwrap())]
     dispatch_limit: NonZeroU32,
 
-    #[arg(long, default_value_t = 2)]
-    bit_count: u32,
+    #[arg(long, default_value_t = NonZeroU32::new(2).unwrap())]
+    bit_count: NonZeroU32,
 }
 
 fn main() {
@@ -156,6 +158,11 @@ fn main() {
         workgroup_size,
         dispatch_limit,
     };
+    let radix_sort = gpu::radix_sort::Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
     let mut out = File::create(output_file).unwrap();
     match task {
         Task::Sum | Task::Sort => {
@@ -166,14 +173,13 @@ fn main() {
                     Mode::Gpu => prefix_sum_on_gpu(tool, prefix_sum, input),
                 },
                 Task::Sort => {
-                    todo!();
-                    //let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-                    //shuffle(&mut indices, 42);
+                    let mut indices: Vec<u32> = (0..input.len() as u32).collect();
+                    shuffle(&mut indices, 42);
 
-                    //match mode {
-                    //    Mode::Cpu => sort_on_cpu(&indices, input),
-                    //    Mode::Gpu => radix_sort_on_gpu(tool, radix_sort, &indices, input),
-                    //}
+                    match mode {
+                        Mode::Cpu => sort_on_cpu(&indices, input),
+                        Mode::Gpu => radix_sort_on_gpu(tool, radix_sort, &indices, input),
+                    }
                 }
                 _ => unreachable!(),
             };

@@ -60,15 +60,13 @@ fn run_radix_sort(settings: Settings, indices: &[u32], keys: &[u32]) -> Vec<u32>
     let radix_sort = RadixSort::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
     let Output { indices_out } = radix_sort
-        .compute_in_pass_all_rounds(&mut context, &mut compute_pass, input)
+        .record_all_rounds(&mut context, &mut (&mut encoder).into(), input)
         .unwrap();
 
     let download = DownloadToHost::new(&context, indices_out);
 
-    drop(compute_pass);
     download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);

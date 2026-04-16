@@ -1,80 +1,59 @@
 use squishy_volumes_gpu::{
-    GpuContext, MAX_NUM_PARTICLES, PipelinePart, RadixSort, RadixSortBufferBindings,
-    RadixSortBufferInput, RadixSortSettings,
+    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, radix_sort::*,
 };
 
-use crate::{Tool, window::run_with_window};
+use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
 pub fn radix_sort_on_gpu(
     tool: Option<Tool>,
-    settings: RadixSortSettings,
+    settings: Settings,
     indices: &[u32],
     keys: &[u32],
 ) -> Vec<u32> {
-    let context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
-    let device = context.device();
+    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    context
+        .setup_allocator((indices.len() as u64 * 6).max(1000), "allocator")
+        .unwrap();
+    context
+        .setup_indirect_allocator(100, "indirect allocator")
+        .unwrap();
 
-    let radix_sort = RadixSort::new(&context, settings);
+    let radix_sort = RadixSort::new(&context, settings.clone());
 
-    let buffers = radix_sort.create_buffers(&context, RadixSortBufferInput { keys, indices });
+    let input = Input::new(context.device(), settings, indices, keys);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            radix_sort.compute_in_pass_all_rounds(
-                context,
-                &mut encoder.begin_compute_pass(&Default::default()),
-                (&buffers).into(),
-            );
+            radix_sort
+                .record_all_rounds(context, &mut encoder.into(), input)
+                .unwrap();
         });
         return Default::default();
     }
 
-    let download_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_indices"),
-        size: buffers.indices_back.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-
-    let buffer_bindings: RadixSortBufferBindings = (&buffers).into();
-
     let mut encoder = context.device().create_command_encoder(&Default::default());
+    let mut profiler =
+        wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
+    let scope = profiler.scope("run_radix_sort", &mut encoder);
+    let Output { indices_out } = radix_sort
+        .record_all_rounds(&mut context, &mut scope.into(), input)
+        .unwrap();
 
-    let mut profiler = wgpu_profiler::GpuProfiler::new(device, Default::default()).unwrap();
-    {
-        let mut scope = profiler.scope("run_radix_sort", &mut encoder);
-        let mut compute_pass = scope.scoped_compute_pass("pass");
-
-        radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, buffer_bindings.clone());
-    };
-
-    encoder.copy_buffer_to_buffer(
-        buffer_bindings.indices.borrow().front().buffer,
-        0,
-        &download_index_buffer,
-        0,
-        None,
-    );
+    let download = DownloadToHost::new(&context, indices_out);
+    download.copy(&mut encoder);
 
     profiler.resolve_queries(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
-    let data_buffer_index_slice = download_index_buffer.slice(..);
-    data_buffer_index_slice.map_async(wgpu::MapMode::Read, |_| {});
+    let download = download.prep();
     profiler.end_frame().unwrap();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let profiling_data = profiler
-        .process_finished_frame(context.queue().get_timestamp_period())
-        .and_then(|data| data[0].nested_queries[0].time.clone())
-        .map(|time| (time.end - time.start) * 1e6);
-    tracing::info!(?profiling_data);
-    println!("XXX: {}", profiling_data.unwrap());
-
-    let data_indices = data_buffer_index_slice.get_mapped_range();
-    let indices: &[u32] = bytemuck::cast_slice(&data_indices);
-
-    indices.to_vec()
+    profiler_output(&context, &mut profiler);
+    download.to_vec()
 }
