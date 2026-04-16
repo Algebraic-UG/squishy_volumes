@@ -136,8 +136,13 @@ impl GpuContext {
         self.subgroup_size
     }
 
-    pub fn setup_allocator(&mut self, size: u64, label: &'static str) -> Result<(), GpuError> {
-        self.allocator = Some(GpuAllocator::new(self, size, label)?);
+    pub fn setup_allocator(
+        &mut self,
+        size: u64,
+        label: &'static str,
+        scram: bool,
+    ) -> Result<(), GpuError> {
+        self.allocator = Some(GpuAllocator::new(self, size, label, scram)?);
         Ok(())
     }
 
@@ -149,8 +154,9 @@ impl GpuContext {
         &mut self,
         size: u64,
         label: &'static str,
+        scram: bool,
     ) -> Result<(), GpuError> {
-        self.indirect_allocator = Some(GpuAllocator::new(self, size, label)?);
+        self.indirect_allocator = Some(GpuAllocator::new(self, size, label, scram)?);
         Ok(())
     }
 

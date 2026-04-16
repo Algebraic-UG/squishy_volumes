@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use rand::prelude::*;
+use rand::rngs::ChaCha8Rng;
 use std::{
     mem::take,
     num::NonZeroU64,
@@ -129,6 +131,7 @@ impl GpuAllocator {
         context: &GpuContext,
         size: u64,
         label: &'static str,
+        scram: bool,
     ) -> Result<Self, GpuAllocatorError> {
         if context.adapter().limits().max_buffer_size < size {
             return Err(GpuAllocatorError::ExceedingMaxBufferSize {
@@ -137,15 +140,32 @@ impl GpuAllocator {
             });
         }
 
-        let buffer = Arc::new(context.device().create_buffer(&wgpu::BufferDescriptor {
-            label: Some(label),
-            size,
-            usage: wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::INDIRECT,
-            mapped_at_creation: false,
-        }));
+        let buffer = Arc::new(if scram {
+            let random_content: Vec<u8> = ChaCha8Rng::seed_from_u64(42)
+                .random_iter::<u8>()
+                .take(size as usize)
+                .collect();
+            context
+                .device()
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some(label),
+                    contents: &random_content,
+                    usage: wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::COPY_DST
+                        | wgpu::BufferUsages::COPY_SRC
+                        | wgpu::BufferUsages::INDIRECT,
+                })
+        } else {
+            context.device().create_buffer(&wgpu::BufferDescriptor {
+                label: Some(label),
+                size,
+                usage: wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::INDIRECT,
+                mapped_at_creation: false,
+            })
+        });
 
         let partitions = vec![Partition {
             start: 0,
@@ -333,7 +353,7 @@ mod tests {
         let size = binding_size * 4;
 
         let context = SHARED_CONTEXT.lock().unwrap();
-        let mut allocator = GpuAllocator::new(&context, size, "allocation").unwrap();
+        let mut allocator = GpuAllocator::new(&context, size, "allocation", true).unwrap();
 
         let _a = allocator.allocate::<u32>("a", aligned).unwrap();
         let _b = allocator.allocate::<u32>("b", aligned).unwrap();
@@ -364,7 +384,7 @@ mod tests {
     fn test_buffer_too_large() {
         let context = SHARED_CONTEXT.lock().unwrap();
         assert!(matches!(
-            GpuAllocator::new(&context, u64::MAX, "allocation"),
+            GpuAllocator::new(&context, u64::MAX, "allocation", false),
             Err(GpuAllocatorError::ExceedingMaxBufferSize { .. })
         ));
     }
@@ -372,7 +392,7 @@ mod tests {
     #[test]
     fn test_buffer_binding_too_large() {
         let context = SHARED_CONTEXT.lock().unwrap();
-        let mut allocator = GpuAllocator::new(&context, 42, "allocation").unwrap();
+        let mut allocator = GpuAllocator::new(&context, 42, "allocation", false).unwrap();
         assert!(matches!(
             allocator.allocate_raw(
                 "too large",
@@ -391,7 +411,7 @@ mod tests {
         let size = binding_size * 4;
 
         let context = SHARED_CONTEXT.lock().unwrap();
-        let mut allocator = GpuAllocator::new(&context, size, "allocation").unwrap();
+        let mut allocator = GpuAllocator::new(&context, size, "allocation", false).unwrap();
 
         let _a = allocator.allocate::<u32>("a", aligned).unwrap();
         let _b = allocator.allocate::<u32>("b", aligned).unwrap();
