@@ -18,8 +18,6 @@ var<storage, read> intermediate: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> prefix_sums: array<u32>;
 
-var<immediate> max_level: u32;
-
 override WORKGROUP_SIZE: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -32,6 +30,8 @@ fn main(
     let global_index = get_global_index(num_workgroups, global_invocation_id);
 
     var offset_from_level = 0u;
+
+    let max_level = int_log(indirect.len * subgroup_size - 1, subgroup_size);
 
     if subgroup_invocation_id < max_level {
         let stride = int_pow(subgroup_size, subgroup_invocation_id);
@@ -76,6 +76,19 @@ fn int_pow(base: u32, exponent: u32) -> u32 {
     var result = 1u;
     for (var i = 0u; i < exponent; i++) {
         result *= base;
+    }
+    return result;
+}
+
+fn int_log(value: u32, base: u32) -> u32 {
+    if base < 2 {
+        return 0;
+    }
+    var result = 1u;
+    var power = 1u;
+    while power < value {
+        result += 1;
+        power *= base;
     }
     return result;
 }
