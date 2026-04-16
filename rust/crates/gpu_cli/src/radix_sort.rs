@@ -12,10 +12,10 @@ pub fn radix_sort_on_gpu(
 ) -> Vec<u32> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator((indices.len() as u64 * 6).max(1000), "allocator")
+        .setup_allocator((indices.len() as u64 * 6).max(1000), "allocator", true)
         .unwrap();
     context
-        .setup_indirect_allocator(100, "indirect allocator")
+        .setup_indirect_allocator(100, "indirect allocator", true)
         .unwrap();
 
     let radix_sort = RadixSort::new(&context, settings.clone());

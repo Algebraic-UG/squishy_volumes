@@ -7,10 +7,10 @@ use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]) -> Vec<u32> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator(numbers.len() as u64 * 5, "allocator")
+        .setup_allocator(numbers.len() as u64 * 5, "allocator", true)
         .unwrap();
     context
-        .setup_indirect_allocator(100, "indirect allocator")
+        .setup_indirect_allocator(100, "indirect allocator", true)
         .unwrap();
 
     let prefix_sum = PrefixSum::new(&context, settings);
