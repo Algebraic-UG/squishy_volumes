@@ -13,8 +13,6 @@ use super::*;
 #[cfg(test)]
 mod test;
 
-pub mod standalone;
-
 pub struct PrefixSum {
     subgroup_size: u32,
     prepare_indirect: CompiledModule,
@@ -30,20 +28,42 @@ pub struct Settings {
 
 pub struct Parameters;
 
-pub struct InputBindings {
+pub struct Input {
     pub indirect: Allocation,
     pub numbers: Allocation,
 }
 
-pub struct OutputBindings {
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        }: Settings,
+        numbers: &[u32],
+    ) -> Self {
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: numbers.len() as u32,
+        });
+
+        let numbers = Allocation::new(device, "numbers", numbers);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+
+        Self { indirect, numbers }
+    }
+}
+
+pub struct Output {
     pub prefix_sums: Allocation,
 }
 
 impl PipelinePart for PrefixSum {
     type Settings = Settings;
     type Parameters = Parameters;
-    type InputBindings = InputBindings;
-    type OutputBindings = OutputBindings;
+    type Input = Input;
+    type Output = Output;
 
     fn new(context: &GpuContext, settings: Settings) -> Self {
         let workgroup_size = settings.workgroup_size.get();
@@ -108,9 +128,9 @@ impl PipelinePart for PrefixSum {
         context: &GpuContext,
         allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        input: InputBindings,
+        input: Input,
         _: Parameters,
-    ) -> Result<OutputBindings, GpuError> {
+    ) -> Result<Output, GpuError> {
         let len = input.numbers.len::<u32>();
 
         let max_level = (len.get() as u32 * self.subgroup_size - 1).ilog(self.subgroup_size);
@@ -173,6 +193,6 @@ impl PipelinePart for PrefixSum {
         );
         compute_pass.dispatch_workgroups_indirect(input.indirect.buffer(), input.indirect.offset());
 
-        Ok(Self::OutputBindings { prefix_sums })
+        Ok(Output { prefix_sums })
     }
 }

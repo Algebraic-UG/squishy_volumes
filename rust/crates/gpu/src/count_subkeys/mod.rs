@@ -13,8 +13,6 @@ use std::num::NonZeroU32;
 
 use super::*;
 
-pub mod standalone;
-
 pub struct CountSubkeys {
     workgroup_size: u32,
     dispatch_limit: u32,
@@ -34,21 +32,51 @@ pub struct Parameters {
     pub bit_offset: u32,
 }
 
-pub struct InputBindings {
+pub struct Input {
     pub indirect: Allocation,
     pub indices: Allocation,
     pub keys: Allocation,
 }
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            ..
+        }: Settings,
+        indices: &[u32],
+        keys: &[u32],
+    ) -> Self {
+        assert_eq!(indices.len(), keys.len());
 
-pub struct OutputBindings {
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: indices.len() as u32,
+        });
+
+        let indices = Allocation::new(device, "indices", indices);
+        let keys = Allocation::new(device, "keys", keys);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+
+        Self {
+            indirect,
+            indices,
+            keys,
+        }
+    }
+}
+
+pub struct Output {
     pub counts: Allocation,
 }
 
 impl PipelinePart for CountSubkeys {
     type Settings = Settings;
     type Parameters = Parameters;
-    type InputBindings = InputBindings;
-    type OutputBindings = OutputBindings;
+    type Input = Input;
+    type Output = Output;
 
     fn new(context: &GpuContext, settings: Self::Settings) -> Self {
         let workgroup_size = settings.workgroup_size.get();
@@ -92,13 +120,13 @@ impl PipelinePart for CountSubkeys {
         context: &GpuContext,
         allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        InputBindings {
+        Input {
             indirect,
             indices,
             keys,
-        }: InputBindings,
+        }: Input,
         Parameters { bit_offset }: Parameters,
-    ) -> Result<OutputBindings, GpuError> {
+    ) -> Result<Output, GpuError> {
         assert_eq!(indices.len::<u32>(), keys.len::<u32>());
 
         let device = context.device();
@@ -125,17 +153,17 @@ impl PipelinePart for CountSubkeys {
         );
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
-        Ok(OutputBindings { counts })
+        Ok(Output { counts })
     }
 }
 
 impl CountSubkeys {
-    pub fn min_counts_len(&self, key_len: u32) -> u32 {
+    pub fn min_counts_len(&self, len: u32) -> u32 {
         let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
         let actual_workgroup_count = Indirect::new(IndirectSettings {
             workgroup_size: self.workgroup_size.try_into().unwrap(),
             dispatch_limit: self.dispatch_limit.try_into().unwrap(),
-            len: key_len,
+            len,
         })
         .workgroup_count();
         actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)

@@ -154,27 +154,19 @@ fn run_subkey_count(
     let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let standalone::Allocations {
-        indirect,
-        indices,
-        keys,
-    } = standalone::Allocations::new(device, settings, indices, keys);
+    let input = Input::new(device, settings, indices, keys);
 
     let count_subkeys = CountSubkeys::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    let OutputBindings { counts } = count_subkeys
+    let Output { counts } = count_subkeys
         .compute_in_pass(
             &context,
             &mut allocator,
             &mut compute_pass,
-            InputBindings {
-                indirect,
-                indices,
-                keys,
-            },
+            input,
             parameters,
         )
         .unwrap();

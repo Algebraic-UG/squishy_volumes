@@ -9,7 +9,7 @@ DATA_FILE="test_data/$MODE-$TASK.txt"
 
 > "$DATA_FILE"
 
-for ((i=500000; i<=100000000; i+=500000)); do
+for ((i=500000; i<=30000000; i+=500000)); do
     echo -n "$i " >> "$DATA_FILE"
     cargo run --release --bin squishy_volumes_gpu_cli -- \
         "$MODE" "$TASK" --generate $i \

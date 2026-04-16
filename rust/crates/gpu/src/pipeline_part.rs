@@ -12,8 +12,8 @@ pub trait PipelinePart {
     type Settings;
     type Parameters;
 
-    type InputBindings;
-    type OutputBindings;
+    type Input;
+    type Output;
 
     fn new(context: &GpuContext, settings: Self::Settings) -> Self;
 
@@ -22,7 +22,7 @@ pub trait PipelinePart {
         context: &GpuContext,
         allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        input: Self::InputBindings,
+        input: Self::Input,
         parameters: Self::Parameters,
-    ) -> Result<Self::OutputBindings, GpuError>;
+    ) -> Result<Self::Output, GpuError>;
 }

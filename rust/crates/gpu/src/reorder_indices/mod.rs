@@ -9,235 +9,171 @@
 #[cfg(test)]
 mod test;
 
-use wgpu::util::DeviceExt as _;
+use std::num::NonZeroU32;
 
 use super::*;
 
-pub struct Reorder {
+pub struct ReorderIndices {
     workgroup_size: u32,
+    dispatch_limit: u32,
     subgroup_size: u32,
     bit_count: u32,
-    compiled_module: CompiledModule,
+    reorder_indices: CompiledModule,
 }
 
 #[derive(Clone, Copy)]
-pub struct ReorderSettings {
-    pub workgroup_size: u32,
-    pub bit_count: u32,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
+    pub bit_count: NonZeroU32,
 }
 
-pub struct ReorderParameters {
+pub struct Parameters {
     pub bit_offset: u32,
 }
 
-pub struct ReorderBufferInput<'a> {
-    pub keys: &'a [u32],
-    pub indices: &'a [u32],
-    pub prefix_sums: &'a [u32],
+pub struct Input {
+    pub indirect: Allocation,
+    pub indices_in: Allocation,
+    pub keys: Allocation,
+    pub prefix_sums: Allocation,
 }
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            ..
+        }: Settings,
+        indices: &[u32],
+        keys: &[u32],
+        prefix_sums: &[u32],
+    ) -> Self {
+        assert_eq!(indices.len(), keys.len());
 
-pub struct ReorderBuffers {
-    pub keys: wgpu::Buffer,
-    pub prefix_sums: wgpu::Buffer,
-    pub indices_in: wgpu::Buffer,
-    pub indices_out: wgpu::Buffer,
-}
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: indices.len() as u32,
+        });
 
-pub struct ReorderBufferBindings<'a> {
-    pub keys: wgpu::BufferBinding<'a>,
-    pub prefix_sums: wgpu::BufferBinding<'a>,
-    pub indices_in: wgpu::BufferBinding<'a>,
-    pub indices_out: wgpu::BufferBinding<'a>,
-}
+        let indices_in = Allocation::new(device, "indices_in", indices);
+        let keys = Allocation::new(device, "keys", keys);
+        let prefix_sums = Allocation::new(device, "prefix_sums", prefix_sums);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
 
-impl<'a> From<&'a ReorderBuffers> for ReorderBufferBindings<'a> {
-    fn from(
-        ReorderBuffers {
+        Self {
+            indirect,
+            indices_in,
             keys,
             prefix_sums,
-            indices_in,
-            indices_out,
-        }: &'a ReorderBuffers,
-    ) -> Self {
-        Self {
-            keys: keys.as_entire_buffer_binding(),
-            prefix_sums: prefix_sums.as_entire_buffer_binding(),
-            indices_in: indices_in.as_entire_buffer_binding(),
-            indices_out: indices_out.as_entire_buffer_binding(),
         }
     }
 }
 
-impl PipelinePart for Reorder {
-    type Settings = ReorderSettings;
-    type Parameters = ReorderParameters;
-    type BufferInput<'a> = ReorderBufferInput<'a>;
-    type Buffers = ReorderBuffers;
-    type BufferBindings<'a> = ReorderBufferBindings<'a>;
+pub struct Output {
+    pub indices_out: Allocation,
+}
 
-    fn new(
-        context: &GpuContext,
-        Self::Settings {
-            workgroup_size,
-            bit_count,
-        }: Self::Settings,
-    ) -> Self {
+impl PipelinePart for ReorderIndices {
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
+
+    fn new(context: &GpuContext, settings: Self::Settings) -> Self {
+        let workgroup_size = settings.workgroup_size.get();
+        let dispatch_limit = settings.dispatch_limit.get();
+        let bit_count = settings.bit_count.get();
         let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));
-        assert!(bit_count > 0);
         assert!(subgroup_size >= 2u32.pow(bit_count));
 
         let device = context.device();
 
-        let label = Some("reorder");
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<u32>(0, true),
-                bind_group_layout_entry::<u32>(1, true),
-                bind_group_layout_entry::<u32>(2, true),
-                bind_group_layout_entry::<u32>(3, false),
-            ],
-        });
-
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    immediate_size: 4,
-                }),
-            ),
-            module: &device.create_shader_module(wgpu::include_wgsl!("reorder.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[
+        let_compiled_module!(
+            reorder_indices,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 4,
+                constants: [
                     ("WORKGROUP_SIZE", workgroup_size as f64),
                     ("BIT_COUNT", bit_count as f64),
                 ],
-                ..Default::default()
-            },
-            cache: None,
-        });
-
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
+            }
+        );
 
         Self {
             workgroup_size,
+            dispatch_limit,
             subgroup_size,
             bit_count,
-            compiled_module,
-        }
-    }
-
-    fn create_buffers<'a>(
-        &self,
-        context: &GpuContext,
-        Self::BufferInput {
-            keys,
-            indices,
-            prefix_sums,
-        }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        let device = context.device();
-        let keys = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("keys"),
-            contents: bytemuck::cast_slice(keys),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let prefix_sums = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("prefix_sums"),
-            contents: bytemuck::cast_slice(prefix_sums),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let indices_in = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("indices_in"),
-            contents: bytemuck::cast_slice(indices),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let indices_out = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("indices_out"),
-            size: indices_in.size(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            keys,
-            prefix_sums,
-            indices_in,
-            indices_out,
+            reorder_indices,
         }
     }
 
     fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
+        allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
+        Input {
+            indirect,
+            indices_in,
             keys,
             prefix_sums,
-            indices_in,
-            indices_out,
-        }: Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: Self::Parameters,
-    ) {
+        }: Input,
+        Parameters { bit_offset }: Parameters,
+    ) -> Result<Output, GpuError> {
+        assert_eq!(indices_in.len::<u32>(), keys.len::<u32>());
+        assert!(
+            prefix_sums.len::<u32>().get()
+                >= self.min_prefix_sums_len(keys.len::<u32>().get() as u32) as u64
+        );
+
         let device = context.device();
+        let indices_out = allocator.allocate::<u32>("indices_out", indices_in.len::<u32>())?;
 
-        let key_count = elements_in_binding::<u32>(&keys);
-        assert!(key_count == elements_in_binding::<u32>(&indices_in));
-        assert!(key_count == elements_in_binding::<u32>(&indices_out));
-        let prefix_count = elements_in_binding::<u32>(&prefix_sums);
-        assert!(prefix_count.get() >= self.min_prefixes(key_count.get()));
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(keys.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(prefix_sums.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Buffer(indices_in.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Buffer(indices_out.clone()),
-                },
-            ],
-        });
-
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
+        compute_pass.set_pipeline(&self.reorder_indices.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                device,
+                &self.reorder_indices,
+                [
+                    indirect.binding(),
+                    keys.binding(),
+                    prefix_sums.binding(),
+                    indices_in.binding(),
+                    indices_out.binding(),
+                ],
+            ),
+            &[],
+        );
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
 
-        let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
-        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-        compute_pass.dispatch_workgroups(x, y, z);
+        Ok(Output { indices_out })
     }
 }
 
-impl Reorder {
-    pub fn min_prefixes(&self, key_count: u32) -> u32 {
+impl ReorderIndices {
+    pub fn min_prefix_sums_len(&self, len: u32) -> u32 {
         let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
-        let workgroup_count = key_count.div_ceil(self.workgroup_size);
-        let actual_workgroup_count = find_x_y_z_simple(u16::MAX as u32, workgroup_count)
-            .into_iter()
-            .product::<u32>();
+        let actual_workgroup_count = Indirect::new(IndirectSettings {
+            workgroup_size: self.workgroup_size.try_into().unwrap(),
+            dispatch_limit: self.dispatch_limit.try_into().unwrap(),
+            len,
+        })
+        .workgroup_count();
         actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
     }
 }

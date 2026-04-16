@@ -10,9 +10,16 @@ use super::*;
 
 #[test]
 fn test_simple() {
-    let bit_count = 5;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
     let bit_offset = 0;
-    let workgroup_size = 64;
+    let parameters = Parameters { bit_offset };
     let subgroup_size = get_subgroup_size();
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
@@ -20,26 +27,19 @@ fn test_simple() {
     shuffle(&mut indices, 5);
 
     let counts = count_subkeys_on_cpu(
-        u16::MAX as u32,
-        bit_count,
+        dispatch_limit.get(),
+        bit_count.get(),
         bit_offset,
-        workgroup_size,
+        workgroup_size.get(),
         subgroup_size,
         &indices,
         &keys,
     );
-    let prefixes = prefix_sum_on_cpu(&counts);
+    let prefix_sums = prefix_sum_on_cpu(&counts);
 
     assert_eq!(
-        sort_on_cpu_by_bits(bit_count, bit_offset, &indices, &keys),
-        run_reorder(
-            workgroup_size,
-            bit_count,
-            bit_offset,
-            &indices,
-            &keys,
-            &prefixes,
-        ),
+        sort_on_cpu_by_bits(bit_count.get(), bit_offset, &indices, &keys),
+        run_reorder_indices(settings, parameters, &indices, &keys, &prefix_sums),
     );
 }
 
@@ -48,9 +48,16 @@ fn test_random() {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
-    let bit_count = 2;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
     let bit_offset = 0;
-    let workgroup_size = 64;
+    let parameters = Parameters { bit_offset };
     let subgroup_size = get_subgroup_size();
 
     let keys: Vec<u32> = ChaCha8Rng::seed_from_u64(42)
@@ -61,91 +68,59 @@ fn test_random() {
     shuffle(&mut indices, 6);
 
     let counts = count_subkeys_on_cpu(
-        u16::MAX as u32,
-        bit_count,
+        dispatch_limit.get(),
+        bit_count.get(),
         bit_offset,
-        workgroup_size,
+        workgroup_size.get(),
         subgroup_size,
         &indices,
         &keys,
     );
-    let prefixes = prefix_sum_on_cpu(&counts);
+    let prefix_sums = prefix_sum_on_cpu(&counts);
 
     assert_eq!(
-        sort_on_cpu_by_bits(bit_count, bit_offset, &indices, &keys),
-        run_reorder(
-            workgroup_size,
-            bit_count,
-            bit_offset,
-            &indices,
-            &keys,
-            &prefixes,
-        ),
+        sort_on_cpu_by_bits(bit_count.get(), bit_offset, &indices, &keys),
+        run_reorder_indices(settings, parameters, &indices, &keys, &prefix_sums),
     );
 }
 
-fn run_reorder(
-    workgroup_size: u32,
-    bit_count: u32,
-    bit_offset: u32,
+fn run_reorder_indices(
+    settings: Settings,
+    parameters: Parameters,
     indices: &[u32],
     keys: &[u32],
     prefix_sums: &[u32],
 ) -> Vec<u32> {
+    let mut allocator = SHARED_ALLOCATOR.lock().unwrap();
     let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let reorder = Reorder::new(
-        &context,
-        ReorderSettings {
-            workgroup_size,
-            bit_count,
-        },
-    );
+    let input = Input::new(device, settings, indices, keys, prefix_sums);
 
-    assert_eq!(
-        prefix_sums.len() as u32,
-        reorder.min_prefixes(keys.len() as u32)
-    );
-
-    let buffers = reorder.create_buffers(
-        &context,
-        ReorderBufferInput {
-            keys,
-            indices,
-            prefix_sums,
-        },
-    );
-
-    let download_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_indices"),
-        size: buffers.indices_out.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let reorder_indices = ReorderIndices::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    reorder.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        (&buffers).into(),
-        ReorderParameters { bit_offset },
-    );
+    let Output { indices_out } = reorder_indices
+        .compute_in_pass(
+            &context,
+            &mut allocator,
+            &mut compute_pass,
+            input,
+            parameters,
+        )
+        .unwrap();
+
+    let download = DownloadToHost::new(&context, indices_out);
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.indices_out, 0, &download_index_buffer, 0, None);
+
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-
-    let data_buffer_index_slice = download_index_buffer.slice(..);
-    data_buffer_index_slice.map_async(wgpu::MapMode::Read, |_| {});
-
+    let download = download.prep();
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
-    let data_indices = data_buffer_index_slice.get_mapped_range();
-    let indices: &[u32] = bytemuck::cast_slice(&data_indices);
-
-    indices.to_vec()
+    download.to_vec()
 }
