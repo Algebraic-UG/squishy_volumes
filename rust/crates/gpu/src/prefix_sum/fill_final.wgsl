@@ -18,6 +18,8 @@ var<storage, read> intermediate: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> prefix_sums: array<u32>;
 
+var<immediate> max_level: u32;
+
 override WORKGROUP_SIZE: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -31,14 +33,16 @@ fn main(
 
     var offset_from_level = 0u;
 
-    let stride = int_pow(subgroup_size, subgroup_invocation_id);
-    let next_stride = stride * subgroup_size;
+    if subgroup_invocation_id < max_level {
+        let stride = int_pow(subgroup_size, subgroup_invocation_id);
+        let next_stride = stride * subgroup_size;
 
-    let lookup_index = (global_index / stride) * stride;
-    let next_lookup_index = (global_index / next_stride) * next_stride;
+        let lookup_index = (global_index / stride) * stride;
+        let next_lookup_index = (global_index / next_stride) * next_stride;
 
-    if lookup_index > 0 && lookup_index != next_lookup_index {
-        offset_from_level = intermediate[lookup_index - 1];
+        if lookup_index > 0 && lookup_index != next_lookup_index {
+            offset_from_level = intermediate[lookup_index - 1];
+        }
     }
 
     let subgroup_offset: u32 = subgroupAdd(offset_from_level);

@@ -91,7 +91,7 @@ impl PipelinePart for PrefixSum {
                     (u32::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
-                immediate_size: 0,
+                immediate_size: 4,
                 constants: [("WORKGROUP_SIZE", workgroup_size as f64)],
             }
         );
@@ -172,6 +172,7 @@ impl PipelinePart for PrefixSum {
             ),
             &[],
         );
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&max_level));
         compute_pass.dispatch_workgroups_indirect(input.indirect.buffer(), input.indirect.offset());
 
         Ok(Self::OutputBindings { prefix_sums })
