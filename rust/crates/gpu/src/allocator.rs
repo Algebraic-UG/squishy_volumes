@@ -8,14 +8,7 @@
 
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
-use std::{
-    mem::take,
-    num::NonZeroU64,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
-};
+use std::{mem::take, num::NonZeroU64, ops::Range, sync::Arc};
 
 use super::*;
 
@@ -72,11 +65,8 @@ impl Allocation {
                     | wgpu::BufferUsages::INDIRECT,
             }),
         );
-        let partition = Partition {
-            start: 0,
-            end: buffer.size(),
-            used: Arc::new(true.into()),
-        };
+        let partition = Partition::new(0..buffer.size());
+
         Self {
             label,
             buffer,
@@ -93,14 +83,15 @@ impl Allocation {
     }
 
     pub fn offset(&self) -> u64 {
-        self.partition.start
+        self.partition.range.start
     }
 
     pub fn binding<'a>(&'a self) -> wgpu::BufferBinding<'a> {
         let buffer = &self.buffer;
-        let offset = self.partition.start;
-        assert!(self.partition.end > self.partition.start);
-        let size = Some(NonZeroU64::new(self.partition.end - self.partition.start).unwrap());
+        let offset = self.partition.range.start;
+        assert!(self.partition.range.end > self.partition.range.start);
+        let size =
+            Some(NonZeroU64::new(self.partition.range.end - self.partition.range.start).unwrap());
         wgpu::BufferBinding {
             buffer,
             offset,
@@ -115,14 +106,7 @@ impl Allocation {
     }
 
     pub fn size(&self) -> NonZeroU64 {
-        assert!(self.partition.end > self.partition.start);
-        NonZeroU64::new(self.partition.end - self.partition.start).unwrap()
-    }
-}
-
-impl Drop for Allocation {
-    fn drop(&mut self) {
-        self.partition.used.store(false, Ordering::Relaxed);
+        NonZeroU64::new(self.partition.size()).unwrap()
     }
 }
 
@@ -167,11 +151,7 @@ impl GpuAllocator {
             })
         });
 
-        let partitions = vec![Partition {
-            start: 0,
-            end: size,
-            used: Arc::new(false.into()),
-        }];
+        let partitions = vec![Partition::new(0..size)];
 
         let min_storage_buffer_offset_alignment = context
             .device()
@@ -220,34 +200,27 @@ impl GpuAllocator {
         let mut allocation = None;
         for partition in take(&mut self.partitions) {
             // already have allocation or in use
-            if allocation.is_some() || partition.used.load(Ordering::Relaxed) {
+            if allocation.is_some() || partition.in_use() {
                 self.partitions.push(partition);
                 continue;
             }
 
             let align = lcm(align.get(), self.min_storage_buffer_offset_alignment);
-            let aligned_start = partition.start.next_multiple_of(align);
+            let aligned_start = partition.range.start.next_multiple_of(align);
 
             // does it fit?
-            if partition.end < aligned_start + size.get() {
+            if partition.range.end < aligned_start + size.get() {
                 self.partitions.push(partition);
                 continue;
             }
 
             // alignment padding goes back
-            self.partitions.push(Partition {
-                start: partition.start,
-                end: aligned_start,
-                used: Arc::new(false.into()),
-            });
+            self.partitions
+                .push(Partition::new(partition.range.start..aligned_start));
 
             // this part is actually used
             // we also return a copy
-            let allocated_partition = Partition {
-                start: aligned_start,
-                end: aligned_start + size.get(),
-                used: Arc::new(true.into()),
-            };
+            let allocated_partition = Partition::new(aligned_start..aligned_start + size.get());
             allocation = Some(Allocation {
                 label,
                 buffer: self.buffer.clone(),
@@ -256,11 +229,9 @@ impl GpuAllocator {
             self.partitions.push(allocated_partition);
 
             // leftovers
-            self.partitions.push(Partition {
-                start: aligned_start + size.get(),
-                end: partition.end,
-                used: Arc::new(false.into()),
-            });
+            self.partitions.push(Partition::new(
+                aligned_start + size.get()..partition.range.end,
+            ));
         }
 
         allocation.ok_or(GpuAllocatorError::FailedToFindSpace {
@@ -271,15 +242,13 @@ impl GpuAllocator {
     }
 
     fn free_sizes(&self) -> impl Iterator<Item = u64> + '_ {
-        self.partitions
-            .iter()
-            .map(|Partition { start, end, used }| {
-                if used.load(Ordering::Relaxed) {
-                    0
-                } else {
-                    end - start
-                }
-            })
+        self.partitions.iter().map(|partition| {
+            if partition.in_use() {
+                0
+            } else {
+                partition.size()
+            }
+        })
     }
 
     pub fn biggest_free(&self) -> u64 {
@@ -295,13 +264,13 @@ impl GpuAllocator {
         let mut free = None;
         for partition in take(&mut self.partitions) {
             // forget about empty partitions
-            if partition.start == partition.end {
+            if partition.is_empty() {
                 continue;
             }
 
             // this partition is in use
             // push the free part and itself
-            if partition.used.load(Ordering::Relaxed) {
+            if partition.in_use() {
                 if let Some(free) = free.take() {
                     self.partitions.push(free);
                 }
@@ -316,7 +285,7 @@ impl GpuAllocator {
             };
 
             // extend it
-            free.end = partition.end;
+            free.range.end = partition.range.end;
         }
 
         // put the last piece in
@@ -328,9 +297,30 @@ impl GpuAllocator {
 
 #[derive(Clone)]
 struct Partition {
-    start: u64,
-    end: u64,
-    used: Arc<AtomicBool>,
+    range: Range<u64>,
+    used: Arc<()>,
+}
+
+impl Partition {
+    fn new(range: Range<u64>) -> Self {
+        Self {
+            range,
+            used: Arc::new(()),
+        }
+    }
+
+    fn in_use(&self) -> bool {
+        Arc::strong_count(&self.used) > 1
+    }
+
+    fn size(&self) -> u64 {
+        assert!(self.range.end >= self.range.start);
+        self.range.end - self.range.start
+    }
+
+    fn is_empty(&self) -> bool {
+        self.range.is_empty()
+    }
 }
 
 #[macro_export]
