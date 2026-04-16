@@ -126,7 +126,7 @@ impl PipelinePart for PrefixSum {
     fn record(
         &self,
         context: &mut GpuContext,
-        mut encoder: CommandEncoder,
+        encoder: &mut CommandEncoder,
         input: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {

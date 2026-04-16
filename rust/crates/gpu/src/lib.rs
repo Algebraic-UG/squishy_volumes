@@ -22,15 +22,15 @@ pub use error::*;
 pub use pipeline_part::*;
 pub use util::*;
 
-//pub mod count_subkeys;
+pub mod count_subkeys;
 pub mod prefix_sum;
 //pub mod radix_sort;
-//pub mod reorder_indices;
+pub mod reorder_indices;
 
-//pub use count_subkeys::CountSubkeys;
+pub use count_subkeys::CountSubkeys;
 pub use prefix_sum::PrefixSum;
 //pub use radix_sort::RadixSort;
-//pub use reorder_indices::ReorderIndices;
+pub use reorder_indices::ReorderIndices;
 
 //mod allocate_blocks;
 //mod build_cells;

@@ -70,7 +70,7 @@ fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> Vec<u32> {
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output { prefix_sums } = prefix_sum
-        .record(&mut context, (&mut encoder).into(), input, Parameters)
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
     let download = DownloadToHost::new(&context, prefix_sums);
 

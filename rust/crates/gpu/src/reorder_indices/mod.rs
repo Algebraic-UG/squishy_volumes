@@ -98,11 +98,11 @@ impl PipelinePart for ReorderIndices {
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
-                    Indirect::MIN_BINDING_SIZE,
-                    u32::MIN_BINDING_SIZE,
-                    u32::MIN_BINDING_SIZE,
-                    u32::MIN_BINDING_SIZE,
-                    u32::MIN_BINDING_SIZE,
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
                 constants: [
@@ -121,10 +121,10 @@ impl PipelinePart for ReorderIndices {
         }
     }
 
-    fn encode<'a>(
+    fn record(
         &self,
         context: &mut GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
+        encoder: &mut CommandEncoder,
         Input {
             indirect,
             indices_in,
@@ -143,6 +143,7 @@ impl PipelinePart for ReorderIndices {
             .allocator()?
             .allocate::<u32>("indices_out", indices_in.len::<u32>())?;
 
+        let mut compute_pass = encoder.begin_compute_pass(self.reorder_indices.label);
         compute_pass.set_pipeline(&self.reorder_indices.compute_pipeline);
         compute_pass.set_bind_group(
             0,

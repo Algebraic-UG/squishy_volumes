@@ -98,15 +98,12 @@ fn run_reorder_indices(
     let reorder_indices = ReorderIndices::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
     let Output { indices_out } = reorder_indices
-        .encode(&mut context, &mut compute_pass, input, parameters)
+        .record(&mut context, &mut (&mut encoder).into(), input, parameters)
         .unwrap();
 
     let download = DownloadToHost::new(&context, indices_out);
-
-    drop(compute_pass);
 
     download.copy(&mut encoder);
 

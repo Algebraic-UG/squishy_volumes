@@ -100,7 +100,7 @@ pub trait PipelinePart {
     fn record(
         &self,
         context: &mut GpuContext,
-        encoder: CommandEncoder,
+        encoder: &mut CommandEncoder,
         input: Self::Input,
         parameters: Self::Parameters,
     ) -> Result<Self::Output, GpuError>;
