@@ -8,7 +8,12 @@
 
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
-use std::{mem::take, num::NonZeroU64, ops::Range, sync::Arc};
+use std::{
+    mem::take,
+    num::NonZeroU64,
+    ops::Range,
+    sync::{Arc, Weak},
+};
 
 use super::*;
 
@@ -46,7 +51,8 @@ pub struct GpuAllocator {
 pub struct Allocation {
     label: &'static str,
     buffer: Arc<wgpu::Buffer>,
-    partition: Partition,
+    range: Range<u64>,
+    _keep_alive: Arc<()>,
 }
 
 impl Allocation {
@@ -65,12 +71,13 @@ impl Allocation {
                     | wgpu::BufferUsages::INDIRECT,
             }),
         );
-        let partition = Partition::new(0..buffer.size());
+        let (partition, _keep_alive) = Partition::new(0..buffer.size());
 
         Self {
             label,
             buffer,
-            partition,
+            range: partition.range,
+            _keep_alive,
         }
     }
 
@@ -83,15 +90,13 @@ impl Allocation {
     }
 
     pub fn offset(&self) -> u64 {
-        self.partition.range.start
+        self.range.start
     }
 
     pub fn binding<'a>(&'a self) -> wgpu::BufferBinding<'a> {
         let buffer = &self.buffer;
-        let offset = self.partition.range.start;
-        assert!(self.partition.range.end > self.partition.range.start);
-        let size =
-            Some(NonZeroU64::new(self.partition.range.end - self.partition.range.start).unwrap());
+        let offset = self.range.start;
+        let size = Some(self.size());
         wgpu::BufferBinding {
             buffer,
             offset,
@@ -106,7 +111,8 @@ impl Allocation {
     }
 
     pub fn size(&self) -> NonZeroU64 {
-        NonZeroU64::new(self.partition.size()).unwrap()
+        assert!(self.range.end >= self.range.start);
+        NonZeroU64::new(self.range.end - self.range.start).unwrap()
     }
 }
 
@@ -151,7 +157,7 @@ impl GpuAllocator {
             })
         });
 
-        let partitions = vec![Partition::new(0..size)];
+        let partitions = vec![Partition::unused(0..size)];
 
         let min_storage_buffer_offset_alignment = context
             .device()
@@ -216,20 +222,22 @@ impl GpuAllocator {
 
             // alignment padding goes back
             self.partitions
-                .push(Partition::new(partition.range.start..aligned_start));
+                .push(Partition::unused(partition.range.start..aligned_start));
 
             // this part is actually used
-            // we also return a copy
-            let allocated_partition = Partition::new(aligned_start..aligned_start + size.get());
+            // we keep the arc alive
+            let (allocated_partition, _keep_alive) =
+                Partition::new(aligned_start..aligned_start + size.get());
             allocation = Some(Allocation {
                 label,
                 buffer: self.buffer.clone(),
-                partition: allocated_partition.clone(),
+                range: allocated_partition.range.clone(),
+                _keep_alive,
             });
             self.partitions.push(allocated_partition);
 
             // leftovers
-            self.partitions.push(Partition::new(
+            self.partitions.push(Partition::unused(
                 aligned_start + size.get()..partition.range.end,
             ));
         }
@@ -298,19 +306,28 @@ impl GpuAllocator {
 #[derive(Clone)]
 struct Partition {
     range: Range<u64>,
-    used: Arc<()>,
+    counter: Weak<()>,
 }
 
 impl Partition {
-    fn new(range: Range<u64>) -> Self {
-        Self {
-            range,
-            used: Arc::new(()),
-        }
+    // immediately drop the arc
+    fn unused(range: Range<u64>) -> Self {
+        Self::new(range).0
+    }
+
+    fn new(range: Range<u64>) -> (Self, Arc<()>) {
+        let arc = Arc::new(());
+        (
+            Self {
+                range,
+                counter: Arc::downgrade(&arc),
+            },
+            arc,
+        )
     }
 
     fn in_use(&self) -> bool {
-        Arc::strong_count(&self.used) > 1
+        Weak::strong_count(&self.counter) > 0
     }
 
     fn size(&self) -> u64 {
