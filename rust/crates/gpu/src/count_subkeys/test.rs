@@ -10,9 +10,16 @@ use super::*;
 
 #[test]
 fn test_simple() {
-    let bit_count = 2;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
     let bit_offset = 0;
-    let workgroup_size = 64;
+    let parameters = Parameters { bit_offset };
     let subgroup_size = get_subgroup_size();
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
@@ -21,48 +28,62 @@ fn test_simple() {
 
     assert_eq!(
         count_subkeys_on_cpu(
-            u16::MAX as u32,
-            bit_count,
+            dispatch_limit.get(),
+            bit_count.get(),
             bit_offset,
-            workgroup_size,
+            workgroup_size.get(),
             subgroup_size,
             &indices,
             &keys
         ),
-        run_subkey_count(workgroup_size, bit_count, bit_offset, &indices, &keys,),
+        run_subkey_count(settings, parameters, &indices, &keys),
     );
 }
 
 #[test]
 fn test_simple_with_offset() {
-    let bit_count = 2;
-    let bit_offset = 2;
-    let workgroup_size = 64;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
+    let bit_offset = 2; // just this is different
+    let parameters = Parameters { bit_offset };
     let subgroup_size = get_subgroup_size();
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
     let mut indices: Vec<u32> = (0..keys.len() as u32).collect();
-    shuffle(&mut indices, 2);
+    shuffle(&mut indices, 2); // and a different seed, why not
 
     assert_eq!(
         count_subkeys_on_cpu(
-            u16::MAX as u32,
-            bit_count,
+            dispatch_limit.get(),
+            bit_count.get(),
             bit_offset,
-            workgroup_size,
+            workgroup_size.get(),
             subgroup_size,
             &indices,
             &keys
         ),
-        run_subkey_count(workgroup_size, bit_count, bit_offset, &indices, &keys),
+        run_subkey_count(settings, parameters, &indices, &keys),
     );
 }
 
 #[test]
 fn test_larger() {
-    let bit_count = 2;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
     let bit_offset = 0;
-    let workgroup_size = 64;
+    let parameters = Parameters { bit_offset };
     let subgroup_size = get_subgroup_size();
 
     let keys = [1; 513];
@@ -71,15 +92,15 @@ fn test_larger() {
 
     assert_eq!(
         count_subkeys_on_cpu(
-            u16::MAX as u32,
-            bit_count,
+            dispatch_limit.get(),
+            bit_count.get(),
             bit_offset,
-            workgroup_size,
+            workgroup_size.get(),
             subgroup_size,
             &indices,
             &keys
         ),
-        run_subkey_count(workgroup_size, bit_count, bit_offset, &indices, &keys),
+        run_subkey_count(settings, parameters, &indices, &keys),
     );
 }
 
@@ -88,8 +109,14 @@ fn test_random() {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
-    let bit_count = 5;
-    let workgroup_size = 64;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        bit_count,
+    };
     let subgroup_size = get_subgroup_size();
 
     let keys: Vec<u32> = ChaCha8Rng::seed_from_u64(42)
@@ -100,68 +127,67 @@ fn test_random() {
     shuffle(&mut indices, 4);
 
     for bit_offset in 0..5 {
+        let parameters = Parameters { bit_offset };
+
         assert_eq!(
             count_subkeys_on_cpu(
-                u16::MAX as u32,
-                bit_count,
+                dispatch_limit.get(),
+                bit_count.get(),
                 bit_offset,
-                workgroup_size,
+                workgroup_size.get(),
                 subgroup_size,
                 &indices,
                 &keys
             ),
-            run_subkey_count(workgroup_size, bit_count, bit_offset, &indices, &keys),
+            run_subkey_count(settings, parameters, &indices, &keys),
         );
     }
 }
 
 fn run_subkey_count(
-    workgroup_size: u32,
-    bit_count: u32,
-    bit_offset: u32,
+    settings: Settings,
+    parameters: Parameters,
     indices: &[u32],
     keys: &[u32],
 ) -> Vec<u32> {
+    let mut allocator = SHARED_ALLOCATOR.lock().unwrap();
     let context = SHARED_CONTEXT.lock().unwrap();
     let device = context.device();
 
-    let count_subkeys = CountSubkeys::new(
-        &context,
-        CountSubkeysSettings {
-            workgroup_size,
-            bit_count,
-        },
-    );
+    let standalone::Allocations {
+        indirect,
+        indices,
+        keys,
+    } = standalone::Allocations::new(device, settings, indices, keys);
 
-    let buffers = count_subkeys.create_buffers(&context, CountSubkeysBufferInput { indices, keys });
-
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.counts.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let count_subkeys = CountSubkeys::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    count_subkeys.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        (&buffers).into(),
-        CountSubkeysParamters { bit_offset },
-    );
+    let OutputBindings { counts } = count_subkeys
+        .compute_in_pass(
+            &context,
+            &mut allocator,
+            &mut compute_pass,
+            InputBindings {
+                indirect,
+                indices,
+                keys,
+            },
+            parameters,
+        )
+        .unwrap();
+
+    let download = DownloadToHost::new(&context, counts);
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.counts, 0, &download_buffer, 0, None);
+
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+    let download = download.prep();
     device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
-
-    result.to_vec()
+    download.to_vec()
 }

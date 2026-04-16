@@ -8,7 +8,7 @@
 
 use std::sync::Mutex;
 
-use crate::{GpuAllocator, GpuContext, MAX_NUM_PARTICLES};
+use crate::{GpuAllocator, GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES};
 
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
@@ -22,7 +22,6 @@ lazy_static! {
     });
 }
 
-/*
 // This one is ugly.
 // We're emulating the behaviour on the GPU which is influenced by the fact that we have to
 // dispatch in multiples of the workgroup size.
@@ -42,12 +41,14 @@ pub fn count_subkeys_on_cpu(
 
     // this part calculates how many counters there will be
     let subgroups_per_workgroup = workgroup_size / subgroup_size;
-    let workgroup_count = (keys.len() as u32).div_ceil(workgroup_size);
-    let actual_workgroup_count = find_x_y_z_simple(dispatch_limit, workgroup_count)
-        .into_iter()
-        .product::<u32>();
-    let num_subgroups = actual_workgroup_count * subgroups_per_workgroup;
-    let num_counter = num_subgroups * counter_count;
+    let actual_workgroup_count = Indirect::new(IndirectSettings {
+        workgroup_size: workgroup_size.try_into().unwrap(),
+        dispatch_limit: dispatch_limit.try_into().unwrap(),
+        len: keys.len() as u32,
+    })
+    .workgroup_count();
+    let num_subgroups = subgroups_per_workgroup * actual_workgroup_count;
+    let num_counter = actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(bit_count);
 
     // we can chunk through the subgroups but it's not enough
     let mut counts: Vec<u32> = indices
@@ -77,7 +78,6 @@ pub fn count_subkeys_on_cpu(
         })
         .collect()
 }
-*/
 
 pub fn get_subgroup_size() -> u32 {
     GpuContext::new(MAX_NUM_PARTICLES)

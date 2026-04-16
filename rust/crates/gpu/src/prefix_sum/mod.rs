@@ -45,7 +45,7 @@ impl PipelinePart for PrefixSum {
     type InputBindings = InputBindings;
     type OutputBindings = OutputBindings;
 
-    fn new(context: &GpuContext, settings: Self::Settings) -> Self {
+    fn new(context: &GpuContext, settings: Settings) -> Self {
         let workgroup_size = settings.workgroup_size.get();
         let dispatch_limit = settings.dispatch_limit.get();
         let subgroup_size = context.subgroup_size().get();
@@ -108,9 +108,9 @@ impl PipelinePart for PrefixSum {
         context: &GpuContext,
         allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        input: Self::InputBindings,
-        _: Self::Parameters,
-    ) -> Result<Self::OutputBindings, GpuError> {
+        input: InputBindings,
+        _: Parameters,
+    ) -> Result<OutputBindings, GpuError> {
         let len = input.numbers.len::<u32>();
 
         let max_level = (len.get() as u32 * self.subgroup_size - 1).ilog(self.subgroup_size);

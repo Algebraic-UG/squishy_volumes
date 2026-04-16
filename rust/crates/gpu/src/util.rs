@@ -158,6 +158,10 @@ impl Indirect {
 
         Self { x, y, z, len }
     }
+
+    pub fn workgroup_count(&self) -> u32 {
+        self.x * self.y * self.z
+    }
 }
 
 impl AllowedInBinding for Indirect {}

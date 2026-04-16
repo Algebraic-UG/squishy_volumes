@@ -9,218 +9,135 @@
 #[cfg(test)]
 mod test;
 
-use wgpu::util::DeviceExt as _;
+use std::num::NonZeroU32;
 
 use super::*;
 
+pub mod standalone;
+
 pub struct CountSubkeys {
     workgroup_size: u32,
+    dispatch_limit: u32,
     subgroup_size: u32,
     bit_count: u32,
-    compiled_module: CompiledModule,
+    count_subkeys: CompiledModule,
 }
 
 #[derive(Clone, Copy)]
-pub struct CountSubkeysSettings {
-    pub workgroup_size: u32,
-    pub bit_count: u32,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
+    pub bit_count: NonZeroU32,
 }
 
-pub struct CountSubkeysParamters {
+pub struct Parameters {
     pub bit_offset: u32,
 }
 
-pub struct CountSubkeysBufferInput<'a> {
-    pub indices: &'a [u32],
-    pub keys: &'a [u32],
+pub struct InputBindings {
+    pub indirect: Allocation,
+    pub indices: Allocation,
+    pub keys: Allocation,
 }
 
-pub struct CountSubkeysBuffers {
-    pub indices: wgpu::Buffer,
-    pub keys: wgpu::Buffer,
-    pub counts: wgpu::Buffer,
-}
-
-pub struct CountSubkeysBufferBindings<'a> {
-    pub indices: wgpu::BufferBinding<'a>,
-    pub keys: wgpu::BufferBinding<'a>,
-    pub counts: wgpu::BufferBinding<'a>,
-}
-
-impl<'a> From<&'a CountSubkeysBuffers> for CountSubkeysBufferBindings<'a> {
-    fn from(
-        CountSubkeysBuffers {
-            indices,
-            keys,
-            counts,
-        }: &'a CountSubkeysBuffers,
-    ) -> Self {
-        Self {
-            indices: indices.as_entire_buffer_binding(),
-            keys: keys.as_entire_buffer_binding(),
-            counts: counts.as_entire_buffer_binding(),
-        }
-    }
+pub struct OutputBindings {
+    pub counts: Allocation,
 }
 
 impl PipelinePart for CountSubkeys {
-    type Settings = CountSubkeysSettings;
-    type Parameters = CountSubkeysParamters;
-    type BufferInput<'a> = CountSubkeysBufferInput<'a>;
-    type Buffers = CountSubkeysBuffers;
-    type BufferBindings<'a> = CountSubkeysBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type InputBindings = InputBindings;
+    type OutputBindings = OutputBindings;
 
-    fn new(
-        context: &GpuContext,
-        Self::Settings {
-            workgroup_size,
-            bit_count,
-        }: Self::Settings,
-    ) -> Self {
+    fn new(context: &GpuContext, settings: Self::Settings) -> Self {
+        let workgroup_size = settings.workgroup_size.get();
+        let dispatch_limit = settings.dispatch_limit.get();
+        let bit_count = settings.bit_count.get();
         let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));
-        assert!(bit_count > 0);
         assert!(subgroup_size >= 2u32.pow(bit_count));
 
         let device = context.device();
 
-        let label = Some("count");
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<u32>(0, true),
-                bind_group_layout_entry::<u32>(1, true),
-                bind_group_layout_entry::<u32>(2, false),
-            ],
-        });
-
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    immediate_size: 4,
-                }),
-            ),
-            module: &device.create_shader_module(wgpu::include_wgsl!("count_subkeys.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[
+        let_compiled_module!(
+            count_subkeys,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 4,
+                constants: [
                     ("WORKGROUP_SIZE", workgroup_size as f64),
                     ("BIT_COUNT", bit_count as f64),
                 ],
-                ..Default::default()
-            },
-            cache: None,
-        });
-
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
+            }
+        );
 
         Self {
             workgroup_size,
+            dispatch_limit,
             subgroup_size,
             bit_count,
-            compiled_module,
-        }
-    }
-
-    fn create_buffers<'a>(
-        &self,
-        context: &GpuContext,
-        Self::BufferInput { indices, keys }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        assert_eq!(indices.len(), keys.len());
-
-        let count_size = self.min_counts(keys.len() as u32) * 4;
-
-        let device = context.device();
-        let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("indices"),
-            contents: bytemuck::cast_slice(indices),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let keys = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("keys"),
-            contents: bytemuck::cast_slice(keys),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let counts = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("counts"),
-            size: count_size as u64,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            indices,
-            keys,
-            counts,
+            count_subkeys,
         }
     }
 
     fn compute_in_pass<'a>(
         &self,
         context: &GpuContext,
+        allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
+        InputBindings {
+            indirect,
             indices,
             keys,
-            counts,
-        }: Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: Self::Parameters,
-    ) {
+        }: InputBindings,
+        Parameters { bit_offset }: Parameters,
+    ) -> Result<OutputBindings, GpuError> {
+        assert_eq!(indices.len::<u32>(), keys.len::<u32>());
+
         let device = context.device();
 
-        let index_count = elements_in_binding::<u32>(&indices);
-        let key_count = elements_in_binding::<u32>(&keys);
-        let count_count = elements_in_binding::<u32>(&counts);
-        assert_eq!(index_count, key_count);
-        assert!(count_count.get() >= self.min_counts(key_count.get()));
+        let counts_len = (self.min_counts_len(keys.len::<u32>().get() as u32) as u64)
+            .try_into()
+            .unwrap();
+        let counts = allocator.allocate::<u32>("counts", counts_len)?;
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(indices.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(keys.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Buffer(counts.clone()),
-                },
-            ],
-        });
-
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
+        compute_pass.set_pipeline(&self.count_subkeys.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                device,
+                &self.count_subkeys,
+                [
+                    indirect.binding(),
+                    indices.binding(),
+                    keys.binding(),
+                    counts.binding(),
+                ],
+            ),
+            &[],
+        );
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
-        let workgroup_count = key_count.get().div_ceil(self.workgroup_size);
-        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-        compute_pass.dispatch_workgroups(x, y, z);
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+        Ok(OutputBindings { counts })
     }
 }
 
 impl CountSubkeys {
-    pub fn min_counts(&self, key_count: u32) -> u32 {
+    pub fn min_counts_len(&self, key_len: u32) -> u32 {
         let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
-        let workgroup_count = key_count.div_ceil(self.workgroup_size);
-        let actual_workgroup_count = find_x_y_z_simple(u16::MAX as u32, workgroup_count)
-            .into_iter()
-            .product::<u32>();
+        let actual_workgroup_count = Indirect::new(IndirectSettings {
+            workgroup_size: self.workgroup_size.try_into().unwrap(),
+            dispatch_limit: self.dispatch_limit.try_into().unwrap(),
+            len: key_len,
+        })
+        .workgroup_count();
         actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
     }
 }

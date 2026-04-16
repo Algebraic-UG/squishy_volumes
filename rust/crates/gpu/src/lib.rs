@@ -22,6 +22,7 @@ pub use error::*;
 pub use pipeline_part::*;
 pub use util::*;
 
+pub mod count_subkeys;
 pub mod prefix_sum;
 
 //mod allocate_blocks;
