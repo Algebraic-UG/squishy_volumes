@@ -12,8 +12,8 @@ use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::iter::once;
+use std::marker::PhantomData;
 use std::num::{NonZeroU32, NonZeroU64};
-use std::sync::atomic::AtomicU32;
 
 use nalgebra::Vector4;
 
@@ -23,6 +23,86 @@ pub struct CompiledModule {
     pub label: Option<&'static str>,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub compute_pipeline: wgpu::ComputePipeline,
+}
+
+pub struct CompiledModuleSettings<'a, BindGroupEntries, Constants> {
+    pub device: &'a wgpu::Device,
+    pub bind_group_entries: BindGroupEntries,
+    pub immediate_size: u32,
+    pub constants: Constants,
+}
+
+impl CompiledModule {
+    pub fn new<BindGroupEntries, Constants>(
+        label: &'static str,
+        shader_module_descriptor: wgpu::ShaderModuleDescriptor,
+        CompiledModuleSettings {
+            device,
+            bind_group_entries,
+            immediate_size,
+            constants,
+        }: CompiledModuleSettings<BindGroupEntries, Constants>,
+    ) -> Self
+    where
+        BindGroupEntries: IntoIterator<Item = (NonZeroU64, bool)>,
+        Constants: IntoIterator<Item = (&'static str, f64)>,
+    {
+        let label = Some(label);
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label,
+            entries: &bind_group_entries
+                .into_iter()
+                .enumerate()
+                .map(
+                    |(binding, (min_binding_size, read_only))| wgpu::BindGroupLayoutEntry {
+                        binding: binding as u32,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Storage { read_only },
+                            min_binding_size: Some(min_binding_size),
+                            has_dynamic_offset: false,
+                        },
+                        count: None,
+                    },
+                )
+                .collect::<Vec<_>>(),
+        });
+
+        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label,
+            layout: Some(
+                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label,
+                    bind_group_layouts: &[Some(&bind_group_layout)],
+                    immediate_size,
+                }),
+            ),
+            module: &device.create_shader_module(shader_module_descriptor),
+            entry_point: Some("main"),
+            compilation_options: wgpu::PipelineCompilationOptions {
+                constants: &constants.into_iter().collect::<Vec<_>>(),
+                ..Default::default()
+            },
+            cache: None,
+        });
+
+        CompiledModule {
+            label,
+            bind_group_layout,
+            compute_pipeline,
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! let_compiled_module {
+    ($name:ident, $settings:expr) => {
+        let $name = CompiledModule::new(
+            stringify!($name),
+            wgpu::include_wgsl!(concat!(stringify!($name), ".wgsl")),
+            $settings,
+        );
+    };
 }
 
 pub fn binding_size(binding: &wgpu::BufferBinding) -> NonZeroU64 {
@@ -41,7 +121,90 @@ impl AllowedInBinding for u32 {}
 impl AllowedInBinding for f32 {}
 impl AllowedInBinding for Vector4<f32> {}
 impl AllowedInBinding for Vector4<i32> {}
-impl AllowedInBinding for AtomicU32 {}
+impl AllowedInBinding for Vector4<u32> {}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct Indirect {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+    pub len: u32,
+}
+
+pub struct IndirectSettings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
+    pub len: u32,
+}
+impl Indirect {
+    pub fn new(
+        IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len,
+        }: IndirectSettings,
+    ) -> Self {
+        let workgroup_size = workgroup_size.get();
+        let dispatch_limit = dispatch_limit.get();
+
+        let workgroup_count = len.div_ceil(workgroup_size);
+
+        let x = workgroup_count.min(dispatch_limit);
+        let y = workgroup_count.div_ceil(dispatch_limit).min(dispatch_limit);
+        let z = workgroup_count
+            .div_ceil(dispatch_limit * dispatch_limit)
+            .min(dispatch_limit);
+
+        Self { x, y, z, len }
+    }
+}
+
+impl AllowedInBinding for Indirect {}
+
+pub struct DynArray<T> {
+    bytes: Vec<u8>,
+    _marker: PhantomData<T>,
+}
+
+impl<T: AllowedInBinding + bytemuck::Pod> DynArray<T> {
+    pub fn new(len: &u32, values: &[u32]) -> Self {
+        let mut bytes = bytemuck::bytes_of(len).to_vec();
+        // padding
+        bytes.resize(Self::values_start(), 0);
+        bytes.extend_from_slice(bytemuck::cast_slice(values));
+        Self {
+            bytes,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        Self {
+            bytes: bytes.to_vec(),
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn len(&self) -> &u32 {
+        bytemuck::from_bytes(&self.bytes.as_slice()[0..4])
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        bytemuck::cast_slice(&self.bytes.as_slice()[Self::values_start()..])
+    }
+
+    fn values_start() -> usize {
+        u32::MIN_BINDING_SIZE
+            .get()
+            .next_multiple_of(T::ALIGNMENT.get()) as usize
+    }
+}
+
+impl<T: AllowedInBinding + bytemuck::Pod> AllowedInBinding for DynArray<T> {
+    const MIN_BINDING_SIZE: NonZeroU64 = NonZeroU64::new(2 * T::MIN_BINDING_SIZE.get()).unwrap();
+    const ALIGNMENT: NonZeroU64 = T::ALIGNMENT;
+}
 
 pub fn elements_in_binding<T: AllowedInBinding>(binding: &wgpu::BufferBinding) -> NonZeroU32 {
     NonZeroU32::try_from((binding_size(binding).get() / T::MIN_BINDING_SIZE.get()) as u32).unwrap()
@@ -148,14 +311,6 @@ pub fn find_x_y_z(workgroup_count: u32) -> [u32; 3] {
 
     xyz
 }*/
-
-pub fn find_x_y_z_simple(limit: u32, workgroup_count: u32) -> [u32; 3] {
-    [
-        workgroup_count.min(limit),
-        workgroup_count.div_ceil(limit).min(limit),
-        workgroup_count.div_ceil(limit * limit).min(limit),
-    ]
-}
 
 pub fn shuffle<T>(v: &mut [T], seed: u64) {
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
@@ -269,6 +424,25 @@ macro_rules! let_buffer {
             mapped_at_creation: false,
         });
     };
+}
+
+pub fn create_bind_group<'a>(
+    device: &wgpu::Device,
+    compiled_module: &CompiledModule,
+    entries: impl IntoIterator<Item = wgpu::BufferBinding<'a>>,
+) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: compiled_module.label,
+        layout: &compiled_module.bind_group_layout,
+        entries: &entries
+            .into_iter()
+            .enumerate()
+            .map(|(binding, entry)| wgpu::BindGroupEntry {
+                binding: binding as u32,
+                resource: wgpu::BindingResource::Buffer(entry),
+            })
+            .collect::<Vec<_>>(),
+    })
 }
 
 pub fn block_offset(block: u32) -> Vector4<i32> {

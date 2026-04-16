@@ -10,49 +10,36 @@
 //enable subgroups;
 
 @group(0) @binding(0)
-var<storage, read> indirect: Indirect;
+var<storage, read> numbers_indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read> intermediate: array<u32>;
+var<storage, read> numbers: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read_write> prefix_sums: array<u32>;
+var<storage, read_write> indirect_levels: array<Indirect>;
 
 override WORKGROUP_SIZE: u32;
+override DISPATCH_LIMIT: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
-    @builtin(subgroup_invocation_id) subgroup_invocation_id: u32,
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     let global_index = get_global_index(num_workgroups, global_invocation_id);
-
-    var offset_from_level = 0u;
-
-    let stride = int_pow(subgroup_size, subgroup_invocation_id);
-    let next_stride = stride * subgroup_size;
-
-    let lookup_index = (global_index / stride) * stride;
-    let next_lookup_index = (global_index / next_stride) * next_stride;
-
-    if lookup_index > 0 && lookup_index != next_lookup_index {
-        offset_from_level = intermediate[lookup_index - 1];
+    if global_index >= arrayLength(&indirect_levels) {
+        return;
     }
 
-    let subgroup_offset: u32 = subgroupAdd(offset_from_level);
+    let stride = int_pow(subgroup_size, global_index);
+    let len = div_ceil(numbers_indirect.len, stride);
+    let dispatch_xyz = find_dispatch_xyz(len);
 
-    var my_data = 0u;
-    if subgroup_invocation_id > 0 && global_index < indirect.len {
-        my_data = intermediate[global_index - 1];
-    }
-
-    my_data = subgroup_offset + my_data;
-
-    if global_index < indirect.len {
-        prefix_sums[global_index] = my_data;
-    }
+    indirect_levels[global_index].len = len;
+    indirect_levels[global_index].x = dispatch_xyz.x;
+    indirect_levels[global_index].y = dispatch_xyz.y;
+    indirect_levels[global_index].z = dispatch_xyz.z;
 }
 
 fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
@@ -61,11 +48,11 @@ fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) 
         (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
 }
 
-struct Indirect {
-    x: u32,
-    y: u32,
-    z: u32,
-    len: u32,
+fn div_ceil(left: u32, right: u32) -> u32 {
+    if left == 0 {
+        return 0;
+    }
+    return 1 + ((left - 1) / right);
 }
 
 fn int_pow(base: u32, exponent: u32) -> u32 {
@@ -74,4 +61,19 @@ fn int_pow(base: u32, exponent: u32) -> u32 {
         result *= base;
     }
     return result;
+}
+
+fn find_dispatch_xyz(len: u32) -> vec3u {
+    let workgroup_count = div_ceil(len, WORKGROUP_SIZE);
+    let x = min(DISPATCH_LIMIT, workgroup_count);
+    let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
+    let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
+    return vec3u(x, y, z);
+}
+
+struct Indirect {
+    x: u32,
+    y: u32,
+    z: u32,
+    len: u32,
 }

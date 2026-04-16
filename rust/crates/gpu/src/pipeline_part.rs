@@ -6,27 +6,23 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::GpuContext;
+use crate::{GpuAllocator, GpuContext, GpuError};
 
 pub trait PipelinePart {
     type Settings;
     type Parameters;
 
-    type BufferInput<'a>;
-    type Buffers;
-    type BufferBindings<'a>;
+    type InputBindings;
+    type OutputBindings;
 
     fn new(context: &GpuContext, settings: Self::Settings) -> Self;
-    fn create_buffers<'a>(
+
+    fn compute_in_pass(
         &self,
         context: &GpuContext,
-        input: Self::BufferInput<'a>,
-    ) -> Self::Buffers;
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
+        allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        buffer_bindings: Self::BufferBindings<'a>,
+        input: Self::InputBindings,
         parameters: Self::Parameters,
-    );
+    ) -> Result<Self::OutputBindings, GpuError>;
 }

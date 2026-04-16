@@ -8,7 +8,7 @@
 
 use std::sync::Mutex;
 
-use crate::{GpuContext, MAX_NUM_PARTICLES, find_x_y_z_simple};
+use crate::{GpuAllocator, GpuContext, MAX_NUM_PARTICLES};
 
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
@@ -17,8 +17,12 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> =
         Mutex::new(GpuContext::new(MAX_NUM_PARTICLES).unwrap());
+    pub static ref SHARED_ALLOCATOR: Mutex<GpuAllocator> = Mutex::new({
+        GpuAllocator::new(&SHARED_CONTEXT.lock().unwrap(), 100000, "test allocator").unwrap()
+    });
 }
 
+/*
 // This one is ugly.
 // We're emulating the behaviour on the GPU which is influenced by the fact that we have to
 // dispatch in multiples of the workgroup size.
@@ -73,6 +77,7 @@ pub fn count_subkeys_on_cpu(
         })
         .collect()
 }
+*/
 
 pub fn get_subgroup_size() -> u32 {
     GpuContext::new(MAX_NUM_PARTICLES)

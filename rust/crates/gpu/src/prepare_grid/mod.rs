@@ -24,6 +24,7 @@ pub struct PrepareGrid {
     build_cells: BuildCells,
     offsets_to_indirect: OffsetsToIndirect,
     color_cells: ColorCells2,
+    reorder_particles: ReorderParticles,
     build_hash_table_colors: BuildHashTableColors,
     allocate_blocks: AllocateBlocks,
 }
@@ -36,6 +37,7 @@ pub struct PrepareGridSettings {
     pub build_cells: BuildCellsSettings,
     pub offsets_to_indirect: OffsetsToIndirectSettings,
     pub color_cells: ColorCells2Settings,
+    pub reorder_particles: ReorderParticlesSettings,
     pub build_hash_table_colors: BuildHashTableColorsSettings,
     pub allocate_blocks: AllocateBlocksSettings,
 }
@@ -47,59 +49,19 @@ pub struct PrepareGridBufferInput<'a> {
 
 pub struct PrepareGridBuffers {
     pub particle_positions_in: wgpu::Buffer,
-    pub particle_positions_out: wgpu::Buffer,
+    pub particle_indices_in: wgpu::Buffer,
 
-    pub particle_indices_front: wgpu::Buffer,
-    pub particle_indices_back: wgpu::Buffer,
-
-    pub particle_keys: wgpu::Buffer,
-    pub particle_counts: wgpu::Buffer,
-    pub particle_prefix_sums: wgpu::Buffer,
-
-    pub particle_cell_boundaries: wgpu::Buffer,
-    pub particle_cell_indices: wgpu::Buffer,
-
-    pub cell_ids_in: wgpu::Buffer,
-    pub cell_ids_out: wgpu::Buffer,
-
-    pub cell_counts: wgpu::Buffer,
-    pub cell_prefix_sums: wgpu::Buffer,
-
-    pub cell_index_ranges: wgpu::Buffer,
-    pub cell_owns: wgpu::Buffer,
-
-    pub indirect: wgpu::Buffer,
-    pub limits: wgpu::Buffer,
-
-    pub block_table: wgpu::Buffer,
+    pub allocator: GpuAllocator,
 }
 
 pub struct PrepareGridBufferBindings<'a> {
     pub particle_positions_in: wgpu::BufferBinding<'a>,
-    pub particle_positions_out: wgpu::BufferBinding<'a>,
+    pub particle_indices_in: wgpu::BufferBinding<'a>,
 
-    pub particle_indices: Rc<RefCell<DoubleBuffer<'a>>>,
+    pub allocator: &'a mut GpuAllocator,
 
-    pub particle_keys: wgpu::BufferBinding<'a>,
-    pub particle_counts: wgpu::BufferBinding<'a>,
-    pub particle_prefix_sums: wgpu::BufferBinding<'a>,
-
-    pub particle_cell_boundaries: wgpu::BufferBinding<'a>,
-    pub particle_cell_indices: wgpu::BufferBinding<'a>,
-
-    pub cell_ids_in: wgpu::BufferBinding<'a>,
-    pub cell_ids_out: wgpu::BufferBinding<'a>,
-
-    pub cell_counts: wgpu::BufferBinding<'a>,
-    pub cell_prefix_sums: wgpu::BufferBinding<'a>,
-
-    pub cell_index_ranges: wgpu::BufferBinding<'a>,
-    pub cell_owns: wgpu::BufferBinding<'a>,
-
-    pub indirect: wgpu::BufferBinding<'a>,
-    pub limits: wgpu::BufferBinding<'a>,
-
-    pub block_table: wgpu::BufferBinding<'a>,
+    pub cell_ids: Option<Allocation>,
+    pub block_table: Option<Allocation>,
 }
 
 impl<'a> From<&'a PrepareGridBuffers> for PrepareGridBufferBindings<'a> {

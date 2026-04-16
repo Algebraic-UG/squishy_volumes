@@ -10,7 +10,10 @@
 //enable subgroups;
 
 @group(0) @binding(0)
-var<storage, read_write> data: array<u32>;
+var<storage, read> indirect: Indirect;
+
+@group(0) @binding(1)
+var<storage, read_write> intermediate: array<u32>;
 
 var<immediate> stride: u32;
 
@@ -18,27 +21,34 @@ override WORKGROUP_SIZE: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
-    @builtin(subgroup_size) subgroup_size: u32,
-    @builtin(subgroup_invocation_id) subgroup_invocation_id: u32,
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    let global_index = global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
-
-    let array_length = arrayLength(&data);
+    let global_index = get_global_index(num_workgroups, global_invocation_id);
 
     let index = stride - 1 + global_index * stride;
 
     var my_data = 0u;
-    if index < array_length {
-        my_data = data[index];
+    if index < indirect.len {
+        my_data = intermediate[index];
     }
 
     my_data = subgroupInclusiveAdd(my_data);
 
-    if index < array_length {
-        data[index] = my_data;
+    if index < indirect.len {
+        intermediate[index] = my_data;
     }
+}
+
+fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
+    return global_invocation_id.x +
+        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
+        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
+}
+
+struct Indirect {
+    x: u32,
+    y: u32,
+    z: u32,
+    len: u32,
 }

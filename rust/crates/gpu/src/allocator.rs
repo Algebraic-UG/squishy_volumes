@@ -6,9 +6,19 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{cell::Cell, mem::take, num::NonZeroU64, rc::Rc};
+use std::{
+    mem::take,
+    num::NonZeroU64,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use super::*;
+
+use num::integer::lcm;
+use wgpu::util::DeviceExt as _;
 
 use thiserror::Error;
 
@@ -31,17 +41,58 @@ In total free: {total_free}"
 }
 
 pub struct GpuAllocator {
+    min_storage_buffer_offset_alignment: u64,
     max_storage_buffer_binding_size: u64,
-    buffer: Rc<wgpu::Buffer>,
+    buffer: Arc<wgpu::Buffer>,
     partitions: Vec<Partition>,
 }
 
 pub struct Allocation {
-    buffer: Rc<wgpu::Buffer>,
+    label: &'static str,
+    buffer: Arc<wgpu::Buffer>,
     partition: Partition,
 }
 
 impl Allocation {
+    pub fn new<T: AllowedInBinding + bytemuck::Pod>(
+        device: &wgpu::Device,
+        label: &'static str,
+        contents: &[T],
+    ) -> Self {
+        let buffer = Arc::new(
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label),
+                contents: bytemuck::cast_slice(contents),
+                usage: wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::INDIRECT,
+            }),
+        );
+        let partition = Partition {
+            start: 0,
+            end: buffer.size(),
+            used: Arc::new(true.into()),
+        };
+        Self {
+            label,
+            buffer,
+            partition,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        self.label
+    }
+
+    pub fn buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
+    }
+
+    pub fn offset(&self) -> u64 {
+        self.partition.start
+    }
+
     pub fn binding<'a>(&'a self) -> wgpu::BufferBinding<'a> {
         let buffer = &self.buffer;
         let offset = self.partition.start;
@@ -53,11 +104,22 @@ impl Allocation {
             size,
         }
     }
+
+    pub fn len<T: AllowedInBinding>(&self) -> NonZeroU64 {
+        let size = self.size().get();
+        assert!(size.is_multiple_of(T::MIN_BINDING_SIZE.get()));
+        NonZeroU64::new(size / T::MIN_BINDING_SIZE.get()).unwrap()
+    }
+
+    pub fn size(&self) -> NonZeroU64 {
+        assert!(self.partition.end > self.partition.start);
+        NonZeroU64::new(self.partition.end - self.partition.start).unwrap()
+    }
 }
 
 impl Drop for Allocation {
     fn drop(&mut self) {
-        self.partition.used.set(false);
+        self.partition.used.store(false, Ordering::Relaxed);
     }
 }
 
@@ -74,25 +136,32 @@ impl GpuAllocator {
             });
         }
 
-        let buffer = Rc::new(context.device().create_buffer(&wgpu::BufferDescriptor {
+        let buffer = Arc::new(context.device().create_buffer(&wgpu::BufferDescriptor {
             label: Some(label),
             size,
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_DST
-                | wgpu::BufferUsages::COPY_SRC,
+                | wgpu::BufferUsages::COPY_SRC
+                | wgpu::BufferUsages::INDIRECT,
             mapped_at_creation: false,
         }));
 
         let partitions = vec![Partition {
             start: 0,
             end: size,
-            used: Rc::new(Cell::new(false)),
+            used: Arc::new(false.into()),
         }];
 
+        let min_storage_buffer_offset_alignment = context
+            .device()
+            .limits()
+            .min_storage_buffer_offset_alignment
+            as u64;
         let max_storage_buffer_binding_size =
-            context.adapter().limits().max_storage_buffer_binding_size;
+            context.device().limits().max_storage_buffer_binding_size;
 
         Ok(Self {
+            min_storage_buffer_offset_alignment,
             max_storage_buffer_binding_size,
             buffer,
             partitions,
@@ -101,9 +170,11 @@ impl GpuAllocator {
 
     pub fn allocate<T: AllowedInBinding>(
         &mut self,
+        label: &'static str,
         len: NonZeroU64,
     ) -> Result<Allocation, GpuAllocatorError> {
         self.allocate_raw(
+            label,
             NonZeroU64::new(T::MIN_BINDING_SIZE.get() * len.get()).unwrap(),
             T::ALIGNMENT,
         )
@@ -111,6 +182,7 @@ impl GpuAllocator {
 
     pub fn allocate_raw(
         &mut self,
+        label: &'static str,
         size: NonZeroU64,
         align: NonZeroU64,
     ) -> Result<Allocation, GpuAllocatorError> {
@@ -127,12 +199,13 @@ impl GpuAllocator {
         let mut allocation = None;
         for partition in take(&mut self.partitions) {
             // already have allocation or in use
-            if allocation.is_some() || partition.used.get() {
+            if allocation.is_some() || partition.used.load(Ordering::Relaxed) {
                 self.partitions.push(partition);
                 continue;
             }
 
-            let aligned_start = partition.start.next_multiple_of(align.get());
+            let align = lcm(align.get(), self.min_storage_buffer_offset_alignment);
+            let aligned_start = partition.start.next_multiple_of(align);
 
             // does it fit?
             if partition.end < aligned_start + size.get() {
@@ -144,7 +217,7 @@ impl GpuAllocator {
             self.partitions.push(Partition {
                 start: partition.start,
                 end: aligned_start,
-                used: Rc::new(Cell::new(false)),
+                used: Arc::new(false.into()),
             });
 
             // this part is actually used
@@ -152,9 +225,10 @@ impl GpuAllocator {
             let allocated_partition = Partition {
                 start: aligned_start,
                 end: aligned_start + size.get(),
-                used: Rc::new(Cell::new(true)),
+                used: Arc::new(true.into()),
             };
             allocation = Some(Allocation {
+                label,
                 buffer: self.buffer.clone(),
                 partition: allocated_partition.clone(),
             });
@@ -164,7 +238,7 @@ impl GpuAllocator {
             self.partitions.push(Partition {
                 start: aligned_start + size.get(),
                 end: partition.end,
-                used: Rc::new(Cell::new(false)),
+                used: Arc::new(false.into()),
             });
         }
 
@@ -178,7 +252,13 @@ impl GpuAllocator {
     fn free_sizes(&self) -> impl Iterator<Item = u64> + '_ {
         self.partitions
             .iter()
-            .map(|Partition { start, end, used }| if used.get() { 0 } else { end - start })
+            .map(|Partition { start, end, used }| {
+                if used.load(Ordering::Relaxed) {
+                    0
+                } else {
+                    end - start
+                }
+            })
     }
 
     pub fn biggest_free(&self) -> u64 {
@@ -200,7 +280,7 @@ impl GpuAllocator {
 
             // this partition is in use
             // push the free part and itself
-            if partition.used.get() {
+            if partition.used.load(Ordering::Relaxed) {
                 if let Some(free) = free.take() {
                     self.partitions.push(free);
                 }
@@ -229,7 +309,14 @@ impl GpuAllocator {
 struct Partition {
     start: u64,
     end: u64,
-    used: Rc<Cell<bool>>,
+    used: Arc<AtomicBool>,
+}
+
+#[macro_export]
+macro_rules! let_allocation_init {
+    ($device:expr, $name:ident($contents:expr)) => {
+        let $name = Allocation::new($device, stringify!($name), $contents);
+    };
 }
 
 #[cfg(test)]
@@ -240,17 +327,17 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let forty = NonZeroU64::new(40).unwrap();
-        let binding_size = forty.get() * u32::MIN_BINDING_SIZE.get();
+        let aligned = NonZeroU64::new(256).unwrap();
+        let binding_size = aligned.get() * u32::MIN_BINDING_SIZE.get();
         let size = binding_size * 4;
 
         let context = SHARED_CONTEXT.lock().unwrap();
         let mut allocator = GpuAllocator::new(&context, size, "allocation").unwrap();
 
-        let _a = allocator.allocate::<u32>(forty).unwrap();
-        let _b = allocator.allocate::<u32>(forty).unwrap();
-        let _c = allocator.allocate::<u32>(forty).unwrap();
-        let _d = allocator.allocate::<u32>(forty).unwrap();
+        let _a = allocator.allocate::<u32>("a", aligned).unwrap();
+        let _b = allocator.allocate::<u32>("b", aligned).unwrap();
+        let _c = allocator.allocate::<u32>("c", aligned).unwrap();
+        let _d = allocator.allocate::<u32>("d", aligned).unwrap();
 
         allocator.fix();
         assert_eq!(allocator.total_free(), 0);
@@ -287,6 +374,7 @@ mod tests {
         let mut allocator = GpuAllocator::new(&context, 42, "allocation").unwrap();
         assert!(matches!(
             allocator.allocate_raw(
+                "too large",
                 NonZeroU64::new(u64::MAX).unwrap(),
                 NonZeroU64::new(4).unwrap(),
             ),
@@ -296,22 +384,22 @@ mod tests {
 
     #[test]
     fn test_no_space() {
-        let forty = NonZeroU64::new(40).unwrap();
-        let eighty = NonZeroU64::new(80).unwrap();
-        let binding_size = forty.get() * u32::MIN_BINDING_SIZE.get();
+        let aligned = NonZeroU64::new(256).unwrap();
+        let double_aligned = NonZeroU64::new(256 * 2).unwrap();
+        let binding_size = aligned.get() * u32::MIN_BINDING_SIZE.get();
         let size = binding_size * 4;
 
         let context = SHARED_CONTEXT.lock().unwrap();
         let mut allocator = GpuAllocator::new(&context, size, "allocation").unwrap();
 
-        let _a = allocator.allocate::<u32>(forty).unwrap();
-        let _b = allocator.allocate::<u32>(forty).unwrap();
-        let _c = allocator.allocate::<u32>(forty).unwrap();
+        let _a = allocator.allocate::<u32>("a", aligned).unwrap();
+        let _b = allocator.allocate::<u32>("b", aligned).unwrap();
+        let _c = allocator.allocate::<u32>("c", aligned).unwrap();
 
         drop(_b);
 
         assert!(matches!(
-            allocator.allocate::<u32>(eighty),
+            allocator.allocate::<u32>("no space", double_aligned),
             Err(GpuAllocatorError::FailedToFindSpace { .. }),
         ));
     }

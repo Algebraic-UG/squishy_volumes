@@ -8,19 +8,16 @@
 
 use super::*;
 
-pub struct DownloadsToHost<'a>(Vec<DownloadToHost<'a>>);
+pub struct DownloadsToHost(Vec<DownloadToHost>);
 
 pub struct DownloadsToHostReady<'a>(Vec<DownloadToHostReady<'a>>);
 
-impl<'a> DownloadsToHost<'a> {
-    pub fn new(
-        context: &GpuContext,
-        sources_and_labels: impl IntoIterator<Item = (&'a wgpu::Buffer, &'static str)>,
-    ) -> Self {
+impl DownloadsToHost {
+    pub fn new(context: &GpuContext, sources: impl IntoIterator<Item = Allocation>) -> Self {
         Self(
-            sources_and_labels
+            sources
                 .into_iter()
-                .map(|(source, label)| DownloadToHost::new(context, source, label))
+                .map(|source| DownloadToHost::new(context, source))
                 .collect(),
         )
     }
@@ -29,7 +26,7 @@ impl<'a> DownloadsToHost<'a> {
         self.0.iter().for_each(|download| download.copy(encoder));
     }
 
-    pub fn prep(&'a self) -> DownloadsToHostReady<'a> {
+    pub fn prep<'a>(&'a self) -> DownloadsToHostReady<'a> {
         DownloadsToHostReady(self.0.iter().map(|download| download.prep()).collect())
     }
 }
@@ -41,8 +38,8 @@ impl<'a, const N: usize> TryFrom<DownloadsToHostReady<'a>> for [DownloadToHostRe
     }
 }
 
-pub struct DownloadToHost<'a> {
-    source: &'a wgpu::Buffer,
+pub struct DownloadToHost {
+    source: Allocation,
     target: wgpu::Buffer,
 }
 
@@ -51,11 +48,11 @@ pub struct DownloadToHostReady<'a> {
     data_slice: wgpu::BufferSlice<'a>,
 }
 
-impl<'a> DownloadToHost<'a> {
-    pub fn new(context: &GpuContext, source: &'a wgpu::Buffer, label: &'static str) -> Self {
+impl DownloadToHost {
+    pub fn new(context: &GpuContext, source: Allocation) -> Self {
         let target = context.device().create_buffer(&wgpu::BufferDescriptor {
-            label: Some(&format!("download_{label}")),
-            size: source.size(),
+            label: Some(&format!("download_{}", source.label())),
+            size: source.size().get(),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
@@ -63,10 +60,16 @@ impl<'a> DownloadToHost<'a> {
     }
 
     pub fn copy(&self, encoder: &mut wgpu::CommandEncoder) {
-        encoder.copy_buffer_to_buffer(self.source, 0, &self.target, 0, None);
+        encoder.copy_buffer_to_buffer(
+            self.source.buffer(),
+            self.source.offset(),
+            &self.target,
+            0,
+            Some(self.source.size().get()),
+        );
     }
 
-    pub fn prep(&'a self) -> DownloadToHostReady<'a> {
+    pub fn prep<'a>(&'a self) -> DownloadToHostReady<'a> {
         let data_slice = self.target.slice(..);
         data_slice.map_async(wgpu::MapMode::Read, |_| {});
         DownloadToHostReady { data_slice }

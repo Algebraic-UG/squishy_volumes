@@ -6,7 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use wgpu::util::DeviceExt as _;
+use nalgebra::Vector4;
+use std::num::{NonZeroU32, NonZeroU64};
 
 use super::*;
 
@@ -14,225 +15,162 @@ use super::*;
 mod test;
 
 pub struct PrefixSum {
-    workgroup_size: u32,
     subgroup_size: u32,
+    prepare_indirect: CompiledModule,
     build_levels: CompiledModule,
     fill_final: CompiledModule,
 }
 
-#[derive(Clone, Copy)]
-pub struct PrefixSumSettings {
-    pub workgroup_size: u32,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
 }
 
-pub struct PrefixSumBufferInput<'a> {
-    pub numbers: &'a [u32],
+pub struct Paramters;
+
+pub struct InputBindings {
+    pub indirect: Allocation,
+    pub numbers: Allocation,
 }
 
-pub struct PrefixSumBuffers {
-    pub numbers: wgpu::Buffer,
-    pub prefix_sums: wgpu::Buffer,
-}
-
-pub struct PrefixSumBufferBindings<'a> {
-    pub numbers: wgpu::BufferBinding<'a>,
-    pub prefix_sums: wgpu::BufferBinding<'a>,
-}
-
-impl<'a> From<&'a PrefixSumBuffers> for PrefixSumBufferBindings<'a> {
-    fn from(
-        PrefixSumBuffers {
-            numbers,
-            prefix_sums,
-        }: &'a PrefixSumBuffers,
-    ) -> Self {
-        Self {
-            numbers: numbers.as_entire_buffer_binding(),
-            prefix_sums: prefix_sums.as_entire_buffer_binding(),
-        }
-    }
+pub struct OutputBindings {
+    pub prefix_sums: Allocation,
 }
 
 impl PipelinePart for PrefixSum {
-    type Settings = PrefixSumSettings;
-    type Parameters = ();
-    type BufferInput<'a> = PrefixSumBufferInput<'a>;
-    type Buffers = PrefixSumBuffers;
-    type BufferBindings<'a> = PrefixSumBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Paramters;
+    type InputBindings = InputBindings;
+    type OutputBindings = OutputBindings;
 
-    fn new(context: &GpuContext, Self::Settings { workgroup_size }: Self::Settings) -> Self {
+    fn new(context: &GpuContext, settings: Self::Settings) -> Self {
+        let workgroup_size = settings.workgroup_size.get();
+        let dispatch_limit = settings.dispatch_limit.get();
         let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
         assert!(workgroup_size.is_multiple_of(subgroup_size));
 
-        let device = context.device();
-
-        let build_levels = {
-            let label = Some("build_levels");
-
-            let bind_group_layout =
-                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label,
-                    entries: &[bind_group_layout_entry::<u32>(0, false)],
-                });
-
-            let compute_pipeline =
-                device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label,
-                    layout: Some(
-                        &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                            label,
-                            bind_group_layouts: &[Some(&bind_group_layout)],
-                            immediate_size: 4,
-                        }),
-                    ),
-                    module: &device.create_shader_module(wgpu::include_wgsl!("build_levels.wgsl")),
-                    entry_point: Some("main"),
-                    compilation_options: wgpu::PipelineCompilationOptions {
-                        constants: &[("WORKGROUP_SIZE", workgroup_size as f64)],
-                        ..Default::default()
-                    },
-                    cache: None,
-                });
-
-            CompiledModule {
-                label,
-                bind_group_layout,
-                compute_pipeline,
+        let_compiled_module!(
+            prepare_indirect,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (Vector4::<u32>::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (Vector4::<u32>::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size as f64),
+                    ("DISPATCH_LIMIT", dispatch_limit as f64),
+                ],
             }
-        };
+        );
 
-        let fill_final = {
-            let label = Some("fill_final");
-
-            let bind_group_layout =
-                device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                    label,
-                    entries: &[
-                        bind_group_layout_entry::<u32>(0, true),
-                        bind_group_layout_entry::<u32>(1, false),
-                    ],
-                });
-
-            let compute_pipeline =
-                device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label,
-                    layout: Some(
-                        &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                            label,
-                            bind_group_layouts: &[Some(&bind_group_layout)],
-                            immediate_size: 4,
-                        }),
-                    ),
-                    module: &device.create_shader_module(wgpu::include_wgsl!("fill_final.wgsl")),
-                    entry_point: Some("main"),
-                    compilation_options: wgpu::PipelineCompilationOptions {
-                        constants: &[("WORKGROUP_SIZE", workgroup_size as f64)],
-                        ..Default::default()
-                    },
-                    cache: None,
-                });
-
-            CompiledModule {
-                label,
-                bind_group_layout,
-                compute_pipeline,
+        let_compiled_module!(
+            build_levels,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (Vector4::<u32>::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 4,
+                constants: [("WORKGROUP_SIZE", workgroup_size as f64)],
             }
-        };
+        );
+
+        let_compiled_module!(
+            fill_final,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (Vector4::<u32>::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [("WORKGROUP_SIZE", workgroup_size as f64)],
+            }
+        );
 
         Self {
-            workgroup_size,
             subgroup_size,
+            prepare_indirect,
             build_levels,
             fill_final,
         }
     }
 
-    fn create_buffers<'a>(
+    fn compute_in_pass(
         &self,
         context: &GpuContext,
-        Self::BufferInput { numbers }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        let device = context.device();
-        let numbers = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("numbers"),
-            contents: bytemuck::cast_slice(numbers),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let prefix_sums = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("prefix_sums"),
-            size: numbers.size(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            numbers,
-            prefix_sums,
-        }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
+        allocator: &mut GpuAllocator,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
-            numbers,
-            prefix_sums,
-        }: Self::BufferBindings<'a>,
+        input: Self::InputBindings,
         _: Self::Parameters,
-    ) {
-        let element_count = elements_in_binding::<u32>(&numbers);
-        assert!(element_count == elements_in_binding::<u32>(&prefix_sums));
+    ) -> Result<Self::OutputBindings, GpuError> {
+        let len = input.numbers.len::<u32>();
 
-        let element_count = element_count.get();
-        let max_level = (element_count * self.subgroup_size - 1).ilog(self.subgroup_size);
+        let max_level = (len.get() as u32 * self.subgroup_size - 1).ilog(self.subgroup_size);
 
-        let device = context.device();
-        let bind_group_build_levels = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.build_levels.label,
-            layout: &self.build_levels.bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::Buffer(numbers.clone()),
-            }],
-        });
-        let bind_group_fill_final = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.fill_final.label,
-            layout: &self.fill_final.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(numbers.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(prefix_sums.clone()),
-                },
-            ],
-        });
+        let indirect_levels = allocator.allocate::<Indirect>(
+            "indiret_levels",
+            NonZeroU64::new(max_level as u64 + 1).unwrap(),
+        )?;
+
+        compute_pass.set_pipeline(&self.prepare_indirect.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.prepare_indirect,
+                [
+                    input.indirect.binding(),
+                    input.numbers.binding(),
+                    indirect_levels.binding(),
+                ],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups(1, 1, 1);
 
         compute_pass.set_pipeline(&self.build_levels.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group_build_levels, &[]);
-
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.build_levels,
+                [input.indirect.binding(), input.numbers.binding()],
+            ),
+            &[],
+        );
         for level in 0..max_level {
             let stride = self.subgroup_size.pow(level);
-            let element_count = element_count.div_ceil(self.subgroup_size.pow(level));
-
-            let workgroup_count = element_count.div_ceil(self.workgroup_size) as u32;
-            let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-            tracing::info!(level, element_count, x, y, z);
-
             compute_pass.set_immediates(0, bytemuck::bytes_of(&stride));
-            compute_pass.dispatch_workgroups(x, y, z);
+            compute_pass.dispatch_workgroups_indirect(
+                indirect_levels.buffer(),
+                level as u64 * Vector4::<u32>::MIN_BINDING_SIZE.get(),
+            );
         }
 
-        compute_pass.set_pipeline(&self.fill_final.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group_fill_final, &[]);
-        compute_pass.set_immediates(0, bytemuck::bytes_of(&max_level));
+        let prefix_sums = allocator.allocate::<u32>("prefix_sums", len)?;
 
-        let workgroup_count = element_count.div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-        compute_pass.dispatch_workgroups(x, y, z);
+        compute_pass.set_pipeline(&self.fill_final.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.fill_final,
+                [
+                    input.indirect.binding(),
+                    input.numbers.binding(),
+                    prefix_sums.binding(),
+                ],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups_indirect(input.indirect.buffer(), input.indirect.offset());
+
+        Ok(Self::OutputBindings { prefix_sums })
     }
 }

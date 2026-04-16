@@ -8,6 +8,8 @@
 
 use thiserror::Error;
 
+use crate::GpuAllocatorError;
+
 #[allow(dead_code)] // fields are read in the error below
 #[derive(Debug, Clone)]
 pub struct ExceedingLimit {
@@ -41,4 +43,7 @@ pub enum GpuError {
 
     #[error("Failed to request the device: {0}")]
     RequestDeviceError(#[from] wgpu::RequestDeviceError),
+
+    #[error("Failed to allocate a binding: {0}")]
+    AllocationError(#[from] GpuAllocatorError),
 }

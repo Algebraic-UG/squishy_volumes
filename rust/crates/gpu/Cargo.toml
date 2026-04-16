@@ -17,3 +17,4 @@ env_logger.workspace = true
 
 lazy_static = "1.5.0"
 murmur3 = "0.5.2"
+num = "0.4.3"
