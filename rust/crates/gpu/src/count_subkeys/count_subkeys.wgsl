@@ -10,13 +10,13 @@
 //enable subgroups;
 
 @group(0) @binding(0)
-var<storage, read> indirect: Indirect;
+var<storage, read_write> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read> indices: array<u32>;
+var<storage, read_write> indices: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read> keys: array<u32>;
+var<storage, read_write> keys: array<u32>;
 
 @group(0) @binding(3)
 var<storage, read_write> counts: array<u32>;

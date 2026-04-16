@@ -77,7 +77,7 @@ impl PipelinePart for PrefixSum {
                 device: context.device(),
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
@@ -107,8 +107,8 @@ impl PipelinePart for PrefixSum {
                 device: context.device(),
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false)
                 ],
                 immediate_size: 0,
                 constants: [("WORKGROUP_SIZE", workgroup_size as f64)],
@@ -123,11 +123,10 @@ impl PipelinePart for PrefixSum {
         }
     }
 
-    fn compute_in_pass(
+    fn record(
         &self,
-        context: &GpuContext,
-        allocator: &mut GpuAllocator,
-        compute_pass: &mut wgpu::ComputePass,
+        context: &mut GpuContext,
+        mut encoder: CommandEncoder,
         input: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
@@ -135,11 +134,12 @@ impl PipelinePart for PrefixSum {
 
         let max_level = (len.get() as u32 * self.subgroup_size - 1).ilog(self.subgroup_size);
 
-        let indirect_levels = allocator.allocate::<Indirect>(
+        let indirect_levels = context.indirect_allocator()?.allocate::<Indirect>(
             "indiret_levels",
             NonZeroU64::new(max_level as u64 + 1).unwrap(),
         )?;
 
+        let mut compute_pass = encoder.begin_compute_pass(self.prepare_indirect.label);
         compute_pass.set_pipeline(&self.prepare_indirect.compute_pipeline);
         compute_pass.set_bind_group(
             0,
@@ -155,7 +155,9 @@ impl PipelinePart for PrefixSum {
             &[],
         );
         compute_pass.dispatch_workgroups(1, 1, 1);
+        drop(compute_pass);
 
+        let mut compute_pass = encoder.begin_compute_pass(self.build_levels.label);
         compute_pass.set_pipeline(&self.build_levels.compute_pipeline);
         compute_pass.set_bind_group(
             0,
@@ -174,9 +176,11 @@ impl PipelinePart for PrefixSum {
                 level as u64 * Indirect::MIN_BINDING_SIZE.get(),
             );
         }
+        drop(compute_pass);
 
-        let prefix_sums = allocator.allocate::<u32>("prefix_sums", len)?;
+        let prefix_sums = context.allocator()?.allocate::<u32>("prefix_sums", len)?;
 
+        let mut compute_pass = encoder.begin_compute_pass(self.fill_final.label);
         compute_pass.set_pipeline(&self.fill_final.compute_pipeline);
         compute_pass.set_bind_group(
             0,

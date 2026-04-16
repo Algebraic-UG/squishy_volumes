@@ -8,17 +8,20 @@
 
 use std::sync::Mutex;
 
-use crate::{GpuAllocator, GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES};
+use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES};
 
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
 // https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
 use lazy_static::lazy_static;
 lazy_static! {
-    pub static ref SHARED_CONTEXT: Mutex<GpuContext> =
-        Mutex::new(GpuContext::new(MAX_NUM_PARTICLES).unwrap());
-    pub static ref SHARED_ALLOCATOR: Mutex<GpuAllocator> = Mutex::new({
-        GpuAllocator::new(&SHARED_CONTEXT.lock().unwrap(), 100000, "test allocator").unwrap()
+    pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
+        let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+        context.setup_allocator(100000, "test allocator").unwrap();
+        context
+            .setup_indirect_allocator(100, "test indirect allocator")
+            .unwrap();
+        context
     });
 }
 

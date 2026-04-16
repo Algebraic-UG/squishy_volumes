@@ -13,7 +13,7 @@
 var<storage, read> numbers_indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read> numbers: array<u32>;
+var<storage, read_write> numbers: array<u32>;
 
 @group(0) @binding(2)
 var<storage, read_write> indirect_levels: array<Indirect>;

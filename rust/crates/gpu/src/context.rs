@@ -8,7 +8,7 @@
 
 use std::num::NonZeroU32;
 
-use crate::{ExceedingLimit, GpuError};
+use crate::{ExceedingLimit, GpuAllocator, GpuError};
 
 pub struct GpuContext {
     instance: wgpu::Instance,
@@ -17,6 +17,9 @@ pub struct GpuContext {
     queue: wgpu::Queue,
 
     subgroup_size: NonZeroU32,
+
+    allocator: Option<GpuAllocator>,
+    indirect_allocator: Option<GpuAllocator>,
 }
 
 fn requirements(max_num_particles: u32) -> (wgpu::Features, wgpu::Limits) {
@@ -108,6 +111,8 @@ impl GpuContext {
             device,
             queue,
             subgroup_size,
+            allocator: None,
+            indirect_allocator: None,
         })
     }
 
@@ -129,5 +134,29 @@ impl GpuContext {
 
     pub fn subgroup_size(&self) -> NonZeroU32 {
         self.subgroup_size
+    }
+
+    pub fn setup_allocator(&mut self, size: u64, label: &'static str) -> Result<(), GpuError> {
+        self.allocator = Some(GpuAllocator::new(self, size, label)?);
+        Ok(())
+    }
+
+    pub fn allocator(&mut self) -> Result<&mut GpuAllocator, GpuError> {
+        self.allocator.as_mut().ok_or(GpuError::AllocatorMissing)
+    }
+
+    pub fn setup_indirect_allocator(
+        &mut self,
+        size: u64,
+        label: &'static str,
+    ) -> Result<(), GpuError> {
+        self.indirect_allocator = Some(GpuAllocator::new(self, size, label)?);
+        Ok(())
+    }
+
+    pub fn indirect_allocator(&mut self) -> Result<&mut GpuAllocator, GpuError> {
+        self.indirect_allocator
+            .as_mut()
+            .ok_or(GpuError::IndirectAllocatorMissing)
     }
 }

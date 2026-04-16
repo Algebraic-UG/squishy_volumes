@@ -38,6 +38,7 @@ pub struct Input {
     pub keys: Allocation,
     pub prefix_sums: Allocation,
 }
+
 impl Input {
     pub fn new(
         device: &wgpu::Device,
@@ -97,11 +98,11 @@ impl PipelinePart for ReorderIndices {
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
+                    Indirect::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
                 ],
                 immediate_size: 4,
                 constants: [
@@ -120,10 +121,9 @@ impl PipelinePart for ReorderIndices {
         }
     }
 
-    fn compute_in_pass<'a>(
+    fn encode<'a>(
         &self,
-        context: &GpuContext,
-        allocator: &mut GpuAllocator,
+        context: &mut GpuContext,
         compute_pass: &mut wgpu::ComputePass,
         Input {
             indirect,
@@ -139,14 +139,15 @@ impl PipelinePart for ReorderIndices {
                 >= self.min_prefix_sums_len(keys.len::<u32>().get() as u32) as u64
         );
 
-        let device = context.device();
-        let indices_out = allocator.allocate::<u32>("indices_out", indices_in.len::<u32>())?;
+        let indices_out = context
+            .allocator()?
+            .allocate::<u32>("indices_out", indices_in.len::<u32>())?;
 
         compute_pass.set_pipeline(&self.reorder_indices.compute_pipeline);
         compute_pass.set_bind_group(
             0,
             &create_bind_group(
-                device,
+                context.device(),
                 &self.reorder_indices,
                 [
                     indirect.binding(),

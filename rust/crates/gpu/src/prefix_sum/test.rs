@@ -62,34 +62,27 @@ fn test_random() {
 }
 
 fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> Vec<u32> {
-    let mut allocator = SHARED_ALLOCATOR.lock().unwrap();
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(device, settings, numbers);
+    let input = Input::new(context.device(), settings, numbers);
     let prefix_sum = PrefixSum::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
     let Output { prefix_sums } = prefix_sum
-        .compute_in_pass(
-            &context,
-            &mut allocator,
-            &mut compute_pass,
-            input,
-            Parameters,
-        )
+        .record(&mut context, (&mut encoder).into(), input, Parameters)
         .unwrap();
     let download = DownloadToHost::new(&context, prefix_sums);
 
-    drop(compute_pass);
     download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
     let download = download.prep();
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
     download.to_vec()
 }

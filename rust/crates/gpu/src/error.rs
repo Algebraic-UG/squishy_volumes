@@ -18,7 +18,7 @@ pub struct ExceedingLimit {
     pub allowed: u64,
 }
 
-#[derive(Error, Debug, Clone)]
+#[derive(Error, Debug)]
 pub enum GpuError {
     #[error("Failed to request the adapter: {0}")]
     RequestAdapterError(#[from] wgpu::RequestAdapterError),
@@ -46,4 +46,13 @@ pub enum GpuError {
 
     #[error("Failed to allocate a binding: {0}")]
     AllocationError(#[from] GpuAllocatorError),
+
+    #[error("Allocator is missing")]
+    AllocatorMissing,
+
+    #[error("Indirect allocator is missing")]
+    IndirectAllocatorMissing,
+
+    #[error("Something went wrong with creating the profiler: {0}")]
+    ProfilerError(#[from] wgpu_profiler::CreationError),
 }

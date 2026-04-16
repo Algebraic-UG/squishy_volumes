@@ -9,9 +9,7 @@
 // This implementation of radix sort is heavily inspired by
 // Harada, Takahiro, and Lee Howes. "Introduction to GPU radix sort." Heterogeneous Computing with OpenCL. Morgan Kaufman (2011).
 
-use std::{cell::RefCell, rc::Rc};
-
-use wgpu::util::DeviceExt as _;
+use std::num::NonZeroU32;
 
 use super::*;
 
@@ -22,214 +20,181 @@ pub struct RadixSort {
     bit_count: u32,
     count_subkeys: CountSubkeys,
     prefix_sum: PrefixSum,
-    reorder: Reorder,
-}
-
-#[derive(Clone, Copy)]
-pub struct RadixSortSettings {
-    pub count_subkeys: CountSubkeysSettings,
-    pub prefix_sum: PrefixSumSettings,
-    pub reorder: ReorderSettings,
-}
-
-pub struct RadixSortParamters {
-    pub bit_offset: u32,
-}
-
-pub struct RadixSortBufferInput<'a> {
-    pub keys: &'a [u32],
-    pub indices: &'a [u32],
-}
-
-pub struct RadixSortBuffers {
-    pub keys: wgpu::Buffer,
-    pub indices_front: wgpu::Buffer,
-    pub indices_back: wgpu::Buffer,
-    pub counts: wgpu::Buffer,
-    pub prefix_sums: wgpu::Buffer,
+    reorder_indices: ReorderIndices,
 }
 
 #[derive(Clone)]
-pub struct RadixSortBufferBindings<'a> {
-    pub keys: wgpu::BufferBinding<'a>,
-    pub indices: Rc<RefCell<DoubleBuffer<'a>>>,
-
-    pub counts: wgpu::BufferBinding<'a>,
-    pub prefix_sums: wgpu::BufferBinding<'a>,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
+    pub bit_count: NonZeroU32,
 }
 
-impl<'a> From<&'a RadixSortBuffers> for RadixSortBufferBindings<'a> {
-    fn from(
-        RadixSortBuffers {
-            keys,
-            indices_front,
-            indices_back,
-            counts,
-            prefix_sums,
-        }: &'a RadixSortBuffers,
+pub struct Parameters {
+    pub bit_offset: u32,
+}
+
+pub struct Input {
+    pub indirect: Allocation,
+    pub indices_in: Allocation,
+    pub keys: Allocation,
+}
+
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            ..
+        }: Settings,
+        indices: &[u32],
+        keys: &[u32],
     ) -> Self {
+        assert_eq!(indices.len(), keys.len());
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: indices.len() as u32,
+        });
+
+        let indices_in = Allocation::new(device, "indices_in", indices);
+        let keys = Allocation::new(device, "keys", keys);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+
         Self {
-            keys: keys.as_entire_buffer_binding(),
-            indices: Rc::new(RefCell::new(DoubleBuffer::new(
-                indices_front.as_entire_buffer_binding(),
-                indices_back.as_entire_buffer_binding(),
-            ))),
-            counts: counts.as_entire_buffer_binding(),
-            prefix_sums: prefix_sums.as_entire_buffer_binding(),
+            indirect,
+            indices_in,
+            keys,
         }
     }
+}
+
+pub struct Output {
+    pub indices_out: Allocation,
 }
 
 impl PipelinePart for RadixSort {
-    type Settings = RadixSortSettings;
-    type Parameters = RadixSortParamters;
-    type BufferInput<'a> = RadixSortBufferInput<'a>;
-    type Buffers = RadixSortBuffers;
-    type BufferBindings<'a> = RadixSortBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
     fn new(
         context: &GpuContext,
-        Self::Settings {
-            count_subkeys,
-            prefix_sum,
-            reorder,
-        }: Self::Settings,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            bit_count,
+        }: Settings,
     ) -> Self {
-        assert_eq!(count_subkeys.bit_count, reorder.bit_count);
-        let bit_count = count_subkeys.bit_count;
-
-        let count_subkeys = CountSubkeys::new(context, count_subkeys);
-        let prefix_sum = PrefixSum::new(context, prefix_sum);
-        let reorder = Reorder::new(context, reorder);
+        let count_subkeys = CountSubkeys::new(
+            context,
+            count_subkeys::Settings {
+                workgroup_size,
+                dispatch_limit,
+                bit_count,
+            },
+        );
+        let prefix_sum = PrefixSum::new(
+            context,
+            prefix_sum::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
+        let reorder_indices = ReorderIndices::new(
+            context,
+            reorder_indices::Settings {
+                workgroup_size,
+                dispatch_limit,
+                bit_count,
+            },
+        );
 
         Self {
-            bit_count,
+            bit_count: bit_count.get(),
             count_subkeys,
             prefix_sum,
-            reorder,
+            reorder_indices,
         }
     }
 
-    fn create_buffers<'a>(
+    fn encode(
         &self,
-        context: &GpuContext,
-        Self::BufferInput { keys, indices }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        assert_eq!(indices.len(), keys.len());
-        assert!(indices.len() < u32::MAX as usize);
-        let n = indices.len() as u32;
-
-        let count_size = self.min_counts_and_prefixes(n) * 4;
-        let prefix_size = count_size;
-
-        let device = context.device();
-
-        let keys = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("keys"),
-            contents: bytemuck::cast_slice(keys),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let indices_front = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("indices_front"),
-            contents: bytemuck::cast_slice(indices),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        });
-        let indices_back = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("indices_back"),
-            size: indices_front.size(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        let counts = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("counts"),
-            size: count_size as u64,
-            usage: wgpu::BufferUsages::STORAGE,
-            mapped_at_creation: false,
-        });
-        let prefix_sums = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("prefix_sums"),
-            size: prefix_size as u64,
-            usage: wgpu::BufferUsages::STORAGE,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            keys,
-            indices_front,
-            indices_back,
-            counts,
-            prefix_sums,
-        }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
+        context: &mut GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
+        Input {
+            indirect,
             keys,
-            indices,
-            counts,
-            prefix_sums,
-        }: Self::BufferBindings<'a>,
-        Self::Parameters { bit_offset }: Self::Parameters,
-    ) {
-        self.count_subkeys.compute_in_pass(
+            indices_in,
+        }: Input,
+        Parameters { bit_offset }: Parameters,
+    ) -> Result<Output, GpuError> {
+        let count_subkeys::Output { counts } = self.count_subkeys.encode(
             context,
             compute_pass,
-            CountSubkeysBufferBindings {
-                indices: indices.as_ref().borrow().front(),
+            count_subkeys::Input {
+                indirect: indirect.clone(),
+                indices: indices_in.clone(),
                 keys: keys.clone(),
-                counts: counts.clone(),
             },
-            CountSubkeysParamters { bit_offset },
-        );
-        self.prefix_sum.compute_in_pass(
+            count_subkeys::Parameters { bit_offset },
+        )?;
+        let prefix_sum::Output { prefix_sums } = self.prefix_sum.encode(
             context,
             compute_pass,
-            PrefixSumBufferBindings {
-                numbers: counts.clone(),
-                prefix_sums: prefix_sums.clone(),
+            prefix_sum::Input {
+                indirect: indirect.clone(),
+                numbers: counts,
             },
-            (),
-        );
-        self.reorder.compute_in_pass(
+            prefix_sum::Parameters,
+        )?;
+        let reorder_indices::Output { indices_out } = self.reorder_indices.encode(
             context,
             compute_pass,
-            ReorderBufferBindings {
-                keys: keys.clone(),
-                prefix_sums: prefix_sums.clone(),
-                indices_in: indices.as_ref().borrow().front(),
-                indices_out: indices.as_ref().borrow().back(),
+            reorder_indices::Input {
+                indirect,
+                indices_in,
+                keys,
+                prefix_sums,
             },
-            ReorderParameters { bit_offset },
-        );
+            reorder_indices::Parameters { bit_offset },
+        )?;
+
+        Ok(Output { indices_out })
     }
 }
 
 impl RadixSort {
-    pub fn min_counts_and_prefixes(&self, key_count: u32) -> u32 {
-        self.count_subkeys.min_counts(key_count)
-    }
-
-    pub fn compute_in_pass_all_rounds<'a>(
+    pub fn compute_in_pass_all_rounds(
         &self,
-        context: &GpuContext,
+        context: &mut GpuContext,
         compute_pass: &mut wgpu::ComputePass,
-        buffer_bindings: RadixSortBufferBindings<'a>,
-    ) {
+        Input {
+            indirect,
+            mut indices_in,
+            keys,
+        }: Input,
+    ) -> Result<Output, GpuError> {
         for round in 0..32u32.div_ceil(self.bit_count) {
-            self.compute_in_pass(
+            let Output { indices_out } = self.encode(
                 context,
                 compute_pass,
-                buffer_bindings.clone(),
-                RadixSortParamters {
+                Input {
+                    indirect: indirect.clone(),
+                    indices_in,
+                    keys: keys.clone(),
+                },
+                Parameters {
                     bit_offset: round * self.bit_count,
                 },
-            );
-            buffer_bindings.indices.as_ref().borrow_mut().swap();
+            )?;
+            indices_in = indices_out;
         }
+
+        Ok(Output {
+            indices_out: indices_in,
+        })
     }
 }

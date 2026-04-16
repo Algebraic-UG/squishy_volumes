@@ -93,10 +93,10 @@ impl PipelinePart for CountSubkeys {
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
+                    Indirect::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
+                    u32::MIN_BINDING_SIZE,
                 ],
                 immediate_size: 4,
                 constants: [
@@ -115,10 +115,9 @@ impl PipelinePart for CountSubkeys {
         }
     }
 
-    fn compute_in_pass<'a>(
+    fn encode<'a>(
         &self,
-        context: &GpuContext,
-        allocator: &mut GpuAllocator,
+        context: &mut GpuContext,
         compute_pass: &mut wgpu::ComputePass,
         Input {
             indirect,
@@ -129,18 +128,16 @@ impl PipelinePart for CountSubkeys {
     ) -> Result<Output, GpuError> {
         assert_eq!(indices.len::<u32>(), keys.len::<u32>());
 
-        let device = context.device();
-
         let counts_len = (self.min_counts_len(keys.len::<u32>().get() as u32) as u64)
             .try_into()
             .unwrap();
-        let counts = allocator.allocate::<u32>("counts", counts_len)?;
+        let counts = context.allocator()?.allocate::<u32>("counts", counts_len)?;
 
         compute_pass.set_pipeline(&self.count_subkeys.compute_pipeline);
         compute_pass.set_bind_group(
             0,
             &create_bind_group(
-                device,
+                context.device(),
                 &self.count_subkeys,
                 [
                     indirect.binding(),

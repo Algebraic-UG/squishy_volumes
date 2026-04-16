@@ -10,6 +10,7 @@ tracing-subscriber.workspace = true
 nalgebra.workspace = true
 thiserror.workspace = true
 wgpu.workspace = true
+wgpu-profiler.workspace = true
 pollster.workspace = true
 bytemuck.workspace = true
 rand.workspace = true

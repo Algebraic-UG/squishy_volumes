@@ -91,11 +91,9 @@ fn run_reorder_indices(
     keys: &[u32],
     prefix_sums: &[u32],
 ) -> Vec<u32> {
-    let mut allocator = SHARED_ALLOCATOR.lock().unwrap();
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(device, settings, indices, keys, prefix_sums);
+    let input = Input::new(context.device(), settings, indices, keys, prefix_sums);
 
     let reorder_indices = ReorderIndices::new(&context, settings);
 
@@ -103,13 +101,7 @@ fn run_reorder_indices(
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
     let Output { indices_out } = reorder_indices
-        .compute_in_pass(
-            &context,
-            &mut allocator,
-            &mut compute_pass,
-            input,
-            parameters,
-        )
+        .encode(&mut context, &mut compute_pass, input, parameters)
         .unwrap();
 
     let download = DownloadToHost::new(&context, indices_out);
@@ -120,7 +112,10 @@ fn run_reorder_indices(
 
     context.queue().submit([encoder.finish()]);
     let download = download.prep();
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
     download.to_vec()
 }

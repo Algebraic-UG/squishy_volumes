@@ -18,7 +18,7 @@ pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
             prefix_sum
-                .compute_in_pass(
+                .record(
                     context,
                     &mut allocator,
                     &mut encoder.begin_compute_pass(&Default::default()),
@@ -40,7 +40,7 @@ pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]
         let mut compute_pass = scope.scoped_compute_pass("pass");
 
         prefix_sum
-            .compute_in_pass(
+            .record(
                 &context,
                 &mut allocator,
                 &mut compute_pass,

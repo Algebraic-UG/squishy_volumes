@@ -15,17 +15,11 @@ fn test_simple() {
 
     assert_eq!(
         sort_on_cpu(&indices, &keys),
-        run_prefix_sort(
-            RadixSortSettings {
-                count_subkeys: CountSubkeysSettings {
-                    workgroup_size: 64,
-                    bit_count: 2
-                },
-                prefix_sum: PrefixSumSettings { workgroup_size: 64 },
-                reorder: ReorderSettings {
-                    workgroup_size: 64,
-                    bit_count: 2
-                },
+        run_radix_sort(
+            Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+                bit_count: 2.try_into().unwrap(),
             },
             &indices,
             &keys,
@@ -46,17 +40,11 @@ fn test_random() {
 
     assert_eq!(
         sort_on_cpu(&indices, &keys),
-        run_prefix_sort(
-            RadixSortSettings {
-                count_subkeys: CountSubkeysSettings {
-                    workgroup_size: 64,
-                    bit_count: 2
-                },
-                prefix_sum: PrefixSumSettings { workgroup_size: 64 },
-                reorder: ReorderSettings {
-                    workgroup_size: 64,
-                    bit_count: 2
-                },
+        run_radix_sort(
+            Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+                bit_count: 2.try_into().unwrap(),
             },
             &indices,
             &keys,
@@ -64,46 +52,33 @@ fn test_random() {
     );
 }
 
-fn run_prefix_sort(settings: RadixSortSettings, indices: &[u32], keys: &[u32]) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+fn run_radix_sort(settings: Settings, indices: &[u32], keys: &[u32]) -> Vec<u32> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
+
+    let input = Input::new(context.device(), settings.clone(), indices, keys);
 
     let radix_sort = RadixSort::new(&context, settings);
-
-    let buffers = radix_sort.create_buffers(&context, RadixSortBufferInput { keys, indices });
-
-    let download_index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_indices"),
-        size: buffers.indices_back.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-
-    let buffer_bindings: RadixSortBufferBindings = (&buffers).into();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    radix_sort.compute_in_pass_all_rounds(&context, &mut compute_pass, buffer_bindings.clone());
+    let Output { indices_out } = radix_sort
+        .compute_in_pass_all_rounds(&mut context, &mut compute_pass, input)
+        .unwrap();
+
+    let download = DownloadToHost::new(&context, indices_out);
 
     drop(compute_pass);
-    encoder.copy_buffer_to_buffer(
-        buffer_bindings.indices.as_ref().borrow().front().buffer,
-        0,
-        &download_index_buffer,
-        0,
-        None,
-    );
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
-    let data_buffer_index_slice = download_index_buffer.slice(..);
-    data_buffer_index_slice.map_async(wgpu::MapMode::Read, |_| {});
+    let download = download.prep();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let data_indices = data_buffer_index_slice.get_mapped_range();
-    let indices: &[u32] = bytemuck::cast_slice(&data_indices);
-
-    indices.to_vec()
+    download.to_vec()
 }

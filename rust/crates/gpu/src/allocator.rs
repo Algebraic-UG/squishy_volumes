@@ -47,6 +47,7 @@ pub struct GpuAllocator {
     partitions: Vec<Partition>,
 }
 
+#[derive(Clone)]
 pub struct Allocation {
     label: &'static str,
     buffer: Arc<wgpu::Buffer>,
