@@ -66,11 +66,8 @@ fn run_radix_sort(settings: Settings, indices: &[u32], keys: &[u32]) -> Vec<u32>
         .unwrap();
 
     let download = DownloadToHost::new(&context, indices_out);
-
     download.copy(&mut encoder);
-
     context.queue().submit([encoder.finish()]);
-
     let download = download.prep();
 
     context
