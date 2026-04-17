@@ -25,6 +25,7 @@ pub use util::*;
 pub mod build_cells;
 //pub mod color_cells;
 pub mod count_subkeys;
+pub mod counts_indirect;
 pub mod find_cell_boundaries;
 pub mod offsets_to_indirect;
 pub mod permute_positions;
@@ -36,6 +37,7 @@ pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
 pub use build_cells::BuildCells;
+pub use counts_indirect::CountsIndirect;
 //pub use color_cells::ColorCells;
 pub use count_subkeys::CountSubkeys;
 pub use find_cell_boundaries::FindCellBoundaries;
