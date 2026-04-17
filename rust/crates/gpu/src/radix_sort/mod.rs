@@ -19,6 +19,7 @@ mod test;
 pub struct RadixSort {
     bit_count: u32,
     count_subkeys: CountSubkeys,
+    counts_indirect: CountsIndirect,
     prefix_sum: PrefixSum,
     reorder_indices: ReorderIndices,
 }
@@ -96,6 +97,14 @@ impl PipelinePart for RadixSort {
                 bit_count,
             },
         );
+        let counts_indirect = CountsIndirect::new(
+            context,
+            counts_indirect::Settings {
+                workgroup_size,
+                dispatch_limit,
+                bit_count,
+            },
+        );
         let prefix_sum = PrefixSum::new(
             context,
             prefix_sum::Settings {
@@ -115,6 +124,7 @@ impl PipelinePart for RadixSort {
         Self {
             bit_count: bit_count.get(),
             count_subkeys,
+            counts_indirect,
             prefix_sum,
             reorder_indices,
         }
@@ -141,11 +151,19 @@ impl PipelinePart for RadixSort {
             },
             count_subkeys::Parameters { bit_offset },
         )?;
+        let counts_indirect::Output { indirect_counts } = self.counts_indirect.record(
+            context,
+            encoder,
+            counts_indirect::Input {
+                indirect: indirect.clone(),
+            },
+            counts_indirect::Parameters,
+        )?;
         let prefix_sum::Output { prefix_sums } = self.prefix_sum.record(
             context,
             encoder,
             prefix_sum::Input {
-                indirect: indirect.clone(),
+                indirect: indirect_counts,
                 numbers: counts,
             },
             prefix_sum::Parameters,
