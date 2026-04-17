@@ -27,12 +27,14 @@ pub mod positions_to_keys;
 pub mod prefix_sum;
 pub mod radix_sort;
 pub mod reorder_indices;
+pub mod sort_positions_into_cells;
 
 pub use count_subkeys::CountSubkeys;
 pub use positions_to_keys::PositionsToKeys;
 pub use prefix_sum::PrefixSum;
 pub use radix_sort::RadixSort;
 pub use reorder_indices::ReorderIndices;
+pub use sort_positions_into_cells::SortPositionsIntoCells;
 
 //mod allocate_blocks;
 //mod build_cells;

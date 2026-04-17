@@ -22,13 +22,19 @@ fn test_simple() {
         Vector4::new(0.5, 0.5, -0.5, 0.),
         Vector4::new(0.5, 0.5, 0.5, 0.),
     ];
+    let indices = (0..positions.len() as u32).collect::<Vec<_>>();
 
     let cell_size = 1.;
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+        cell_size,
+        bit_count: 2.try_into().unwrap(),
+    };
 
-    let indices = (0..positions.len() as u32).collect::<Vec<_>>();
     assert_eq!(
         sort_positions_into_cells_on_cpu(&indices, &positions, cell_size),
-        run_sort_positions_into_cells(64, cell_size, 2, &indices, &positions),
+        run_sort_positions_into_cells(settings, &indices, &positions),
     );
 }
 
@@ -51,88 +57,44 @@ fn test_random() {
     let mut indices: Vec<_> = (0..positions.len() as u32).collect();
     shuffle(&mut indices, 43);
 
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+        cell_size,
+        bit_count: 2.try_into().unwrap(),
+    };
+
     assert_eq!(
         sort_positions_into_cells_on_cpu(&indices, &positions, cell_size),
-        run_sort_positions_into_cells(64, cell_size, 2, &indices, &positions),
+        run_sort_positions_into_cells(settings, &indices, &positions),
     );
 }
 
 fn run_sort_positions_into_cells(
-    workgroup_size: u32,
-    cell_size: f32,
-    bit_count: u32,
+    settings: Settings,
     indices: &[u32],
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let sort_positions_into_cells = SortPositionsIntoCells::new(
-        &context,
-        SortPositionsIntoCellsSettings {
-            positions_to_keys: PositionsToKeysSettings {
-                workgroup_size,
-                cell_size,
-            },
-            radix_sort: RadixSortSettings {
-                count_subkeys: CountSubkeysSettings {
-                    workgroup_size,
-                    bit_count,
-                },
-                prefix_sum: PrefixSumSettings { workgroup_size },
-                reorder: ReorderSettings {
-                    workgroup_size,
-                    bit_count,
-                },
-            },
-        },
-    );
-
-    let buffers = sort_positions_into_cells.create_buffers(
-        &context,
-        SortPositionsIntoCellsBufferInput { indices, positions },
-    );
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.radix_sort.indices_back.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-
-    let buffer_bindings: SortPositionsIntoCellsBufferBindings = (&buffers).into();
+    let input = Input::new(context.device(), settings, indices, positions);
+    let sort_positions_into_cells = SortPositionsIntoCells::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    sort_positions_into_cells.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        buffer_bindings.clone(),
-        (),
-    );
+    let Output { indices_out } = sort_positions_into_cells
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(
-        buffer_bindings
-            .radix_sort
-            .indices
-            .as_ref()
-            .borrow()
-            .front()
-            .buffer,
-        0,
-        &download_buffer,
-        0,
-        None,
-    );
-
+    let download = DownloadToHost::new(&context, indices_out);
+    download.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let download = download.prep();
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    result.to_vec()
+    download.to_vec()
 }

@@ -6,8 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::num::NonZeroU32;
+
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
 
 use super::*;
 
@@ -20,57 +21,85 @@ pub struct SortPositionsIntoCells {
 }
 
 #[derive(Clone, Copy)]
-pub struct SortPositionsIntoCellsSettings {
-    pub positions_to_keys: PositionsToKeysSettings,
-    pub radix_sort: RadixSortSettings,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
+    pub cell_size: f32,
+    pub bit_count: NonZeroU32,
 }
 
-pub struct SortPositionsIntoCellsBufferInput<'a> {
-    pub indices: &'a [u32],
-    pub positions: &'a [Vector4<f32>],
+pub struct Parameters;
+
+pub struct Input {
+    pub indirect: Allocation,
+    pub indices_in: Allocation,
+    pub positions: Allocation,
 }
 
-pub struct SortPositionsIntoCellsBuffers {
-    pub positions: wgpu::Buffer,
-    pub radix_sort: RadixSortBuffers,
-}
-
-#[derive(Clone)]
-pub struct SortPositionsIntoCellsBufferBindings<'a> {
-    pub positions: wgpu::BufferBinding<'a>,
-    pub radix_sort: RadixSortBufferBindings<'a>,
-}
-
-impl<'a> From<&'a SortPositionsIntoCellsBuffers> for SortPositionsIntoCellsBufferBindings<'a> {
-    fn from(
-        SortPositionsIntoCellsBuffers {
-            positions,
-            radix_sort,
-        }: &'a SortPositionsIntoCellsBuffers,
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            ..
+        }: Settings,
+        indices: &[u32],
+        positions: &[Vector4<f32>],
     ) -> Self {
+        assert_eq!(indices.len(), positions.len());
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: indices.len() as u32,
+        });
+
+        let indices_in = Allocation::new(device, "indices_in", indices);
+        let positions = Allocation::new(device, "positions", positions);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+
         Self {
-            positions: positions.as_entire_buffer_binding(),
-            radix_sort: radix_sort.into(),
+            indirect,
+            indices_in,
+            positions,
         }
     }
+}
+
+pub struct Output {
+    indices_out: Allocation,
 }
 
 impl PipelinePart for SortPositionsIntoCells {
-    type Settings = SortPositionsIntoCellsSettings;
-    type Parameters = ();
-    type BufferInput<'a> = SortPositionsIntoCellsBufferInput<'a>;
-    type Buffers = SortPositionsIntoCellsBuffers;
-    type BufferBindings<'a> = SortPositionsIntoCellsBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
     fn new(
         context: &GpuContext,
-        Self::Settings {
-            positions_to_keys,
-            radix_sort,
-        }: Self::Settings,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            cell_size,
+            bit_count,
+        }: Settings,
     ) -> Self {
-        let positions_to_keys = PositionsToKeys::new(context, positions_to_keys);
-        let radix_sort = RadixSort::new(context, radix_sort);
+        let positions_to_keys = PositionsToKeys::new(
+            context,
+            positions_to_keys::Settings {
+                workgroup_size,
+                cell_size,
+            },
+        );
+        let radix_sort = RadixSort::new(
+            context,
+            radix_sort::Settings {
+                workgroup_size,
+                dispatch_limit,
+                bit_count,
+            },
+        );
 
         Self {
             positions_to_keys,
@@ -78,62 +107,39 @@ impl PipelinePart for SortPositionsIntoCells {
         }
     }
 
-    fn create_buffers<'a>(
+    fn record(
         &self,
-        context: &GpuContext,
-        Self::BufferInput { indices, positions }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        assert_eq!(indices.len(), positions.len());
-        let device = context.device();
-        let n = positions.len();
-
-        let positions = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("positions"),
-            contents: bytemuck::cast_slice(positions),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let radix_sort = self.radix_sort.create_buffers(
-            context,
-            RadixSortBufferInput {
-                keys: &vec![0; n],
-                indices,
-            },
-        );
-
-        Self::Buffers {
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input {
+            indirect,
+            indices_in,
             positions,
-            radix_sort,
-        }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
-            positions,
-            radix_sort,
-        }: Self::BufferBindings<'a>,
-        _: Self::Parameters,
-    ) {
+        }: Input,
+        _: Parameters,
+    ) -> Result<Output, GpuError> {
+        let mut indices_out = indices_in;
         for dimension in [2, 1, 0] {
-            self.positions_to_keys.compute_in_pass(
+            let positions_to_keys::Output { keys } = self.positions_to_keys.record(
                 context,
-                compute_pass,
-                PositionsToKeysBufferBindings {
+                encoder,
+                positions_to_keys::Input {
+                    indirect: indirect.clone(),
                     positions: positions.clone(),
-                    keys: radix_sort.keys.clone(),
                 },
-                PositionsToKeysParameters { dimension },
-            );
-            self.radix_sort
-                .compute_in_pass_all_rounds(context, compute_pass, radix_sort.clone());
+                positions_to_keys::Parameters { dimension },
+            )?;
+            let output = self.radix_sort.record_all_rounds(
+                context,
+                encoder,
+                radix_sort::Input {
+                    indirect: indirect.clone(),
+                    indices_in: indices_out,
+                    keys,
+                },
+            )?;
+            indices_out = output.indices_out;
         }
-    }
-}
-
-impl SortPositionsIntoCells {
-    pub fn min_counts_and_prefixes(&self, key_count: u32) -> u32 {
-        self.radix_sort.min_counts_and_prefixes(key_count)
+        Ok(Output { indices_out })
     }
 }
