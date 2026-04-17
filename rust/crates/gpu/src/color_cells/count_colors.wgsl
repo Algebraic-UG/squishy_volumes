@@ -10,20 +10,16 @@
 //enable subgroups;
 
 @group(0) @binding(0)
-var<storage, read> limits: array<u32>;
+var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read> cells: array<vec3i>;
+var<storage, read_write> cells: array<vec3i>;
 
 @group(0) @binding(2)
 var<storage, read_write> counts: array<u32>;
 
 override WORKGROUP_SIZE: u32;
 const BIT_COUNT: u32 = 3;
-
-fn i32_to_ordered_u32(x: i32) -> u32 {
-    return bitcast<u32>(x) ^ 0x80000000u;
-}
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -33,17 +29,11 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    // The global_index isn't supported yet.
-    let global_stride = vec3(
-        1,
-        WORKGROUP_SIZE * num_workgroups.x,
-        WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y,
-    );
-    let global_index = dot(global_invocation_id, global_stride);
+    let global_index = get_global_index(num_workgroups, global_invocation_id);
 
     let counter_count = 1u << BIT_COUNT;
 
-    let key_valid = global_index < limits[0];
+    let key_valid = global_index < indirect.len;
 
     var key = 0u;
     if key_valid {
@@ -73,4 +63,21 @@ fn main(
         let count_index = total_num_subgroups * subgroup_invocation_id + subgroup_index;
         counts[count_index] = my_count;
     }
+}
+
+fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
+    return global_invocation_id.x +
+        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
+        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
+}
+
+struct Indirect {
+    x: u32,
+    y: u32,
+    z: u32,
+    len: u32,
+}
+
+fn i32_to_ordered_u32(x: i32) -> u32 {
+    return bitcast<u32>(x) ^ 0x80000000u;
 }
