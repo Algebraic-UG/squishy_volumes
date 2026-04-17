@@ -10,7 +10,6 @@ use super::*;
 
 #[test]
 fn test_simple() {
-    let workgroup_size = 64;
     let cell_size = 0.3;
 
     let positions = [
@@ -24,9 +23,15 @@ fn test_simple() {
         Vector4::new(0.7, 0., 0., 0.),
     ];
 
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        cell_size,
+    };
+
     assert_eq!(
         vec![0, 0, 1, 0, 0, 1, 0, 1],
-        run_find_cell_boundaries(workgroup_size, cell_size, &positions)
+        run_find_cell_boundaries(settings, dispatch_limit, &positions)
     );
 }
 
@@ -35,7 +40,6 @@ fn test_random() {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
-    let workgroup_size = 64;
     let cell_size = 1337.;
 
     let positions: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
@@ -60,53 +64,48 @@ fn test_random() {
         .zip(&mut positions)
         .for_each(|(index, position)| *position = lookup[*index as usize]);
 
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        cell_size,
+    };
+
     assert_eq!(
         find_cell_boundaries_on_cpu(&positions, cell_size),
-        run_find_cell_boundaries(workgroup_size, cell_size, &positions),
+        run_find_cell_boundaries(settings, dispatch_limit, &positions)
     )
 }
 
 fn run_find_cell_boundaries(
-    workgroup_size: u32,
-    cell_size: f32,
+    settings: Settings,
+    dispatch_limit: NonZeroU32,
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let find_cell_boundaries = FindCellBoundaries::new(
-        &context,
-        FindCellBoundariesSettings {
-            workgroup_size,
-            cell_size,
-        },
+    let input = Input::new(
+        context.device(),
+        settings.workgroup_size,
+        dispatch_limit,
+        positions,
     );
-
-    let buffers =
-        find_cell_boundaries.create_buffers(&context, FindCellBoundariesBufferInput { positions });
-
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.boundaries.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let find_cell_boundaries = FindCellBoundaries::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    find_cell_boundaries.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output { boundaries } = find_cell_boundaries
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.boundaries, 0, &download_buffer, 0, None);
+    let download = DownloadToHost::new(&context, boundaries);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
-
-    result.to_vec()
+    download.to_vec()
 }
