@@ -76,8 +76,7 @@ impl PipelinePart for PrefixSum {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
+                    (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
@@ -146,11 +145,7 @@ impl PipelinePart for PrefixSum {
             &create_bind_group(
                 context.device(),
                 &self.prepare_indirect,
-                [
-                    input.indirect.binding(),
-                    input.numbers.binding(),
-                    indirect_levels.binding(),
-                ],
+                [input.indirect.binding(), indirect_levels.binding()],
             ),
             &[],
         );
