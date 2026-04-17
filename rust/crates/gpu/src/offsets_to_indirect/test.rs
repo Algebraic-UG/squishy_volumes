@@ -12,25 +12,32 @@ use super::*;
 
 #[test]
 fn test_simple() {
-    let workgroup_size = 64;
-    let dispatch_limit = 4;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = 4.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+    };
 
     let numbers = [0, 1, 1, 1, 1, 1, 0, 1, 1, 1];
     let prefixes = prefix_sum_on_cpu(&numbers);
 
-    let limits = vec![numbers.into_iter().sum::<u32>()];
-    let indirect = find_x_y_z_simple(dispatch_limit, limits[0].div_ceil(workgroup_size)).to_vec();
-
-    assert_eq!(
-        (limits, indirect),
-        run_sum_to_indirect(workgroup_size, dispatch_limit, &prefixes),
-    );
+    let indirect = Indirect::new(IndirectSettings {
+        workgroup_size,
+        dispatch_limit,
+        len: prefixes.last().unwrap() + 1,
+    });
+    assert_eq!(vec![indirect], run_offsets_to_indirect(settings, &prefixes),);
 }
 
 #[test]
 fn test_random() {
-    let workgroup_size = 64;
-    let dispatch_limit = 100;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = 4.try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+    };
 
     let numbers: Vec<u32> = ChaCha8Rng::seed_from_u64(42)
         .random_iter::<bool>()
@@ -42,55 +49,34 @@ fn test_random() {
     println!("{}", numbers.last().unwrap());
     println!("{}", prefixes.last().unwrap());
 
-    let limits = vec![numbers.into_iter().sum::<u32>()];
-    let indirect = find_x_y_z_simple(dispatch_limit, limits[0].div_ceil(workgroup_size)).to_vec();
-
-    assert_eq!(
-        (limits, indirect),
-        run_sum_to_indirect(workgroup_size, dispatch_limit, &prefixes),
-    );
+    let indirect = Indirect::new(IndirectSettings {
+        workgroup_size,
+        dispatch_limit,
+        len: prefixes.last().unwrap() + 1,
+    });
+    assert_eq!(vec![indirect], run_offsets_to_indirect(settings, &prefixes),);
 }
 
-fn run_sum_to_indirect(
-    workgroup_size: u32,
-    dispatch_limit: u32,
-    prefix_sums: &[u32],
-) -> (Vec<u32>, Vec<u32>) {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+fn run_offsets_to_indirect(settings: Settings, offsets: &[u32]) -> Vec<Indirect> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let sum_to_indirect = OffsetsToIndirect::new(
-        &context,
-        OffsetsToIndirectSettings {
-            workgroup_size,
-            dispatch_limit,
-        },
-    );
-
-    let buffers =
-        sum_to_indirect.create_buffers(&context, OffsetsToIndirectBufferInput { prefix_sums });
-
-    let downloads = DownloadsToHost::new(
-        &context,
-        [(&buffers.limits, "limits"), (&buffers.indirect, "indirect")],
-    );
+    let input = Input::new(context.device(), settings, offsets);
+    let offsets_to_indirect = OffsetsToIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
+    let Output { new_indirect } = offsets_to_indirect
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    sum_to_indirect.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
-
-    drop(compute_pass);
-
-    downloads.copy(&mut encoder);
+    let download = DownloadToHost::new(&context, new_indirect);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
+    let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let downloads = downloads.prep();
-
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-
-    let [limits, indirect] = downloads.try_into().unwrap();
-
-    (limits.to_vec(), indirect.to_vec())
+    download.to_vec()
 }

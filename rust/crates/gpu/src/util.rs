@@ -124,7 +124,7 @@ impl AllowedInBinding for Vector4<i32> {}
 impl AllowedInBinding for Vector4<u32> {}
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
 pub struct Indirect {
     pub x: u32,
     pub y: u32,

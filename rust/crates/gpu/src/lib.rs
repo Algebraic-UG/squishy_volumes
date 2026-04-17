@@ -24,6 +24,7 @@ pub use util::*;
 
 pub mod count_subkeys;
 pub mod find_cell_boundaries;
+pub mod offsets_to_indirect;
 pub mod permute_positions;
 pub mod positions_to_keys;
 pub mod prefix_sum;
@@ -33,6 +34,7 @@ pub mod sort_positions_into_cells;
 
 pub use count_subkeys::CountSubkeys;
 pub use find_cell_boundaries::FindCellBoundaries;
+pub use offsets_to_indirect::OffsetsToIndirect;
 pub use permute_positions::PermutePositions;
 pub use positions_to_keys::PositionsToKeys;
 pub use prefix_sum::PrefixSum;
@@ -48,7 +50,6 @@ pub use sort_positions_into_cells::SortPositionsIntoCells;
 //mod cells_to_murmur;
 //mod color_cells;
 //mod color_cells_2;
-//mod offsets_to_indirect;
 //mod prepare_grid;
 //mod recycle_to_indirect;
 //mod scatter_mass;
