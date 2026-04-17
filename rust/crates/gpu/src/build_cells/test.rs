@@ -8,14 +8,24 @@
 
 use super::*;
 
-fn check(positions: &[Vector4<f32>], cells: &[Vector4<i32>], index_ranges: &[u32], cell_size: f32) {
+fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32) {
+    let (cells, index_ranges, new_indirect) = run_build_cells(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size,
+        },
+        positions,
+        prefixed_boundaries,
+    );
+
     let mut index_start = 0;
-    for (index_end, cell) in index_ranges.iter().zip(cells) {
+    for (index_end, cell) in index_ranges.iter().zip(cells).take(new_indirect.len()) {
         for index in index_start..*index_end {
-            println!("{index}");
+            println!("{cell:?}, {index}");
             assert_eq!(
                 positions[index as usize].map(|c| (c / cell_size).floor() as i32),
-                *cell
+                cell
             );
         }
         index_start = index_end + 1;
@@ -24,7 +34,6 @@ fn check(positions: &[Vector4<f32>], cells: &[Vector4<i32>], index_ranges: &[u32
 
 #[test]
 fn test_simple() {
-    let workgroup_size = 64;
     let cell_size = 0.3;
 
     let positions = [
@@ -40,10 +49,7 @@ fn test_simple() {
 
     let prefixed_boundaries = prefix_sum_on_cpu(&[0, 0, 1, 0, 0, 1, 0, 1]);
 
-    let (cells, index_ranges) =
-        run_build_cells(workgroup_size, cell_size, &positions, &prefixed_boundaries);
-
-    check(&positions, &cells, &index_ranges, cell_size);
+    check(&positions, &prefixed_boundaries, cell_size);
 }
 
 #[test]
@@ -51,7 +57,6 @@ fn test_random() {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
-    let workgroup_size = 64;
     let cell_size = 1337.;
 
     let positions: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
@@ -79,78 +84,42 @@ fn test_random() {
     let cell_boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
     let prefixed_boundaries = prefix_sum_on_cpu(&cell_boundaries);
 
-    let (cells, index_ranges) =
-        run_build_cells(workgroup_size, cell_size, &positions, &prefixed_boundaries);
-
-    check(&positions, &cells, &index_ranges, cell_size);
+    check(&positions, &prefixed_boundaries, cell_size);
 }
 
 fn run_build_cells(
-    workgroup_size: u32,
-    cell_size: f32,
+    settings: Settings,
     positions: &[Vector4<f32>],
     prefixed_boundaries: &[u32],
-) -> (Vec<Vector4<i32>>, Vec<u32>) {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+) -> (Vec<Vector4<i32>>, Vec<u32>, Vec<Indirect>) {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let build_cells = BuildCells::new(
-        &context,
-        BuildCellsSettings {
-            workgroup_size,
-            cell_size,
-        },
-    );
-
-    let buffers = build_cells.create_buffers(
-        &context,
-        BuildCellsBufferInput {
-            positions,
-            prefixed_boundaries,
-        },
-    );
-
-    let download_cells_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_cells"),
-        size: buffers.cells.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-    let download_index_ranges_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_index_ranges"),
-        size: buffers.index_ranges.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let input = Input::new(context.device(), settings, positions, prefixed_boundaries);
+    let build_cells = BuildCells::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    build_cells.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output {
+        cell_ids,
+        index_ranges,
+        new_indirect,
+    } = build_cells
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.cells, 0, &download_cells_buffer, 0, None);
-    encoder.copy_buffer_to_buffer(
-        &buffers.index_ranges,
-        0,
-        &download_index_ranges_buffer,
-        0,
-        None,
-    );
-
+    let downloads = DownloadsToHost::new(&context, [cell_ids, index_ranges, new_indirect]);
+    downloads.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
 
-    let data_cells_buffer_slice = download_cells_buffer.slice(..);
-    data_cells_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
-    let data_index_ranges_buffer_slice = download_index_ranges_buffer.slice(..);
-    data_index_ranges_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
+    let downloads = downloads.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let [cell_ids, index_ranges, new_indirect] = downloads.try_into().unwrap();
+    let mut garbage_w: Vec<Vector4<i32>> = cell_ids.to_vec();
+    garbage_w.iter_mut().for_each(|v| v.w = 0);
 
-    let cells_data = data_cells_buffer_slice.get_mapped_range();
-    let cells_result: &[Vector4<i32>] = bytemuck::cast_slice(&cells_data);
-    let index_ranges_data = data_index_ranges_buffer_slice.get_mapped_range();
-    let index_ranges_result: &[u32] = bytemuck::cast_slice(&index_ranges_data);
-
-    (cells_result.to_vec(), index_ranges_result.to_vec())
+    (garbage_w, index_ranges.to_vec(), new_indirect.to_vec())
 }

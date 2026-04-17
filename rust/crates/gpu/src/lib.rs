@@ -22,6 +22,7 @@ pub use error::*;
 pub use pipeline_part::*;
 pub use util::*;
 
+pub mod build_cells;
 pub mod count_subkeys;
 pub mod find_cell_boundaries;
 pub mod offsets_to_indirect;
@@ -32,6 +33,7 @@ pub mod radix_sort;
 pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
+pub use build_cells::BuildCells;
 pub use count_subkeys::CountSubkeys;
 pub use find_cell_boundaries::FindCellBoundaries;
 pub use offsets_to_indirect::OffsetsToIndirect;
@@ -43,7 +45,6 @@ pub use reorder_indices::ReorderIndices;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
 //mod allocate_blocks;
-//mod build_cells;
 //mod build_hash_table;
 //mod build_hash_table_colors;
 //mod cells_to_colorkeys;

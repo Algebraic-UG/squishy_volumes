@@ -9,214 +9,174 @@
 #[cfg(test)]
 mod test;
 
+use std::num::NonZeroU32;
+
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
 
 use super::*;
 
 pub struct BuildCells {
-    workgroup_size: u32,
-    compiled_module: CompiledModule,
+    build_cells: CompiledModule,
+    offsets_to_indirect: OffsetsToIndirect,
 }
 
-pub struct BuildCellsSettings {
-    pub workgroup_size: u32,
+#[derive(Clone, Copy)]
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
     pub cell_size: f32,
 }
 
-pub struct BuildCellsBufferInput<'a> {
-    pub positions: &'a [Vector4<f32>],
-    pub prefixed_boundaries: &'a [u32],
+pub struct Parameters;
+
+pub struct Input {
+    pub indirect: Allocation,
+    pub positions: Allocation,
+    pub prefixed_boundaries: Allocation,
 }
 
-pub struct BuildCellsBuffers {
-    pub positions: wgpu::Buffer,
-    pub prefixed_boundaries: wgpu::Buffer,
-    pub cells: wgpu::Buffer,
-    pub index_ranges: wgpu::Buffer,
-}
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            ..
+        }: Settings,
+        positions: &[Vector4<f32>],
+        prefixed_boundaries: &[u32],
+    ) -> Self {
+        assert_eq!(positions.len(), prefixed_boundaries.len());
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: positions.len() as u32,
+        });
 
-pub struct BuildCellsBufferBindings<'a> {
-    pub positions: wgpu::BufferBinding<'a>,
-    pub prefixed_boundaries: wgpu::BufferBinding<'a>,
-    pub cells: wgpu::BufferBinding<'a>,
-    pub index_ranges: wgpu::BufferBinding<'a>,
-}
+        let positions = Allocation::new(device, "positions", positions);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let prefixed_boundaries =
+            Allocation::new(device, "prefixed_boundaries", prefixed_boundaries);
 
-impl<'a> From<&'a BuildCellsBuffers> for BuildCellsBufferBindings<'a> {
-    fn from(
-        BuildCellsBuffers {
+        Self {
+            indirect,
             positions,
             prefixed_boundaries,
-            cells,
-            index_ranges,
-        }: &'a BuildCellsBuffers,
-    ) -> Self {
-        Self {
-            positions: positions.as_entire_buffer_binding(),
-            prefixed_boundaries: prefixed_boundaries.as_entire_buffer_binding(),
-            cells: cells.as_entire_buffer_binding(),
-            index_ranges: index_ranges.as_entire_buffer_binding(),
         }
     }
+}
+
+pub struct Output {
+    pub cell_ids: Allocation,
+    pub index_ranges: Allocation,
+    pub new_indirect: Allocation,
 }
 
 impl PipelinePart for BuildCells {
-    type Settings = BuildCellsSettings;
-    type Parameters = ();
-    type BufferInput<'a> = BuildCellsBufferInput<'a>;
-    type Buffers = BuildCellsBuffers;
-    type BufferBindings<'a> = BuildCellsBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
     fn new(
         context: &GpuContext,
-        Self::Settings {
+        Settings {
             workgroup_size,
+            dispatch_limit,
             cell_size,
-        }: Self::Settings,
+        }: Settings,
     ) -> Self {
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
         let device = context.device();
-
-        let label = Some("build_cells");
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<Vector4<f32>>(0, true),
-                bind_group_layout_entry::<u32>(1, true),
-                bind_group_layout_entry::<Vector4<i32>>(2, false),
-                bind_group_layout_entry::<u32>(3, false),
-            ],
-        });
-
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    ..Default::default()
-                }),
-            ),
-            module: &device.create_shader_module(wgpu::include_wgsl!("build_cells.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("CELL_SIZE", cell_size as f64),
+        let_compiled_module!(
+            build_cells,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                 ],
-                ..Default::default()
-            },
-            cache: None,
-        });
+                immediate_size: 0,
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("CELL_SIZE", cell_size as f64),
+                ]
+            }
+        );
 
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
+        let offsets_to_indirect = OffsetsToIndirect::new(
+            context,
+            offsets_to_indirect::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
 
         Self {
-            workgroup_size,
-            compiled_module,
+            build_cells,
+            offsets_to_indirect,
         }
     }
 
-    fn create_buffers<'a>(
+    fn record(
         &self,
-        context: &GpuContext,
-        Self::BufferInput {
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input {
+            indirect,
             positions,
             prefixed_boundaries,
-        }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        assert_eq!(positions.len(), prefixed_boundaries.len());
-        let device = context.device();
+        }: Input,
+        _: Parameters,
+    ) -> Result<Output, GpuError> {
+        assert_eq!(
+            positions.len::<Vector4<f32>>(),
+            prefixed_boundaries.len::<u32>()
+        );
 
-        let positions = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("positions"),
-            contents: bytemuck::cast_slice(positions),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let cell_ids = context
+            .allocator()?
+            .allocate::<Vector4<i32>>("cell_ids", positions.len::<Vector4<i32>>())?;
+        let index_ranges = context
+            .allocator()?
+            .allocate::<u32>("index_ranges", positions.len::<Vector4<i32>>())?;
 
-        let prefixed_boundaries = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("prefixed_boundaries"),
-            contents: bytemuck::cast_slice(prefixed_boundaries),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let mut compute_pass = encoder.begin_compute_pass(self.build_cells.label);
+        compute_pass.set_pipeline(&self.build_cells.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.build_cells,
+                [
+                    indirect.binding(),
+                    positions.binding(),
+                    prefixed_boundaries.binding(),
+                    cell_ids.binding(),
+                    index_ranges.binding(),
+                ],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+        drop(compute_pass);
 
-        let cells = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("cells"),
-            size: positions.size(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
+        let offsets_to_indirect::Output { new_indirect } = self.offsets_to_indirect.record(
+            context,
+            encoder,
+            offsets_to_indirect::Input {
+                indirect,
+                offsets: prefixed_boundaries,
+            },
+            offsets_to_indirect::Parameters,
+        )?;
 
-        let index_ranges = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("index_ranges"),
-            size: prefixed_boundaries.size(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            positions,
-            prefixed_boundaries,
-            cells,
+        Ok(Output {
+            cell_ids,
             index_ranges,
-        }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
-            positions,
-            prefixed_boundaries,
-            cells,
-            index_ranges,
-        }: Self::BufferBindings<'a>,
-        _: Self::Parameters,
-    ) {
-        let position_count = elements_in_binding::<Vector4<f32>>(&positions);
-        assert!(position_count == elements_in_binding::<u32>(&prefixed_boundaries));
-        assert!(position_count == elements_in_binding::<Vector4<i32>>(&cells));
-        assert!(position_count == elements_in_binding::<u32>(&index_ranges));
-
-        let device = context.device();
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(positions.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(prefixed_boundaries.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Buffer(cells.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Buffer(index_ranges.clone()),
-                },
-            ],
-        });
-
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
-
-        let workgroup_count = position_count.get().div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-
-        compute_pass.dispatch_workgroups(x, y, z);
+            new_indirect,
+        })
     }
 }
