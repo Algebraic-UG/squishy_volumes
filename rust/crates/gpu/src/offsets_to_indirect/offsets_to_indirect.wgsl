@@ -35,12 +35,6 @@ fn main() {
     new_indirect.len = len;
 }
 
-fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
-    return global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
-}
-
 struct Indirect {
     x: u32,
     y: u32,

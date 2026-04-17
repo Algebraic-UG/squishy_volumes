@@ -9,183 +9,123 @@
 #[cfg(test)]
 mod test;
 
-use wgpu::util::DeviceExt as _;
+use std::num::NonZeroU32;
 
 use super::*;
 
 pub struct RecycleToIndirect {
-    compiled_module: CompiledModule,
+    recycle_to_indirect: CompiledModule,
 }
 
-pub struct RecycleToIndirectSettings {
-    pub workgroup_size: u32,
-    pub dispatch_limit: u32,
+#[derive(Clone, Copy)]
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
 }
 
-pub struct RecycleToIndirectBufferInput<'a> {
-    pub limits: &'a [u32],
-    pub prefix_sums: &'a [u32],
+pub struct Parameters;
+
+pub struct Input {
+    pub indirect: Allocation,
+    pub count_prefix_sums: Allocation,
 }
 
-pub struct RecycleToIndirectBuffers {
-    pub indirect: wgpu::Buffer,
-    pub limits: wgpu::Buffer,
-    pub prefix_sums: wgpu::Buffer,
-}
-
-pub struct RecycleToIndirectBufferBindings<'a> {
-    pub indirect: wgpu::BufferBinding<'a>,
-    pub limits: wgpu::BufferBinding<'a>,
-    pub prefix_sums: wgpu::BufferBinding<'a>,
-}
-
-impl<'a> From<&'a RecycleToIndirectBuffers> for RecycleToIndirectBufferBindings<'a> {
-    fn from(
-        RecycleToIndirectBuffers {
-            indirect,
-            limits,
-            prefix_sums,
-        }: &'a RecycleToIndirectBuffers,
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        }: Settings,
+        len: u32,
+        count_prefix_sums: &[u32],
     ) -> Self {
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len,
+        });
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let count_prefix_sums = Allocation::new(device, "count_prefix_sums", count_prefix_sums);
         Self {
-            indirect: indirect.as_entire_buffer_binding(),
-            limits: limits.as_entire_buffer_binding(),
-            prefix_sums: prefix_sums.as_entire_buffer_binding(),
+            indirect,
+            count_prefix_sums,
         }
     }
+}
+
+pub struct Output {
+    pub indirect_colors: Allocation,
 }
 
 impl PipelinePart for RecycleToIndirect {
-    type Settings = RecycleToIndirectSettings;
-    type Parameters = ();
-    type BufferInput<'a> = RecycleToIndirectBufferInput<'a>;
-    type Buffers = RecycleToIndirectBuffers;
-    type BufferBindings<'a> = RecycleToIndirectBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
     fn new(
         context: &GpuContext,
-        Self::Settings {
+        Settings {
             workgroup_size,
             dispatch_limit,
-        }: Self::Settings,
+        }: Settings,
     ) -> Self {
-        let subgroup_size = context.subgroup_size().get();
-        assert!(subgroup_size >= 2u32.pow(3));
-
         let device = context.device();
 
-        let label = Some("recycle_to_indirect");
-
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<u32>(0, true),
-                bind_group_layout_entry::<u32>(1, false),
-                bind_group_layout_entry::<u32>(2, false),
-            ],
-        });
-
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    ..Default::default()
-                }),
-            ),
-            module: &device.create_shader_module(wgpu::include_wgsl!("recycle_to_indirect.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("DISPATCH_LIMIT", dispatch_limit as f64),
+        let_compiled_module!(
+            recycle_to_indirect,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, true),
+                    (Indirect::MIN_BINDING_SIZE, false),
                 ],
-                ..Default::default()
-            },
-            cache: None,
-        });
+                immediate_size: 0,
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("DISPATCH_LIMIT", dispatch_limit.get() as f64),
+                ]
+            }
+        );
 
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
-
-        Self { compiled_module }
-    }
-
-    fn create_buffers<'a>(
-        &self,
-        context: &GpuContext,
-        Self::BufferInput {
-            limits,
-            prefix_sums,
-        }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        assert!(prefix_sums.len().is_multiple_of(8));
-
-        let device = context.device();
-        let prefix_sums = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("prefix_sums"),
-            contents: bytemuck::cast_slice(prefix_sums),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let limits = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("limits"),
-            contents: bytemuck::cast_slice(limits),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-        });
-
-        let indirect = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("indirect"),
-            size: 8 * 3 * u32::MIN_BINDING_SIZE.get(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            indirect,
-            limits,
-            prefix_sums,
+        Self {
+            recycle_to_indirect,
         }
     }
 
-    fn compute_in_pass<'a>(
+    fn record(
         &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input {
             indirect,
-            limits,
-            prefix_sums,
-        }: Self::BufferBindings<'a>,
-        _: Self::Parameters,
-    ) {
-        let device = context.device();
+            count_prefix_sums,
+        }: Input,
+        _: Parameters,
+    ) -> Result<Output, GpuError> {
+        let indirect_colors = context
+            .indirect_allocator()?
+            .allocate::<Indirect>("indirect_colors", 8.try_into().unwrap())?;
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(prefix_sums.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(limits.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Buffer(indirect.clone()),
-                },
-            ],
-        });
-
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
-
+        let mut compute_pass = encoder.begin_compute_pass(self.recycle_to_indirect.label);
+        compute_pass.set_pipeline(&self.recycle_to_indirect.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.recycle_to_indirect,
+                [
+                    indirect.binding(),
+                    count_prefix_sums.binding(),
+                    indirect_colors.binding(),
+                ],
+            ),
+            &[],
+        );
         compute_pass.dispatch_workgroups(1, 1, 1);
+
+        Ok(Output { indirect_colors })
     }
 }

@@ -7,15 +7,59 @@
 // https://opensource.org/licenses/MIT.
 
 @group(0) @binding(0)
-var<storage, read> prefix_sums: array<u32>;
+var<storage, read_write> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> limits: array<u32>;
+var<storage, read> prefix_sums: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read_write> indirect: array<u32>;
+var<storage, read_write> indirect_colors: array<Indirect>;
 
 override DISPATCH_LIMIT: u32;
+override WORKGROUP_SIZE: u32;
+
+const COLORS: u32 = 8;
+
+@compute @workgroup_size(COLORS)
+fn main(
+    @builtin(subgroup_size) subgroup_size: u32,
+    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
+) {
+    let global_index = global_invocation_id.x;
+    if global_index >= COLORS {
+        return;
+    }
+
+    var count_len = 0u;
+    {
+        let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
+        let dispatch_xyz = find_dispatch_xyz(indirect.len);
+        let actual_workgroup_count = dispatch_xyz.x * dispatch_xyz.y * dispatch_xyz.z;
+        count_len = actual_workgroup_count * subgroups_per_workgroup * COLORS;
+    }
+
+    let stride = count_len / COLORS;
+    let start = prefix_sums[global_index * stride];
+
+    var end = indirect.len;
+    if global_index + 1 < COLORS {
+        end = prefix_sums[(global_index + 1) * stride];
+    }
+
+    indirect_colors[global_index].len = end;
+
+    let dispatch_xyz = find_dispatch_xyz(end - start);
+    indirect_colors[global_index].x = dispatch_xyz.x;
+    indirect_colors[global_index].y = dispatch_xyz.y;
+    indirect_colors[global_index].z = dispatch_xyz.z;
+}
+
+struct Indirect {
+    x: u32,
+    y: u32,
+    z: u32,
+    len: u32,
+}
 
 fn div_ceil(left: u32, right: u32) -> u32 {
     if left == 0 {
@@ -24,54 +68,10 @@ fn div_ceil(left: u32, right: u32) -> u32 {
     return 1 + ((left - 1) / right);
 }
 
-// this is the size for the dispatch later
-override WORKGROUP_SIZE: u32;
-
-@compute @workgroup_size(8)
-fn main(
-    @builtin(subgroup_size) subgroup_size: u32,
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
-) {
-    let global_index = global_invocation_id.x;
-    if global_index >= 8 {
-        return;
-    }
-
-    var len = 0u;
-    if global_index == 0 {
-        len = limits[0];
-    }
-    len = subgroupBroadcast(len, 0u);
-
-    var count_len = 0u;
-    {
-        let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
-        let workgroup_count = div_ceil(len, WORKGROUP_SIZE);
-        let x = min(DISPATCH_LIMIT, workgroup_count);
-        let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
-        let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
-        let actual_workgroup_count = x * y * z;
-        count_len = actual_workgroup_count * subgroups_per_workgroup * 8;
-    }
-
-    let stride = count_len / 8;
-    let start = prefix_sums[global_index * stride];
-
-    var end = len;
-    if global_index < 7 {
-        end = prefix_sums[(global_index + 1) * stride];
-    }
-
-    limits[global_index] = end;
-
-    let count = end - start;
-
-    let workgroup_count = div_ceil(count, WORKGROUP_SIZE);
+fn find_dispatch_xyz(len: u32) -> vec3u {
+    let workgroup_count = div_ceil(len, WORKGROUP_SIZE);
     let x = min(DISPATCH_LIMIT, workgroup_count);
     let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
     let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
-
-    indirect[global_index * 3 + 0] = x;
-    indirect[global_index * 3 + 1] = y;
-    indirect[global_index * 3 + 2] = z;
+    return vec3u(x, y, z);
 }

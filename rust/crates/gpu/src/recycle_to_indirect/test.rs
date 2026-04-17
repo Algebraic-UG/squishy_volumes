@@ -10,22 +10,23 @@ use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 
 use super::*;
 
-#[test]
-fn test_simple() {
-    let workgroup_size = 64;
+fn check(
+    settings @ Settings {
+        workgroup_size,
+        dispatch_limit,
+    }: Settings,
+    keys: &[u32],
+) {
     let subgroup_size = get_subgroup_size();
-    let dispatch_limit = 4;
-
-    let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
     let indices: Vec<_> = (0..keys.len() as u32).collect();
     let counts = count_subkeys_on_cpu(
-        dispatch_limit,
+        dispatch_limit.get(),
         3,
         0,
-        workgroup_size,
+        workgroup_size.get(),
         subgroup_size,
         &indices,
-        &keys,
+        keys,
     );
     let prefixes = prefix_sum_on_cpu(&counts);
 
@@ -40,132 +41,73 @@ fn test_simple() {
             Some(*prefix_sum)
         })
         .collect();
-    let indirect = counts
-        .iter()
-        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
+    let indirect_colors = counts
+        .into_iter()
+        .zip(limits)
+        .map(|(len, limit)| {
+            let mut indirect = Indirect::new(IndirectSettings {
+                workgroup_size,
+                dispatch_limit,
+                len,
+            });
+            indirect.len = limit;
+            indirect
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(
-        (limits, indirect),
-        run_recycle_to_indirect(
-            workgroup_size,
-            dispatch_limit,
-            &[keys.len() as u32; 8],
-            &prefixes
-        ),
+        indirect_colors,
+        run_recycle_to_indirect(settings, keys.len() as u32, &prefixes),
     );
 }
 
 #[test]
+fn test_simple() {
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        dispatch_limit: 4.try_into().unwrap(),
+    };
+
+    let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
+    check(settings, &keys);
+}
+
+#[test]
 fn test_random() {
-    let workgroup_size = 64;
-    let subgroup_size = get_subgroup_size();
-    let dispatch_limit = 100;
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        dispatch_limit: 100.try_into().unwrap(),
+    };
 
     let keys: Vec<u32> = ChaCha8Rng::seed_from_u64(42)
         .random_iter::<u32>()
         .map(|key| key & 0b111)
         .take(10000)
         .collect();
-    let indices: Vec<_> = (0..keys.len() as u32).collect();
-    let counts = count_subkeys_on_cpu(
-        dispatch_limit,
-        3,
-        0,
-        workgroup_size,
-        subgroup_size,
-        &indices,
-        &keys,
-    );
-    let prefixes = prefix_sum_on_cpu(&counts);
 
-    let counts = (0..8)
-        .map(|colorkey| keys.iter().filter(|key| **key == colorkey).count() as u32)
-        .collect::<Vec<_>>();
-    // inclusive prefix sum here
-    let limits: Vec<u32> = counts
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            *prefix_sum += item;
-            Some(*prefix_sum)
-        })
-        .collect();
-    let indirect = counts
-        .iter()
-        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
-        .collect::<Vec<_>>();
-
-    assert_eq!(
-        (limits, indirect),
-        run_recycle_to_indirect(
-            workgroup_size,
-            dispatch_limit,
-            &[keys.len() as u32; 8],
-            &prefixes
-        ),
-    );
+    check(settings, &keys);
 }
 
-fn run_recycle_to_indirect(
-    workgroup_size: u32,
-    dispatch_limit: u32,
-    limits: &[u32],
-    prefix_sums: &[u32],
-) -> (Vec<u32>, Vec<u32>) {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+fn run_recycle_to_indirect(settings: Settings, len: u32, prefix_sums: &[u32]) -> Vec<Indirect> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let recycle_to_indirect = RecycleToIndirect::new(
-        &context,
-        RecycleToIndirectSettings {
-            workgroup_size,
-            dispatch_limit,
-        },
-    );
-
-    let buffers = recycle_to_indirect.create_buffers(
-        &context,
-        RecycleToIndirectBufferInput {
-            prefix_sums,
-            limits,
-        },
-    );
-
-    let download_limits_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_limits"),
-        size: buffers.limits.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-    let download_indirect_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download_indirect"),
-        size: buffers.indirect.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let input = Input::new(context.device(), settings, len, prefix_sums);
+    let recycle_to_indirect = RecycleToIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
+    let Output { indirect_colors } = recycle_to_indirect
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    recycle_to_indirect.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
-
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.limits, 0, &download_limits_buffer, 0, None);
-    encoder.copy_buffer_to_buffer(&buffers.indirect, 0, &download_indirect_buffer, 0, None);
+    let download = DownloadToHost::new(&context, indirect_colors);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
+    let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let data_buffer_limits_slice = download_limits_buffer.slice(..);
-    data_buffer_limits_slice.map_async(wgpu::MapMode::Read, |_| {});
-    let data_buffer_indirect_slice = download_indirect_buffer.slice(..);
-    data_buffer_indirect_slice.map_async(wgpu::MapMode::Read, |_| {});
-
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-
-    let data_limits = data_buffer_limits_slice.get_mapped_range();
-    let limits: &[u32] = bytemuck::cast_slice(&data_limits);
-    let data_indirect = data_buffer_indirect_slice.get_mapped_range();
-    let indirect: &[u32] = bytemuck::cast_slice(&data_indirect);
-
-    (limits.to_vec(), indirect.to_vec())
+    download.to_vec()
 }

@@ -30,6 +30,7 @@ pub mod permute_positions;
 pub mod positions_to_keys;
 pub mod prefix_sum;
 pub mod radix_sort;
+pub mod recycle_to_indirect;
 pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
@@ -41,6 +42,7 @@ pub use permute_positions::PermutePositions;
 pub use positions_to_keys::PositionsToKeys;
 pub use prefix_sum::PrefixSum;
 pub use radix_sort::RadixSort;
+pub use recycle_to_indirect::RecycleToIndirect;
 pub use reorder_indices::ReorderIndices;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
@@ -50,9 +52,7 @@ pub use sort_positions_into_cells::SortPositionsIntoCells;
 //mod cells_to_colorkeys;
 //mod cells_to_murmur;
 //mod color_cells;
-//mod color_cells_2;
 //mod prepare_grid;
-//mod recycle_to_indirect;
 //mod scatter_mass;
 //mod reorder_particles;
 
@@ -63,7 +63,6 @@ pub use sort_positions_into_cells::SortPositionsIntoCells;
 //pub use cells_to_colorkeys::*;
 //pub use cells_to_murmur::*;
 //pub use color_cells::*;
-//pub use color_cells_2::*;
 //pub use find_cell_boundaries::*;
 //pub use offsets_to_indirectr:*;
 //pub use permute_positions::*;
