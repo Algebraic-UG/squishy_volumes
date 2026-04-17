@@ -25,22 +25,24 @@ fn test_simple() {
     let keys_y: [i32; 8] = [-1, -1, 0, 0, -1, -1, 0, 0];
     let keys_z: [i32; 8] = [-1, 0, -1, 0, -1, 0, -1, 0];
 
+    let cell_size = 1.;
+
     assert_eq!(
-        positions_to_keys_on_cpu(&positions, 1., 0)
+        positions_to_keys_on_cpu(&positions, cell_size, 0)
             .into_iter()
             .map(u32_to_i32_offset)
             .collect::<Vec<_>>(),
         keys_x
     );
     assert_eq!(
-        positions_to_keys_on_cpu(&positions, 1., 1)
+        positions_to_keys_on_cpu(&positions, cell_size, 1)
             .into_iter()
             .map(u32_to_i32_offset)
             .collect::<Vec<_>>(),
         keys_y
     );
     assert_eq!(
-        positions_to_keys_on_cpu(&positions, 1., 2)
+        positions_to_keys_on_cpu(&positions, cell_size, 2)
             .into_iter()
             .map(u32_to_i32_offset)
             .collect::<Vec<_>>(),
@@ -51,9 +53,40 @@ fn test_simple() {
     let keys_y: Vec<_> = keys_y.into_iter().map(i32_to_u32_offset).collect();
     let keys_z: Vec<_> = keys_z.into_iter().map(i32_to_u32_offset).collect();
 
-    assert_eq!(run_positions_to_keys(64, 1., &positions, 0), keys_x);
-    assert_eq!(run_positions_to_keys(64, 1., &positions, 1), keys_y);
-    assert_eq!(run_positions_to_keys(64, 1., &positions, 2), keys_z);
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+    };
+
+    assert_eq!(
+        keys_x,
+        run_positions_to_keys(
+            settings,
+            dispatch_limit,
+            Parameters { dimension: 0 },
+            &positions
+        )
+    );
+    assert_eq!(
+        keys_y,
+        run_positions_to_keys(
+            settings,
+            dispatch_limit,
+            Parameters { dimension: 1 },
+            &positions
+        )
+    );
+    assert_eq!(
+        keys_z,
+        run_positions_to_keys(
+            settings,
+            dispatch_limit,
+            Parameters { dimension: 2 },
+            &positions
+        )
+    );
 }
 
 #[test]
@@ -62,6 +95,12 @@ fn test_random() {
     use rand::rngs::ChaCha8Rng;
 
     let cell_size = 1337.;
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+    };
 
     let positions: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
         .random_iter::<f32>()
@@ -75,57 +114,47 @@ fn test_random() {
     for dimension in [0, 1, 2] {
         assert_eq!(
             positions_to_keys_on_cpu(&positions, cell_size, dimension),
-            run_positions_to_keys(64, cell_size, &positions, dimension),
+            run_positions_to_keys(
+                settings,
+                dispatch_limit,
+                Parameters { dimension },
+                &positions,
+            ),
         );
     }
 }
 
 fn run_positions_to_keys(
-    workgroup_size: u32,
-    cell_size: f32,
+    settings: Settings,
+    dispatch_limit: NonZeroU32,
+    parameters: Parameters,
     positions: &[Vector4<f32>],
-    dimension: u32,
 ) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let positions_to_keys = PositionsToKeys::new(
-        &context,
-        PositionsToKeysSettings {
-            workgroup_size,
-            cell_size,
-        },
+    let input = Input::new(
+        context.device(),
+        settings.workgroup_size,
+        dispatch_limit,
+        positions,
     );
-    let buffers =
-        positions_to_keys.create_buffers(&context, PositionsToKeysBufferInput { positions });
-
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.keys.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let positions_to_keys = PositionsToKeys::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    positions_to_keys.compute_in_pass(
-        &context,
-        &mut compute_pass,
-        (&buffers).into(),
-        PositionsToKeysParameters { dimension },
-    );
+    let Output { keys } = positions_to_keys
+        .record(&mut context, &mut (&mut encoder).into(), input, parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.keys, 0, &download_buffer, 0, None);
+    let download = DownloadToHost::new(&context, keys);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
-
-    result.to_vec()
+    download.to_vec()
 }
