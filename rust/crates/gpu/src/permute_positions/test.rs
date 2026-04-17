@@ -28,9 +28,12 @@ fn test_simple() {
         *to_permute = positions[prior_position as usize];
     }
 
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+
     assert_eq!(
         permuted_postions,
-        run_permute_positions(64, &permutation, &positions),
+        run_permute_positions(workgroup_size, dispatch_limit, &permutation, &positions),
     );
 }
 
@@ -57,46 +60,49 @@ fn test_random() {
         *to_permute = positions[prior_position as usize];
     }
 
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+
     assert_eq!(
         permuted_postions,
-        run_permute_positions(64, &permutation, &positions),
+        run_permute_positions(workgroup_size, dispatch_limit, &permutation, &positions),
     );
 }
 
 fn run_permute_positions(
-    workgroup_size: u32,
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
     permutation: &[u32],
     positions: &[Vector4<f32>],
 ) -> Vec<Vector4<f32>> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let permute_positions =
-        PermutePositions::new(&context, PermutePositionsSettings { workgroup_size });
-
-    let buffers = permute_positions.create_buffers(
-        &context,
-        PermutePositionsBufferInput {
-            permutation,
-            positions,
-        },
+    let input = Input::new(
+        context.device(),
+        workgroup_size,
+        dispatch_limit,
+        permutation,
+        positions,
     );
-
-    let download = DownloadToHost::new(&context, &buffers.positions_out, "positions_out");
+    let permute_positions = PermutePositions::new(&context, Settings { workgroup_size });
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    permute_positions.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output { positions_out } = permute_positions
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
+    let download = DownloadToHost::new(&context, positions_out);
     download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-
     let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
-
-    download.to_vec()
+    let mut garbage_w: Vec<Vector4<f32>> = download.to_vec();
+    garbage_w.iter_mut().for_each(|v| v.w = 0.);
+    garbage_w
 }

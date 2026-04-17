@@ -23,6 +23,7 @@ pub use pipeline_part::*;
 pub use util::*;
 
 pub mod count_subkeys;
+pub mod permute_positions;
 pub mod positions_to_keys;
 pub mod prefix_sum;
 pub mod radix_sort;
@@ -30,6 +31,7 @@ pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
 pub use count_subkeys::CountSubkeys;
+pub use permute_positions::PermutePositions;
 pub use positions_to_keys::PositionsToKeys;
 pub use prefix_sum::PrefixSum;
 pub use radix_sort::RadixSort;
@@ -46,7 +48,6 @@ pub use sort_positions_into_cells::SortPositionsIntoCells;
 //mod color_cells_2;
 //mod find_cell_boundaries;
 //mod offsets_to_indirect;
-//mod permute_positions;
 //mod prepare_grid;
 //mod recycle_to_indirect;
 //mod scatter_mass;
