@@ -499,3 +499,30 @@ pub fn grid_on_cpu(
     }
     nodes.into_iter().collect()
 }
+
+pub struct CountsCountArgs {
+    pub workgroup_size: u32,
+    pub subgroup_size: u32,
+    pub dispatch_limit: u32,
+    pub counter: u32,
+    pub len: u32,
+}
+
+pub fn counts_count(
+    CountsCountArgs {
+        workgroup_size,
+        subgroup_size,
+        dispatch_limit,
+        counter,
+        len,
+    }: CountsCountArgs,
+) -> u32 {
+    let subgroups_per_workgroup = workgroup_size / subgroup_size;
+    let actual_workgroup_count = Indirect::new(IndirectSettings {
+        workgroup_size: workgroup_size.try_into().unwrap(),
+        dispatch_limit: dispatch_limit.try_into().unwrap(),
+        len,
+    })
+    .workgroup_count();
+    actual_workgroup_count * subgroups_per_workgroup * counter
+}

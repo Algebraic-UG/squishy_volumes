@@ -169,13 +169,12 @@ impl PipelinePart for ReorderIndices {
 
 impl ReorderIndices {
     pub fn min_prefix_sums_len(&self, len: u32) -> u32 {
-        let subgroups_per_workgroup = self.workgroup_size / self.subgroup_size;
-        let actual_workgroup_count = Indirect::new(IndirectSettings {
-            workgroup_size: self.workgroup_size.try_into().unwrap(),
-            dispatch_limit: self.dispatch_limit.try_into().unwrap(),
+        counts_count(CountsCountArgs {
+            workgroup_size: self.workgroup_size,
+            subgroup_size: self.subgroup_size,
+            dispatch_limit: self.dispatch_limit,
+            counter: 2u32.pow(self.bit_count),
             len,
         })
-        .workgroup_count();
-        actual_workgroup_count * subgroups_per_workgroup * 2u32.pow(self.bit_count)
     }
 }
