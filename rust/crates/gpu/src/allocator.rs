@@ -267,7 +267,7 @@ impl GpuAllocator {
         self.free_sizes().sum()
     }
 
-    pub fn fix(&mut self) {
+    fn fix(&mut self) {
         // track the current free part
         let mut free = None;
         for partition in take(&mut self.partitions) {
