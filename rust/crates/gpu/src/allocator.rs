@@ -301,6 +301,18 @@ impl GpuAllocator {
             self.partitions.push(free);
         }
     }
+
+    pub fn check_overlap(&self) {
+        for a in 0..self.partitions.len() {
+            for b in a + 1..self.partitions.len() {
+                println!("{a} vs {b}");
+                let a = &self.partitions[a];
+                let b = &self.partitions[b];
+                println!("{:?} vs {:?}", a.range, b.range);
+                assert!(!a.overlap(b));
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -337,6 +349,13 @@ impl Partition {
 
     fn is_empty(&self) -> bool {
         self.range.is_empty()
+    }
+
+    fn overlap(&self, other: &Self) -> bool {
+        if self.is_empty() || other.is_empty() {
+            return false;
+        }
+        self.range.contains(&other.range.start) || other.range.contains(&self.range.start)
     }
 }
 
