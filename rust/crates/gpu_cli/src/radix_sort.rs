@@ -15,7 +15,7 @@ pub fn radix_sort_on_gpu(
         .setup_allocator(indices.len() as u64 * 10, "allocator", true)
         .unwrap();
     context
-        .setup_indirect_allocator(100, "indirect allocator", true)
+        .setup_indirect_allocator(400, "indirect allocator", true)
         .unwrap();
 
     let radix_sort = RadixSort::new(&context, settings.clone());
