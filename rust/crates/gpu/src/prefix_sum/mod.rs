@@ -168,7 +168,7 @@ impl PipelinePart for PrefixSum {
             compute_pass.set_immediates(0, bytemuck::bytes_of(&stride));
             compute_pass.dispatch_workgroups_indirect(
                 indirect_levels.buffer(),
-                level as u64 * Indirect::MIN_BINDING_SIZE.get(),
+                indirect_levels.offset() + level as u64 * Indirect::MIN_BINDING_SIZE.get(),
             );
         }
         drop(compute_pass);
