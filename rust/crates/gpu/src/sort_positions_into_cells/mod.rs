@@ -129,7 +129,7 @@ impl PipelinePart for SortPositionsIntoCells {
                 },
                 positions_to_keys::Parameters { dimension },
             )?;
-            let output = self.radix_sort.record_all_rounds(
+            indices_out = self.radix_sort.record_all_rounds(
                 context,
                 encoder,
                 radix_sort::Input {
@@ -138,7 +138,6 @@ impl PipelinePart for SortPositionsIntoCells {
                     keys,
                 },
             )?;
-            indices_out = output.indices_out;
         }
         Ok(Output { indices_out })
     }

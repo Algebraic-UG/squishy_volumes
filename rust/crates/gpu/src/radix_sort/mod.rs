@@ -73,6 +73,7 @@ impl Input {
 
 pub struct Output {
     pub indices_out: Allocation,
+    pub prefix_sums: Allocation,
 }
 
 impl PipelinePart for RadixSort {
@@ -175,12 +176,15 @@ impl PipelinePart for RadixSort {
                 indirect,
                 indices_in,
                 keys,
-                prefix_sums,
+                prefix_sums: prefix_sums.clone(),
             },
             reorder_indices::Parameters { bit_offset },
         )?;
 
-        Ok(Output { indices_out })
+        Ok(Output {
+            indices_out,
+            prefix_sums,
+        })
     }
 }
 
@@ -194,7 +198,7 @@ impl RadixSort {
             indices_in,
             keys,
         }: Input,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Allocation, GpuError> {
         let mut indices_out = indices_in;
         for round in 0..32u32.div_ceil(self.bit_count) {
             let output = self.record(
@@ -212,6 +216,6 @@ impl RadixSort {
             indices_out = output.indices_out;
         }
 
-        Ok(Output { indices_out })
+        Ok(indices_out)
     }
 }

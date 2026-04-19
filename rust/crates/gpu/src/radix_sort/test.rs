@@ -61,7 +61,7 @@ fn run_radix_sort(settings: Settings, indices: &[u32], keys: &[u32]) -> Vec<u32>
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { indices_out } = radix_sort
+    let indices_out = radix_sort
         .record_all_rounds(&mut context, &mut (&mut encoder).into(), input)
         .unwrap();
 
