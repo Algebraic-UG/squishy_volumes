@@ -6,73 +6,74 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::iter::repeat;
-
 use super::*;
 
-fn check(workgroup_size: u32, dispatch_limit: u32, cells_in: &[Vector4<i32>], limit: u32) {
-    let limits = [limit, 0, 0, 0, 0, 0, 0, 0];
-    let indirect = find_x_y_z_simple(dispatch_limit, limit.div_ceil(workgroup_size))
-        .into_iter()
-        .chain(repeat(0))
-        .take(8 * 3)
+fn check(workgroup_size: u32, dispatch_limit: u32, cells: &[Vector4<i32>]) {
+    let subgroup_size = get_subgroup_size();
+
+    let settings = Settings {
+        workgroup_size: workgroup_size.try_into().unwrap(),
+        dispatch_limit: dispatch_limit.try_into().unwrap(),
+    };
+
+    let keys: Vec<u32> = cells
+        .iter()
+        .map(|cell| {
+            let cell = cell.map(|c| i32_to_u32_offset(c) & 1);
+            cell.x | (cell.y << 1) | (cell.z << 2)
+        })
+        .collect();
+
+    let counts = (0..8)
+        .map(|color| keys.iter().filter(|key| **key == color).count() as u32)
         .collect::<Vec<_>>();
-    println!("limit: {limits:?}");
-    println!("indirect: {indirect:?}");
+    println!("counts: {counts:?}");
+    let prefix_sum: Vec<_> = counts
+        .iter()
+        .scan(0, |prefix_sum, item| {
+            *prefix_sum += item;
+            Some(*prefix_sum)
+        })
+        .collect();
+    let (indirect_colors, indirect_colors_batch): (Vec<_>, Vec<_>) = counts
+        .iter()
+        .zip(prefix_sum)
+        .map(|(count, end)| {
+            let mut indirect_color = Indirect::new(IndirectSettings {
+                workgroup_size: workgroup_size.try_into().unwrap(),
+                dispatch_limit: dispatch_limit.try_into().unwrap(),
+                len: *count,
+            });
+            let mut indirect_color_batch = Indirect::new(IndirectSettings {
+                workgroup_size: workgroup_size.try_into().unwrap(),
+                dispatch_limit: dispatch_limit.try_into().unwrap(),
+                len: *count * subgroup_size,
+            });
+            indirect_color.len = end;
+            indirect_color_batch.len = end;
+            (indirect_color, indirect_color_batch)
+        })
+        .unzip();
+    let indices = sort_on_cpu(&(0..cells.len() as u32).collect::<Vec<_>>(), &keys);
 
-    {
-        let tmp = cells_in.iter().take(limit as usize);
-        let counts = (0..8)
-            .map(|color| {
-                tmp.clone()
-                    .filter(|cell| {
-                        let cell = cell.map(|c| i32_to_u32_offset(c) & 1);
-                        cell.x | (cell.y << 1) | (cell.z << 2) == color
-                    })
-                    .count() as u32
-            })
-            .collect::<Vec<_>>();
-        println!("counts: {counts:?}");
-        let limits: Vec<_> = counts
-            .iter()
-            .scan(0, |prefix_sum, item| {
-                *prefix_sum += item;
-                Some(*prefix_sum)
-            })
-            .collect();
-        println!("limits: {limits:?}");
-        let indirect: Vec<_> = counts
-            .iter()
-            .map(|count| find_x_y_z_simple(limit, count.div_ceil(workgroup_size)))
-            .collect();
-        println!("indirect: {indirect:?}");
-    }
+    let (gpu_indirect_colors, gpu_indirect_colors_batch, gpu_indices) =
+        run_color_cells(settings, cells);
+    assert_eq!(indirect_colors, gpu_indirect_colors);
+    assert_eq!(gpu_indirect_colors_batch, indirect_colors_batch);
+    assert_eq!(indices, gpu_indices);
 
-    let (limits, indirect, cells_out) =
-        run_color_cells_2(workgroup_size, dispatch_limit, &limits, &indirect, cells_in);
-
-    println!("(GPU) limit: {limits:?}");
-    println!("(GPU) indirect: {indirect:?}");
-
-    let mut start = 0;
-    for color in 0..8 {
-        let cell = cells_out[start as usize];
+    let mut start: u32 = 0;
+    for indirect_color in indirect_colors {
+        let cell = cells[indices[start as usize] as usize];
 
         println!("now checking: {:?}", cell.map(|c| i32_to_u32_offset(c) & 1));
 
-        let end = limits[color];
-        let count = end - start;
-
-        assert!(
-            indirect[color * 3..(color + 1) * 3].iter().product::<u32>()
-                >= count.div_ceil(workgroup_size)
-        );
-
+        let end = indirect_color.len;
         for index in start..end {
             println!("{start} {index} {end}");
             assert_eq!(
                 cell.map(|c| i32_to_u32_offset(c) & 1),
-                cells_out[index as usize].map(|c| i32_to_u32_offset(c) & 1),
+                cells[indices[index as usize] as usize].map(|c| i32_to_u32_offset(c) & 1),
             );
         }
 
@@ -98,28 +99,6 @@ fn test_simple() {
             Vector4::new(5, 5, -5, 0),
             Vector4::new(5, 5, 5, 0),
         ],
-        8,
-    );
-}
-
-#[test]
-fn test_simple_ignore_half() {
-    let workgroup_size = 64;
-    let dispatch_limit = 10;
-    check(
-        workgroup_size,
-        dispatch_limit,
-        &[
-            Vector4::new(-5, -5, -5, 0),
-            Vector4::new(-5, -5, 5, 0),
-            Vector4::new(-5, 5, -5, 0),
-            Vector4::new(-5, 5, 5, 0),
-            Vector4::new(5, -5, -5, 0),
-            Vector4::new(5, -5, 5, 0),
-            Vector4::new(5, 5, -5, 0),
-            Vector4::new(5, 5, 5, 0),
-        ],
-        4,
     );
 }
 
@@ -141,90 +120,46 @@ fn test_random() {
         .map(|cell| cell.xyz().push(0))
         .collect();
 
-    check(workgroup_size, dispatch_limit, &cells, cells.len() as u32);
+    check(workgroup_size, dispatch_limit, &cells);
 }
 
-#[test]
-fn test_random_ignore_half() {
-    use rand::prelude::*;
-    use rand::rngs::ChaCha8Rng;
-
-    let workgroup_size = 64;
-    let dispatch_limit = 10;
-
-    let cells: Vec<i32> = ChaCha8Rng::seed_from_u64(42)
-        .random_iter::<i32>()
-        .take(1000 * 4)
-        .collect();
-    let cells: Vec<Vector4<i32>> = cells
-        .chunks_exact(4)
-        .map(Vector4::from_column_slice)
-        .map(|cell| cell.xyz().push(0))
-        .collect();
-
-    check(
-        workgroup_size,
-        dispatch_limit,
-        &cells,
-        cells.len() as u32 / 2,
-    );
-}
-
-fn run_color_cells_2(
-    workgroup_size: u32,
-    dispatch_limit: u32,
-    limits: &[u32],
-    indirect: &[u32],
+fn run_color_cells(
+    settings: Settings,
     cells: &[Vector4<i32>],
-) -> (Vec<u32>, Vec<u32>, Vec<Vector4<i32>>) {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+) -> (Vec<Indirect>, Vec<Indirect>, Vec<u32>) {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let color_cells_2 = ColorCells2::new(
-        &context,
-        ColorCells2Settings {
-            workgroup_size,
-            dispatch_limit,
-        },
-    );
-    let buffers = color_cells_2.create_buffers(
-        &context,
-        ColorCells2BufferInput {
-            cells,
-            limits,
-            indirect,
-        },
-    );
-
-    let downloads = DownloadsToHost::new(
-        &context,
-        [
-            (&buffers.limits, "limits"),
-            (&buffers.indirect, "indirect"),
-            (&buffers.counts, "counts"),
-            (&buffers.prefix_sums, "prefix_sums"),
-            (&buffers.cells_out, "cells_out"),
-        ],
-    );
+    let color_cells = ColorCells::new(&context, settings);
+    let input = Input::new(context.device(), settings, cells);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    color_cells_2.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output {
+        indirect_colors,
+        indirect_colors_batch,
+        indices,
+    } = color_cells
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
+    let downloads =
+        DownloadsToHost::new(&context, [indirect_colors, indirect_colors_batch, indices]);
     downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
     let dowloads = downloads.prep();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let [limits, indirect, counts, prefix_sums, cells_out] = dowloads.try_into().unwrap();
+    let [indirect_colors, indirect_colors_batch, indices] = dowloads.try_into().unwrap();
 
-    println!("(GPU) counts {:?}", counts.to_vec::<u32>());
-    println!("(GPU) prefix_sums {:?}", prefix_sums.to_vec::<u32>());
-
-    (limits.to_vec(), indirect.to_vec(), cells_out.to_vec())
+    (
+        indirect_colors.to_vec(),
+        indirect_colors_batch.to_vec(),
+        indices.to_vec(),
+    )
 }

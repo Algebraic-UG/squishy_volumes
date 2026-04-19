@@ -24,6 +24,7 @@ pub use util::*;
 
 pub mod build_cells;
 pub mod cells_to_colorkeys;
+pub mod color_cells;
 pub mod count_subkeys;
 pub mod counts_indirect;
 pub mod find_cell_boundaries;
@@ -38,6 +39,7 @@ pub mod sort_positions_into_cells;
 
 pub use build_cells::BuildCells;
 pub use cells_to_colorkeys::CellsToColorkeys;
+pub use color_cells::ColorCells;
 pub use count_subkeys::CountSubkeys;
 pub use counts_indirect::CountsIndirect;
 pub use find_cell_boundaries::FindCellBoundaries;
