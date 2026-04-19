@@ -97,6 +97,15 @@ fn murmur3_x86_32_3u32(a: u32, b: u32, c: u32, seed: u32) -> u32 {
     return fmix32(h1);
 }
 
+fn murmur_of_cell(cell: vec3i) -> u32 {
+    return murmur3_x86_32_3u32(
+        i32_to_ordered_u32(cell.x),
+        i32_to_ordered_u32(cell.y),
+        i32_to_ordered_u32(cell.z),
+        0,
+    );
+}
+
 fn i32_to_ordered_u32(x: i32) -> u32 {
     return bitcast<u32>(x) ^ 0x80000000u;
 }
