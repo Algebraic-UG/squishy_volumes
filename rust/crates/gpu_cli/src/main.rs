@@ -223,7 +223,6 @@ fn main() {
                             cell_size,
                             bit_count,
                         },
-                        &indices,
                         input,
                     ),
                 },

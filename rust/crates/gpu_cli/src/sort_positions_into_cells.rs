@@ -8,7 +8,6 @@ use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 pub fn sort_positions_into_cells_on_gpu(
     tool: Option<Tool>,
     settings: Settings,
-    indices: &[u32],
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
@@ -20,7 +19,7 @@ pub fn sort_positions_into_cells_on_gpu(
         .unwrap();
 
     let sort_positions_into_cells = SortPositionsIntoCells::new(&context, settings);
-    let input = Input::new(context.device(), settings, indices, positions);
+    let input = Input::new(context.device(), settings, positions);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
