@@ -13,9 +13,12 @@
 var<storage, read_write> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> keys: array<u32>;
+var<storage, read_write> indices: array<u32>;
 
 @group(0) @binding(2)
+var<storage, read_write> keys: array<u32>;
+
+@group(0) @binding(3)
 var<storage, read_write> counts: array<u32>;
 
 var<immediate> bit_offset: u32;
@@ -42,7 +45,7 @@ fn main(
 
     var key = 0u;
     if key_valid {
-        key = keys[global_index];
+        key = keys[indices[global_index]];
     }
 
     let sub_key = (key >> bit_offset) & mask;

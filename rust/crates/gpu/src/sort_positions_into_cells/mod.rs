@@ -134,7 +134,7 @@ impl PipelinePart for SortPositionsIntoCells {
                 encoder,
                 radix_sort::Input {
                     indirect: indirect.clone(),
-                    indices_in: indices_out,
+                    indices_in: Some(indices_out),
                     keys,
                 },
             )?;

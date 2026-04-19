@@ -24,6 +24,20 @@ fn test_simple() {
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
     let mut indices: Vec<u32> = (0..keys.len() as u32).collect();
+
+    assert_eq!(
+        count_subkeys_on_cpu(
+            dispatch_limit.get(),
+            bit_count.get(),
+            bit_offset,
+            workgroup_size.get(),
+            subgroup_size,
+            &indices,
+            &keys
+        ),
+        run_subkey_count(settings, parameters, None, &keys),
+    );
+
     shuffle(&mut indices, 1);
 
     assert_eq!(
@@ -36,7 +50,7 @@ fn test_simple() {
             &indices,
             &keys
         ),
-        run_subkey_count(settings, parameters, &indices, &keys),
+        run_subkey_count(settings, parameters, Some(&indices), &keys),
     );
 }
 
@@ -56,6 +70,20 @@ fn test_simple_with_offset() {
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
     let mut indices: Vec<u32> = (0..keys.len() as u32).collect();
+
+    assert_eq!(
+        count_subkeys_on_cpu(
+            dispatch_limit.get(),
+            bit_count.get(),
+            bit_offset,
+            workgroup_size.get(),
+            subgroup_size,
+            &indices,
+            &keys
+        ),
+        run_subkey_count(settings, parameters, None, &keys),
+    );
+
     shuffle(&mut indices, 2); // and a different seed, why not
 
     assert_eq!(
@@ -68,7 +96,7 @@ fn test_simple_with_offset() {
             &indices,
             &keys
         ),
-        run_subkey_count(settings, parameters, &indices, &keys),
+        run_subkey_count(settings, parameters, Some(&indices), &keys),
     );
 }
 
@@ -88,6 +116,19 @@ fn test_larger() {
 
     let keys = [1; 513];
     let mut indices: Vec<u32> = (0..keys.len() as u32).collect();
+    assert_eq!(
+        count_subkeys_on_cpu(
+            dispatch_limit.get(),
+            bit_count.get(),
+            bit_offset,
+            workgroup_size.get(),
+            subgroup_size,
+            &indices,
+            &keys
+        ),
+        run_subkey_count(settings, parameters, None, &keys),
+    );
+
     shuffle(&mut indices, 3);
 
     assert_eq!(
@@ -100,7 +141,7 @@ fn test_larger() {
             &indices,
             &keys
         ),
-        run_subkey_count(settings, parameters, &indices, &keys),
+        run_subkey_count(settings, parameters, Some(&indices), &keys),
     );
 }
 
@@ -124,6 +165,24 @@ fn test_random() {
         .take(1000)
         .collect();
     let mut indices: Vec<u32> = (0..keys.len() as u32).collect();
+
+    for bit_offset in 0..5 {
+        let parameters = Parameters { bit_offset };
+
+        assert_eq!(
+            count_subkeys_on_cpu(
+                dispatch_limit.get(),
+                bit_count.get(),
+                bit_offset,
+                workgroup_size.get(),
+                subgroup_size,
+                &indices,
+                &keys
+            ),
+            run_subkey_count(settings, parameters, None, &keys),
+        );
+    }
+
     shuffle(&mut indices, 4);
 
     for bit_offset in 0..5 {
@@ -139,7 +198,7 @@ fn test_random() {
                 &indices,
                 &keys
             ),
-            run_subkey_count(settings, parameters, &indices, &keys),
+            run_subkey_count(settings, parameters, Some(&indices), &keys),
         );
     }
 }
@@ -147,7 +206,7 @@ fn test_random() {
 fn run_subkey_count(
     settings: Settings,
     parameters: Parameters,
-    indices: &[u32],
+    indices: Option<&[u32]>,
     keys: &[u32],
 ) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();

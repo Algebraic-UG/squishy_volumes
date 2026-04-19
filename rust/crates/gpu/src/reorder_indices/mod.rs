@@ -19,6 +19,7 @@ pub struct ReorderIndices {
     subgroup_size: u32,
     bit_count: u32,
     reorder_indices: CompiledModule,
+    reorder_indices_with_indices: CompiledModule,
 }
 
 #[derive(Clone, Copy)]
@@ -28,13 +29,14 @@ pub struct Settings {
     pub bit_count: NonZeroU32,
 }
 
+#[derive(Clone, Copy)]
 pub struct Parameters {
     pub bit_offset: u32,
 }
 
 pub struct Input {
     pub indirect: Allocation,
-    pub indices_in: Allocation,
+    pub indices_in: Option<Allocation>,
     pub keys: Allocation,
     pub prefix_sums: Allocation,
 }
@@ -47,19 +49,21 @@ impl Input {
             dispatch_limit,
             ..
         }: Settings,
-        indices: &[u32],
+        indices: Option<&[u32]>,
         keys: &[u32],
         prefix_sums: &[u32],
     ) -> Self {
-        assert_eq!(indices.len(), keys.len());
+        if let Some(indices) = indices.as_ref() {
+            assert_eq!(indices.len(), keys.len());
+        }
 
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
-            len: indices.len() as u32,
+            len: keys.len() as u32,
         });
 
-        let indices_in = Allocation::new(device, "indices_in", indices);
+        let indices_in = indices.map(|indices| Allocation::new(device, "indices_in", indices));
         let keys = Allocation::new(device, "keys", keys);
         let prefix_sums = Allocation::new(device, "prefix_sums", prefix_sums);
         let indirect = Allocation::new(device, "indirect", &[indirect]);
@@ -102,6 +106,24 @@ impl PipelinePart for ReorderIndices {
                     (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 4,
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size as f64),
+                    ("BIT_COUNT", bit_count as f64),
+                ],
+            }
+        );
+
+        let_compiled_module!(
+            reorder_indices_with_indices,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
@@ -118,6 +140,7 @@ impl PipelinePart for ReorderIndices {
             subgroup_size,
             bit_count,
             reorder_indices,
+            reorder_indices_with_indices,
         }
     }
 
@@ -133,7 +156,9 @@ impl PipelinePart for ReorderIndices {
         }: Input,
         Parameters { bit_offset }: Parameters,
     ) -> Result<Output, GpuError> {
-        assert_eq!(indices_in.len::<u32>(), keys.len::<u32>());
+        if let Some(indices_in) = indices_in.as_ref() {
+            assert_eq!(indices_in.len::<u32>(), keys.len::<u32>());
+        }
         assert!(
             prefix_sums.len::<u32>().get()
                 >= self.min_prefix_sums_len(keys.len::<u32>().get() as u32) as u64
@@ -141,25 +166,43 @@ impl PipelinePart for ReorderIndices {
 
         let indices_out = context
             .allocator()?
-            .allocate::<u32>("indices_out", indices_in.len::<u32>())?;
+            .allocate::<u32>("indices_out", keys.len::<u32>())?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.reorder_indices.label);
-        compute_pass.set_pipeline(&self.reorder_indices.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
-                &self.reorder_indices,
-                [
-                    indirect.binding(),
-                    keys.binding(),
-                    prefix_sums.binding(),
-                    indices_in.binding(),
-                    indices_out.binding(),
-                ],
-            ),
-            &[],
-        );
+        if let Some(indices_in) = indices_in {
+            compute_pass.set_pipeline(&self.reorder_indices_with_indices.compute_pipeline);
+            compute_pass.set_bind_group(
+                0,
+                &create_bind_group(
+                    context.device(),
+                    &self.reorder_indices_with_indices,
+                    [
+                        indirect.binding(),
+                        keys.binding(),
+                        prefix_sums.binding(),
+                        indices_in.binding(),
+                        indices_out.binding(),
+                    ],
+                ),
+                &[],
+            );
+        } else {
+            compute_pass.set_pipeline(&self.reorder_indices.compute_pipeline);
+            compute_pass.set_bind_group(
+                0,
+                &create_bind_group(
+                    context.device(),
+                    &self.reorder_indices,
+                    [
+                        indirect.binding(),
+                        keys.binding(),
+                        prefix_sums.binding(),
+                        indices_out.binding(),
+                    ],
+                ),
+                &[],
+            );
+        }
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
 

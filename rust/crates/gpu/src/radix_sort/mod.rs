@@ -37,7 +37,7 @@ pub struct Parameters {
 
 pub struct Input {
     pub indirect: Allocation,
-    pub indices_in: Allocation,
+    pub indices_in: Option<Allocation>,
     pub keys: Allocation,
 }
 
@@ -49,17 +49,19 @@ impl Input {
             dispatch_limit,
             ..
         }: Settings,
-        indices: &[u32],
+        indices: Option<&[u32]>,
         keys: &[u32],
     ) -> Self {
-        assert_eq!(indices.len(), keys.len());
+        if let Some(indices) = indices.as_ref() {
+            assert_eq!(indices.len(), keys.len());
+        }
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
-            len: indices.len() as u32,
+            len: keys.len() as u32,
         });
 
-        let indices_in = Allocation::new(device, "indices_in", indices);
+        let indices_in = indices.map(|indices| Allocation::new(device, "indices_in", indices));
         let keys = Allocation::new(device, "keys", keys);
         let indirect = Allocation::new(device, "indirect", &[indirect]);
 
@@ -213,9 +215,9 @@ impl RadixSort {
                     bit_offset: round * self.bit_count,
                 },
             )?;
-            indices_out = output.indices_out;
+            indices_out = Some(output.indices_out);
         }
 
-        Ok(indices_out)
+        Ok(indices_out.unwrap())
     }
 }

@@ -24,6 +24,23 @@ fn test_simple() {
 
     let keys = [0, 3, 2, 2, 3, 2, 0, 3, 2, 1];
     let mut indices: Vec<_> = (0..keys.len() as u32).collect();
+
+    let counts = count_subkeys_on_cpu(
+        dispatch_limit.get(),
+        bit_count.get(),
+        bit_offset,
+        workgroup_size.get(),
+        subgroup_size,
+        &indices,
+        &keys,
+    );
+    let prefix_sums = prefix_sum_on_cpu(&counts);
+
+    assert_eq!(
+        sort_on_cpu_by_bits(bit_count.get(), bit_offset, &indices, &keys),
+        run_reorder_indices(settings, parameters, None, &keys, &prefix_sums),
+    );
+
     shuffle(&mut indices, 5);
 
     let counts = count_subkeys_on_cpu(
@@ -39,7 +56,7 @@ fn test_simple() {
 
     assert_eq!(
         sort_on_cpu_by_bits(bit_count.get(), bit_offset, &indices, &keys),
-        run_reorder_indices(settings, parameters, &indices, &keys, &prefix_sums),
+        run_reorder_indices(settings, parameters, Some(&indices), &keys, &prefix_sums),
     );
 }
 
@@ -65,6 +82,23 @@ fn test_random() {
         .take(1000)
         .collect();
     let mut indices: Vec<_> = (0..keys.len() as u32).collect();
+
+    let counts = count_subkeys_on_cpu(
+        dispatch_limit.get(),
+        bit_count.get(),
+        bit_offset,
+        workgroup_size.get(),
+        subgroup_size,
+        &indices,
+        &keys,
+    );
+    let prefix_sums = prefix_sum_on_cpu(&counts);
+
+    assert_eq!(
+        sort_on_cpu_by_bits(bit_count.get(), bit_offset, &indices, &keys),
+        run_reorder_indices(settings, parameters, None, &keys, &prefix_sums),
+    );
+
     shuffle(&mut indices, 6);
 
     let counts = count_subkeys_on_cpu(
@@ -80,14 +114,14 @@ fn test_random() {
 
     assert_eq!(
         sort_on_cpu_by_bits(bit_count.get(), bit_offset, &indices, &keys),
-        run_reorder_indices(settings, parameters, &indices, &keys, &prefix_sums),
+        run_reorder_indices(settings, parameters, Some(&indices), &keys, &prefix_sums),
     );
 }
 
 fn run_reorder_indices(
     settings: Settings,
     parameters: Parameters,
-    indices: &[u32],
+    indices: Option<&[u32]>,
     keys: &[u32],
     prefix_sums: &[u32],
 ) -> Vec<u32> {

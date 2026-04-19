@@ -21,7 +21,7 @@ fn test_simple() {
                 dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
                 bit_count: 2.try_into().unwrap(),
             },
-            &indices,
+            None,
             &keys,
         )
     );
@@ -46,13 +46,13 @@ fn test_random() {
                 dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
                 bit_count: 2.try_into().unwrap(),
             },
-            &indices,
+            None,
             &keys,
         )
     );
 }
 
-fn run_radix_sort(settings: Settings, indices: &[u32], keys: &[u32]) -> Vec<u32> {
+fn run_radix_sort(settings: Settings, indices: Option<&[u32]>, keys: &[u32]) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings.clone(), indices, keys);

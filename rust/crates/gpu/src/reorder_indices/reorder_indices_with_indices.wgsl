@@ -19,6 +19,9 @@ var<storage, read_write> keys: array<u32>;
 var<storage, read_write> prefixes: array<u32>;
 
 @group(0) @binding(3)
+var<storage, read_write> indices_in: array<u32>;
+
+@group(0) @binding(4)
 var<storage, read_write> indices_out: array<u32>;
 
 var<immediate> bit_offset: u32;
@@ -44,8 +47,10 @@ fn main(
 
     // these need to be reordered
     var key = 0u;
+    var index = 0u;
     if global_index_valid {
-        key = keys[global_index];
+        index = indices_in[global_index];
+        key = keys[index];
     }
 
     // we reorder by this value
@@ -79,7 +84,7 @@ fn main(
 
     // finish reordering
     if global_index_valid {
-        indices_out[global_index_out] = global_index;
+        indices_out[global_index_out] = index;
     }
 }
 
