@@ -6,10 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{cell::RefCell, rc::Rc, sync::atomic::AtomicU32};
+use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
 
 #[cfg(test)]
 mod test;
@@ -18,342 +17,280 @@ use super::*;
 
 pub struct PrepareGrid {
     sort_positions_into_cells: SortPositionsIntoCells,
-    permute_positions: PermutePositions,
+    permute_particles: PermuteParticles,
     find_cell_boundaries: FindCellBoundaries,
     prefix_sum: PrefixSum,
     build_cells: BuildCells,
-    offsets_to_indirect: OffsetsToIndirect,
-    color_cells: ColorCells2,
-    reorder_particles: ReorderParticles,
-    build_hash_table_colors: BuildHashTableColors,
+    color_cells: ColorCells,
+    build_hash_table: BuildHashTable,
     allocate_blocks: AllocateBlocks,
 }
 
-pub struct PrepareGridSettings {
-    pub sort_positions_into_cells: SortPositionsIntoCellsSettings,
-    pub permute_positions: PermutePositionsSettings,
-    pub find_cell_boundaries: FindCellBoundariesSettings,
-    pub prefix_sum: PrefixSumSettings,
-    pub build_cells: BuildCellsSettings,
-    pub offsets_to_indirect: OffsetsToIndirectSettings,
-    pub color_cells: ColorCells2Settings,
-    pub reorder_particles: ReorderParticlesSettings,
-    pub build_hash_table_colors: BuildHashTableColorsSettings,
-    pub allocate_blocks: AllocateBlocksSettings,
+#[derive(Clone)]
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
+    pub bit_count: NonZeroU32,
+    pub cell_size: f32,
 }
 
-pub struct PrepareGridBufferInput<'a> {
-    pub positions: &'a [Vector4<f32>],
-    pub indices: &'a [u32],
+pub struct Parameters;
+
+pub struct Input {
+    pub particle_indirect: Allocation,
+    pub indices_in: Allocation,
+    pub positions_in: Allocation,
 }
 
-pub struct PrepareGridBuffers {
-    pub particle_positions_in: wgpu::Buffer,
-    pub particle_indices_in: wgpu::Buffer,
-
-    pub allocator: GpuAllocator,
-}
-
-pub struct PrepareGridBufferBindings<'a> {
-    pub particle_positions_in: wgpu::BufferBinding<'a>,
-    pub particle_indices_in: wgpu::BufferBinding<'a>,
-
-    pub allocator: &'a mut GpuAllocator,
-
-    pub cell_ids: Option<Allocation>,
-    pub block_table: Option<Allocation>,
-}
-
-impl<'a> From<&'a PrepareGridBuffers> for PrepareGridBufferBindings<'a> {
-    fn from(
-        PrepareGridBuffers {
-            particle_positions_in,
-            particle_positions_out,
-            particle_indices_front,
-            particle_indices_back,
-            particle_keys,
-            particle_counts,
-            particle_prefix_sums,
-            particle_cell_boundaries,
-            particle_cell_indices,
-            cell_ids_in,
-            cell_ids_out,
-            cell_counts,
-            cell_prefix_sums,
-            cell_index_ranges,
-            cell_owns,
-            indirect,
-            limits,
-            block_table,
-        }: &'a PrepareGridBuffers,
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            ..
+        }: Settings,
+        positions: &[Vector4<f32>],
     ) -> Self {
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: positions.len() as u32,
+        });
+
+        let particle_indirect = Allocation::new(device, "particle_indirect", &[indirect]);
+        let indices_in = Allocation::new(
+            device,
+            "indices_in",
+            &(0..positions.len() as u32).collect::<Vec<_>>(),
+        );
+        let positions_in = Allocation::new(device, "positions_in", positions);
+
         Self {
-            particle_positions_in: particle_positions_in.as_entire_buffer_binding(),
-            particle_positions_out: particle_positions_out.as_entire_buffer_binding(),
-            particle_indices: Rc::new(RefCell::new(DoubleBuffer::new(
-                particle_indices_front.as_entire_buffer_binding(),
-                particle_indices_back.as_entire_buffer_binding(),
-            ))),
-            particle_keys: particle_keys.as_entire_buffer_binding(),
-            particle_counts: particle_counts.as_entire_buffer_binding(),
-            particle_prefix_sums: particle_prefix_sums.as_entire_buffer_binding(),
-            particle_cell_boundaries: particle_cell_boundaries.as_entire_buffer_binding(),
-            particle_cell_indices: particle_cell_indices.as_entire_buffer_binding(),
-            cell_ids_in: cell_ids_in.as_entire_buffer_binding(),
-            cell_ids_out: cell_ids_out.as_entire_buffer_binding(),
-            cell_counts: cell_counts.as_entire_buffer_binding(),
-            cell_prefix_sums: cell_prefix_sums.as_entire_buffer_binding(),
-            cell_index_ranges: cell_index_ranges.as_entire_buffer_binding(),
-            cell_owns: cell_owns.as_entire_buffer_binding(),
-            indirect: indirect.as_entire_buffer_binding(),
-            limits: limits.as_entire_buffer_binding(),
-            block_table: block_table.as_entire_buffer_binding(),
+            particle_indirect,
+            indices_in,
+            positions_in,
         }
     }
+}
+
+pub struct Output {
+    pub indirect_cells: Allocation,
+    pub indirect_colors: Allocation,
+    pub indirect_colors_batch: Allocation,
+
+    pub indices_out: Allocation,
+    pub positions_out: Allocation,
+    pub cell_indices: Allocation,
+    pub cell_index_ranges: Allocation,
+    pub cell_ids: Allocation,
+    pub cell_owns: Allocation,
+    pub block_offsets: Allocation,
+    pub block_table: Allocation,
 }
 
 impl PipelinePart for PrepareGrid {
-    type Settings = PrepareGridSettings;
-    type Parameters = ();
-    type BufferInput<'a> = PrepareGridBufferInput<'a>;
-    type Buffers = PrepareGridBuffers;
-    type BufferBindings<'a> = PrepareGridBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
     fn new(
         context: &GpuContext,
-        Self::Settings {
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+            bit_count,
+            cell_size,
+        }: Settings,
+    ) -> Self {
+        let sort_positions_into_cells = SortPositionsIntoCells::new(
+            context,
+            sort_positions_into_cells::Settings {
+                workgroup_size,
+                dispatch_limit,
+                cell_size,
+                bit_count,
+            },
+        );
+        let permute_particles =
+            PermuteParticles::new(context, permute_particles::Settings { workgroup_size });
+        let find_cell_boundaries = FindCellBoundaries::new(
+            context,
+            find_cell_boundaries::Settings {
+                workgroup_size,
+                cell_size,
+            },
+        );
+        let prefix_sum = PrefixSum::new(
+            context,
+            prefix_sum::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
+        let build_cells = BuildCells::new(
+            context,
+            build_cells::Settings {
+                workgroup_size,
+                dispatch_limit,
+                cell_size,
+            },
+        );
+        let color_cells = ColorCells::new(
+            context,
+            color_cells::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
+        let build_hash_table =
+            BuildHashTable::new(context, build_hash_table::Settings { workgroup_size });
+        let allocate_blocks = AllocateBlocks::new(
+            context,
+            allocate_blocks::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
+
+        Self {
             sort_positions_into_cells,
-            permute_positions,
+            permute_particles,
             find_cell_boundaries,
             prefix_sum,
             build_cells,
-            offsets_to_indirect,
             color_cells,
-            build_hash_table_colors,
+            build_hash_table,
             allocate_blocks,
-        }: Self::Settings,
-    ) -> Self {
-        Self {
-            sort_positions_into_cells: SortPositionsIntoCells::new(
-                context,
-                sort_positions_into_cells,
-            ),
-            permute_positions: PermutePositions::new(context, permute_positions),
-            find_cell_boundaries: FindCellBoundaries::new(context, find_cell_boundaries),
-            prefix_sum: PrefixSum::new(context, prefix_sum),
-            build_cells: BuildCells::new(context, build_cells),
-            offsets_to_indirect: OffsetsToIndirect::new(context, offsets_to_indirect),
-            color_cells: ColorCells2::new(context, color_cells),
-            build_hash_table_colors: BuildHashTableColors::new(context, build_hash_table_colors),
-            allocate_blocks: AllocateBlocks::new(context, allocate_blocks),
         }
     }
 
-    fn create_buffers<'a>(
+    fn record(
         &self,
-        context: &GpuContext,
-        Self::BufferInput { positions, indices }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        assert_eq!(positions.len(), indices.len());
-        let particle_n = positions.len() as u32;
-        let cell_n = particle_n;
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input {
+            particle_indirect,
+            indices_in,
+            positions_in,
+        }: Input,
+        _: Parameters,
+    ) -> Result<Output, GpuError> {
+        let sort_positions_into_cells::Output {
+            indices_out: permutation,
+        } = self.sort_positions_into_cells.record(
+            context,
+            encoder,
+            sort_positions_into_cells::Input {
+                indirect: particle_indirect.clone(),
+                positions: positions_in.clone(),
+            },
+            sort_positions_into_cells::Parameters,
+        )?;
 
-        let particle_counts_n = self
-            .sort_positions_into_cells
-            .min_counts_and_prefixes(particle_n);
+        let permute_particles::Output {
+            indices_out,
+            positions_out,
+        } = self.permute_particles.record(
+            context,
+            encoder,
+            permute_particles::Input {
+                indirect: particle_indirect.clone(),
+                permutation,
+                indices_in,
+                positions_in,
+            },
+            permute_particles::Parameters,
+        )?;
 
-        let cell_counts_n = self.color_cells.min_counts_and_prefixes(cell_n).max(cell_n);
+        let find_cell_boundaries::Output { boundaries } = self.find_cell_boundaries.record(
+            context,
+            encoder,
+            find_cell_boundaries::Input {
+                indirect: particle_indirect.clone(),
+                positions: positions_out.clone(),
+            },
+            find_cell_boundaries::Parameters,
+        )?;
 
-        let block_table_n = self.build_hash_table_colors.max_table(cell_n);
+        let prefix_sum::Output {
+            prefix_sums: prefixed_boundaries,
+        } = self.prefix_sum.record(
+            context,
+            encoder,
+            prefix_sum::Input {
+                indirect: particle_indirect.clone(),
+                numbers: boundaries,
+            },
+            prefix_sum::Parameters,
+        )?;
 
-        let device = context.device();
+        let build_cells::Output {
+            cell_ids,
+            index_ranges: cell_index_ranges,
+            new_indirect: indirect_cells,
+        } = self.build_cells.record(
+            context,
+            encoder,
+            build_cells::Input {
+                indirect: particle_indirect.clone(),
+                positions: positions_out.clone(),
+                prefixed_boundaries,
+            },
+            build_cells::Parameters,
+        )?;
 
-        let particle_positions_in = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("particle_positions"),
-            contents: bytemuck::cast_slice(positions),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-        let particle_indices_front = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("particle_indices_front"),
-            contents: bytemuck::cast_slice(indices),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let color_cells::Output {
+            indirect_colors,
+            indirect_colors_batch,
+            indices: cell_indices,
+        } = self.color_cells.record(
+            context,
+            encoder,
+            color_cells::Input {
+                indirect: indirect_cells.clone(),
+                cell_ids: cell_ids.clone(),
+            },
+            color_cells::Parameters,
+        )?;
 
-        let_buffer!(device, particle_positions_out<Vector4<f32>>(particle_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, particle_indices_back<u32>(particle_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, particle_keys<u32>(particle_n, wgpu::BufferUsages::STORAGE));
-
-        let_buffer!(device, particle_counts<u32>(particle_counts_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, particle_prefix_sums<u32>(particle_counts_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, particle_cell_boundaries<u32>(particle_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, particle_cell_indices<u32>(particle_n, wgpu::BufferUsages::STORAGE));
-
-        let_buffer!(device, cell_ids_in<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-        let_buffer!(device, cell_ids_out<Vector4<i32>>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-        let_buffer!(device, cell_counts<u32>(cell_counts_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, cell_prefix_sums<u32>(cell_counts_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, cell_index_ranges<u32>(cell_n, wgpu::BufferUsages::STORAGE));
-        let_buffer!(device, cell_owns<u32>(cell_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-
-        let_buffer!(device, indirect<u32>(8 * 3, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::INDIRECT));
-        let_buffer!(device, limits<u32>(8, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-
-        let_buffer!(device, block_table<AtomicU32>(block_table_n, wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC));
-
-        Self::Buffers {
-            particle_positions_in,
-            particle_positions_out,
-            particle_indices_front,
-            particle_indices_back,
-            particle_keys,
-            particle_counts,
-            particle_prefix_sums,
-            particle_cell_boundaries,
-            particle_cell_indices,
-            cell_ids_in,
-            cell_ids_out,
-            cell_counts,
-            cell_prefix_sums,
-            cell_index_ranges,
-            cell_owns,
-            indirect,
-            limits,
+        let build_hash_table::Output {
             block_table,
-        }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
-            particle_positions_in,
-            particle_positions_out,
-            particle_indices,
-            particle_keys,
-            particle_counts,
-            particle_prefix_sums,
-            particle_cell_boundaries,
-            particle_cell_indices,
-            cell_ids_in,
-            cell_ids_out,
-            cell_counts,
-            cell_prefix_sums,
-            cell_index_ranges,
-            cell_owns,
-            indirect,
-            limits,
-            block_table,
-        }: Self::BufferBindings<'a>,
-        _: Self::Parameters,
-    ) {
-        self.sort_positions_into_cells.compute_in_pass(
+            owns: cell_owns,
+        } = self.build_hash_table.record(
             context,
-            compute_pass,
-            SortPositionsIntoCellsBufferBindings {
-                positions: particle_positions_in.clone(),
-                radix_sort: RadixSortBufferBindings {
-                    keys: particle_keys.clone(),
-                    indices: particle_indices.clone(),
-                    counts: particle_counts.clone(),
-                    prefix_sums: particle_prefix_sums.clone(),
-                },
+            encoder,
+            build_hash_table::Input {
+                indirect_colors: indirect_colors.clone(),
+                indices: cell_indices.clone(),
+                cells: cell_ids.clone(),
             },
-            (),
-        );
+            build_hash_table::Parameters,
+        )?;
 
-        self.permute_positions.compute_in_pass(
+        let allocate_blocks::Output { block_offsets } = self.allocate_blocks.record(
             context,
-            compute_pass,
-            PermutePositionsBufferBindings {
-                permutation: particle_indices.borrow().back().clone(),
-                positions_in: particle_positions_in,
-                positions_out: particle_positions_out.clone(),
-            },
-            (),
-        );
-
-        self.find_cell_boundaries.compute_in_pass(
-            context,
-            compute_pass,
-            FindCellBoundariesBufferBindings {
-                positions: particle_positions_out.clone(),
-                boundaries: particle_cell_boundaries.clone(),
-            },
-            (),
-        );
-
-        self.prefix_sum.compute_in_pass(
-            context,
-            compute_pass,
-            PrefixSumBufferBindings {
-                numbers: particle_cell_boundaries,
-                prefix_sums: particle_cell_indices.clone(),
-            },
-            (),
-        );
-
-        self.build_cells.compute_in_pass(
-            context,
-            compute_pass,
-            BuildCellsBufferBindings {
-                positions: particle_positions_out.clone(),
-                prefixed_boundaries: particle_cell_indices.clone(),
-                cells: cell_ids_in.clone(),
-                index_ranges: cell_index_ranges,
-            },
-            (),
-        );
-
-        self.offsets_to_indirect.compute_in_pass(
-            context,
-            compute_pass,
-            OffsetsToIndirectBufferBindings {
-                prefix_sums: particle_cell_indices,
-                limits: limits.clone(),
-                indirect: indirect.clone(),
-            },
-            (),
-        );
-
-        self.color_cells.compute_in_pass(
-            context,
-            compute_pass,
-            ColorCells2BufferBindings {
-                cells_in: cell_ids_in,
-                cells_out: cell_ids_out.clone(),
-                counts: cell_counts.clone(),
-                prefix_sums: cell_prefix_sums.clone(),
-                indirect: indirect.clone(),
-                limits: limits.clone(),
-            },
-            (),
-        );
-
-        self.build_hash_table_colors.compute_in_pass(
-            context,
-            compute_pass,
-            BuildHashTableColorsBufferBindings {
-                cells: cell_ids_out,
-                limits: limits.clone(),
-                indirect,
-                slots: block_table,
+            encoder,
+            allocate_blocks::Input {
+                indirect: indirect_cells.clone(),
                 owns: cell_owns.clone(),
             },
-            (),
-        );
+            allocate_blocks::Parameters,
+        )?;
 
-        self.allocate_blocks.compute_in_pass(
-            context,
-            compute_pass,
-            AllocateBlocksBufferBindings {
-                owns: cell_owns,
-                prefix_sum: PrefixSumBufferBindings {
-                    numbers: cell_counts,
-                    prefix_sums: cell_prefix_sums,
-                },
-            },
-            (),
-        );
+        Ok(Output {
+            indirect_cells,
+            indirect_colors,
+            indirect_colors_batch,
+            indices_out,
+            positions_out,
+            cell_indices,
+            cell_index_ranges,
+            cell_ids,
+            cell_owns,
+            block_offsets,
+            block_table,
+        })
     }
 }

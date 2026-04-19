@@ -35,6 +35,7 @@ pub mod offsets_to_indirect;
 pub mod permute_particles;
 pub mod positions_to_keys;
 pub mod prefix_sum;
+pub mod prepare_grid;
 pub mod radix_sort;
 pub mod recycle_to_indirect;
 pub mod reorder_indices;
@@ -53,12 +54,12 @@ pub use offsets_to_indirect::OffsetsToIndirect;
 pub use permute_particles::PermuteParticles;
 pub use positions_to_keys::PositionsToKeys;
 pub use prefix_sum::PrefixSum;
+pub use prepare_grid::PrepareGrid;
 pub use radix_sort::RadixSort;
 pub use recycle_to_indirect::RecycleToIndirect;
 pub use reorder_indices::ReorderIndices;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
-//mod prepare_grid;
 //mod scatter_mass;
 //mod reorder_particles;
 

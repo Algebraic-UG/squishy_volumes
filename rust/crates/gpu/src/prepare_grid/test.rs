@@ -12,14 +12,10 @@ use nalgebra::Vector4;
 
 use super::*;
 
-fn check(cell_size: f32, positions: &[Vector4<f32>], indices: &[u32]) {
-    let (block_table, cell_ids_in, cell_ids_out) = run_prepare_grid(cell_size, positions, indices);
-    println!("cell_ids_in: {cell_ids_in:?}");
-    println!("cell_ids_out: {cell_ids_out:?}");
-
+fn check(settings: Settings, positions: &[Vector4<f32>]) {
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
     for position in positions {
-        let cell = position.map(|c| (c / cell_size).floor() as i32);
+        let cell = position.map(|c| (c / settings.cell_size).floor() as i32);
         for x in 0..2 {
             for y in 0..2 {
                 for z in 0..2 {
@@ -28,32 +24,25 @@ fn check(cell_size: f32, positions: &[Vector4<f32>], indices: &[u32]) {
             }
         }
     }
-    let blocks: Vec<_> = blocks.into_iter().collect();
 
-    let table_size = (positions.len() as u32 * 8 * 2).next_power_of_two();
-    let table_mask = table_size - 1;
-    let index_mask = (1 << 29) - 1;
+    let (indirect_cells, cell_ids, cell_owns) = run_prepare_grid(settings, positions);
 
-    for (block_to_find, hash) in blocks.iter().zip(cells_to_murmur_on_cpu(&blocks)) {
-        println!("searching for block: {block_to_find:?}");
-        let mut slot = hash & table_mask;
-        loop {
-            let block_and_index = block_table[slot as usize];
-            assert!(block_and_index > 0);
-            let block = block_and_index >> 29;
-            let index = (block_and_index & index_mask) - 1;
-            println!("maybe index: {index}, block: {block}");
-
-            if *block_to_find == cell_ids_out[index as usize] + block_offset(block) {
-                break;
-            }
-
-            println!("nope");
-
-            slot += 1;
-            slot &= table_mask;
-        }
+    let mut blocks_gpu: HashSet<Vector4<i32>> = Default::default();
+    for block_id in cell_ids
+        .into_iter()
+        .zip(cell_owns)
+        .take(indirect_cells[0].len as usize)
+        .flat_map(|(cell, owns)| {
+            println!("cell: {cell:?}, owns: {owns}");
+            (0..8)
+                .filter(move |block| owns & (1 << block) > 0)
+                .map(move |block| cell + block_offset(block))
+        })
+    {
+        assert!(blocks_gpu.insert(block_id));
     }
+
+    assert_eq!(blocks, blocks_gpu);
 }
 
 #[test]
@@ -62,7 +51,15 @@ fn test_single() {
 
     let cell_size = 1.;
 
-    check(cell_size, &positions, &[0]);
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size,
+            bit_count: 2.try_into().unwrap(),
+        },
+        &positions,
+    );
 }
 
 #[test]
@@ -81,9 +78,13 @@ fn test_simple() {
     let cell_size = 1.;
 
     check(
-        cell_size,
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size,
+            bit_count: 2.try_into().unwrap(),
+        },
         &positions,
-        &(0..positions.len() as u32).collect::<Vec<_>>(),
     );
 }
 
@@ -103,117 +104,53 @@ fn test_random() {
         .map(Vector4::from_column_slice)
         .collect();
 
-    let mut indices: Vec<_> = (0..positions.len() as u32).collect();
-    shuffle(&mut indices, 43);
-
-    check(cell_size, &positions, &indices);
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size,
+            bit_count: 2.try_into().unwrap(),
+        },
+        &positions,
+    );
 }
 
 fn run_prepare_grid(
-    cell_size: f32,
+    settings: Settings,
     positions: &[Vector4<f32>],
-    indices: &[u32],
-) -> (Vec<u32>, Vec<Vector4<i32>>, Vec<Vector4<i32>>) {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+) -> (Vec<Indirect>, Vec<Vector4<i32>>, Vec<u32>) {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let workgroup_size = 64;
-    let bit_count = 2;
-    let dispatch_limit = u16::MAX as u32;
-
-    let prefix_sum = PrefixSumSettings { workgroup_size };
-    let sort_positions_into_cells = SortPositionsIntoCellsSettings {
-        positions_to_keys: PositionsToKeysSettings {
-            workgroup_size,
-            cell_size,
-        },
-        radix_sort: RadixSortSettings {
-            count_subkeys: CountSubkeysSettings {
-                workgroup_size,
-                bit_count,
-            },
-            prefix_sum,
-            reorder: ReorderSettings {
-                workgroup_size,
-                bit_count,
-            },
-        },
-    };
-    let permute_positions = PermutePositionsSettings { workgroup_size };
-    let find_cell_boundaries = FindCellBoundariesSettings {
-        workgroup_size,
-        cell_size,
-    };
-    let build_cells = BuildCellsSettings {
-        workgroup_size,
-        cell_size,
-    };
-    let offsets_to_indirect = OffsetsToIndirectSettings {
-        workgroup_size,
-        dispatch_limit,
-    };
-    let color_cells = ColorCells2Settings {
-        workgroup_size,
-        dispatch_limit,
-    };
-    let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
-    let allocate_blocks = AllocateBlocksSettings {
-        workgroup_size,
-        prefix_sum,
-    };
-
-    let prepare_grid = PrepareGrid::new(
-        &context,
-        PrepareGridSettings {
-            sort_positions_into_cells,
-            permute_positions,
-            find_cell_boundaries,
-            prefix_sum,
-            build_cells,
-            offsets_to_indirect,
-            color_cells,
-            build_hash_table_colors,
-            allocate_blocks,
-        },
-    );
-
-    let buffers =
-        prepare_grid.create_buffers(&context, PrepareGridBufferInput { positions, indices });
-    let downloads = DownloadsToHost::new(
-        &context,
-        [
-            (&buffers.limits, "limits"),
-            (&buffers.indirect, "indirect"),
-            (&buffers.block_table, "block_table"),
-            (&buffers.cell_ids_in, "cell_ids_in"),
-            (&buffers.cell_ids_out, "cell_ids_out"),
-        ],
-    );
+    let input = Input::new(context.device(), settings.clone(), positions);
+    let prepare_grid = PrepareGrid::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    prepare_grid.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output {
+        indirect_cells,
+        cell_ids,
+        cell_owns,
+        ..
+    } = prepare_grid
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
+    let downloads = DownloadsToHost::new(&context, [indirect_cells, cell_ids, cell_owns]);
     downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
     let downloads = downloads.prep();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let [limits, indirect, block_table, cell_ids_in, cell_ids_out] = downloads.try_into().unwrap();
+    let [indirect_cells, cell_ids, cell_owns] = downloads.try_into().unwrap();
 
-    println!("limits: {:?}", limits.to_vec::<u32>());
-    println!("indirect: {:?}", indirect.to_vec::<u32>());
-    println!("cell_ids_in: {:?}", cell_ids_in.to_vec::<Vector4<i32>>());
-    println!("cell_ids_out: {:?}", cell_ids_out.to_vec::<Vector4<i32>>());
+    let mut garbage_w: Vec<Vector4<i32>> = cell_ids.to_vec();
+    garbage_w.iter_mut().for_each(|v| v.w = 0);
 
-    (
-        block_table.to_vec(),
-        cell_ids_in.to_vec(),
-        cell_ids_out.to_vec(),
-    )
+    (indirect_cells.to_vec(), garbage_w, cell_owns.to_vec())
 }
