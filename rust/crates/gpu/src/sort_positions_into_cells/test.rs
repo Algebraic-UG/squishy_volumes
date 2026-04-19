@@ -34,7 +34,7 @@ fn test_simple() {
 
     assert_eq!(
         sort_positions_into_cells_on_cpu(&indices, &positions, cell_size),
-        run_sort_positions_into_cells(settings, &indices, &positions),
+        run_sort_positions_into_cells(settings, &positions),
     );
 }
 
@@ -53,9 +53,7 @@ fn test_random() {
         .chunks_exact(4)
         .map(Vector4::from_column_slice)
         .collect();
-
-    let mut indices: Vec<_> = (0..positions.len() as u32).collect();
-    shuffle(&mut indices, 43);
+    let indices: Vec<_> = (0..positions.len() as u32).collect();
 
     let settings = Settings {
         workgroup_size: 64.try_into().unwrap(),
@@ -66,18 +64,14 @@ fn test_random() {
 
     assert_eq!(
         sort_positions_into_cells_on_cpu(&indices, &positions, cell_size),
-        run_sort_positions_into_cells(settings, &indices, &positions),
+        run_sort_positions_into_cells(settings, &positions),
     );
 }
 
-fn run_sort_positions_into_cells(
-    settings: Settings,
-    indices: &[u32],
-    positions: &[Vector4<f32>],
-) -> Vec<u32> {
+fn run_sort_positions_into_cells(settings: Settings, positions: &[Vector4<f32>]) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings, indices, positions);
+    let input = Input::new(context.device(), settings, positions);
     let sort_positions_into_cells = SortPositionsIntoCells::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

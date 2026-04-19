@@ -32,7 +32,6 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect: Allocation,
-    pub indices_in: Allocation,
     pub positions: Allocation,
 }
 
@@ -44,23 +43,19 @@ impl Input {
             dispatch_limit,
             ..
         }: Settings,
-        indices: &[u32],
         positions: &[Vector4<f32>],
     ) -> Self {
-        assert_eq!(indices.len(), positions.len());
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
-            len: indices.len() as u32,
+            len: positions.len() as u32,
         });
 
-        let indices_in = Allocation::new(device, "indices_in", indices);
         let positions = Allocation::new(device, "positions", positions);
         let indirect = Allocation::new(device, "indirect", &[indirect]);
 
         Self {
             indirect,
-            indices_in,
             positions,
         }
     }
@@ -113,12 +108,11 @@ impl PipelinePart for SortPositionsIntoCells {
         encoder: &mut CommandEncoder,
         Input {
             indirect,
-            indices_in,
             positions,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        let mut indices_out = indices_in;
+        let mut indices_out = None;
         for dimension in [2, 1, 0] {
             let positions_to_keys::Output { keys } = self.positions_to_keys.record(
                 context,
@@ -129,16 +123,18 @@ impl PipelinePart for SortPositionsIntoCells {
                 },
                 positions_to_keys::Parameters { dimension },
             )?;
-            indices_out = self.radix_sort.record_all_rounds(
+            indices_out = Some(self.radix_sort.record_all_rounds(
                 context,
                 encoder,
                 radix_sort::Input {
                     indirect: indirect.clone(),
-                    indices_in: Some(indices_out),
+                    indices_in: indices_out,
                     keys,
                 },
-            )?;
+            )?);
         }
-        Ok(Output { indices_out })
+        Ok(Output {
+            indices_out: indices_out.unwrap(),
+        })
     }
 }
