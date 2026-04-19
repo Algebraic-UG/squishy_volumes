@@ -13,7 +13,7 @@ pub fn positions_to_keys_on_gpu(
 ) -> Vec<u32> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator(positions.len() as u64 * 3, "allocator", true)
+        .setup_allocator(positions.len() as u64 * 4, "allocator", true)
         .unwrap();
     context
         .setup_indirect_allocator(100, "indirect allocator", true)
@@ -40,7 +40,7 @@ pub fn positions_to_keys_on_gpu(
 
     let mut profiler =
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
-    let scope = profiler.scope("run_prefix_sum", &mut encoder);
+    let scope = profiler.scope("run_positions_to_keys", &mut encoder);
     let Output { keys } = positions_to_keys
         .record(&mut context, &mut scope.into(), input, parameters)
         .unwrap();

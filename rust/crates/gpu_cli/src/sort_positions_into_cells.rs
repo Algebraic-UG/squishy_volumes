@@ -13,10 +13,10 @@ pub fn sort_positions_into_cells_on_gpu(
 ) -> Vec<u32> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator(positions.len() as u64 * 3, "allocator", true)
+        .setup_allocator(positions.len() as u64 * 16, "allocator", true)
         .unwrap();
     context
-        .setup_indirect_allocator(100, "indirect allocator", true)
+        .setup_indirect_allocator(400, "indirect allocator", true)
         .unwrap();
 
     let sort_positions_into_cells = SortPositionsIntoCells::new(&context, settings);
@@ -35,7 +35,7 @@ pub fn sort_positions_into_cells_on_gpu(
 
     let mut profiler =
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
-    let scope = profiler.scope("run_prefix_sum", &mut encoder);
+    let scope = profiler.scope("run_positions_into_cells", &mut encoder);
     let Output { indices_out } = sort_positions_into_cells
         .record(&mut context, &mut scope.into(), input, Parameters)
         .unwrap();

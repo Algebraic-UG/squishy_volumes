@@ -20,11 +20,12 @@ use clap::{Parser, ValueEnum};
 use squishy_volumes_gpu as gpu;
 
 use crate::{
-    positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
-    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+    build_hash_table::build_hash_table_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
+    prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu,
+    sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
-//mod build_hash_table;
+mod build_hash_table;
 mod positions_to_keys;
 mod prefix_sum;
 //mod prepare_grid;
@@ -230,19 +231,21 @@ fn main() {
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
+        Task::BuildHashTable => {
+            let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
+            let output = match mode {
+                Mode::Cpu => todo!(),
+                Mode::Gpu => build_hash_table_on_gpu(
+                    tool,
+                    gpu::build_hash_table::Settings { workgroup_size },
+                    input,
+                ),
+            };
+            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+        }
         _ => {
             todo!()
         } /*
-          Task::BuildHashTable => {
-              let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
-              let output = match mode {
-                  Mode::Cpu => todo!(),
-                  Mode::Gpu => {
-                      build_hash_table_on_gpu(tool, BuildHashTableSettings { workgroup_size }, input)
-                  }
-              };
-              out.write_all(bytemuck::cast_slice(&output)).unwrap();
-          }
           Task::PrepareGrid => {
               let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
               let mut indices: Vec<u32> = (0..input.len() as u32).collect();
