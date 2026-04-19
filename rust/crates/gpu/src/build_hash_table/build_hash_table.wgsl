@@ -15,7 +15,15 @@
 var<storage, read> cells: array<vec3<i32>>;
 
 @group(0) @binding(1)
-var<storage, read_write> indices: array<atomic<u32>>;
+var<storage, read> limits: array<u32>;
+
+@group(0) @binding(2)
+var<storage, read_write> slots: array<atomic<u32>>;
+
+@group(0) @binding(3)
+var<storage, read_write> owns: array<u32>;
+
+var<immediate> color: u32;
 
 override WORKGROUP_SIZE: u32;
 
@@ -66,8 +74,31 @@ fn murmur3_x86_32_3u32(a: u32, b: u32, c: u32, seed: u32) -> u32 {
     return fmix32(h1);
 }
 
+fn murmur_of_cell(cell: vec3i) -> u32 {
+    return murmur3_x86_32_3u32(
+        i32_to_ordered_u32(cell.x),
+        i32_to_ordered_u32(cell.y),
+        i32_to_ordered_u32(cell.z),
+        0,
+    );
+}
+
 fn i32_to_ordered_u32(x: i32) -> u32 {
     return bitcast<u32>(x) ^ 0x80000000u;
+}
+
+fn block_offset(block: u32) -> vec3i {
+    var offset = vec3i(0);
+    if (block & 1) == 1 {
+        offset.x = 1;
+    }
+    if (block & 2) == 2 {
+        offset.y = 1;
+    }
+    if (block & 4) == 4 {
+        offset.z = 1;
+    }
+    return offset;
 }
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -75,28 +106,55 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    let global_index = global_invocation_id.x +
+    var global_index = global_invocation_id.x +
         (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
         (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
+    if color > 0 {
+        global_index += limits[color - 1];
+    }
 
-    if global_index >= arrayLength(&cells) {
+    if global_index >= limits[color] {
         return;
     }
-
     let cell = cells[global_index];
-    let hash = murmur3_x86_32_3u32(
-        i32_to_ordered_u32(cell.x),
-        i32_to_ordered_u32(cell.y),
-        i32_to_ordered_u32(cell.z),
-        0,
-    );
 
     // table length must be a power of two
-    let mask = arrayLength(&indices) - 1;
-    var slot = hash & mask;
+    let table_mask = arrayLength(&slots) - 1;
+    let index_mask = (1u << 29) - 1;
+    var own = 0u;
+    for (var block = 0u; block < 8; block++) {
+        let offset_cell = cell + block_offset(block);
+        let block_and_index = (block << 29) | (global_index + 1);
 
-    while !atomicCompareExchangeWeak(&indices[slot], 0, global_index + 1).exchanged {
-        slot += 1;
-        slot &= mask;
+        let hash = murmur_of_cell(offset_cell);
+
+        var slot = hash & table_mask;
+        loop {
+            let result = atomicCompareExchangeWeak(&slots[slot], 0, block_and_index);
+
+            if result.exchanged {
+                own |= 1u << block;
+                break;
+            }
+
+            let old_block: u32 = result.old_value >> 29;
+            if block == old_block {
+                continue;
+            }
+
+            let old_index = (result.old_value & index_mask) - 1;
+            let old_cell = cells[old_index];
+            if all(old_cell + block_offset(old_block) == offset_cell) {
+                break;
+            }
+
+            continuing {
+                slot += 1;
+                slot &= table_mask;
+            }
+        }
     }
+
+    owns[global_index] = own;
 }
+
