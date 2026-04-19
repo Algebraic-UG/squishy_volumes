@@ -24,6 +24,7 @@ pub use util::*;
 
 pub mod build_cells;
 pub mod cells_to_colorkeys;
+pub mod cells_to_murmur;
 pub mod color_cells;
 pub mod count_subkeys;
 pub mod counts_indirect;
@@ -39,6 +40,7 @@ pub mod sort_positions_into_cells;
 
 pub use build_cells::BuildCells;
 pub use cells_to_colorkeys::CellsToColorkeys;
+pub use cells_to_murmur::CellsToMurmur;
 pub use color_cells::ColorCells;
 pub use count_subkeys::CountSubkeys;
 pub use counts_indirect::CountsIndirect;
@@ -67,7 +69,6 @@ pub use sort_positions_into_cells::SortPositionsIntoCells;
 //pub use build_hash_table::*;
 //pub use build_hash_table_colors::*;
 //pub use cells_to_colorkeys::*;
-//pub use cells_to_murmur::*;
 //pub use color_cells::*;
 //pub use find_cell_boundaries::*;
 //pub use offsets_to_indirectr:*;

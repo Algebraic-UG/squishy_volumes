@@ -23,7 +23,13 @@ fn test_simple() {
 
     assert_eq!(
         cells_to_murmur_on_cpu(&cells),
-        run_cells_to_murmur(64, &cells),
+        run_cells_to_murmur(
+            Settings {
+                workgroup_size: 64.try_into().unwrap()
+            },
+            (u16::MAX as u32).try_into().unwrap(),
+            &cells
+        ),
     );
 }
 
@@ -43,39 +49,46 @@ fn test_random() {
 
     assert_eq!(
         cells_to_murmur_on_cpu(&cells),
-        run_cells_to_murmur(64, &cells),
+        run_cells_to_murmur(
+            Settings {
+                workgroup_size: 64.try_into().unwrap()
+            },
+            (u16::MAX as u32).try_into().unwrap(),
+            &cells
+        ),
     );
 }
 
-fn run_cells_to_murmur(workgroup_size: u32, cells: &[Vector4<i32>]) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+fn run_cells_to_murmur(
+    settings: Settings,
+    dispatch_limit: NonZeroU32,
+    cells: &[Vector4<i32>],
+) -> Vec<u32> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let cells_to_murmur = CellsToMurmur::new(&context, CellsToMurmurSettings { workgroup_size });
-    let buffers = cells_to_murmur.create_buffers(&context, CellsToMurmurBufferInput { cells });
+    let input = Input::new(
+        context.device(),
+        settings.workgroup_size,
+        dispatch_limit,
+        cells,
+    );
 
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.hashes.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-
+    let cells_to_murmur = CellsToMurmur::new(&context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    cells_to_murmur.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output { hashes } = cells_to_murmur
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.hashes, 0, &download_buffer, 0, None);
+    let download = DownloadToHost::new(&context, hashes);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
-
-    result.to_vec()
+    download.to_vec()
 }

@@ -10,12 +10,47 @@
 //enable subgroups;
 
 @group(0) @binding(0)
-var<storage, read> cells: array<vec3<i32>>;
+var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
+var<storage, read_write> cells: array<vec3<i32>>;
+
+@group(0) @binding(2)
 var<storage, read_write> hashes: array<u32>;
 
 override WORKGROUP_SIZE: u32;
+
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn main(
+    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    let global_index = get_global_index(num_workgroups, global_invocation_id);
+    if global_index >= indirect.len {
+        return;
+    }
+
+    let cell = cells[global_index];
+    hashes[global_index] = murmur3_x86_32_3u32(
+        i32_to_ordered_u32(cell.x),
+        i32_to_ordered_u32(cell.y),
+        i32_to_ordered_u32(cell.z),
+        0,
+    );
+}
+
+struct Indirect {
+    x: u32,
+    y: u32,
+    z: u32,
+    len: u32,
+}
+
+fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
+    return global_invocation_id.x +
+        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
+        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
+}
 
 // This is derived from https://github.com/stusmall/murmur3
 // and tested against it
@@ -66,26 +101,4 @@ fn murmur3_x86_32_3u32(a: u32, b: u32, c: u32, seed: u32) -> u32 {
 
 fn i32_to_ordered_u32(x: i32) -> u32 {
     return bitcast<u32>(x) ^ 0x80000000u;
-}
-
-@compute @workgroup_size(WORKGROUP_SIZE)
-fn main(
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
-    @builtin(num_workgroups) num_workgroups: vec3<u32>,
-) {
-    let global_index = global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
-
-    if global_index >= arrayLength(&cells) {
-        return;
-    }
-
-    let cell = cells[global_index];
-    hashes[global_index] = murmur3_x86_32_3u32(
-        i32_to_ordered_u32(cell.x),
-        i32_to_ordered_u32(cell.y),
-        i32_to_ordered_u32(cell.z),
-        0,
-    );
 }
