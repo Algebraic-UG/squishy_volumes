@@ -8,6 +8,18 @@
 
 use super::*;
 
+fn check(cells: &[Vector4<i32>]) {
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+    };
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+
+    assert_eq!(
+        cells_to_colorkeys_on_cpu(&cells),
+        run_cells_to_colorkeys(settings, dispatch_limit, cells),
+    )
+}
+
 #[test]
 fn test_simple() {
     let cells = [
@@ -22,10 +34,7 @@ fn test_simple() {
         Vector4::new(1, 1, 0, 0),
     ];
 
-    assert_eq!(
-        cells_to_colorkeys_on_cpu(&cells),
-        run_cells_to_colorkeys(64, &cells),
-    );
+    check(&cells);
 }
 
 #[test]
@@ -41,44 +50,39 @@ fn test_random() {
         .chunks_exact(4)
         .map(Vector4::from_column_slice)
         .collect();
-
-    assert_eq!(
-        cells_to_colorkeys_on_cpu(&cells),
-        run_cells_to_colorkeys(64, &cells),
-    );
+    check(&cells);
 }
 
-fn run_cells_to_colorkeys(workgroup_size: u32, cells: &[Vector4<i32>]) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+fn run_cells_to_colorkeys(
+    settings: Settings,
+    dispatch_limit: NonZeroU32,
+    cell_ids: &[Vector4<i32>],
+) -> Vec<u32> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let cells_to_colorkeys =
-        CellsToColorkeys::new(&context, CellsToColorkeysSettings { workgroup_size });
-    let buffers =
-        cells_to_colorkeys.create_buffers(&context, CellsToColorkeysBufferInput { cells });
-
-    let download_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("download"),
-        size: buffers.keys.size(),
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
+    let input = Input::new(
+        context.device(),
+        settings.workgroup_size,
+        dispatch_limit,
+        cell_ids,
+    );
+    let cells_to_colorkeys = CellsToColorkeys::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    cells_to_colorkeys.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output { keys } = cells_to_colorkeys
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    encoder.copy_buffer_to_buffer(&buffers.keys, 0, &download_buffer, 0, None);
+    let download = DownloadToHost::new(&context, keys);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let data_buffer_slice = download_buffer.slice(..);
-    data_buffer_slice.map_async(wgpu::MapMode::Read, |_| {});
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    let download = download.prep();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let data = data_buffer_slice.get_mapped_range();
-    let result: &[u32] = bytemuck::cast_slice(&data);
-
-    result.to_vec()
+    download.to_vec()
 }

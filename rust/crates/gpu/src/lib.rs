@@ -23,7 +23,7 @@ pub use pipeline_part::*;
 pub use util::*;
 
 pub mod build_cells;
-//pub mod color_cells;
+pub mod cells_to_colorkeys;
 pub mod count_subkeys;
 pub mod counts_indirect;
 pub mod find_cell_boundaries;
@@ -37,9 +37,9 @@ pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
 pub use build_cells::BuildCells;
-pub use counts_indirect::CountsIndirect;
-//pub use color_cells::ColorCells;
+pub use cells_to_colorkeys::CellsToColorkeys;
 pub use count_subkeys::CountSubkeys;
+pub use counts_indirect::CountsIndirect;
 pub use find_cell_boundaries::FindCellBoundaries;
 pub use offsets_to_indirect::OffsetsToIndirect;
 pub use permute_positions::PermutePositions;

@@ -9,149 +9,99 @@
 #[cfg(test)]
 mod test;
 
+use std::num::NonZeroU32;
+
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
 
 use super::*;
 
 pub struct CellsToColorkeys {
-    workgroup_size: u32,
-    compiled_module: CompiledModule,
+    cells_to_colorkeys: CompiledModule,
 }
-pub struct CellsToColorkeysSettings {
-    pub workgroup_size: u32,
-}
-pub struct CellsToColorkeysBufferInput<'a> {
-    pub cells: &'a [Vector4<i32>],
-}
-pub struct CellsToColorkeysBuffers {
-    pub cells: wgpu::Buffer,
-    pub keys: wgpu::Buffer,
-}
-pub struct CellsToColorkeysBufferBindings<'a> {
-    pub cells: wgpu::BufferBinding<'a>,
-    pub keys: wgpu::BufferBinding<'a>,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
 }
 
-impl<'a> From<&'a CellsToColorkeysBuffers> for CellsToColorkeysBufferBindings<'a> {
-    fn from(CellsToColorkeysBuffers { cells, keys }: &'a CellsToColorkeysBuffers) -> Self {
-        Self {
-            cells: cells.as_entire_buffer_binding(),
-            keys: keys.as_entire_buffer_binding(),
-        }
+pub struct Parameters;
+
+pub struct Input {
+    pub indirect: Allocation,
+    pub cell_ids: Allocation,
+}
+
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        workgroup_size: NonZeroU32,
+        dispatch_limit: NonZeroU32,
+        cell_ids: &[Vector4<i32>],
+    ) -> Self {
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: cell_ids.len() as u32,
+        });
+
+        let cell_ids = Allocation::new(device, "cell_ids", cell_ids);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+
+        Self { indirect, cell_ids }
     }
+}
+
+pub struct Output {
+    pub keys: Allocation,
 }
 
 impl PipelinePart for CellsToColorkeys {
-    type Settings = CellsToColorkeysSettings;
-    type Parameters = ();
-    type BufferInput<'a> = CellsToColorkeysBufferInput<'a>;
-    type Buffers = CellsToColorkeysBuffers;
-    type BufferBindings<'a> = CellsToColorkeysBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
-    fn new(context: &GpuContext, Self::Settings { workgroup_size }: Self::Settings) -> Self {
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
-
+    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let device = context.device();
 
-        let label = Some("cells");
+        let_compiled_module!(
+            cells_to_colorkeys,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+            }
+        );
+        Self { cells_to_colorkeys }
+    }
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<Vector4<i32>>(0, true),
-                bind_group_layout_entry::<u32>(1, false),
-            ],
-        });
+    fn record(
+        &self,
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input { indirect, cell_ids }: Input,
+        _: Parameters,
+    ) -> Result<Output, GpuError> {
+        let keys = context
+            .allocator()?
+            .allocate::<u32>("keys", cell_ids.len::<Vector4<i32>>())?;
 
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    ..Default::default()
-                }),
+        let mut compute_pass = encoder.begin_compute_pass(self.cells_to_colorkeys.label);
+        compute_pass.set_pipeline(&self.cells_to_colorkeys.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.cells_to_colorkeys,
+                [indirect.binding(), cell_ids.binding(), keys.binding()],
             ),
-            module: &device.create_shader_module(wgpu::include_wgsl!("cells_to_colorkeys.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[("WORKGROUP_SIZE", workgroup_size as f64)],
-                ..Default::default()
-            },
-            cache: None,
-        });
+            &[],
+        );
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
 
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
-
-        Self {
-            workgroup_size,
-            compiled_module,
-        }
-    }
-
-    fn create_buffers<'a>(
-        &self,
-        context: &GpuContext,
-        Self::BufferInput { cells }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        let device = context.device();
-        let n = cells.len();
-
-        let cells = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("cells"),
-            contents: bytemuck::cast_slice(cells),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let keys = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("keys"),
-            size: n as u64 * u32::MIN_BINDING_SIZE.get(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers { cells, keys }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { cells, keys }: Self::BufferBindings<'a>,
-        _: Self::Parameters,
-    ) {
-        let cell_count = elements_in_binding::<Vector4<i32>>(&cells);
-        assert!(cell_count == elements_in_binding::<u32>(&keys));
-
-        let device = context.device();
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(cells.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(keys.clone()),
-                },
-            ],
-        });
-
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
-
-        let workgroup_count = cell_count.get().div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-
-        compute_pass.dispatch_workgroups(x, y, z);
+        Ok(Output { keys })
     }
 }
