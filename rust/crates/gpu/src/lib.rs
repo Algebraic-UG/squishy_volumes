@@ -57,30 +57,9 @@ pub use reorder_indices::ReorderIndices;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
 //mod allocate_blocks;
-//mod build_hash_table_colors;
-//mod cells_to_colorkeys;
-//mod cells_to_murmur;
-//mod color_cells;
 //mod prepare_grid;
 //mod scatter_mass;
 //mod reorder_particles;
-
-//pub use allocate_blocks::*;
-//pub use build_cells::*;
-//pub use build_hash_table::*;
-//pub use build_hash_table_colors::*;
-//pub use cells_to_colorkeys::*;
-//pub use color_cells::*;
-//pub use find_cell_boundaries::*;
-//pub use offsets_to_indirectr:*;
-//pub use permute_positions::*;
-//pub use positions_to_keys::*;
-//pub use prepare_grid::*;
-//pub use recycle_to_indirect::*;
-//pub use reorder::*;
-//pub use scatter_mass::*;
-//pub use reorder_particles::*;
-//pub use sort_positions_into_cells::*;
 
 #[cfg(test)]
 mod test_util;
