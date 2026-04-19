@@ -6,169 +6,137 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::num::NonZeroU32;
+
 #[cfg(test)]
 mod test;
-
-use wgpu::util::DeviceExt as _;
 
 use super::*;
 
 pub struct AllocateBlocks {
-    workgroup_size: u32,
-    compiled_module: CompiledModule,
+    owns_to_pops: CompiledModule,
     prefix_sum: PrefixSum,
 }
 
-pub struct AllocateBlocksSettings {
-    pub workgroup_size: u32,
-    pub prefix_sum: PrefixSumSettings,
+#[derive(Clone, Copy)]
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
 }
 
-pub struct AllocateBlocksBufferInput<'a> {
-    pub owns: &'a [u32],
+pub struct Parameters;
+
+pub struct Input {
+    pub indirect: Allocation,
+    pub owns: Allocation,
 }
 
-pub struct AllocateBlocksBuffers {
-    pub owns: wgpu::Buffer,
-    pub prefix_sum: PrefixSumBuffers,
-}
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        }: Settings,
+        owns: &[u32],
+    ) -> Self {
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: owns.len() as u32,
+        });
 
-pub struct AllocateBlocksBufferBindings<'a> {
-    pub owns: wgpu::BufferBinding<'a>,
-    pub prefix_sum: PrefixSumBufferBindings<'a>,
-}
+        let owns = Allocation::new(device, "owns", owns);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
 
-impl<'a> From<&'a AllocateBlocksBuffers> for AllocateBlocksBufferBindings<'a> {
-    fn from(AllocateBlocksBuffers { owns, prefix_sum }: &'a AllocateBlocksBuffers) -> Self {
-        Self {
-            owns: owns.as_entire_buffer_binding(),
-            prefix_sum: prefix_sum.into(),
-        }
+        Self { indirect, owns }
     }
+}
+
+pub struct Output {
+    pub block_offsets: Allocation,
 }
 
 impl PipelinePart for AllocateBlocks {
-    type Settings = AllocateBlocksSettings;
-    type Parameters = ();
-    type BufferInput<'a> = AllocateBlocksBufferInput<'a>;
-    type Buffers = AllocateBlocksBuffers;
-    type BufferBindings<'a> = AllocateBlocksBufferBindings<'a>;
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
     fn new(
         context: &GpuContext,
-        Self::Settings {
+        Settings {
             workgroup_size,
-            prefix_sum,
-        }: Self::Settings,
+            dispatch_limit,
+        }: Settings,
     ) -> Self {
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
-
-        let prefix_sum = PrefixSum::new(context, prefix_sum);
-
         let device = context.device();
 
-        let label = Some("owns_to_pops");
+        let_compiled_module!(
+            owns_to_pops,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+            }
+        );
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<u32>(0, true),
-                bind_group_layout_entry::<u32>(1, false),
-            ],
-        });
-
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    ..Default::default()
-                }),
-            ),
-            module: &device.create_shader_module(wgpu::include_wgsl!("owns_to_pops.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[("WORKGROUP_SIZE", workgroup_size as f64)],
-                ..Default::default()
+        let prefix_sum = PrefixSum::new(
+            context,
+            prefix_sum::Settings {
+                workgroup_size,
+                dispatch_limit,
             },
-            cache: None,
-        });
-
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
+        );
 
         Self {
-            workgroup_size,
-            compiled_module,
+            owns_to_pops,
             prefix_sum,
         }
     }
 
-    fn create_buffers<'a>(
+    fn record(
         &self,
-        context: &GpuContext,
-        Self::BufferInput { owns }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        let device = context.device();
-        let n = owns.len();
-
-        let owns = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("owns"),
-            contents: bytemuck::cast_slice(owns),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let prefix_sum = self.prefix_sum.create_buffers(
-            context,
-            PrefixSumBufferInput {
-                numbers: &vec![0; n],
-            },
-        );
-
-        Self::Buffers { owns, prefix_sum }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings { owns, prefix_sum }: Self::BufferBindings<'a>,
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input { indirect, owns }: Input,
         _: Self::Parameters,
-    ) {
-        let owns_count = elements_in_binding::<u32>(&owns);
-        assert!(owns_count <= elements_in_binding::<u32>(&prefix_sum.numbers));
+    ) -> Result<Output, GpuError> {
+        let pops = context
+            .allocator()?
+            .allocate::<u32>("pops", owns.len::<u32>())?;
 
-        let device = context.device();
+        let mut compute_pass = encoder.begin_compute_pass(self.owns_to_pops.label);
+        compute_pass.set_pipeline(&self.owns_to_pops.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.owns_to_pops,
+                [indirect.binding(), owns.binding(), pops.binding()],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+        drop(compute_pass);
 
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(owns.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(prefix_sum.numbers.clone()),
-                },
-            ],
-        });
+        let prefix_sum::Output { prefix_sums } = self.prefix_sum.record(
+            context,
+            encoder,
+            prefix_sum::Input {
+                indirect,
+                numbers: pops,
+            },
+            prefix_sum::Parameters,
+        )?;
 
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
-
-        let workgroup_count = owns_count.get().div_ceil(self.workgroup_size) as u32;
-        let [x, y, z] = find_x_y_z_simple(u16::MAX as u32, workgroup_count);
-        compute_pass.dispatch_workgroups(x, y, z);
-
-        self.prefix_sum
-            .compute_in_pass(context, compute_pass, prefix_sum, ());
+        Ok(Output {
+            block_offsets: prefix_sums,
+        })
     }
 }

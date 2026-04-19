@@ -17,11 +17,16 @@ fn test_simple() {
     .to_vec();
 
     let pops: Vec<u32> = owns.iter().cloned().map(u32::count_ones).collect();
-    let workgroup_size = 64;
 
     assert_eq!(
         prefix_sum_on_cpu(&pops),
-        run_allocate_blocks(workgroup_size, &owns),
+        run_allocate_blocks(
+            Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap()
+            },
+            &owns
+        ),
     )
 }
 
@@ -37,43 +42,42 @@ fn test_random() {
         .collect();
 
     let pops: Vec<u32> = owns.iter().cloned().map(u32::count_ones).collect();
-    let workgroup_size = 64;
 
     assert_eq!(
         prefix_sum_on_cpu(&pops),
-        run_allocate_blocks(workgroup_size, &owns),
+        run_allocate_blocks(
+            Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap()
+            },
+            &owns
+        ),
     )
 }
 
-fn run_allocate_blocks(workgroup_size: u32, owns: &[u32]) -> Vec<u32> {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+fn run_allocate_blocks(settings: Settings, owns: &[u32]) -> Vec<u32> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let allocate_blocks = AllocateBlocks::new(
-        &context,
-        AllocateBlocksSettings {
-            workgroup_size,
-            prefix_sum: PrefixSumSettings { workgroup_size },
-        },
-    );
-    let buffers = allocate_blocks.create_buffers(&context, AllocateBlocksBufferInput { owns });
-
-    let downloads = DownloadsToHost::new(&context, [(&buffers.prefix_sum.prefix_sums, "offsets")]);
+    let input = Input::new(context.device(), settings, owns);
+    let allocate_blocks = AllocateBlocks::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    allocate_blocks.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output { block_offsets } = allocate_blocks
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
-    downloads.copy(&mut encoder);
+    let download = DownloadToHost::new(&context, block_offsets);
+    download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
-    let downloads = downloads.prep();
+    let download = download.prep();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let [offsets] = downloads.try_into().unwrap();
-    offsets.to_vec()
+    download.to_vec()
 }

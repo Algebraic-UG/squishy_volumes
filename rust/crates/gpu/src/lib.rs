@@ -22,6 +22,7 @@ pub use error::*;
 pub use pipeline_part::*;
 pub use util::*;
 
+pub mod allocate_blocks;
 pub mod build_cells;
 pub mod build_hash_table;
 pub mod cells_to_colorkeys;
@@ -39,6 +40,7 @@ pub mod recycle_to_indirect;
 pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
+pub use allocate_blocks::AllocateBlocks;
 pub use build_cells::BuildCells;
 pub use build_hash_table::BuildHashTable;
 pub use cells_to_colorkeys::CellsToColorkeys;
@@ -56,7 +58,6 @@ pub use recycle_to_indirect::RecycleToIndirect;
 pub use reorder_indices::ReorderIndices;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
-//mod allocate_blocks;
 //mod prepare_grid;
 //mod scatter_mass;
 //mod reorder_particles;
