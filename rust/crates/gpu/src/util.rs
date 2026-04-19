@@ -418,6 +418,50 @@ pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
         .collect()
 }
 
+pub fn color_cells_on_cpu(
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
+    subgroup_size: u32,
+    cells: &[Vector4<i32>],
+) -> (Vec<Indirect>, Vec<Indirect>, Vec<u32>) {
+    let keys: Vec<u32> = cells_to_colorkeys_on_cpu(cells);
+    println!("keys: {keys:?}");
+
+    let counts = (0..8)
+        .map(|color| keys.iter().filter(|key| **key == color).count() as u32)
+        .collect::<Vec<_>>();
+    println!("counts: {counts:?}");
+    let prefix_sum: Vec<_> = counts
+        .iter()
+        .scan(0, |prefix_sum, item| {
+            *prefix_sum += item;
+            Some(*prefix_sum)
+        })
+        .collect();
+    let (indirect_colors, indirect_colors_batch): (Vec<_>, Vec<_>) = counts
+        .iter()
+        .zip(prefix_sum)
+        .map(|(count, end)| {
+            let mut indirect_color = Indirect::new(IndirectSettings {
+                workgroup_size: workgroup_size.try_into().unwrap(),
+                dispatch_limit: dispatch_limit.try_into().unwrap(),
+                len: *count,
+            });
+            let mut indirect_color_batch = Indirect::new(IndirectSettings {
+                workgroup_size: workgroup_size.try_into().unwrap(),
+                dispatch_limit: dispatch_limit.try_into().unwrap(),
+                len: *count * subgroup_size,
+            });
+            indirect_color.len = end;
+            indirect_color_batch.len = end;
+            (indirect_color, indirect_color_batch)
+        })
+        .unzip();
+    let indices = sort_on_cpu(&(0..cells.len() as u32).collect::<Vec<_>>(), &keys);
+
+    (indirect_colors, indirect_colors_batch, indices)
+}
+
 #[macro_export]
 macro_rules! let_buffer {
     ($device:expr, $name:ident<$ty:ty> ($count:expr, $usage:expr)) => {

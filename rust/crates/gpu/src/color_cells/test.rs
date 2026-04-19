@@ -8,48 +8,16 @@
 
 use super::*;
 
-fn check(workgroup_size: u32, dispatch_limit: u32, cells: &[Vector4<i32>]) {
+fn check(workgroup_size: NonZeroU32, dispatch_limit: NonZeroU32, cells: &[Vector4<i32>]) {
     let subgroup_size = get_subgroup_size();
 
     let settings = Settings {
-        workgroup_size: workgroup_size.try_into().unwrap(),
-        dispatch_limit: dispatch_limit.try_into().unwrap(),
+        workgroup_size,
+        dispatch_limit,
     };
 
-    let keys: Vec<u32> = cells_to_colorkeys_on_cpu(cells);
-    println!("keys: {keys:?}");
-
-    let counts = (0..8)
-        .map(|color| keys.iter().filter(|key| **key == color).count() as u32)
-        .collect::<Vec<_>>();
-    println!("counts: {counts:?}");
-    let prefix_sum: Vec<_> = counts
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            *prefix_sum += item;
-            Some(*prefix_sum)
-        })
-        .collect();
-    let (indirect_colors, indirect_colors_batch): (Vec<_>, Vec<_>) = counts
-        .iter()
-        .zip(prefix_sum)
-        .map(|(count, end)| {
-            let mut indirect_color = Indirect::new(IndirectSettings {
-                workgroup_size: workgroup_size.try_into().unwrap(),
-                dispatch_limit: dispatch_limit.try_into().unwrap(),
-                len: *count,
-            });
-            let mut indirect_color_batch = Indirect::new(IndirectSettings {
-                workgroup_size: workgroup_size.try_into().unwrap(),
-                dispatch_limit: dispatch_limit.try_into().unwrap(),
-                len: *count * subgroup_size,
-            });
-            indirect_color.len = end;
-            indirect_color_batch.len = end;
-            (indirect_color, indirect_color_batch)
-        })
-        .unzip();
-    let indices = sort_on_cpu(&(0..cells.len() as u32).collect::<Vec<_>>(), &keys);
+    let (indirect_colors, indirect_colors_batch, indices) =
+        color_cells_on_cpu(workgroup_size, dispatch_limit, subgroup_size, cells);
 
     let (gpu_indirect_colors, gpu_indirect_colors_batch, gpu_indices) =
         run_color_cells(settings, cells);
@@ -82,8 +50,8 @@ fn test_simple() {
     let workgroup_size = 64;
     let dispatch_limit = 10;
     check(
-        workgroup_size,
-        dispatch_limit,
+        workgroup_size.try_into().unwrap(),
+        dispatch_limit.try_into().unwrap(),
         &[
             Vector4::new(-5, -5, -5, 0),
             Vector4::new(-5, -5, 5, 0),
@@ -115,7 +83,11 @@ fn test_random() {
         .map(|cell| cell.xyz().push(0))
         .collect();
 
-    check(workgroup_size, dispatch_limit, &cells);
+    check(
+        workgroup_size.try_into().unwrap(),
+        dispatch_limit.try_into().unwrap(),
+        &cells,
+    );
 }
 
 fn run_color_cells(
