@@ -421,7 +421,7 @@ pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
 pub fn color_cells_on_cpu(
     workgroup_size: NonZeroU32,
     dispatch_limit: NonZeroU32,
-    subgroup_size: u32,
+    subgroup_size: NonZeroU32,
     cells: &[Vector4<i32>],
 ) -> (Vec<Indirect>, Vec<Indirect>, Vec<u32>) {
     let keys: Vec<u32> = cells_to_colorkeys_on_cpu(cells);
@@ -450,7 +450,7 @@ pub fn color_cells_on_cpu(
             let mut indirect_color_batch = Indirect::new(IndirectSettings {
                 workgroup_size: workgroup_size.try_into().unwrap(),
                 dispatch_limit: dispatch_limit.try_into().unwrap(),
-                len: *count * subgroup_size,
+                len: *count * subgroup_size.get(),
             });
             indirect_color.len = end;
             indirect_color_batch.len = end;

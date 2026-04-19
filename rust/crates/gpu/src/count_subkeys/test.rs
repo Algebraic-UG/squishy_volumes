@@ -31,7 +31,7 @@ fn test_simple() {
             bit_count.get(),
             bit_offset,
             workgroup_size.get(),
-            subgroup_size,
+            subgroup_size.get(),
             &indices,
             &keys
         ),
@@ -46,7 +46,7 @@ fn test_simple() {
             bit_count.get(),
             bit_offset,
             workgroup_size.get(),
-            subgroup_size,
+            subgroup_size.get(),
             &indices,
             &keys
         ),
@@ -77,7 +77,7 @@ fn test_simple_with_offset() {
             bit_count.get(),
             bit_offset,
             workgroup_size.get(),
-            subgroup_size,
+            subgroup_size.get(),
             &indices,
             &keys
         ),
@@ -92,7 +92,7 @@ fn test_simple_with_offset() {
             bit_count.get(),
             bit_offset,
             workgroup_size.get(),
-            subgroup_size,
+            subgroup_size.get(),
             &indices,
             &keys
         ),
@@ -122,7 +122,7 @@ fn test_larger() {
             bit_count.get(),
             bit_offset,
             workgroup_size.get(),
-            subgroup_size,
+            subgroup_size.get(),
             &indices,
             &keys
         ),
@@ -137,7 +137,7 @@ fn test_larger() {
             bit_count.get(),
             bit_offset,
             workgroup_size.get(),
-            subgroup_size,
+            subgroup_size.get(),
             &indices,
             &keys
         ),
@@ -175,7 +175,7 @@ fn test_random() {
                 bit_count.get(),
                 bit_offset,
                 workgroup_size.get(),
-                subgroup_size,
+                subgroup_size.get(),
                 &indices,
                 &keys
             ),
@@ -194,7 +194,7 @@ fn test_random() {
                 bit_count.get(),
                 bit_offset,
                 workgroup_size.get(),
-                subgroup_size,
+                subgroup_size.get(),
                 &indices,
                 &keys
             ),

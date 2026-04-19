@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::sync::Mutex;
+use std::{num::NonZeroU32, sync::Mutex};
 
 use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES};
 
@@ -84,11 +84,8 @@ pub fn count_subkeys_on_cpu(
         .collect()
 }
 
-pub fn get_subgroup_size() -> u32 {
-    GpuContext::new(MAX_NUM_PARTICLES)
-        .unwrap()
-        .subgroup_size()
-        .get()
+pub fn get_subgroup_size() -> NonZeroU32 {
+    GpuContext::new(MAX_NUM_PARTICLES).unwrap().subgroup_size()
 }
 
 pub fn sort_on_cpu_by_bits(

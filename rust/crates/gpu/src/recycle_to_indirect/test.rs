@@ -24,7 +24,7 @@ fn check(
         3,
         0,
         workgroup_size.get(),
-        subgroup_size,
+        subgroup_size.get(),
         &indices,
         keys,
     );
@@ -61,7 +61,7 @@ fn check(
             let mut indirect = Indirect::new(IndirectSettings {
                 workgroup_size,
                 dispatch_limit,
-                len: len * subgroup_size,
+                len: len * subgroup_size.get(),
             });
             indirect.len = *limit;
             indirect
