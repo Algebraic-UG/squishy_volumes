@@ -16,13 +16,8 @@ fn check(workgroup_size: u32, dispatch_limit: u32, cells: &[Vector4<i32>]) {
         dispatch_limit: dispatch_limit.try_into().unwrap(),
     };
 
-    let keys: Vec<u32> = cells
-        .iter()
-        .map(|cell| {
-            let cell = cell.map(|c| i32_to_u32_offset(c) & 1);
-            cell.x | (cell.y << 1) | (cell.z << 2)
-        })
-        .collect();
+    let keys: Vec<u32> = cells_to_colorkeys_on_cpu(cells);
+    println!("keys: {keys:?}");
 
     let counts = (0..8)
         .map(|color| keys.iter().filter(|key| **key == color).count() as u32)
