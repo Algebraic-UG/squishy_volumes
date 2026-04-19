@@ -42,21 +42,34 @@ fn check(
         })
         .collect();
     let indirect_colors = counts
-        .into_iter()
-        .zip(limits)
+        .iter()
+        .zip(&limits)
         .map(|(len, limit)| {
             let mut indirect = Indirect::new(IndirectSettings {
                 workgroup_size,
                 dispatch_limit,
-                len,
+                len: *len,
             });
-            indirect.len = limit;
+            indirect.len = *limit;
+            indirect
+        })
+        .collect::<Vec<_>>();
+    let indirect_colors_batch = counts
+        .iter()
+        .zip(&limits)
+        .map(|(len, limit)| {
+            let mut indirect = Indirect::new(IndirectSettings {
+                workgroup_size,
+                dispatch_limit,
+                len: len * subgroup_size,
+            });
+            indirect.len = *limit;
             indirect
         })
         .collect::<Vec<_>>();
 
     assert_eq!(
-        indirect_colors,
+        (indirect_colors, indirect_colors_batch),
         run_recycle_to_indirect(settings, keys.len() as u32, &prefixes),
     );
 }
@@ -88,26 +101,34 @@ fn test_random() {
     check(settings, &keys);
 }
 
-fn run_recycle_to_indirect(settings: Settings, len: u32, prefix_sums: &[u32]) -> Vec<Indirect> {
+fn run_recycle_to_indirect(
+    settings: Settings,
+    len: u32,
+    prefix_sums: &[u32],
+) -> (Vec<Indirect>, Vec<Indirect>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, len, prefix_sums);
     let recycle_to_indirect = RecycleToIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let Output { indirect_colors } = recycle_to_indirect
+    let Output {
+        indirect_colors,
+        indirect_colors_batch,
+    } = recycle_to_indirect
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, indirect_colors);
-    download.copy(&mut encoder);
+    let downloads = DownloadsToHost::new(&context, [indirect_colors, indirect_colors_batch]);
+    downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let download = download.prep();
+    let downloads = downloads.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    let [indirect_colors, indirect_colors_batch] = downloads.try_into().unwrap();
+    (indirect_colors.to_vec(), indirect_colors_batch.to_vec())
 }

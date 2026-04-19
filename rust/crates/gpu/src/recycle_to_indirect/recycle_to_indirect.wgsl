@@ -15,6 +15,9 @@ var<storage, read> prefix_sums: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> indirect_colors: array<Indirect>;
 
+@group(0) @binding(3)
+var<storage, read_write> indirect_colors_batch: array<Indirect>;
+
 override DISPATCH_LIMIT: u32;
 override WORKGROUP_SIZE: u32;
 
@@ -47,11 +50,21 @@ fn main(
     }
 
     indirect_colors[global_index].len = end;
+    indirect_colors_batch[global_index].len = end;
 
-    let dispatch_xyz = find_dispatch_xyz(end - start);
-    indirect_colors[global_index].x = dispatch_xyz.x;
-    indirect_colors[global_index].y = dispatch_xyz.y;
-    indirect_colors[global_index].z = dispatch_xyz.z;
+    let len = end - start;
+
+    {
+        let dispatch_xyz = find_dispatch_xyz(len);
+        indirect_colors[global_index].x = dispatch_xyz.x;
+        indirect_colors[global_index].y = dispatch_xyz.y;
+        indirect_colors[global_index].z = dispatch_xyz.z;
+    }
+
+    let dispatch_xyz = find_dispatch_xyz(len * subgroup_size);
+    indirect_colors_batch[global_index].x = dispatch_xyz.x;
+    indirect_colors_batch[global_index].y = dispatch_xyz.y;
+    indirect_colors_batch[global_index].z = dispatch_xyz.z;
 }
 
 struct Indirect {

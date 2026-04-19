@@ -56,6 +56,7 @@ impl Input {
 
 pub struct Output {
     pub indirect_colors: Allocation,
+    pub indirect_colors_batch: Allocation,
 }
 
 impl PipelinePart for RecycleToIndirect {
@@ -80,6 +81,7 @@ impl PipelinePart for RecycleToIndirect {
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, true),
+                    (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
@@ -108,6 +110,9 @@ impl PipelinePart for RecycleToIndirect {
         let indirect_colors = context
             .indirect_allocator()?
             .allocate::<Indirect>("indirect_colors", 8.try_into().unwrap())?;
+        let indirect_colors_batch = context
+            .indirect_allocator()?
+            .allocate::<Indirect>("indirect_colors_batch", 8.try_into().unwrap())?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.recycle_to_indirect.label);
         compute_pass.set_pipeline(&self.recycle_to_indirect.compute_pipeline);
@@ -120,12 +125,16 @@ impl PipelinePart for RecycleToIndirect {
                     indirect.binding(),
                     count_prefix_sums.binding(),
                     indirect_colors.binding(),
+                    indirect_colors_batch.binding(),
                 ],
             ),
             &[],
         );
         compute_pass.dispatch_workgroups(1, 1, 1);
 
-        Ok(Output { indirect_colors })
+        Ok(Output {
+            indirect_colors,
+            indirect_colors_batch,
+        })
     }
 }
