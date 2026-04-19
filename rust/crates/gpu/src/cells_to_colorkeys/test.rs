@@ -15,7 +15,7 @@ fn check(cells: &[Vector4<i32>]) {
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
 
     assert_eq!(
-        cells_to_colorkeys_on_cpu(&cells),
+        cells_to_colorkeys_on_cpu(cells),
         run_cells_to_colorkeys(settings, dispatch_limit, cells),
     )
 }
