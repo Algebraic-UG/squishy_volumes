@@ -67,7 +67,7 @@ impl Input {
 }
 
 pub struct Output {
-    indices_out: Allocation,
+    pub indices_out: Allocation,
 }
 
 impl PipelinePart for SortPositionsIntoCells {

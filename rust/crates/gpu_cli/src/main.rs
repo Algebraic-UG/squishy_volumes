@@ -8,7 +8,10 @@ use std::{
 use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
-use squishy_volumes_gpu::{prefix_sum_on_cpu, shuffle, sort_on_cpu};
+use squishy_volumes_gpu::{
+    positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle, sort_on_cpu,
+    sort_positions_into_cells_on_cpu,
+};
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -16,14 +19,17 @@ use clap::{Parser, ValueEnum};
 
 use squishy_volumes_gpu as gpu;
 
-use crate::{prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu};
+use crate::{
+    positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
+    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+};
 
 //mod build_hash_table;
-//mod positions_to_keys;
+mod positions_to_keys;
 mod prefix_sum;
 //mod prepare_grid;
 mod radix_sort;
-//mod sort_positions_into_cells;
+mod sort_positions_into_cells;
 mod window;
 
 mod profiler_output;
@@ -185,40 +191,48 @@ fn main() {
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
+        Task::PositionsToKeys | Task::SortIntoCells => {
+            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
+            let mut indices: Vec<u32> = (0..input.len() as u32).collect();
+            shuffle(&mut indices, 42);
+
+            let output = match task {
+                Task::PositionsToKeys => {
+                    let dimension = 1;
+                    match mode {
+                        Mode::Cpu => positions_to_keys_on_cpu(input, cell_size, dimension),
+                        Mode::Gpu => positions_to_keys_on_gpu(
+                            tool,
+                            gpu::positions_to_keys::Settings {
+                                workgroup_size,
+                                cell_size,
+                            },
+                            gpu::positions_to_keys::Parameters { dimension },
+                            input,
+                        ),
+                    }
+                }
+                Task::SortIntoCells => match mode {
+                    Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
+                    Mode::Gpu => sort_positions_into_cells_on_gpu(
+                        tool,
+                        gpu::sort_positions_into_cells::Settings {
+                            workgroup_size,
+                            dispatch_limit,
+                            cell_size,
+                            bit_count,
+                        },
+                        &indices,
+                        input,
+                    ),
+                },
+                _ => unreachable!(),
+            };
+            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+        }
         _ => {
             todo!()
         } /*
-          Task::PositionsToKeys | Task::SortIntoCells => {
-              let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-              let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-              shuffle(&mut indices, 42);
-
-              let output = match task {
-                  Task::PositionsToKeys => {
-                      let dimension = 1;
-                      match mode {
-                          Mode::Cpu => positions_to_keys_on_cpu(input, cell_size, dimension),
-                          Mode::Gpu => positions_to_keys_on_gpu(
-                              tool,
-                              positions_to_keys,
-                              PositionsToKeysParameters { dimension },
-                              input,
-                          ),
-                      }
-                  }
-                  Task::SortIntoCells => match mode {
-                      Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
-                      Mode::Gpu => sort_positions_into_cells_on_gpu(
-                          tool,
-                          sort_positions_into_cells,
-                          &indices,
-                          input,
-                      ),
-                  },
-                  _ => unreachable!(),
-              };
-              out.write_all(bytemuck::cast_slice(&output)).unwrap();
-          }
           Task::BuildHashTable => {
               let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
               let output = match mode {

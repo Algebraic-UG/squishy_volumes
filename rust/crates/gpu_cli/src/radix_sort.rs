@@ -20,7 +20,7 @@ pub fn radix_sort_on_gpu(
 
     let radix_sort = RadixSort::new(&context, settings.clone());
 
-    let input = Input::new(context.device(), settings, indices, keys);
+    let input = Input::new(context.device(), settings, Some(indices), keys);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
@@ -35,7 +35,7 @@ pub fn radix_sort_on_gpu(
     let mut profiler =
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
     let scope = profiler.scope("run_radix_sort", &mut encoder);
-    let Output { indices_out } = radix_sort
+    let indices_out = radix_sort
         .record_all_rounds(&mut context, &mut scope.into(), input)
         .unwrap();
 
