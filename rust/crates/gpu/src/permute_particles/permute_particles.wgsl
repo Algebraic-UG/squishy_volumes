@@ -16,9 +16,15 @@ var<storage, read> indirect: Indirect;
 var<storage, read_write> permutation: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read_write> positions_in: array<vec3f>;
+var<storage, read_write> indices_in: array<u32>;
 
 @group(0) @binding(3)
+var<storage, read_write> positions_in: array<vec3f>;
+
+@group(0) @binding(4)
+var<storage, read_write> indices_out: array<u32>;
+
+@group(0) @binding(5)
 var<storage, read_write> positions_out: array<vec3f>;
 
 override WORKGROUP_SIZE: u32;
@@ -35,7 +41,10 @@ fn main(
         return;
     }
 
-    positions_out[global_index] = positions_in[permutation[global_index]];
+    let prior_position = permutation[global_index];
+
+    indices_out[global_index] = indices_in[prior_position];
+    positions_out[global_index] = positions_in[prior_position];
 }
 
 fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {

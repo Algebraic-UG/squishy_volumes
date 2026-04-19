@@ -8,6 +8,41 @@
 
 use super::*;
 
+fn check(positions: Vec<Vector4<f32>>) {
+    let mut indices: Vec<_> = (0..positions.len() as u32).collect();
+    let mut permutation = indices.clone();
+
+    shuffle(&mut indices, 7);
+    shuffle(&mut permutation, 5);
+
+    println!("indices: {indices:?}");
+    println!("permutation: {permutation:?}");
+
+    let mut permuted_indices = indices.clone();
+    for (&prior_position, to_permute) in permutation.iter().zip(&mut permuted_indices) {
+        *to_permute = indices[prior_position as usize];
+    }
+
+    let mut permuted_postions = positions.clone();
+    for (&prior_position, to_permute) in permutation.iter().zip(&mut permuted_postions) {
+        *to_permute = positions[prior_position as usize];
+    }
+
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+
+    let (indices_out, positions_out) = run_permute_particles(
+        workgroup_size,
+        dispatch_limit,
+        &permutation,
+        &indices,
+        &positions,
+    );
+
+    assert_eq!(permuted_indices, indices_out);
+    assert_eq!(permuted_postions, positions_out);
+}
+
 #[test]
 fn test_simple() {
     let positions = vec![
@@ -20,21 +55,7 @@ fn test_simple() {
         Vector4::new(0.5, 0.5, -0.5, 0.),
         Vector4::new(0.5, 0.5, 0.5, 0.),
     ];
-    let mut permutation: Vec<_> = (0..positions.len() as u32).collect();
-    shuffle(&mut permutation, 5);
-
-    let mut permuted_postions = positions.clone();
-    for (&prior_position, to_permute) in permutation.iter().zip(&mut permuted_postions) {
-        *to_permute = positions[prior_position as usize];
-    }
-
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-
-    assert_eq!(
-        permuted_postions,
-        run_permute_positions(workgroup_size, dispatch_limit, &permutation, &positions),
-    );
+    check(positions);
 }
 
 #[test]
@@ -51,30 +72,16 @@ fn test_random() {
         .map(Vector4::from_column_slice)
         .map(|p| p.xzy().push(0.))
         .collect();
-
-    let mut permutation: Vec<_> = (0..positions.len() as u32).collect();
-    shuffle(&mut permutation, 5);
-
-    let mut permuted_postions = positions.clone();
-    for (&prior_position, to_permute) in permutation.iter().zip(&mut permuted_postions) {
-        *to_permute = positions[prior_position as usize];
-    }
-
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-
-    assert_eq!(
-        permuted_postions,
-        run_permute_positions(workgroup_size, dispatch_limit, &permutation, &positions),
-    );
+    check(positions);
 }
 
-fn run_permute_positions(
+fn run_permute_particles(
     workgroup_size: NonZeroU32,
     dispatch_limit: NonZeroU32,
     permutation: &[u32],
+    indices: &[u32],
     positions: &[Vector4<f32>],
-) -> Vec<Vector4<f32>> {
+) -> (Vec<u32>, Vec<Vector4<f32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(
@@ -82,27 +89,34 @@ fn run_permute_positions(
         workgroup_size,
         dispatch_limit,
         permutation,
+        indices,
         positions,
     );
-    let permute_positions = PermutePositions::new(&context, Settings { workgroup_size });
+    let permute_particles = PermuteParticles::new(&context, Settings { workgroup_size });
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { positions_out } = permute_positions
+    let Output {
+        indices_out,
+        positions_out,
+    } = permute_particles
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, positions_out);
-    download.copy(&mut encoder);
+    let downloads = DownloadsToHost::new(&context, [indices_out, positions_out]);
+    downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let download = download.prep();
+    let downloads = downloads.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let mut garbage_w: Vec<Vector4<f32>> = download.to_vec();
+    let [indices_out, positions_out] = downloads.try_into().unwrap();
+
+    let mut garbage_w: Vec<Vector4<f32>> = positions_out.to_vec();
     garbage_w.iter_mut().for_each(|v| v.w = 0.);
-    garbage_w
+
+    (indices_out.to_vec(), garbage_w)
 }
