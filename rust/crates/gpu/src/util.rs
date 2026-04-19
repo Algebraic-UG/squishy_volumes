@@ -14,6 +14,7 @@ use std::io::Cursor;
 use std::iter::once;
 use std::marker::PhantomData;
 use std::num::{NonZeroU32, NonZeroU64};
+use std::sync::atomic::AtomicU32;
 
 use nalgebra::Vector4;
 
@@ -118,6 +119,7 @@ pub trait AllowedInBinding: Sized {
 }
 
 impl AllowedInBinding for u32 {}
+impl AllowedInBinding for AtomicU32 {}
 impl AllowedInBinding for f32 {}
 impl AllowedInBinding for Vector4<f32> {}
 impl AllowedInBinding for Vector4<i32> {}

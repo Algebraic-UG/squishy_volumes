@@ -9,229 +9,143 @@
 #[cfg(test)]
 mod test;
 
-use std::sync::atomic::AtomicU32;
+use std::{num::NonZeroU32, sync::atomic::AtomicU32};
 
 use nalgebra::Vector4;
-use wgpu::util::DeviceExt as _;
 
 use super::*;
 
-pub struct BuildHashTableColors {
-    compiled_module: CompiledModule,
+pub struct BuildHashTable {
+    build_hash_table: CompiledModule,
 }
 
-pub struct BuildHashTableColorsSettings {
-    pub workgroup_size: u32,
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
 }
 
-pub struct BuildHashTableColorsBufferInput<'a> {
-    pub cells: &'a [Vector4<i32>],
-    pub limits: &'a [u32],
-    pub indirect: &'a [u32],
+pub struct Parameters;
+
+pub struct Input {
+    pub indirect_colors: Allocation,
+    pub indices: Allocation,
+    pub cells: Allocation,
 }
 
-pub struct BuildHashTableColorsBuffers {
-    pub cells: wgpu::Buffer,
-    pub limits: wgpu::Buffer,
-    pub indirect: wgpu::Buffer,
-    pub slots: wgpu::Buffer,
-    pub owns: wgpu::Buffer,
-}
-
-pub struct BuildHashTableColorsBufferBindings<'a> {
-    pub cells: wgpu::BufferBinding<'a>,
-    pub limits: wgpu::BufferBinding<'a>,
-    pub indirect: wgpu::BufferBinding<'a>,
-    pub slots: wgpu::BufferBinding<'a>,
-    pub owns: wgpu::BufferBinding<'a>,
-}
-
-impl<'a> From<&'a BuildHashTableColorsBuffers> for BuildHashTableColorsBufferBindings<'a> {
-    fn from(
-        BuildHashTableColorsBuffers {
-            cells,
-            limits,
-            indirect,
-            slots,
-            owns,
-        }: &'a BuildHashTableColorsBuffers,
+impl Input {
+    pub fn new(
+        device: &wgpu::Device,
+        workgroup_size: NonZeroU32,
+        dispatch_limit: NonZeroU32,
+        subgroup_size: NonZeroU32,
+        cells: &[Vector4<i32>],
     ) -> Self {
+        let (indirect_colors, _indirect_colors_batch, indices) =
+            color_cells_on_cpu(workgroup_size, dispatch_limit, subgroup_size, cells);
+
+        let indirect_colors = Allocation::new(device, "indirect_colors", &indirect_colors);
+        let indices = Allocation::new(device, "indices", &indices);
+        let cells = Allocation::new(device, "cells", cells);
+
         Self {
-            cells: cells.as_entire_buffer_binding(),
-            limits: limits.as_entire_buffer_binding(),
-            indirect: indirect.as_entire_buffer_binding(),
-            slots: slots.as_entire_buffer_binding(),
-            owns: owns.as_entire_buffer_binding(),
+            indirect_colors,
+            indices,
+            cells,
         }
     }
 }
 
-impl PipelinePart for BuildHashTableColors {
-    type Settings = BuildHashTableColorsSettings;
-    type Parameters = ();
-    type BufferInput<'a> = BuildHashTableColorsBufferInput<'a>;
-    type Buffers = BuildHashTableColorsBuffers;
-    type BufferBindings<'a> = BuildHashTableColorsBufferBindings<'a>;
+pub struct Output {
+    pub block_table: Allocation,
+    pub owns: Allocation,
+}
 
-    fn new(context: &GpuContext, Self::Settings { workgroup_size }: Self::Settings) -> Self {
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size > 0);
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
+impl PipelinePart for BuildHashTable {
+    type Settings = Settings;
+    type Parameters = Parameters;
+    type Input = Input;
+    type Output = Output;
 
+    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let device = context.device();
+        let_compiled_module!(
+            build_hash_table,
+            CompiledModuleSettings {
+                device,
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false),
+                    (AtomicU32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 4,
+                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+            }
+        );
 
-        let label = Some("build_hash_table_colors");
+        Self { build_hash_table }
+    }
 
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                bind_group_layout_entry::<Vector4<i32>>(0, true),
-                bind_group_layout_entry::<u32>(1, true),
-                bind_group_layout_entry::<AtomicU32>(2, false),
-                bind_group_layout_entry::<u32>(3, false),
-            ],
-        });
+    fn record(
+        &self,
+        context: &mut GpuContext,
+        encoder: &mut CommandEncoder,
+        Input {
+            indirect_colors,
+            indices,
+            cells,
+        }: Input,
+        _: Parameters,
+    ) -> Result<Output, GpuError> {
+        assert_eq!(8, indirect_colors.len::<Indirect>().get());
 
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    immediate_size: 4,
-                }),
+        let owns = context
+            .allocator()?
+            .allocate::<u32>("owns", cells.len::<Vector4<i32>>())?;
+        let block_table = context.allocator()?.allocate::<AtomicU32>(
+            "block_table",
+            (self.max_table(cells.len::<Vector4<i32>>().get() as u32) as u64)
+                .try_into()
+                .unwrap(),
+        )?;
+
+        encoder.clear_buffer(
+            block_table.buffer(),
+            block_table.offset(),
+            Some(block_table.size().get()),
+        );
+
+        let mut compute_pass = encoder.begin_compute_pass(self.build_hash_table.label);
+        compute_pass.set_pipeline(&self.build_hash_table.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.build_hash_table,
+                [
+                    indirect_colors.binding(),
+                    indices.binding(),
+                    cells.binding(),
+                    block_table.binding(),
+                    owns.binding(),
+                ],
             ),
-            module: &device
-                .create_shader_module(wgpu::include_wgsl!("build_hash_table_colors.wgsl")),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &[("WORKGROUP_SIZE", workgroup_size as f64)],
-                ..Default::default()
-            },
-            cache: None,
-        });
-
-        let compiled_module = CompiledModule {
-            label,
-            bind_group_layout,
-            compute_pipeline,
-        };
-
-        Self { compiled_module }
-    }
-
-    fn create_buffers<'a>(
-        &self,
-        context: &GpuContext,
-        Self::BufferInput {
-            cells,
-            limits,
-            indirect,
-        }: Self::BufferInput<'a>,
-    ) -> Self::Buffers {
-        let device = context.device();
-        let n = cells.len() as u32;
-        assert_eq!(8, limits.len());
-        assert_eq!(8 * 3, indirect.len());
-
-        let cells = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("cells"),
-            contents: bytemuck::cast_slice(cells),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let limits = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("limits"),
-            contents: bytemuck::cast_slice(limits),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
-
-        let indirect = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("indirect"),
-            contents: bytemuck::cast_slice(indirect),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::INDIRECT,
-        });
-
-        let slots = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("slots"),
-            size: self.max_table(n) as u64 * AtomicU32::MIN_BINDING_SIZE.get(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        let owns = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("owns"),
-            size: n as u64 * AtomicU32::MIN_BINDING_SIZE.get(),
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-
-        Self::Buffers {
-            cells,
-            limits,
-            indirect,
-            slots,
-            owns,
-        }
-    }
-
-    fn compute_in_pass<'a>(
-        &self,
-        context: &GpuContext,
-        compute_pass: &mut wgpu::ComputePass,
-        Self::BufferBindings {
-            cells,
-            limits,
-            indirect,
-            slots,
-            owns,
-        }: Self::BufferBindings<'a>,
-        _: Self::Parameters,
-    ) {
-        let cell_count = elements_in_binding::<Vector4<i32>>(&cells);
-        assert_eq!(cell_count, elements_in_binding::<u32>(&owns));
-
-        let slots_count = elements_in_binding::<AtomicU32>(&slots);
-        assert!(slots_count >= cell_count); // better if it's much larger ofc
-
-        let device = context.device();
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: self.compiled_module.label,
-            layout: &self.compiled_module.bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::Buffer(cells.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Buffer(limits.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Buffer(slots.clone()),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::Buffer(owns.clone()),
-                },
-            ],
-        });
-
-        compute_pass.set_pipeline(&self.compiled_module.compute_pipeline);
-        compute_pass.set_bind_group(0, &bind_group, &[]);
+            &[],
+        );
 
         for color in 0..8u32 {
             compute_pass.set_immediates(0, bytemuck::bytes_of(&color));
             compute_pass.dispatch_workgroups_indirect(
-                indirect.buffer,
-                indirect.offset + color as u64 * u32::MIN_BINDING_SIZE.get() * 3,
+                indirect_colors.buffer(),
+                indirect_colors.offset() + Indirect::MIN_BINDING_SIZE.get() * color as u64,
             );
         }
+
+        Ok(Output { block_table, owns })
     }
 }
 
-impl BuildHashTableColors {
+impl BuildHashTable {
     // control load factor to be at most 0.5
     // TODO: this is way too much for most sparsity patterns
     pub fn max_table(&self, cell_count: u32) -> u32 {

@@ -109,3 +109,17 @@ fn murmur_of_cell(cell: vec3i) -> u32 {
 fn i32_to_ordered_u32(x: i32) -> u32 {
     return bitcast<u32>(x) ^ 0x80000000u;
 }
+
+fn block_offset(block: u32) -> vec3i {
+    var offset = vec3i(0);
+    if (block & 1) == 1 {
+        offset.x = 1;
+    }
+    if (block & 2) == 2 {
+        offset.y = 1;
+    }
+    if (block & 4) == 4 {
+        offset.z = 1;
+    }
+    return offset;
+}

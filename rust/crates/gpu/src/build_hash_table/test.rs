@@ -10,42 +10,13 @@ use std::collections::HashSet;
 
 use super::*;
 
-fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
-    let colorkeys = cells_to_colorkeys_on_cpu(&cells);
+fn check(workgroup_size: NonZeroU32, dispatch_limit: NonZeroU32, cells: &[Vector4<i32>]) {
+    let (block_table, owns) = run_build_hash_table(workgroup_size, dispatch_limit, cells);
 
-    let counts = (0..8)
-        .map(|colorkey| colorkeys.iter().filter(|key| **key == colorkey).count() as u32)
-        .collect::<Vec<_>>();
-    // inclusive prefix sum here
-    let limits: Vec<u32> = counts
-        .iter()
-        .scan(0, |prefix_sum, item| {
-            *prefix_sum += item;
-            Some(*prefix_sum)
-        })
-        .collect();
-    let indirect = counts
-        .iter()
-        .flat_map(|count| find_x_y_z_simple(dispatch_limit, count.div_ceil(workgroup_size)))
-        .collect::<Vec<_>>();
-
-    let mut cells: Vec<(usize, &Vector4<i32>)> = cells.iter().enumerate().collect();
-    cells.sort_by_key(|(index, _)| colorkeys[*index as usize]);
-    let (_, cells): (Vec<_>, Vec<_>) = cells.into_iter().unzip();
-
-    let (slots, owns) = run_build_hash_table_colors(
-        workgroup_size,
-        BuildHashTableColorsBufferInput {
-            cells: &cells,
-            limits: &limits,
-            indirect: &indirect,
-        },
-    );
-
-    println!("{slots:?}");
+    println!("{block_table:?}");
     println!("{owns:?}");
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
-    for cell in &cells {
+    for cell in cells {
         for x in 0..2 {
             for y in 0..2 {
                 for z in 0..2 {
@@ -56,15 +27,17 @@ fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
     }
     let blocks: Vec<_> = blocks.into_iter().collect();
 
-    let table_size = (cells.len() as u32 * 8 * 2).next_power_of_two();
+    let table_size = block_table.len() as u32;
+    assert!(table_size.is_power_of_two());
     let table_mask = table_size - 1;
     let index_mask = (1 << 29) - 1;
 
     for (block_to_find, hash) in blocks.iter().zip(cells_to_murmur_on_cpu(&blocks)) {
         println!("searching for block: {block_to_find:?}");
         let mut slot = hash & table_mask;
-        loop {
-            let block_and_index = slots[slot as usize];
+        let mut found = false;
+        for _ in 0..block_table.len() {
+            let block_and_index = block_table[slot as usize];
             println!("maybe: {block_and_index}");
             assert!(block_and_index > 0);
             let block = block_and_index >> 29;
@@ -72,12 +45,14 @@ fn check(dispatch_limit: u32, workgroup_size: u32, cells: &[Vector4<i32>]) {
 
             if *block_to_find == cells[index as usize] + block_offset(block) {
                 assert!(owns[index as usize] & (1 << block) > 0);
+                found = true;
                 break;
             }
 
             slot += 1;
             slot &= table_mask;
         }
+        assert!(found);
     }
 }
 
@@ -94,10 +69,10 @@ fn test_simple() {
         Vector4::new(5, 5, 5, 0),
     ];
 
-    let dispatch_limit = u16::MAX as u32;
-    let workgroup_size = 64;
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let workgroup_size = 64.try_into().unwrap();
 
-    check(dispatch_limit, workgroup_size, &cells);
+    check(workgroup_size, dispatch_limit, &cells);
 }
 
 #[test]
@@ -114,43 +89,48 @@ fn test_random() {
         .map(Vector4::from_column_slice)
         .collect();
 
-    let dispatch_limit = u16::MAX as u32;
-    let workgroup_size = 64;
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let workgroup_size = 64.try_into().unwrap();
 
-    check(dispatch_limit, workgroup_size, &cells);
+    check(workgroup_size, dispatch_limit, &cells);
 }
 
-fn run_build_hash_table_colors(
-    workgroup_size: u32,
-    buffer_input: BuildHashTableColorsBufferInput,
+fn run_build_hash_table(
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
+    cells: &[Vector4<i32>],
 ) -> (Vec<u32>, Vec<u32>) {
-    let context = SHARED_CONTEXT.lock().unwrap();
-    let device = context.device();
+    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let subgroup_size = context.subgroup_size();
 
-    let build_hash_table_colors =
-        BuildHashTableColors::new(&context, BuildHashTableColorsSettings { workgroup_size });
-    let buffers = build_hash_table_colors.create_buffers(&context, buffer_input);
-
-    let downloads = DownloadsToHost::new(
-        &context,
-        [(&buffers.slots, "slots"), (&buffers.owns, "owns")],
+    let input = Input::new(
+        context.device(),
+        workgroup_size,
+        dispatch_limit,
+        subgroup_size,
+        cells,
     );
+    let build_hash_table = BuildHashTable::new(&context, Settings { workgroup_size });
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-    build_hash_table_colors.compute_in_pass(&context, &mut compute_pass, (&buffers).into(), ());
+    let Output { block_table, owns } = build_hash_table
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
 
-    drop(compute_pass);
+    let downloads = DownloadsToHost::new(&context, [block_table, owns]);
     downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
 
     let downloads = downloads.prep();
 
-    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
 
-    let [slots, owns] = downloads.try_into().unwrap();
+    let [block_table, owns] = downloads.try_into().unwrap();
 
-    (slots.to_vec(), owns.to_vec())
+    (block_table.to_vec(), owns.to_vec())
 }

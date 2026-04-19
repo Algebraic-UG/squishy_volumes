@@ -12,20 +12,92 @@
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
 @group(0) @binding(0)
-var<storage, read> cells: array<vec3<i32>>;
+var<storage, read> indirect_colors: array<Indirect>;
 
 @group(0) @binding(1)
-var<storage, read> limits: array<u32>;
+var<storage, read_write> indices: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read_write> slots: array<atomic<u32>>;
+var<storage, read_write> cells: array<vec3<i32>>;
 
 @group(0) @binding(3)
+var<storage, read_write> block_table: array<atomic<u32>>;
+
+@group(0) @binding(4)
 var<storage, read_write> owns: array<u32>;
 
 var<immediate> color: u32;
 
 override WORKGROUP_SIZE: u32;
+
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn main(
+    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
+    @builtin(num_workgroups) num_workgroups: vec3<u32>,
+) {
+    var global_index = get_global_index(num_workgroups, global_invocation_id);
+    if color > 0 {
+        global_index += indirect_colors[color - 1].len;
+    }
+    if global_index >= indirect_colors[color].len {
+        return;
+    }
+    let index = indices[global_index];
+
+    let cell = cells[index];
+
+    // table length must be a power of two
+    let table_mask = arrayLength(&block_table) - 1;
+    let index_mask = (1u << 29) - 1;
+    var own = 0u;
+    for (var block = 0u; block < 8; block++) {
+        let offset_cell = cell + block_offset(block);
+        let block_and_index = (block << 29) | (index + 1);
+
+        let hash = murmur_of_cell(offset_cell);
+
+        var slot = hash & table_mask;
+        loop {
+            let result = atomicCompareExchangeWeak(&block_table[slot], 0, block_and_index);
+
+            if result.exchanged {
+                own |= 1u << block;
+                break;
+            }
+
+            let old_block: u32 = result.old_value >> 29;
+            if block == old_block {
+                continue;
+            }
+
+            let old_index = (result.old_value & index_mask) - 1;
+            let old_cell = cells[old_index];
+            if all(old_cell + block_offset(old_block) == offset_cell) {
+                break;
+            }
+
+            continuing {
+                slot += 1;
+                slot &= table_mask;
+            }
+        }
+    }
+
+    owns[index] = own;
+}
+
+struct Indirect {
+    x: u32,
+    y: u32,
+    z: u32,
+    len: u32,
+}
+
+fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
+    return global_invocation_id.x +
+        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
+        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
+}
 
 // This is derived from https://github.com/stusmall/murmur3
 // and tested against it
@@ -100,61 +172,3 @@ fn block_offset(block: u32) -> vec3i {
     }
     return offset;
 }
-
-@compute @workgroup_size(WORKGROUP_SIZE)
-fn main(
-    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
-    @builtin(num_workgroups) num_workgroups: vec3<u32>,
-) {
-    var global_index = global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
-    if color > 0 {
-        global_index += limits[color - 1];
-    }
-
-    if global_index >= limits[color] {
-        return;
-    }
-    let cell = cells[global_index];
-
-    // table length must be a power of two
-    let table_mask = arrayLength(&slots) - 1;
-    let index_mask = (1u << 29) - 1;
-    var own = 0u;
-    for (var block = 0u; block < 8; block++) {
-        let offset_cell = cell + block_offset(block);
-        let block_and_index = (block << 29) | (global_index + 1);
-
-        let hash = murmur_of_cell(offset_cell);
-
-        var slot = hash & table_mask;
-        loop {
-            let result = atomicCompareExchangeWeak(&slots[slot], 0, block_and_index);
-
-            if result.exchanged {
-                own |= 1u << block;
-                break;
-            }
-
-            let old_block: u32 = result.old_value >> 29;
-            if block == old_block {
-                continue;
-            }
-
-            let old_index = (result.old_value & index_mask) - 1;
-            let old_cell = cells[old_index];
-            if all(old_cell + block_offset(old_block) == offset_cell) {
-                break;
-            }
-
-            continuing {
-                slot += 1;
-                slot &= table_mask;
-            }
-        }
-    }
-
-    owns[global_index] = own;
-}
-

@@ -23,6 +23,7 @@ pub use pipeline_part::*;
 pub use util::*;
 
 pub mod build_cells;
+pub mod build_hash_table;
 pub mod cells_to_colorkeys;
 pub mod cells_to_murmur;
 pub mod color_cells;
@@ -39,6 +40,7 @@ pub mod reorder_indices;
 pub mod sort_positions_into_cells;
 
 pub use build_cells::BuildCells;
+pub use build_hash_table::BuildHashTable;
 pub use cells_to_colorkeys::CellsToColorkeys;
 pub use cells_to_murmur::CellsToMurmur;
 pub use color_cells::ColorCells;
@@ -55,7 +57,6 @@ pub use reorder_indices::ReorderIndices;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
 //mod allocate_blocks;
-//mod build_hash_table;
 //mod build_hash_table_colors;
 //mod cells_to_colorkeys;
 //mod cells_to_murmur;
