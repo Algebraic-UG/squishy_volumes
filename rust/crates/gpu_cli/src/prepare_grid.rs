@@ -13,7 +13,7 @@ pub fn prepare_grid_on_gpu(
 ) -> Vec<Vector4<i32>> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator(positions.len().max(100) as u64 * 128, "allocator", true)
+        .setup_allocator(positions.len().max(100) as u64 * 300, "allocator", true)
         .unwrap();
     context
         .setup_indirect_allocator(1028, "indirect allocator", true)
