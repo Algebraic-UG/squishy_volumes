@@ -244,8 +244,7 @@ fn main() {
         }
         Task::PrepareGrid => {
             let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-            shuffle(&mut indices, 42);
+            let indices: Vec<u32> = (0..input.len() as u32).collect();
             let mut output = match mode {
                 Mode::Cpu => grid_on_cpu(cell_size, &indices, input),
                 Mode::Gpu => prepare_grid_on_gpu(
