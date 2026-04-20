@@ -22,7 +22,6 @@ pub fn build_hash_table_on_gpu(
         context.device(),
         settings.workgroup_size,
         (u16::MAX as u32).try_into().unwrap(),
-        context.subgroup_size(),
         cells,
     );
 

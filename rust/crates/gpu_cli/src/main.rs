@@ -9,8 +9,8 @@ use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
 use squishy_volumes_gpu::{
-    positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle, sort_on_cpu,
-    sort_positions_into_cells_on_cpu,
+    grid_on_cpu, i32_to_u32_offset, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
+    sort_on_cpu, sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
 use tracing_subscriber::FmtSubscriber;
@@ -21,14 +21,14 @@ use squishy_volumes_gpu as gpu;
 
 use crate::{
     build_hash_table::build_hash_table_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
-    prefix_sum::prefix_sum_on_gpu, radix_sort::radix_sort_on_gpu,
-    sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+    prefix_sum::prefix_sum_on_gpu, prepare_grid::prepare_grid_on_gpu,
+    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
 mod build_hash_table;
 mod positions_to_keys;
 mod prefix_sum;
-//mod prepare_grid;
+mod prepare_grid;
 mod radix_sort;
 mod sort_positions_into_cells;
 mod window;
@@ -242,39 +242,29 @@ fn main() {
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
-        _ => {
-            todo!()
-        } /*
-          Task::PrepareGrid => {
-              let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-              let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-              shuffle(&mut indices, 42);
-              let mut output = match mode {
-                  Mode::Cpu => grid_on_cpu(cell_size, &indices, input),
-                  Mode::Gpu => prepare_grid_on_gpu(
-                      tool,
-                      PrepareGridSettings {
-                          sort_positions_into_cells,
-                          permute_positions,
-                          find_cell_boundaries,
-                          prefix_sum,
-                          build_cells,
-                          offsets_to_indirect,
-                          color_cells,
-                          build_hash_table_colors,
-                          allocate_blocks,
-                      },
-                      input,
-                      &indices,
-                  ),
-              };
-              output.sort_by(|a, b| {
-                  a.map(i32_to_u32_offset)
-                      .iter()
-                      .cmp(b.map(i32_to_u32_offset).iter())
-              });
-              out.write_all(bytemuck::cast_slice(&output)).unwrap();
-          }
-          */
+        Task::PrepareGrid => {
+            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
+            let mut indices: Vec<u32> = (0..input.len() as u32).collect();
+            shuffle(&mut indices, 42);
+            let mut output = match mode {
+                Mode::Cpu => grid_on_cpu(cell_size, &indices, input),
+                Mode::Gpu => prepare_grid_on_gpu(
+                    tool,
+                    gpu::prepare_grid::Settings {
+                        workgroup_size,
+                        dispatch_limit,
+                        bit_count,
+                        cell_size,
+                    },
+                    input,
+                ),
+            };
+            output.sort_by(|a, b| {
+                a.map(i32_to_u32_offset)
+                    .iter()
+                    .cmp(b.map(i32_to_u32_offset).iter())
+            });
+            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+        }
     }
 }
