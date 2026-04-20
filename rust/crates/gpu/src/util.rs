@@ -505,14 +505,14 @@ pub fn block_offset(block: u32) -> Vector4<i32> {
 }
 
 pub fn gpu_grid_to_cpu_grid(
-    limits: &[u32],
+    indirect: Indirect,
     cell_ids: &[Vector4<i32>],
     cell_owns: &[u32],
 ) -> Vec<Vector4<i32>> {
     cell_ids
         .iter()
         .zip(cell_owns)
-        .take(*limits.last().unwrap() as usize)
+        .take(indirect.len as usize)
         .flat_map(move |(cell_id, cell_own)| {
             (0..8)
                 .filter(move |block| cell_own & (1 << block) > 0)

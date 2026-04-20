@@ -8,16 +8,13 @@
 
 use std::{num::NonZero, path::PathBuf, sync::Arc};
 
-use anyhow::{Result, ensure};
+use anyhow::{Result, bail, ensure};
 use nalgebra::Vector4;
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
 use squishy_volumes_gpu::{
-    AllocateBlocksSettings, BuildCellsSettings, BuildHashTableColorsSettings, ColorCells2Settings,
-    CountSubkeysSettings, DownloadsToHost, FindCellBoundariesSettings, GpuContext, GpuError,
-    OffsetsToIndirectSettings, PermutePositionsSettings, PipelinePart, PositionsToKeysSettings,
-    PrefixSumSettings, PrepareGrid, PrepareGridBufferInput, PrepareGridSettings, RadixSortSettings,
-    ReorderSettings, SortPositionsIntoCellsSettings, gpu_grid_to_cpu_grid, wgpu,
+    DownloadsToHost, GpuContext, GpuError, PipelinePart, PrepareGrid, gpu_grid_to_cpu_grid,
+    prepare_grid, wgpu,
 };
 use tracing::{info, warn};
 
@@ -129,7 +126,8 @@ impl Simulation for SimulationImpl {
         }: ComputeSettings,
     ) -> Result<()> {
         if gpu && let Err(e) = self.gpu_context.as_ref() {
-            Err(e.clone())?;
+            // TODO
+            bail!(e.to_string());
         }
 
         info!("starting compute");
@@ -163,7 +161,10 @@ impl Simulation for SimulationImpl {
         let mut input_reader =
             InputReader::new(simulation_input_path(self.directory_lock.directory()))?;
 
-        if gpu && let Ok(context) = self.gpu_context.as_ref() {
+        if gpu && let Ok(context) = self.gpu_context.as_mut() {
+            context.setup_allocator(1000000, "main allocator", true)?;
+            context.setup_indirect_allocator(1000, "indirect allocator", true)?;
+
             let cell_size = self.input_header.consts.scaled_grid_node_size() * 2.;
             let mut state = State::new(input_reader.read_header()?, input_reader.read_frame(0)?)?;
             let positions: Vec<Vector4<f32>> = state
@@ -172,103 +173,49 @@ impl Simulation for SimulationImpl {
                 .iter()
                 .map(|p| p.push(0.))
                 .collect();
-            let indices: Vec<u32> = (0..positions.len() as u32).collect();
 
-            let device = context.device();
-            let workgroup_size = 64;
-            let bit_count = 2;
-            let dispatch_limit = u16::MAX as u32;
-
-            let prefix_sum = PrefixSumSettings { workgroup_size };
-            let sort_positions_into_cells = SortPositionsIntoCellsSettings {
-                positions_to_keys: PositionsToKeysSettings {
-                    workgroup_size,
-                    cell_size,
-                },
-                radix_sort: RadixSortSettings {
-                    count_subkeys: CountSubkeysSettings {
-                        workgroup_size,
-                        bit_count,
-                    },
-                    prefix_sum,
-                    reorder: ReorderSettings {
-                        workgroup_size,
-                        bit_count,
-                    },
-                },
-            };
-            let permute_positions = PermutePositionsSettings { workgroup_size };
-            let find_cell_boundaries = FindCellBoundariesSettings {
-                workgroup_size,
+            let settings = prepare_grid::Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
                 cell_size,
+                bit_count: 2.try_into().unwrap(),
             };
-            let build_cells = BuildCellsSettings {
-                workgroup_size,
-                cell_size,
-            };
-            let offsets_to_indirect = OffsetsToIndirectSettings {
-                workgroup_size,
-                dispatch_limit,
-            };
-            let color_cells = ColorCells2Settings {
-                workgroup_size,
-                dispatch_limit,
-            };
-            let build_hash_table_colors = BuildHashTableColorsSettings { workgroup_size };
-            let allocate_blocks = AllocateBlocksSettings {
-                workgroup_size,
-                prefix_sum,
-            };
-
-            let prepare_grid = PrepareGrid::new(
-                &context,
-                PrepareGridSettings {
-                    sort_positions_into_cells,
-                    permute_positions,
-                    find_cell_boundaries,
-                    prefix_sum,
-                    build_cells,
-                    offsets_to_indirect,
-                    color_cells,
-                    build_hash_table_colors,
-                    allocate_blocks,
-                },
-            );
-
-            let buffers = prepare_grid.create_buffers(
-                context,
-                PrepareGridBufferInput {
-                    positions: &positions,
-                    indices: &indices,
-                },
-            );
-            let downloads = DownloadsToHost::new(
-                context,
-                [
-                    (&buffers.cell_ids_out, "cell_ids_out"),
-                    (&buffers.cell_owns, "cell_owns"),
-                    (&buffers.limits, "limits"),
-                ],
-            );
+            let input = prepare_grid::Input::new(context.device(), settings.clone(), &positions);
+            let pipeline_part = PrepareGrid::new(&context, settings);
 
             let mut encoder = context.device().create_command_encoder(&Default::default());
-            let mut compute_pass = encoder.begin_compute_pass(&Default::default());
 
-            prepare_grid.compute_in_pass(context, &mut compute_pass, (&buffers).into(), ());
-            drop(compute_pass);
+            let prepare_grid::Output {
+                indirect_cells,
+                cell_ids,
+                cell_owns,
+                ..
+            } = pipeline_part
+                .record(
+                    context,
+                    &mut (&mut encoder).into(),
+                    input,
+                    prepare_grid::Parameters,
+                )
+                .unwrap();
+
+            let downloads = DownloadsToHost::new(&context, [indirect_cells, cell_ids, cell_owns]);
             downloads.copy(&mut encoder);
 
             context.queue().submit([encoder.finish()]);
 
             let downloads = downloads.prep();
 
-            device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+            context
+                .device()
+                .poll(wgpu::PollType::wait_indefinitely())
+                .unwrap();
 
-            let [cell_ids_out, cell_owns, limits] = downloads.try_into().unwrap();
+            let [indirect_cells, cell_ids, cell_owns] = downloads.try_into().unwrap();
 
             let nodes = gpu_grid_to_cpu_grid(
-                &limits.to_vec(),
-                &cell_ids_out.to_vec(),
+                indirect_cells.to_vec()[0],
+                &cell_ids.to_vec(),
                 &cell_owns.to_vec(),
             );
             info!(num_nodes = nodes.len());
