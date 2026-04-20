@@ -64,5 +64,5 @@ struct Indirect {
 }
 
 fn position_to_cell(position: vec3f) -> vec3i {
-    return vec3i(floor(position / CELL_SIZE + vec3f(CELL_SIZE * 0.25)));
+    return vec3i(floor(position / CELL_SIZE + vec3f(0.25)));
 }

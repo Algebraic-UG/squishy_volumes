@@ -347,8 +347,8 @@ pub fn sort_positions_into_cells_on_cpu(
 ) -> Vec<u32> {
     let mut indices = indices.to_vec();
     indices.sort_by(|a, b| {
-        let a = positions[*a as usize].map(|c| (c / cell_size).floor() as i32);
-        let b = positions[*b as usize].map(|c| (c / cell_size).floor() as i32);
+        let a = position_to_cell(cell_size, &positions[*a as usize]);
+        let b = position_to_cell(cell_size, &positions[*b as usize]);
         a.x.cmp(&b.x).then(a.y.cmp(&b.y)).then(a.z.cmp(&b.z))
     });
     indices
@@ -394,9 +394,7 @@ pub fn find_cell_boundaries_on_cpu(positions: &[Vector4<f32>], cell_size: f32) -
         .iter()
         .zip(positions.iter().skip(1))
         .map(|(position, next_position)| {
-            if position.map(|c| (c / cell_size).floor() as i32)
-                != next_position.map(|c| (c / cell_size).floor() as i32)
-            {
+            if position_to_cell(cell_size, position) != position_to_cell(cell_size, next_position) {
                 1
             } else {
                 0
@@ -535,7 +533,7 @@ pub fn grid_on_cpu(
 ) -> Vec<Vector4<i32>> {
     let mut nodes: HashSet<Vector4<i32>> = Default::default();
     for position in indices.iter().map(|index| positions[*index as usize]) {
-        let cell_id = position.map(|c| (c / cell_size).floor() as i32);
+        let cell_id = position_to_cell(cell_size, &position);
         for block in 0..8 {
             let node_id = (cell_id + block_offset(block)) * 2 - Vector4::new(1, 1, 1, 0);
             nodes.extend((0..2).flat_map(move |x| {
@@ -576,6 +574,6 @@ pub fn counts_count(
 pub fn position_to_cell(cell_size: f32, position: &Vector4<f32>) -> Vector4<i32> {
     position
         .xyz()
-        .map(|c| (c / cell_size + cell_size * 0.25).floor() as i32)
+        .map(|c| (c / cell_size + 0.25).floor() as i32)
         .push(0)
 }
