@@ -128,3 +128,30 @@ fn block_offset(block: u32) -> vec3i {
 fn position_to_cell(position: vec3f) -> vec3i {
     return vec3i(floor(position / CELL_SIZE + vec3f(CELL_SIZE * 0.25)));
 }
+
+fn kernel_linear(signed_x: f32) -> f32 {
+    let x = abs(signed_x);
+    if x < 1. { return 1. - x; } else { return 0.; }
+}
+
+fn kernel_quadratic(signed_x: f32) -> f32 {
+    let x = abs(signed_x);
+    if x < 1. / 2. {
+        return 3. / 4. - x * x;
+    } else if x < 3. / 2. {
+        return 1. / 2. * (3. / 2. - x) * (3. / 2. - x);
+    } else {
+        return 0.;
+    }
+}
+
+fn kernel_cubic(signed_x: f32) -> f32 {
+    let x = abs(signed_x);
+    if x < 1. {
+        return 1. / 2. * x * x * x - x * x + 2. / 3.;
+    } else if x < 2. {
+        return 1. / 6. * (2. - x) * (2. - x) * (2. - x);
+    } else {
+        return 0.;
+    }
+}

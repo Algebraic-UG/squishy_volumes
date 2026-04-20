@@ -577,3 +577,30 @@ pub fn position_to_cell(cell_size: f32, position: &Vector4<f32>) -> Vector4<i32>
         .map(|c| (c / cell_size + 0.25).floor() as i32)
         .push(0)
 }
+
+pub fn kernel_linear(x: f32) -> f32 {
+    let x = x.abs();
+    if x < 1. { 1. - x } else { 0. }
+}
+
+pub fn kernel_quadratic(x: f32) -> f32 {
+    let x = x.abs();
+    if x < 1. / 2. {
+        3. / 4. - x * x
+    } else if x < 3. / 2. {
+        1. / 2. * (3. / 2. - x) * (3. / 2. - x)
+    } else {
+        0.
+    }
+}
+
+pub fn kernel_cubic(x: f32) -> f32 {
+    let x = x.abs();
+    if x < 1. {
+        1. / 2. * x * x * x - x * x + 2. / 3.
+    } else if x < 2. {
+        1. / 6. * (2. - x) * (2. - x) * (2. - x)
+    } else {
+        0.
+    }
+}

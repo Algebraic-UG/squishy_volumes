@@ -3374,6 +3374,7 @@ dependencies = [
 name = "squishy_volumes_gpu"
 version = "0.1.0"
 dependencies = [
+ "approx",
  "bytemuck",
  "env_logger",
  "lazy_static",
