@@ -24,7 +24,7 @@ fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32
         for index in index_start..*index_end {
             println!("{cell:?}, {index}");
             assert_eq!(
-                positions[index as usize].map(|c| (c / cell_size).floor() as i32),
+                position_to_cell(cell_size, &positions[index as usize]),
                 cell
             );
         }

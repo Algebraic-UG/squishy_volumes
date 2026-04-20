@@ -45,8 +45,7 @@ fn main(
         }
     }
 
-    let position = positions[global_index];
-    cells[cell_index] = vec3i(floor(position / CELL_SIZE));
+    cells[cell_index] = position_to_cell(positions[global_index]);
     index_ranges[cell_index] = global_index + 1;
 }
 
@@ -61,4 +60,8 @@ struct Indirect {
     y: u32,
     z: u32,
     len: u32,
+}
+
+fn position_to_cell(position: vec3f) -> vec3i {
+    return vec3i(floor(position / CELL_SIZE + vec3f(CELL_SIZE * 0.25)));
 }

@@ -8,14 +8,14 @@
 
 use std::collections::HashSet;
 
-use nalgebra::{Vector3, Vector4};
+use nalgebra::Vector4;
 
 use super::*;
 
 fn check(settings: Settings, positions: &[Vector4<f32>]) {
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
     for position in positions {
-        let cell = position.map(|c| (c / settings.cell_size).floor() as i32);
+        let cell = position_to_cell(settings.cell_size, position);
         for x in 0..2 {
             for y in 0..2 {
                 for z in 0..2 {

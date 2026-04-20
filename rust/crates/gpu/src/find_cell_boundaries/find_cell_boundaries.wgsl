@@ -36,11 +36,10 @@ fn main(
         return;
     }
 
-    let position = positions[global_index];
-    let next_position = positions[global_index + 1];
-
-    let cell_id = vec3i(floor(position / CELL_SIZE));
-    let next_cell_id = vec3i(floor(next_position / CELL_SIZE));
+    let cell_id = position_to_cell(positions[global_index]);
+    let next_cell_id = position_to_cell(
+        positions[global_index + 1]
+    );
 
     let boundary = cell_id != next_cell_id;
 
@@ -62,4 +61,8 @@ struct Indirect {
     y: u32,
     z: u32,
     len: u32,
+}
+
+fn position_to_cell(position: vec3f) -> vec3i {
+    return vec3i(floor(position / CELL_SIZE + vec3f(CELL_SIZE * 0.25)));
 }

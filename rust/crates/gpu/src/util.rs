@@ -369,9 +369,9 @@ pub fn positions_to_keys_on_cpu(
 ) -> Vec<u32> {
     positions
         .iter()
-        .map(
-            |position| i32_to_u32_offset((position[dimension as usize] / cell_size).floor() as i32),
-        )
+        .map(|position| {
+            i32_to_u32_offset(position_to_cell(cell_size, position)[dimension as usize])
+        })
         .collect()
 }
 
@@ -571,4 +571,11 @@ pub fn counts_count(
     })
     .workgroup_count();
     actual_workgroup_count * subgroups_per_workgroup * counter
+}
+
+pub fn position_to_cell(cell_size: f32, position: &Vector4<f32>) -> Vector4<i32> {
+    position
+        .xyz()
+        .map(|c| (c / cell_size + cell_size * 0.25).floor() as i32)
+        .push(0)
 }

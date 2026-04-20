@@ -1,5 +1,6 @@
 override WORKGROUP_SIZE: u32;
 override DISPATCH_LIMIT: u32;
+override CELL_SIZE: f32;
 
 fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
     return global_invocation_id.x +
@@ -122,4 +123,8 @@ fn block_offset(block: u32) -> vec3i {
         offset.z = 1;
     }
     return offset;
+}
+
+fn position_to_cell(position: vec3f) -> vec3i {
+    return vec3i(floor(position / CELL_SIZE + vec3f(CELL_SIZE * 0.25)));
 }

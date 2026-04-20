@@ -33,8 +33,7 @@ fn main(
         return;
     }
 
-    let position = positions[global_index];
-    let cell_id_in_dimension = i32(floor(position[dimension] / CELL_SIZE));
+    let cell_id_in_dimension = position_to_cell(positions[global_index])[dimension];
     let key = i32_to_ordered_u32(cell_id_in_dimension);
     keys[global_index] = key;
 }
@@ -54,4 +53,8 @@ struct Indirect {
 
 fn i32_to_ordered_u32(x: i32) -> u32 {
     return bitcast<u32>(x) ^ 0x80000000u;
+}
+
+fn position_to_cell(position: vec3f) -> vec3i {
+    return vec3i(floor(position / CELL_SIZE + vec3f(CELL_SIZE * 0.25)));
 }
