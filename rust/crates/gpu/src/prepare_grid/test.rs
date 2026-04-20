@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use nalgebra::Vector4;
+use nalgebra::{Vector3, Vector4};
 
 use super::*;
 
@@ -112,6 +112,19 @@ fn test_random() {
             bit_count: 2.try_into().unwrap(),
         },
         &positions,
+    );
+}
+
+#[test]
+fn test_large() {
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size: 1.,
+            bit_count: 2.try_into().unwrap(),
+        },
+        &many_positions(),
     );
 }
 
