@@ -262,9 +262,8 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             build_hash_table::Input {
-                indirect_colors: indirect_colors.clone(),
-                indices: cell_indices.clone(),
-                cells: cell_ids.clone(),
+                indirect: indirect_cells.clone(),
+                cell_ids: cell_ids.clone(),
             },
             build_hash_table::Parameters,
         )?;

@@ -12,21 +12,16 @@
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
 @group(0) @binding(0)
-var<storage, read> indirect_colors: array<Indirect>;
+var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> indices: array<u32>;
-
-@group(0) @binding(2)
 var<storage, read_write> cells: array<vec3<i32>>;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> block_table: array<atomic<u32>>;
 
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> owns: array<u32>;
-
-var<immediate> color: u32;
 
 override WORKGROUP_SIZE: u32;
 
@@ -36,15 +31,11 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     var global_index = get_global_index(num_workgroups, global_invocation_id);
-    if color > 0 {
-        global_index += indirect_colors[color - 1].len;
-    }
-    if global_index >= indirect_colors[color].len {
+    if global_index >= indirect.len {
         return;
     }
-    let index = indices[global_index];
 
-    let cell = cells[index];
+    let cell = cells[global_index];
 
     // table length must be a power of two
     let table_mask = arrayLength(&block_table) - 1;
@@ -52,7 +43,7 @@ fn main(
     var own = 0u;
     for (var block = 0u; block < 8; block++) {
         let offset_cell = cell + block_offset(block);
-        let block_and_index = (block << 29) | (index + 1);
+        let block_and_index = (block << 29) | (global_index + 1);
 
         let hash = murmur_of_cell(offset_cell);
 
@@ -83,7 +74,7 @@ fn main(
         }
     }
 
-    owns[index] = own;
+    owns[global_index] = own;
 }
 
 struct Indirect {

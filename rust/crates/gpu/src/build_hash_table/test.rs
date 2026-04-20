@@ -101,15 +101,8 @@ fn run_build_hash_table(
     cells: &[Vector4<i32>],
 ) -> (Vec<u32>, Vec<u32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
-    let subgroup_size = context.subgroup_size();
 
-    let input = Input::new(
-        context.device(),
-        workgroup_size,
-        dispatch_limit,
-        subgroup_size,
-        cells,
-    );
+    let input = Input::new(context.device(), workgroup_size, dispatch_limit, cells);
     let build_hash_table = BuildHashTable::new(&context, Settings { workgroup_size });
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

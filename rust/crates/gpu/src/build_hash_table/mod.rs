@@ -26,9 +26,8 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
-    pub indirect_colors: Allocation,
-    pub indices: Allocation,
-    pub cells: Allocation,
+    pub indirect: Allocation,
+    pub cell_ids: Allocation,
 }
 
 impl Input {
@@ -36,21 +35,18 @@ impl Input {
         device: &wgpu::Device,
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
-        subgroup_size: NonZeroU32,
-        cells: &[Vector4<i32>],
+        cell_ids: &[Vector4<i32>],
     ) -> Self {
-        let (indirect_colors, _indirect_colors_batch, indices) =
-            color_cells_on_cpu(workgroup_size, dispatch_limit, subgroup_size, cells);
+        let indirect = Indirect::new(IndirectSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: cell_ids.len() as u32,
+        });
 
-        let indirect_colors = Allocation::new(device, "indirect_colors", &indirect_colors);
-        let indices = Allocation::new(device, "indices", &indices);
-        let cells = Allocation::new(device, "cells", cells);
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let cell_ids = Allocation::new(device, "cells_ids", cell_ids);
 
-        Self {
-            indirect_colors,
-            indices,
-            cells,
-        }
+        Self { indirect, cell_ids }
     }
 }
 
@@ -73,12 +69,11 @@ impl PipelinePart for BuildHashTable {
                 device,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
                     (Vector4::<i32>::MIN_BINDING_SIZE, false),
                     (AtomicU32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
-                immediate_size: 4,
+                immediate_size: 0,
                 constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
             }
         );
@@ -90,21 +85,15 @@ impl PipelinePart for BuildHashTable {
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input {
-            indirect_colors,
-            indices,
-            cells,
-        }: Input,
+        Input { indirect, cell_ids }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        assert_eq!(8, indirect_colors.len::<Indirect>().get());
-
         let owns = context
             .allocator()?
-            .allocate::<u32>("owns", cells.len::<Vector4<i32>>())?;
+            .allocate::<u32>("owns", cell_ids.len::<Vector4<i32>>())?;
         let block_table = context.allocator()?.allocate::<AtomicU32>(
             "block_table",
-            (self.max_table(cells.len::<Vector4<i32>>().get() as u32) as u64)
+            (self.max_table(cell_ids.len::<Vector4<i32>>().get() as u32) as u64)
                 .try_into()
                 .unwrap(),
         )?;
@@ -123,23 +112,15 @@ impl PipelinePart for BuildHashTable {
                 context.device(),
                 &self.build_hash_table,
                 [
-                    indirect_colors.binding(),
-                    indices.binding(),
-                    cells.binding(),
+                    indirect.binding(),
+                    cell_ids.binding(),
                     block_table.binding(),
                     owns.binding(),
                 ],
             ),
             &[],
         );
-
-        for color in 0..8u32 {
-            compute_pass.set_immediates(0, bytemuck::bytes_of(&color));
-            compute_pass.dispatch_workgroups_indirect(
-                indirect_colors.buffer(),
-                indirect_colors.offset() + Indirect::MIN_BINDING_SIZE.get() * color as u64,
-            );
-        }
+        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
 
         Ok(Output { block_table, owns })
     }
