@@ -162,7 +162,7 @@ impl Simulation for SimulationImpl {
             InputReader::new(simulation_input_path(self.directory_lock.directory()))?;
 
         if gpu && let Ok(context) = self.gpu_context.as_mut() {
-            context.setup_allocator(1000000, "main allocator", true)?;
+            context.setup_allocator(100000000, "main allocator", true)?;
             context.setup_indirect_allocator(1000, "indirect allocator", true)?;
 
             let cell_size = self.input_header.consts.scaled_grid_node_size() * 2.;
@@ -181,7 +181,7 @@ impl Simulation for SimulationImpl {
                 bit_count: 2.try_into().unwrap(),
             };
             let input = prepare_grid::Input::new(context.device(), settings.clone(), &positions);
-            let pipeline_part = PrepareGrid::new(&context, settings);
+            let pipeline_part = PrepareGrid::new(context, settings);
 
             let mut encoder = context.device().create_command_encoder(&Default::default());
 
@@ -190,16 +190,14 @@ impl Simulation for SimulationImpl {
                 cell_ids,
                 cell_owns,
                 ..
-            } = pipeline_part
-                .record(
-                    context,
-                    &mut (&mut encoder).into(),
-                    input,
-                    prepare_grid::Parameters,
-                )
-                .unwrap();
+            } = pipeline_part.record(
+                context,
+                &mut (&mut encoder).into(),
+                input,
+                prepare_grid::Parameters,
+            )?;
 
-            let downloads = DownloadsToHost::new(&context, [indirect_cells, cell_ids, cell_owns]);
+            let downloads = DownloadsToHost::new(context, [indirect_cells, cell_ids, cell_owns]);
             downloads.copy(&mut encoder);
 
             context.queue().submit([encoder.finish()]);
@@ -222,7 +220,6 @@ impl Simulation for SimulationImpl {
             for node in nodes {
                 ensure!(state.grid_momentum.map.insert(node.xyz(), 0).is_none());
             }
-            info!(in_map = state.grid_momentum.map.len());
 
             self.cache.store_frame(state)?;
             info!("byee");
