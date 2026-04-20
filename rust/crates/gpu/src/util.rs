@@ -443,13 +443,13 @@ pub fn color_cells_on_cpu(
         .zip(prefix_sum)
         .map(|(count, end)| {
             let mut indirect_color = Indirect::new(IndirectSettings {
-                workgroup_size: workgroup_size.try_into().unwrap(),
-                dispatch_limit: dispatch_limit.try_into().unwrap(),
+                workgroup_size,
+                dispatch_limit,
                 len: *count,
             });
             let mut indirect_color_batch = Indirect::new(IndirectSettings {
-                workgroup_size: workgroup_size.try_into().unwrap(),
-                dispatch_limit: dispatch_limit.try_into().unwrap(),
+                workgroup_size,
+                dispatch_limit,
                 len: *count * subgroup_size.get(),
             });
             indirect_color.len = end;
