@@ -127,6 +127,14 @@ impl AllowedInBinding for Vector4<u32> {}
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
+pub struct Block {
+    pub nodes: [Vector4<f32>; 8],
+}
+
+impl AllowedInBinding for Block {}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
 pub struct Indirect {
     pub x: u32,
     pub y: u32,
@@ -375,18 +383,17 @@ pub fn positions_to_keys_on_cpu(
         .collect()
 }
 
+pub fn cell_to_murmur(cell: &Vector4<i32>) -> u32 {
+    let cell = cell.map(i32_to_u32_offset);
+    let mut bytes = [0u8; 12];
+    bytes[0..4].copy_from_slice(&cell.x.to_le_bytes());
+    bytes[4..8].copy_from_slice(&cell.y.to_le_bytes());
+    bytes[8..12].copy_from_slice(&cell.z.to_le_bytes());
+    murmur3_32(&mut Cursor::new(bytes), 0).unwrap()
+}
+
 pub fn cells_to_murmur_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
-    cells
-        .iter()
-        .map(|cell| {
-            let cell = cell.map(i32_to_u32_offset);
-            let mut bytes = [0u8; 12];
-            bytes[0..4].copy_from_slice(&cell.x.to_le_bytes());
-            bytes[4..8].copy_from_slice(&cell.y.to_le_bytes());
-            bytes[8..12].copy_from_slice(&cell.z.to_le_bytes());
-            murmur3_32(&mut Cursor::new(bytes), 0).unwrap()
-        })
-        .collect()
+    cells.iter().map(cell_to_murmur).collect()
 }
 
 pub fn find_cell_boundaries_on_cpu(positions: &[Vector4<f32>], cell_size: f32) -> Vec<u32> {
@@ -429,6 +436,41 @@ pub fn build_cells_on_cpu(
     });
 
     (cell_ids, index_ranges, indirect)
+}
+
+pub fn build_hash_table_on_cpu(cell_ids: &[Vector4<i32>]) -> (Vec<u32>, Vec<u32>) {
+    let mut block_table: Vec<u32> = vec![0; (cell_ids.len() * 8 * 2).next_power_of_two()];
+    let mut owns: Vec<u32> = vec![0; cell_ids.len()];
+    let table_mask = block_table.len() as u32 - 1;
+    let index_mask = (1 << 29) - 1;
+
+    for (index, cell_id) in cell_ids.iter().enumerate() {
+        for block in 0..8 {
+            let block_and_index = (block << 29) | (index as u32 + 1);
+
+            let block_id = cell_id + block_offset(block);
+            let hash = cell_to_murmur(&block_id);
+            let mut slot = hash & table_mask;
+            loop {
+                let old_block_and_index = block_table[slot as usize];
+                if old_block_and_index == 0 {
+                    block_table[slot as usize] = block_and_index;
+                    owns[index] |= block;
+                    break;
+                }
+                let old_block = old_block_and_index >> 29;
+                let old_index = (old_block_and_index & index_mask) - 1;
+                if cell_ids[old_index as usize] + block_offset(old_block) == block_id {
+                    break;
+                }
+
+                slot += 1;
+                slot &= table_mask;
+            }
+        }
+    }
+
+    (block_table, owns)
 }
 
 pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {

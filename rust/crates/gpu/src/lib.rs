@@ -40,6 +40,7 @@ pub mod prepare_grid;
 pub mod radix_sort;
 pub mod recycle_to_indirect;
 pub mod reorder_indices;
+pub mod scatter;
 pub mod sort_positions_into_cells;
 
 pub use allocate_blocks::AllocateBlocks;
@@ -60,10 +61,8 @@ pub use prepare_grid::PrepareGrid;
 pub use radix_sort::RadixSort;
 pub use recycle_to_indirect::RecycleToIndirect;
 pub use reorder_indices::ReorderIndices;
+//pub use scatter::Scatter;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
-
-//mod scatter_mass;
-//mod reorder_particles;
 
 #[cfg(test)]
 mod test_util;
