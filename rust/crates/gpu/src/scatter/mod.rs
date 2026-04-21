@@ -40,6 +40,7 @@ pub struct Input {
     pub positions: Allocation,
 }
 
+#[derive(Debug)]
 pub struct InputAddendum {
     pub indirect_colors_batch: Vec<Indirect>,
     pub cell_ids: Vec<Vector4<i32>>,

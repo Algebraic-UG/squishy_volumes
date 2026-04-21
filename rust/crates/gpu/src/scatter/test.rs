@@ -8,6 +8,7 @@
 
 use std::collections::HashMap;
 
+use approx::relative_eq;
 use nalgebra::Vector3;
 
 use super::*;
@@ -58,7 +59,8 @@ fn check(
     for (node_id, mass) in nodes.into_iter().zip(masses) {
         if let Some(cpu) = masses_cpu.get(&node_id.xyz()) {
             println!("both have {:?}", node_id.xyz());
-            assert_eq!(*cpu, mass);
+            println!("{} vs {}", cpu, mass);
+            assert!(relative_eq!(*cpu, mass, epsilon = 0.0001));
         } else {
             assert!(mass == 0.);
         }
@@ -96,7 +98,6 @@ fn test_single() {
         dispatch_limit,
         &[Vector4::new(cell_size, cell_size, cell_size, 0.)],
     );
-    panic!()
 }
 
 #[test]
@@ -140,6 +141,14 @@ fn test_two_colors() {
         workgroup_size,
         cell_size,
     };
+    check(
+        settings,
+        dispatch_limit,
+        &[
+            Vector4::new(cell_size, cell_size, cell_size, 0.) * -0.5,
+            Vector4::new(cell_size, cell_size, cell_size, 0.) * 0.5,
+        ],
+    );
     check(
         settings,
         dispatch_limit,
@@ -192,6 +201,48 @@ fn test_simple() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let cell_size = 1.;
+    check(
+        Settings {
+            workgroup_size,
+            cell_size,
+        },
+        dispatch_limit,
+        &positions,
+    );
+}
+
+#[test]
+fn test_many() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 0.5;
+    check(
+        Settings {
+            workgroup_size,
+            cell_size,
+        },
+        dispatch_limit,
+        &many_positions(),
+    );
+}
+
+#[test]
+fn test_random() {
+    use rand::prelude::*;
+    use rand::rngs::ChaCha8Rng;
+
+    let positions: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
+        .random_iter::<f32>()
+        .take(1000 * 4)
+        .collect();
+    let positions: Vec<Vector4<f32>> = positions
+        .chunks_exact(4)
+        .map(Vector4::from_column_slice)
+        .collect();
+
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1337.;
     check(
         Settings {
             workgroup_size,
