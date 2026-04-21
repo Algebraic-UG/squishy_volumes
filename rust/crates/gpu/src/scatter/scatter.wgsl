@@ -62,7 +62,9 @@ fn main(
     let cell_index = indices[color_index];
 
     let cell_id = cells[cell_index];
-    let block = subgroup_invocation_id / 8;
+
+    let grid_node_rounds = 64u / subgroup_size;
+    let block = grid_node_rounds * subgroup_invocation_id / 8;
 
     let block_id = cell_id + block_offset(block);
     let hash = murmur_of_cell(block_id);
@@ -97,8 +99,7 @@ fn main(
     let particle_count = particle_end - particle_start;
     let particle_rounds = div_ceil(particle_count, subgroup_size);
 
-    let grid_node_rounds = 64u / subgroup_size;
-    let node_start = (subgroup_invocation_id % 8) / grid_node_rounds;
+    let node_start = subgroup_invocation_id % (8 / grid_node_rounds);
     let node_stride = 8 / grid_node_rounds;
 
     let node_id_start = block_id * 2 - vec3i(1);
