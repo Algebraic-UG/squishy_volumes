@@ -585,11 +585,7 @@ pub fn gpu_grid_to_cpu_grid(
                 .filter(move |block| cell_own & (1 << block) > 0)
                 .flat_map(move |block| {
                     let node_id = (cell_id + block_offset(block)) * 2 - Vector4::new(1, 1, 1, 0);
-                    (0..2).flat_map(move |x| {
-                        (0..2).flat_map(move |y| {
-                            (0..2).map(move |z| node_id.xyz().push(0) + Vector4::new(x, y, z, 0))
-                        })
-                    })
+                    (0..8).map(move |node| node_id.xyz().push(0) + block_offset(node))
                 })
         })
         .collect()

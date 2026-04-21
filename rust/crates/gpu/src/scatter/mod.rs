@@ -40,8 +40,14 @@ pub struct Input {
     pub positions: Allocation,
 }
 
+struct InputAddendum {
+    indirect_colors_batch: Vec<Indirect>,
+    cell_ids: Vec<Vector4<i32>>,
+    cell_owns: Vec<u32>,
+}
+
 impl Input {
-    pub fn new(
+    fn new(
         device: &wgpu::Device,
         Settings {
             workgroup_size,
@@ -50,7 +56,7 @@ impl Input {
         dispatch_limit: NonZeroU32,
         subgroup_size: NonZeroU32,
         positions: &[Vector4<f32>],
-    ) -> Self {
+    ) -> (Self, InputAddendum) {
         let indirect_particles = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
@@ -83,6 +89,12 @@ impl Input {
         let (_indirect_colors, indirect_colors_batch, cell_indices) =
             color_cells_on_cpu(workgroup_size, dispatch_limit, subgroup_size, &cell_ids);
 
+        let addendum = InputAddendum {
+            indirect_colors_batch: indirect_colors_batch.clone(),
+            cell_ids: cell_ids.clone(),
+            cell_owns: owns.clone(),
+        };
+
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles]);
         let indirect_colors_batch =
@@ -96,17 +108,20 @@ impl Input {
         let block_table = Allocation::new(device, "block_table", &block_table);
         let positions = Allocation::new(device, "positions", &positions);
 
-        Self {
-            indirect_particles,
-            indirect_colors_batch,
-            cell_indices,
-            cell_index_ranges,
-            cell_ids,
-            cell_owns,
-            block_offsets,
-            block_table,
-            positions,
-        }
+        (
+            Self {
+                indirect_particles,
+                indirect_colors_batch,
+                cell_indices,
+                cell_index_ranges,
+                cell_ids,
+                cell_owns,
+                block_offsets,
+                block_table,
+                positions,
+            },
+            addendum,
+        )
     }
 }
 

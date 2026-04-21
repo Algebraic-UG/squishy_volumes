@@ -18,7 +18,7 @@ fn test_simple() {
     let cell_size = 1.;
     let grid_node_size = cell_size * 0.5;
 
-    let mut masses: HashMap<Vector3<i32>, f32> = Default::default();
+    let mut masses_cpu: HashMap<Vector3<i32>, f32> = Default::default();
     for position in positions {
         let low_gridnode =
             (position.xyz() / grid_node_size - Vector3::repeat(0.5)).map(|x| x.floor() as i32);
@@ -28,19 +28,18 @@ fn test_simple() {
         });
 
         for node in nodes {
-            let mass = masses.entry(node).or_default();
+            let mass = masses_cpu.entry(node).or_default();
             let to_node = node.map(|c| c as f32) - position.xyz() / grid_node_size;
             let weight = to_node.map(kernel_quadratic).product();
             *mass += weight;
         }
     }
 
-    let masses: Vec<_> = masses.values().collect();
-    println!("{masses:?}");
+    println!("{:?}", masses_cpu.values().collect::<Vec<_>>());
 
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let blocks = run_scatter(
+    let (addenum, blocks) = run_scatter(
         Settings {
             workgroup_size,
             cell_size,
@@ -48,19 +47,40 @@ fn test_simple() {
         dispatch_limit,
         &positions,
     );
-    println!("{blocks:?}");
-    panic!()
+    let masses: Vec<f32> = blocks
+        .iter()
+        .flat_map(|block| block.nodes.iter().map(|node| node.w))
+        .collect();
+
+    let nodes = gpu_grid_to_cpu_grid(
+        *addenum.indirect_colors_batch.last().unwrap(),
+        &addenum.cell_ids,
+        &addenum.cell_owns,
+    );
+
+    //assert_eq!(masses.len(), nodes.len());
+    println!("{}", masses.len());
+    println!("{masses:?}");
+
+    for (node_id, mass) in nodes.into_iter().zip(masses) {
+        if let Some(cpu) = masses_cpu.get(&node_id.xyz()) {
+            println!("both have {:?}", node_id.xyz());
+            assert_eq!(*cpu, mass);
+        } else {
+            assert!(mass == 0.);
+        }
+    }
 }
 
 fn run_scatter(
     settings: Settings,
     dispatch_limit: NonZeroU32,
     positions: &[Vector4<f32>],
-) -> Vec<Block> {
+) -> (InputAddendum, Vec<Block>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
     let subgroup_size = context.subgroup_size();
 
-    let input = Input::new(
+    let (input, addendum) = Input::new(
         context.device(),
         settings,
         dispatch_limit,
@@ -85,5 +105,5 @@ fn run_scatter(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    (addendum, download.to_vec())
 }
