@@ -40,14 +40,14 @@ pub struct Input {
     pub positions: Allocation,
 }
 
-struct InputAddendum {
-    indirect_colors_batch: Vec<Indirect>,
-    cell_ids: Vec<Vector4<i32>>,
-    cell_owns: Vec<u32>,
+pub struct InputAddendum {
+    pub indirect_colors_batch: Vec<Indirect>,
+    pub cell_ids: Vec<Vector4<i32>>,
+    pub cell_owns: Vec<u32>,
 }
 
 impl Input {
-    fn new(
+    pub fn new(
         device: &wgpu::Device,
         Settings {
             workgroup_size,

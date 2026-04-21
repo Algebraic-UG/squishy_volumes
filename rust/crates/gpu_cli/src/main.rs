@@ -22,7 +22,8 @@ use squishy_volumes_gpu as gpu;
 use crate::{
     build_hash_table::build_hash_table_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
     prefix_sum::prefix_sum_on_gpu, prepare_grid::prepare_grid_on_gpu,
-    radix_sort::radix_sort_on_gpu, sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+    radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
+    sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
 mod build_hash_table;
@@ -30,6 +31,7 @@ mod positions_to_keys;
 mod prefix_sum;
 mod prepare_grid;
 mod radix_sort;
+mod scatter;
 mod sort_positions_into_cells;
 mod window;
 
@@ -56,6 +58,7 @@ enum Task {
     SortIntoCells,
     BuildHashTable,
     PrepareGrid,
+    Scatter,
 }
 
 #[derive(Parser)]
@@ -132,7 +135,7 @@ fn main() {
                 let keys: Vec<u32> = random_iter().take(generate as usize).collect();
                 out.write_all(bytemuck::cast_slice(&keys)).unwrap();
             }
-            Task::PositionsToKeys | Task::SortIntoCells => {
+            Task::PositionsToKeys | Task::SortIntoCells | Task::Scatter => {
                 let positions: Vec<Vector4<f32>> = (0..generate)
                     .map(|_| Vector4::new_random())
                     .take(generate as usize)
@@ -194,8 +197,6 @@ fn main() {
         }
         Task::PositionsToKeys | Task::SortIntoCells => {
             let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-            shuffle(&mut indices, 42);
 
             let output = match task {
                 Task::PositionsToKeys => {
@@ -213,22 +214,45 @@ fn main() {
                         ),
                     }
                 }
-                Task::SortIntoCells => match mode {
-                    Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
-                    Mode::Gpu => sort_positions_into_cells_on_gpu(
-                        tool,
-                        gpu::sort_positions_into_cells::Settings {
-                            workgroup_size,
-                            dispatch_limit,
-                            cell_size,
-                            bit_count,
-                        },
-                        input,
-                    ),
-                },
+                Task::SortIntoCells => {
+                    let mut indices: Vec<u32> = (0..input.len() as u32).collect();
+                    shuffle(&mut indices, 42);
+
+                    match mode {
+                        Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
+                        Mode::Gpu => sort_positions_into_cells_on_gpu(
+                            tool,
+                            gpu::sort_positions_into_cells::Settings {
+                                workgroup_size,
+                                dispatch_limit,
+                                cell_size,
+                                bit_count,
+                            },
+                            input,
+                        ),
+                    }
+                }
                 _ => unreachable!(),
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
+        }
+        Task::Scatter => {
+            //let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
+            let input = &[
+                Vector4::zeros(),
+                Vector4::new(cell_size, cell_size, cell_size, 0.),
+            ];
+            let output = match mode {
+                Mode::Cpu => todo!(),
+                Mode::Gpu => scatter_on_gpu(
+                    tool,
+                    gpu::scatter::Settings {
+                        workgroup_size,
+                        cell_size,
+                    },
+                    input,
+                ),
+            };
         }
         Task::BuildHashTable => {
             let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
