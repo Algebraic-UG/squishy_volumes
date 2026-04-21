@@ -37,7 +37,7 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
-    pub particle_indirect: Allocation,
+    pub indirect_particles: Allocation,
     pub indices_in: Allocation,
     pub positions_in: Allocation,
 }
@@ -58,7 +58,7 @@ impl Input {
             len: positions.len() as u32,
         });
 
-        let particle_indirect = Allocation::new(device, "particle_indirect", &[indirect]);
+        let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect]);
         let indices_in = Allocation::new(
             device,
             "indices_in",
@@ -67,7 +67,7 @@ impl Input {
         let positions_in = Allocation::new(device, "positions_in", positions);
 
         Self {
-            particle_indirect,
+            indirect_particles,
             indices_in,
             positions_in,
         }
@@ -171,7 +171,7 @@ impl PipelinePart for PrepareGrid {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            particle_indirect,
+            indirect_particles,
             indices_in,
             positions_in,
         }: Input,
@@ -183,7 +183,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             sort_positions_into_cells::Input {
-                indirect: particle_indirect.clone(),
+                indirect: indirect_particles.clone(),
                 positions: positions_in.clone(),
             },
             sort_positions_into_cells::Parameters,
@@ -196,7 +196,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             permute_particles::Input {
-                indirect: particle_indirect.clone(),
+                indirect: indirect_particles.clone(),
                 permutation,
                 indices_in,
                 positions_in,
@@ -208,7 +208,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             find_cell_boundaries::Input {
-                indirect: particle_indirect.clone(),
+                indirect: indirect_particles.clone(),
                 positions: positions_out.clone(),
             },
             find_cell_boundaries::Parameters,
@@ -220,7 +220,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             prefix_sum::Input {
-                indirect: particle_indirect.clone(),
+                indirect: indirect_particles.clone(),
                 numbers: boundaries,
             },
             prefix_sum::Parameters,
@@ -234,7 +234,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             build_cells::Input {
-                indirect: particle_indirect.clone(),
+                indirect: indirect_particles.clone(),
                 positions: positions_out.clone(),
                 prefixed_boundaries,
             },
