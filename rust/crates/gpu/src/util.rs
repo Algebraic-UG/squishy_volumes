@@ -455,7 +455,7 @@ pub fn build_hash_table_on_cpu(cell_ids: &[Vector4<i32>]) -> (Vec<u32>, Vec<u32>
                 let old_block_and_index = block_table[slot as usize];
                 if old_block_and_index == 0 {
                     block_table[slot as usize] = block_and_index;
-                    owns[index] |= block;
+                    owns[index] |= 1 << block;
                     break;
                 }
                 let old_block = old_block_and_index >> 29;
