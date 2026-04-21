@@ -12,10 +12,11 @@ use nalgebra::Vector3;
 
 use super::*;
 
-#[test]
-fn test_simple() {
-    let positions = [Vector4::<f32>::zeros()];
-    let cell_size = 1.;
+fn check(
+    settings @ Settings { cell_size, .. }: Settings,
+    dispatch_limit: NonZeroU32,
+    positions: &[Vector4<f32>],
+) {
     let grid_node_size = cell_size * 0.5;
 
     let mut masses_cpu: HashMap<Vector3<i32>, f32> = Default::default();
@@ -37,16 +38,7 @@ fn test_simple() {
 
     println!("{:?}", masses_cpu.values().collect::<Vec<_>>());
 
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let (addenum, blocks) = run_scatter(
-        Settings {
-            workgroup_size,
-            cell_size,
-        },
-        dispatch_limit,
-        &positions,
-    );
+    let (addenum, blocks) = run_scatter(settings, dispatch_limit, positions);
     let masses: Vec<f32> = blocks
         .iter()
         .flat_map(|block| block.nodes.iter().map(|node| node.w))
@@ -70,6 +62,47 @@ fn test_simple() {
             assert!(mass == 0.);
         }
     }
+}
+
+#[test]
+fn test_single() {
+    let positions = [Vector4::<f32>::zeros()];
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1.;
+    check(
+        Settings {
+            workgroup_size,
+            cell_size,
+        },
+        dispatch_limit,
+        &positions,
+    );
+}
+
+#[test]
+fn test_simple() {
+    let positions = [
+        Vector4::new(-0.5, -0.5, -0.5, 0.),
+        Vector4::new(-0.5, -0.5, 0.5, 0.),
+        Vector4::new(-0.5, 0.5, -0.5, 0.),
+        Vector4::new(-0.5, 0.5, 0.5, 0.),
+        Vector4::new(0.5, -0.5, -0.5, 0.),
+        Vector4::new(0.5, -0.5, 0.5, 0.),
+        Vector4::new(0.5, 0.5, -0.5, 0.),
+        Vector4::new(0.5, 0.5, 0.5, 0.),
+    ];
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1.;
+    check(
+        Settings {
+            workgroup_size,
+            cell_size,
+        },
+        dispatch_limit,
+        &positions,
+    );
 }
 
 fn run_scatter(
