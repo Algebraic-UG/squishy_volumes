@@ -36,6 +36,7 @@ fn check(
         }
     }
 
+    println!("{:?}", masses_cpu);
     println!("{:?}", masses_cpu.values().collect::<Vec<_>>());
 
     let (addenum, blocks) = run_scatter(settings, dispatch_limit, positions);
@@ -73,7 +74,29 @@ fn test_single() {
         workgroup_size,
         cell_size,
     };
+
     check(settings, dispatch_limit, &[Vector4::zeros()]);
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(cell_size, 0., 0., 0.)],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(0., cell_size, 0., 0.)],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(0., 0., cell_size, 0.)],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(cell_size, cell_size, cell_size, 0.)],
+    );
+    panic!()
 }
 
 #[test]
@@ -86,6 +109,45 @@ fn test_two() {
         cell_size,
     };
     check(settings, dispatch_limit, &[Vector4::zeros(); 2]);
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(cell_size, 0., 0., 0.); 2],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(0., cell_size, 0., 0.); 2],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(0., 0., cell_size, 0.); 2],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(cell_size, cell_size, cell_size, 0.); 2],
+    );
+}
+
+#[test]
+fn test_two_colors() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1.;
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+    };
+    check(
+        settings,
+        dispatch_limit,
+        &[
+            Vector4::zeros(),
+            Vector4::new(cell_size, cell_size, cell_size, 0.),
+        ],
+    );
 }
 
 #[test]
@@ -98,6 +160,21 @@ fn test_100() {
         cell_size,
     };
     check(settings, dispatch_limit, &vec![Vector4::zeros(); 100]);
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(cell_size, 0., 0., 0.); 100],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(0., cell_size, 0., 0.); 100],
+    );
+    check(
+        settings,
+        dispatch_limit,
+        &[Vector4::new(0., 0., cell_size, 0.); 100],
+    );
 }
 
 #[test]
