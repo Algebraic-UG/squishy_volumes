@@ -237,11 +237,7 @@ fn main() {
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
         Task::Scatter => {
-            //let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let input = &[
-                Vector4::zeros(),
-                Vector4::new(cell_size, cell_size, cell_size, 0.),
-            ];
+            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
             let output = match mode {
                 Mode::Cpu => todo!(),
                 Mode::Gpu => scatter_on_gpu(

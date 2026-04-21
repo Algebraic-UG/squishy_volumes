@@ -32,7 +32,7 @@ fn requirements(max_num_particles: u32) -> (wgpu::Features, wgpu::Limits) {
     limits.max_immediate_size = 4;
     limits.max_storage_buffers_per_shader_stage = 10;
 
-    let size_requirement = (max_num_particles * 64) as u64;
+    let size_requirement = (max_num_particles * 1024) as u64;
 
     limits.max_buffer_size = size_requirement;
     limits.max_storage_buffer_binding_size = size_requirement;

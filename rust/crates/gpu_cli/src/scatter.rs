@@ -12,7 +12,7 @@ pub fn scatter_on_gpu(
 ) -> Vec<Block> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator(positions.len() as u64 * 1028, "allocator", true)
+        .setup_allocator(positions.len() as u64 * 200, "allocator", true)
         .unwrap();
     context
         .setup_indirect_allocator(400, "indirect allocator", true)
