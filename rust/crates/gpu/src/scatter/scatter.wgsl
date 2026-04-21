@@ -85,7 +85,7 @@ fn main(
         slot &= table_mask;
     }
 
-    let block_mask = (1u << block) - 1;
+    let block_mask = (1u << owning_block) - 1;
     let blocks_before = countOneBits(owns[owning_cell_index] & block_mask);
     let block_index = block_offsets[owning_cell_index] + blocks_before;
 
