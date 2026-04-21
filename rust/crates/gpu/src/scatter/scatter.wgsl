@@ -120,6 +120,10 @@ fn main(
                 node = subgroupShuffle(node, (subgroup_invocation_id + 1) % subgroup_size);
                 node_id = subgroupShuffle(node_id, (subgroup_invocation_id + 1) % subgroup_size);
 
+                if !particle_valid {
+                    continue;
+                }
+
                 let to_grid_node = vec3f(node_id) - normalized_position;
 
                 let weight = kernel_quadratic(to_grid_node.x) * kernel_quadratic(to_grid_node.y) * kernel_quadratic(to_grid_node.z);
