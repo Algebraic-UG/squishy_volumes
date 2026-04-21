@@ -66,18 +66,38 @@ fn check(
 
 #[test]
 fn test_single() {
-    let positions = [Vector4::<f32>::zeros()];
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let cell_size = 1.;
-    check(
-        Settings {
-            workgroup_size,
-            cell_size,
-        },
-        dispatch_limit,
-        &positions,
-    );
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+    };
+    check(settings, dispatch_limit, &[Vector4::zeros()]);
+}
+
+#[test]
+fn test_two() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1.;
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+    };
+    check(settings, dispatch_limit, &[Vector4::zeros(); 2]);
+}
+
+#[test]
+fn test_100() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1.;
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+    };
+    check(settings, dispatch_limit, &vec![Vector4::zeros(); 100]);
 }
 
 #[test]
