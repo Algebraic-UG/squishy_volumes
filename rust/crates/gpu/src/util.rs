@@ -404,6 +404,33 @@ pub fn find_cell_boundaries_on_cpu(positions: &[Vector4<f32>], cell_size: f32) -
         .collect()
 }
 
+pub fn build_cells_on_cpu(
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
+    cell_size: f32,
+    positions: &[Vector4<f32>],
+    prefixed_boundaries: &[u32],
+) -> (Vec<Vector4<i32>>, Vec<u32>, Indirect) {
+    let mut cell_ids: Vec<Vector4<i32>> = Default::default();
+    let mut index_ranges: Vec<u32> = Default::default();
+    for (index, position) in positions.iter().enumerate() {
+        if index + 1 != positions.len()
+            && prefixed_boundaries[index] == prefixed_boundaries[index + 1]
+        {
+            continue;
+        }
+        cell_ids.push(position_to_cell(cell_size, position));
+        index_ranges.push(index as u32 + 1);
+    }
+    let indirect = Indirect::new(IndirectSettings {
+        workgroup_size,
+        dispatch_limit,
+        len: cell_ids.len() as u32,
+    });
+
+    (cell_ids, index_ranges, indirect)
+}
+
 pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
     cells
         .iter()

@@ -9,10 +9,13 @@
 use super::*;
 
 fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32) {
-    let (cells, index_ranges, new_indirect) = run_build_cells(
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+
+    let (mut cells, mut index_ranges, new_indirect) = run_build_cells(
         Settings {
-            workgroup_size: 64.try_into().unwrap(),
-            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            workgroup_size,
+            dispatch_limit,
             cell_size,
         },
         positions,
@@ -20,7 +23,11 @@ fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32
     );
 
     let mut index_start = 0;
-    for (index_end, cell) in index_ranges.iter().zip(cells).take(new_indirect.len()) {
+    for (index_end, cell) in index_ranges
+        .iter()
+        .zip(cells.clone())
+        .take(new_indirect.len as usize)
+    {
         for index in index_start..*index_end {
             println!("{cell:?}, {index}");
             assert_eq!(
@@ -30,6 +37,20 @@ fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32
         }
         index_start = index_end + 1;
     }
+
+    cells.resize(new_indirect.len as usize, Default::default());
+    index_ranges.resize(new_indirect.len as usize, Default::default());
+
+    assert_eq!(
+        build_cells_on_cpu(
+            workgroup_size,
+            dispatch_limit,
+            cell_size,
+            positions,
+            prefixed_boundaries,
+        ),
+        (cells, index_ranges, new_indirect),
+    );
 }
 
 #[test]
@@ -91,7 +112,7 @@ fn run_build_cells(
     settings: Settings,
     positions: &[Vector4<f32>],
     prefixed_boundaries: &[u32],
-) -> (Vec<Vector4<i32>>, Vec<u32>, Vec<Indirect>) {
+) -> (Vec<Vector4<i32>>, Vec<u32>, Indirect) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, positions, prefixed_boundaries);
@@ -121,5 +142,5 @@ fn run_build_cells(
     let mut garbage_w: Vec<Vector4<i32>> = cell_ids.to_vec();
     garbage_w.iter_mut().for_each(|v| v.w = 0);
 
-    (garbage_w, index_ranges.to_vec(), new_indirect.to_vec())
+    (garbage_w, index_ranges.to_vec(), new_indirect.to_vec()[0])
 }
