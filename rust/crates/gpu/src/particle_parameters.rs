@@ -36,16 +36,19 @@ pub struct Device {
     e: f32,
 }
 
+#[derive(Debug, Clone)]
 pub enum Host {
     Solid(Solid),
     Fluid(Fluid),
 }
 
+#[derive(Debug, Clone)]
 pub struct Viscosity {
     pub dynamic: f32,
     pub bulk: f32,
 }
 
+#[derive(Debug, Clone)]
 pub struct Solid {
     pub mu: f32,
     pub lambda: f32,
@@ -53,16 +56,17 @@ pub struct Solid {
     pub sand_alpha: Option<f32>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Fluid {
     pub exponent: i32,
     pub bulk_modulus: f32,
     pub viscosity: Option<Viscosity>,
 }
 
-impl Device {
-    pub fn new(host: Host) -> Self {
+impl From<Host> for Device {
+    fn from(value: Host) -> Self {
         let mut res = Self::default();
-        match host {
+        match value {
             Host::Solid(Solid {
                 mu,
                 lambda,
@@ -98,6 +102,42 @@ impl Device {
             }
         }
         res
+    }
+}
+
+impl From<Device> for Host {
+    fn from(
+        Device {
+            flags,
+            a,
+            b,
+            c,
+            d,
+            e,
+        }: Device,
+    ) -> Self {
+        if flags.contains(Flags::IS_SOLID) {
+            return Self::Solid(Solid {
+                mu: a,
+                lambda: b,
+                viscosity: flags.contains(Flags::USE_VISCOSITY).then_some(Viscosity {
+                    dynamic: c,
+                    bulk: d,
+                }),
+                sand_alpha: flags.contains(Flags::USE_SAND_ALPHA).then_some(e),
+            });
+        }
+        if flags.contains(Flags::IS_FLUID) {
+            return Self::Fluid(Fluid {
+                exponent: a as i32,
+                bulk_modulus: b,
+                viscosity: flags.contains(Flags::USE_VISCOSITY).then_some(Viscosity {
+                    dynamic: c,
+                    bulk: d,
+                }),
+            });
+        }
+        unreachable!()
     }
 }
 

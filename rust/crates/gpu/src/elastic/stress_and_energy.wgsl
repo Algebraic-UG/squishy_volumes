@@ -37,9 +37,13 @@ fn main(
     }
 
     let position_gradient = position_gradients[global_index];
-    let paramters = position_gradients[global_index];
+    let paramters = particle_parameters[global_index];
 
-    todo
+    let mu = paramters.a;
+    let lambda = paramters.b;
+
+    stresses[global_index] = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
+    energies[global_index] = elastic_energy_neo_hookean(mu, lambda, position_gradient);
 }
 
 struct Indirect {
@@ -62,4 +66,69 @@ struct ParticleParameters {
     c: f32,
     d: f32,
     e: f32,
+}
+
+fn invariant_2(position_gradient: mat3x3f) -> f32 {
+    return sqrt(
+        dot(position_gradient[0], position_gradient[0]) +
+        dot(position_gradient[1], position_gradient[1]) +
+        dot(position_gradient[2], position_gradient[2])
+    );
+}
+
+fn invariant_3(position_gradient: mat3x3f) -> f32 {
+    return determinant(position_gradient);
+}
+
+fn elastic_energy_neo_hookean_by_invariants(
+    mu: f32,
+    lambda: f32,
+    invariant_2: f32,
+    invariant_3: f32,
+) -> f32 {
+    return mu / 2. * (invariant_2 - 3.) - mu * log(invariant_3) + lambda / 2. * log(invariant_3) * log(invariant_3);
+}
+
+fn elastic_energy_neo_hookean(
+    mu: f32,
+    lambda: f32,
+    position_gradient: mat3x3f,
+) -> f32 {
+    return elastic_energy_neo_hookean_by_invariants(
+        mu, lambda, invariant_2(position_gradient), invariant_3(position_gradient)
+    );
+}
+
+fn partial_elastic_energy_neo_hookean_by_invariant_2(mu: f32) -> f32 {
+    return mu / 2.;
+}
+
+fn partial_invariant_2_by_position_gradient(position_gradient: mat3x3f) -> mat3x3f {
+    return 2. * position_gradient;
+}
+
+fn partial_elastic_energy_neo_hookean_by_invariant_3(mu: f32, lambda: f32, invariant_3: f32) -> f32 {
+    return (lambda * log(invariant_3) - mu) / invariant_3;
+}
+
+fn partial_invariant_3_by_position_gradient(position_gradient: mat3x3f) -> mat3x3f {
+    return mat3x3f(
+        cross(position_gradient[1], position_gradient[2]),
+        cross(position_gradient[2], position_gradient[0]),
+        cross(position_gradient[0], position_gradient[1]),
+    );
+}
+
+fn first_piola_stress_neo_hookean(
+    mu: f32,
+    lambda: f32,
+    position_gradient: mat3x3f,
+) -> mat3x3f {
+    return partial_elastic_energy_neo_hookean_by_invariant_2(mu)
+    * partial_invariant_2_by_position_gradient(position_gradient)
+    + partial_elastic_energy_neo_hookean_by_invariant_3(
+        mu,
+        lambda,
+        invariant_3(position_gradient),
+    ) * partial_invariant_3_by_position_gradient(position_gradient);
 }

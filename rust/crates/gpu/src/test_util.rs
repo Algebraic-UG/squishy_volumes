@@ -10,11 +10,12 @@ use std::{num::NonZeroU32, sync::Mutex};
 
 use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES, particle_parameters};
 
+use approx::relative_eq;
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
 // https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
 use lazy_static::lazy_static;
-use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
+use nalgebra::{Matrix3, Vector3, Vector4};
 use squishy_volumes_util::{lambda, mu};
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
@@ -629,11 +630,8 @@ pub fn many_positions() -> Vec<Vector4<f32>> {
     .collect()
 }
 
-pub fn test_position_gradients(n: usize) -> Vec<Matrix4x3<f32>> {
-    use rand::prelude::*;
-    use rand::rngs::ChaCha8Rng;
-
-    let mut tmp = vec![
+pub fn test_position_gradients_simple() -> Vec<Matrix3<f32>> {
+    vec![
         Matrix3::identity(),
         Matrix3::from_row_slice(&[
             0., -1., 0., //
@@ -675,7 +673,15 @@ pub fn test_position_gradients(n: usize) -> Vec<Matrix4x3<f32>> {
             1., 0., 0., //
             0., 0., 1., //
         ]),
-    ];
+    ]
+}
+
+pub fn test_position_gradients_random(n: usize) -> Vec<Matrix3<f32>> {
+    use rand::prelude::*;
+    use rand::rngs::ChaCha8Rng;
+
+    let mut tmp = Vec::new();
+
     let mut rng = ChaCha8Rng::seed_from_u64(42);
     let mut position_gradient;
     for _ in 0..n {
@@ -693,33 +699,42 @@ pub fn test_position_gradients(n: usize) -> Vec<Matrix4x3<f32>> {
         tmp.push(position_gradient);
     }
 
-    #[allow(clippy::toplevel_ref_arg)]
-    tmp.into_iter()
-        .map(|m: Matrix3<f32>| {
-            stack![
-                m;
-                Matrix1x3::zeros()
-            ]
-        })
-        .collect()
+    tmp
 }
 
-pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Device> {
-    use particle_parameters::{Device, Host, Solid};
+pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host> {
+    use particle_parameters::{Host, Solid};
+
     [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
         .into_iter()
         .map(|[youngs_modulus, poissons_ratio]| {
             let mu = mu(youngs_modulus, poissons_ratio);
             let lambda = lambda(youngs_modulus, poissons_ratio);
-            Device::new(Host::Solid(Solid {
+            Host::Solid(Solid {
                 mu,
                 lambda,
                 viscosity: None,
                 sand_alpha: None,
-            }))
+            })
         })
 }
 
-pub fn test_inviscid_parameters() -> impl Iterator<Item = (f32, i32)> {
-    [(100., 2), (1000., 2), (100., 7), (1000., 7)].into_iter()
+pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::Host> {
+    use particle_parameters::{Fluid, Host};
+
+    [(100., 2), (1000., 2), (100., 7), (1000., 7)]
+        .into_iter()
+        .map(|(bulk_modulus, exponent)| {
+            Host::Fluid(Fluid {
+                exponent,
+                bulk_modulus,
+                viscosity: None,
+            })
+        })
+}
+
+pub fn check_iters<'a>(a: impl IntoIterator<Item = &'a f32>, b: impl IntoIterator<Item = &'a f32>) {
+    for (a, b) in a.into_iter().zip(b.into_iter()) {
+        assert!(relative_eq!(a, b, epsilon = 0.0001));
+    }
 }

@@ -6,8 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-//#[cfg(test)]
-//mod test;
+#[cfg(test)]
+mod test;
 
 use std::num::NonZeroU32;
 
@@ -15,7 +15,7 @@ use nalgebra::Matrix4x3;
 
 use super::*;
 
-pub struct CellsToMurmur {
+pub struct Elastic {
     stress_and_energy: CompiledModule,
 }
 
@@ -63,7 +63,7 @@ pub struct Output {
     pub energies: Allocation,
 }
 
-impl PipelinePart for CellsToMurmur {
+impl PipelinePart for Elastic {
     type Settings = Settings;
     type Parameters = Parameters;
     type Input = Input;
@@ -80,6 +80,7 @@ impl PipelinePart for CellsToMurmur {
                     (Indirect::MIN_BINDING_SIZE, true),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (particle_parameters::Device::MIN_BINDING_SIZE, false),
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,

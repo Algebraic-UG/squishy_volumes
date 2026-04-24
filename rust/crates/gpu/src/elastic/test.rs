@@ -6,89 +6,135 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat;
+
+use approx::relative_eq;
+use nalgebra::{Matrix1x3, Matrix3, stack};
+use squishy_volumes_util::{
+    elastic_energy_inviscid, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
+    try_elastic_energy_neo_hookean,
+};
+
+use crate::particle_parameters::{Fluid, Host, Solid};
+
 use super::*;
 
 #[test]
-fn test_simple() {
-    let cells = [
-        Vector4::new(-5, -5, -5, 0),
-        Vector4::new(-5, -5, 5, 0),
-        Vector4::new(-5, 5, -5, 0),
-        Vector4::new(-5, 5, 5, 0),
-        Vector4::new(5, -5, -5, 0),
-        Vector4::new(5, -5, 5, 0),
-        Vector4::new(5, 5, -5, 0),
-        Vector4::new(5, 5, 5, 0),
-    ];
+fn test_solid_simple() {
+    let position_gradients_host = test_position_gradients_simple();
+    let parameters = test_lame_parameters().collect::<Vec<_>>();
 
-    assert_eq!(
-        cells_to_murmur_on_cpu(&cells),
-        run_cells_to_murmur(
-            Settings {
-                workgroup_size: 64.try_into().unwrap()
-            },
-            (u16::MAX as u32).try_into().unwrap(),
-            &cells
-        ),
-    );
-}
-
-#[test]
-fn test_random() {
-    use rand::prelude::*;
-    use rand::rngs::ChaCha8Rng;
-
-    let cells: Vec<i32> = ChaCha8Rng::seed_from_u64(42)
-        .random_iter::<i32>()
-        .take(1000 * 4)
+    let particle_parameters_host: Vec<_> = parameters
+        .iter()
+        .cloned()
+        .flat_map(|p| repeat(p).take(position_gradients_host.len()))
         .collect();
-    let cells: Vec<Vector4<i32>> = cells
-        .chunks_exact(4)
-        .map(Vector4::from_column_slice)
+    let position_gradients_host = position_gradients_host.repeat(parameters.len());
+    assert_eq!(
+        particle_parameters_host.len(),
+        position_gradients_host.len()
+    );
+
+    #[allow(clippy::toplevel_ref_arg)]
+    let position_gradients_device = position_gradients_host
+        .iter()
+        .map(|m| {
+            stack![
+                m;
+                Matrix1x3::zeros()
+            ]
+        })
+        .collect::<Vec<_>>();
+    let particle_parameters_device: Vec<_> = particle_parameters_host
+        .iter()
+        .cloned()
+        .map(Into::into)
         .collect();
 
-    assert_eq!(
-        cells_to_murmur_on_cpu(&cells),
-        run_cells_to_murmur(
-            Settings {
-                workgroup_size: 64.try_into().unwrap()
-            },
-            (u16::MAX as u32).try_into().unwrap(),
-            &cells
-        ),
+    let (stresses_cpu, energies_cpu): (Vec<Matrix3<f32>>, Vec<f32>) = position_gradients_host
+        .iter()
+        .zip(particle_parameters_host.clone())
+        .map(|(position_gradient, parameters)| match parameters {
+            Host::Solid(Solid { mu, lambda, .. }) => (
+                first_piola_stress_neo_hookean(mu, lambda, position_gradient),
+                try_elastic_energy_neo_hookean(mu, lambda, position_gradient).unwrap(),
+            ),
+            Host::Fluid(Fluid {
+                exponent,
+                bulk_modulus,
+                ..
+            }) => (
+                first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient),
+                elastic_energy_inviscid(bulk_modulus, exponent, position_gradient),
+            ),
+        })
+        .unzip();
+
+    let (stresses_gpu, energies_gpu) = run_elastic(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+        },
+        (u16::MAX as u32).try_into().unwrap(),
+        &position_gradients_device,
+        &particle_parameters_device,
     );
+
+    for i in 0..position_gradients_host.len() {
+        println!("position_gradient: {:?}", position_gradients_host[i]);
+        println!(
+            "particle_parameters_host: {:?}",
+            particle_parameters_host[i]
+        );
+        println!(
+            "particle_parameters_device: {:?}",
+            particle_parameters_device[i]
+        );
+        println!("cpu: {}, {:?}", energies_cpu[i], stresses_cpu[i]);
+        println!("gpu: {}, {:?}", energies_gpu[i], stresses_gpu[i]);
+
+        check_iters(stresses_cpu[i].iter(), stresses_gpu[i].iter());
+        assert!(relative_eq!(
+            energies_cpu[i],
+            energies_gpu[i],
+            epsilon = 0.0001
+        ));
+    }
 }
 
-fn run_cells_to_murmur(
+fn run_elastic(
     settings: Settings,
     dispatch_limit: NonZeroU32,
-    cells: &[Vector4<i32>],
-) -> Vec<u32> {
+    position_gradients: &[Matrix4x3<f32>],
+    particle_parameters: &[particle_parameters::Device],
+) -> (Vec<Matrix4x3<f32>>, Vec<f32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(
         context.device(),
         settings.workgroup_size,
         dispatch_limit,
-        cells,
+        position_gradients,
+        particle_parameters,
     );
 
-    let cells_to_murmur = CellsToMurmur::new(&context, settings);
+    let elastic = Elastic::new(&context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { hashes } = cells_to_murmur
+    let Output { stresses, energies } = elastic
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, hashes);
-    download.copy(&mut encoder);
+    let downloads = DownloadsToHost::new(&context, [stresses, energies]);
+    downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let download = download.prep();
+    let downloads = downloads.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    let [stresses, energies] = downloads.try_into().unwrap();
+
+    (stresses.to_vec(), energies.to_vec())
 }
