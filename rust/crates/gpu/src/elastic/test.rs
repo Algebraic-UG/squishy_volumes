@@ -112,6 +112,32 @@ fn test_solid_random() {
     );
 }
 
+#[test]
+fn test_fluid_simple() {
+    check(
+        &test_position_gradients_simple(),
+        &test_inviscid_parameters().collect::<Vec<_>>(),
+    );
+}
+
+#[test]
+fn test_fluid_random() {
+    check(
+        &test_position_gradients_random(100),
+        &test_inviscid_parameters().collect::<Vec<_>>(),
+    );
+}
+
+#[test]
+fn test_mixed_random() {
+    check(
+        &test_position_gradients_random(100),
+        &test_lame_parameters()
+            .chain(test_inviscid_parameters())
+            .collect::<Vec<_>>(),
+    );
+}
+
 fn run_elastic(
     settings: Settings,
     dispatch_limit: NonZeroU32,

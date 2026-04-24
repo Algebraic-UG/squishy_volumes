@@ -39,11 +39,23 @@ fn main(
     let position_gradient = position_gradients[global_index];
     let paramters = particle_parameters[global_index];
 
-    let mu = paramters.a;
-    let lambda = paramters.b;
+    if (paramters.flags & 1) > 0 {
+        let mu = paramters.a;
+        let lambda = paramters.b;
 
-    stresses[global_index] = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
-    energies[global_index] = elastic_energy_neo_hookean(mu, lambda, position_gradient);
+        stresses[global_index] = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
+        energies[global_index] = elastic_energy_neo_hookean(mu, lambda, position_gradient);
+        return;
+    }
+
+    if (paramters.flags & 2) > 0 {
+        let exponent = paramters.a;
+        let bulk_modulus = paramters.b;
+
+        stresses[global_index] = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);
+        energies[global_index] = elastic_energy_inviscid(bulk_modulus, exponent, position_gradient);
+        return;
+    }
 }
 
 struct Indirect {
@@ -97,6 +109,19 @@ fn elastic_energy_neo_hookean(
     );
 }
 
+fn elastic_energy_inviscid_by_invariant(bulk_modulus: f32, exponent: f32, invariant_3: f32) -> f32 {
+    let at_rest = bulk_modulus * (1. - 1. / (1. - exponent));
+    return bulk_modulus * (invariant_3 - pow(invariant_3, 1. - exponent) / (1. - exponent)) - at_rest;
+}
+
+fn elastic_energy_inviscid(
+    bulk_modulus: f32,
+    exponent: f32,
+    position_gradient: mat3x3f,
+) -> f32 {
+    return elastic_energy_inviscid_by_invariant(bulk_modulus, exponent, invariant_3(position_gradient));
+}
+
 fn partial_elastic_energy_neo_hookean_by_invariant_2(mu: f32) -> f32 {
     return mu / 2.;
 }
@@ -127,6 +152,26 @@ fn first_piola_stress_neo_hookean(
     + partial_elastic_energy_neo_hookean_by_invariant_3(
         mu,
         lambda,
+        invariant_3(position_gradient),
+    ) * partial_invariant_3_by_position_gradient(position_gradient);
+}
+
+fn partial_elastic_energy_inviscid_by_invariant_3(
+    bulk_modulus: f32,
+    exponent: f32,
+    invariant_3: f32,
+) -> f32 {
+    return bulk_modulus * (1. - 1. / pow(invariant_3, exponent));
+}
+
+fn first_piola_stress_inviscid(
+    bulk_modulus: f32,
+    exponent: f32,
+    position_gradient: mat3x3f,
+) -> mat3x3f {
+    return partial_elastic_energy_inviscid_by_invariant_3(
+        bulk_modulus,
+        exponent,
         invariant_3(position_gradient),
     ) * partial_invariant_3_by_position_gradient(position_gradient);
 }
