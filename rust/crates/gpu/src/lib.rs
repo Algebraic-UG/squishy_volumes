@@ -9,16 +9,22 @@
 pub use wgpu;
 
 mod allocator;
+mod allowed_in_binding;
+mod compiled_module;
 mod context;
 mod download;
 mod error;
+mod indirect;
 mod pipeline_part;
 mod util;
 
 pub use allocator::*;
+pub use allowed_in_binding::*;
+pub use compiled_module::*;
 pub use context::*;
 pub use download::*;
 pub use error::*;
+pub use indirect::*;
 pub use pipeline_part::*;
 pub use util::*;
 
@@ -30,9 +36,11 @@ pub mod cells_to_murmur;
 pub mod color_cells;
 pub mod count_subkeys;
 pub mod counts_indirect;
+pub mod elastic;
 pub mod find_cell_boundaries;
 pub mod kernels;
 pub mod offsets_to_indirect;
+pub mod particle_parameters;
 pub mod permute_particles;
 pub mod positions_to_keys;
 pub mod prefix_sum;

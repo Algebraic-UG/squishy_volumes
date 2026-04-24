@@ -10,7 +10,6 @@ use super::T;
 
 pub const NORMALIZATION_EPS: T = 1e-5;
 pub const INVERSE_EPS: T = 1e-3;
-pub const RASTERIZATION_LAYERS: usize = 3;
 
 pub const SINGULAR_VALUE_SEPARATION: T = 1e-5;
 

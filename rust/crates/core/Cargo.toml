@@ -30,15 +30,16 @@ bincode.workspace = true
 thiserror.workspace = true
 build-info.workspace = true
 nalgebra.workspace = true
+bitflags.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
 itertools = "0.14.0"
 roots = "0.0.8"
 
+squishy_volumes_util.path = "../util"
 squishy_volumes_api.path = "../api"
 squishy_volumes_gpu.path = "../gpu"
-bitflags = "2.10.0"
 small-map = { version = "0.1.5", features = ["serde"] }
 
 [build-dependencies]

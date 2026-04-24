@@ -16,6 +16,7 @@ use squishy_volumes_gpu::{
     DownloadsToHost, GpuContext, GpuError, PipelinePart, PrepareGrid, gpu_grid_to_cpu_grid,
     prepare_grid, wgpu,
 };
+use squishy_volumes_util::Flat3 as _;
 use tracing::{info, warn};
 
 use crate::{
@@ -24,7 +25,6 @@ use crate::{
     compute_thread::{ComputeThread, ComputeThreadSettings},
     directory_lock::DirectoryLock,
     input_file::{InputHeader, InputReader},
-    math::flat::Flat3,
     simulation_input_path,
     state::{
         State,

@@ -9,14 +9,16 @@
 mod aabb;
 mod consts;
 mod elastic;
-pub mod flat;
-pub mod safe_inverse;
+mod flat;
+mod safe_inverse;
 mod typedefs;
 
 pub use aabb::Aabb;
 
 pub use consts::*;
 pub use elastic::*;
+pub use flat::*;
+pub use safe_inverse::*;
 pub use typedefs::*;
 
 #[cfg(test)]

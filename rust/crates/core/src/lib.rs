@@ -13,12 +13,9 @@ pub use api_impl::*;
 
 mod compute_thread;
 mod directory_lock;
-#[allow(unused)]
-mod elastic;
 mod input_file;
 mod input_interpolation;
 pub mod kernels;
-mod math;
 mod phase;
 mod rasterization;
 mod report;
@@ -27,16 +24,6 @@ mod stats;
 
 pub use report::{Report, ReportInfo};
 
-// TODO: this might be better somewhere else.
-#[macro_export]
-macro_rules! ensure_err {
-    ($cond:expr, $err:expr $(,)?) => {
-        #[allow(clippy::neg_cmp_op_on_partial_ord)]
-        if !$cond {
-            return Err($err);
-        }
-    };
-}
 #[cfg(feature = "profile")]
 use coarse_prof::profile;
 #[cfg(not(feature = "profile"))]

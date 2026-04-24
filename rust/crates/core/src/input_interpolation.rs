@@ -13,11 +13,11 @@ use nalgebra::{Unit, Vector3};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
+use squishy_volumes_util::NORMALIZATION_EPS;
 
 use crate::{
     ParticleFlags,
     input_file::{InputConsts, InputFrame, InputReader},
-    math::NORMALIZATION_EPS,
     profile,
 };
 

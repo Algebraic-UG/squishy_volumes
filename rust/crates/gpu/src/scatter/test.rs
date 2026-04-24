@@ -268,6 +268,7 @@ fn run_scatter(
         subgroup_size,
         positions,
     );
+    println!("{addendum:?}");
     let scatter = Scatter::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

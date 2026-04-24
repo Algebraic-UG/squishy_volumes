@@ -14,17 +14,16 @@ use squishy_volumes_api::T;
 const TIME_STEP_HISTORY_LENGTH: usize = 10;
 
 use crate::{
-    elastic::{
-        double_partial_elastic_energy_inviscid_by_invariant_3,
-        first_piola_stress_inviscid_svd_in_diagonal_space,
-        first_piola_stress_neo_hookean_svd_in_diagonal_space,
-        partial_elastic_energy_inviscid_by_invariant_3,
-        second_derivative_inviscid_svd_in_diagonal_space,
-        second_derivative_neo_hookean_svd_in_diagonal_space,
-    },
-    math::SINGULAR_VALUE_SEPARATION,
     profile,
     state::particles::{ParticleParameters, ParticleState},
+};
+use squishy_volumes_util::{
+    SINGULAR_VALUE_SEPARATION, double_partial_elastic_energy_inviscid_by_invariant_3,
+    first_piola_stress_inviscid_svd_in_diagonal_space,
+    first_piola_stress_neo_hookean_svd_in_diagonal_space,
+    partial_elastic_energy_inviscid_by_invariant_3,
+    second_derivative_inviscid_svd_in_diagonal_space,
+    second_derivative_neo_hookean_svd_in_diagonal_space,
 };
 
 use super::{PhaseInput, State};

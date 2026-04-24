@@ -8,13 +8,14 @@
 
 use std::{num::NonZeroU32, sync::Mutex};
 
-use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES};
+use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES, particle_parameters};
 
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
 // https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
 use lazy_static::lazy_static;
-use nalgebra::{Vector3, Vector4};
+use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
+use squishy_volumes_util::{lambda, mu};
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
         let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
@@ -626,4 +627,99 @@ pub fn many_positions() -> Vec<Vector4<f32>> {
     .into_iter()
     .map(|v| v.push(0.))
     .collect()
+}
+
+pub fn test_position_gradients(n: usize) -> Vec<Matrix4x3<f32>> {
+    use rand::prelude::*;
+    use rand::rngs::ChaCha8Rng;
+
+    let mut tmp = vec![
+        Matrix3::identity(),
+        Matrix3::from_row_slice(&[
+            0., -1., 0., //
+            1., 0., 0., //
+            0., 0., 1., //
+        ]),
+        Matrix3::from_row_slice(&[
+            0., 0., -1., //
+            0., 1., 0., //
+            1., 0., 0., //
+        ]),
+        Matrix3::from_row_slice(&[
+            1., 0., 0., //
+            0., 0., -1., //
+            0., 1., 0., //
+        ]),
+        Matrix3::from_row_slice(&[
+            3., 0., 0., //
+            0., 2., 0., //
+            0., 0., 1., //
+        ]),
+        Matrix3::from_row_slice(&[
+            1., 0., 0., //
+            0., 2., 0., //
+            0., 0., 1., //
+        ]),
+        Matrix3::from_row_slice(&[
+            0., -1., 0., //
+            1., 0., 0., //
+            0., 0., 2., //
+        ]),
+        Matrix3::from_row_slice(&[
+            0., -1., 0., //
+            2., 0., 0., //
+            0., 0., 1., //
+        ]),
+        Matrix3::from_row_slice(&[
+            0., -2., 0., //
+            1., 0., 0., //
+            0., 0., 1., //
+        ]),
+    ];
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    let mut position_gradient;
+    for _ in 0..n {
+        loop {
+            position_gradient = Matrix3::from_fn(|_, _| rng.random::<f32>());
+            let d = position_gradient.determinant().abs();
+            if d > 1e-1 && d < 1e+1 {
+                break;
+            }
+        }
+
+        if position_gradient.determinant() < 0. {
+            position_gradient *= -1.;
+        }
+        tmp.push(position_gradient);
+    }
+
+    #[allow(clippy::toplevel_ref_arg)]
+    tmp.into_iter()
+        .map(|m: Matrix3<f32>| {
+            stack![
+                m;
+                Matrix1x3::zeros()
+            ]
+        })
+        .collect()
+}
+
+pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Device> {
+    use particle_parameters::{Device, Host, Solid};
+    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
+        .into_iter()
+        .map(|[youngs_modulus, poissons_ratio]| {
+            let mu = mu(youngs_modulus, poissons_ratio);
+            let lambda = lambda(youngs_modulus, poissons_ratio);
+            Device::new(Host::Solid(Solid {
+                mu,
+                lambda,
+                viscosity: None,
+                sand_alpha: None,
+            }))
+        })
+}
+
+pub fn test_inviscid_parameters() -> impl Iterator<Item = (f32, i32)> {
+    [(100., 2), (1000., 2), (100., 7), (1000., 7)].into_iter()
 }

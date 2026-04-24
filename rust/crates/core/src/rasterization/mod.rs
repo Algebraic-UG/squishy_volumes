@@ -11,10 +11,9 @@ use nalgebra::{Unit, Vector2, Vector3};
 use squishy_volumes_api::T;
 use std::{iter::empty, mem::swap};
 
-use crate::{
-    math::{Aabb, NORMALIZATION_EPS},
-    state::grids::{ColliderInfo, Rasterized},
-};
+use squishy_volumes_util::{Aabb, NORMALIZATION_EPS};
+
+use crate::state::grids::{ColliderInfo, Rasterized};
 
 pub struct RasterizationVertex<'a> {
     pub position: &'a Vector3<T>,

@@ -9,7 +9,7 @@ use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
 use squishy_volumes_gpu::{
-    grid_on_cpu, i32_to_u32_offset, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
+    Indirect, grid_on_cpu, i32_to_u32_offset, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
     sort_on_cpu, sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
@@ -121,6 +121,7 @@ fn main() {
     let output_file = output_file
         .unwrap_or(test_data.join(format!("{mode:?}-{task:?}-out.bin").to_case(Case::Kebab)));
 
+    let cell_size = 1.;
     if let Some(generate) = generate {
         let mut out = File::create(&input_file).unwrap();
         match task {
@@ -135,12 +136,27 @@ fn main() {
                 let keys: Vec<u32> = random_iter().take(generate as usize).collect();
                 out.write_all(bytemuck::cast_slice(&keys)).unwrap();
             }
-            Task::PositionsToKeys | Task::SortIntoCells | Task::Scatter => {
+            Task::PositionsToKeys | Task::SortIntoCells => {
                 let positions: Vec<Vector4<f32>> = (0..generate)
                     .map(|_| Vector4::new_random())
                     .take(generate as usize)
                     .collect();
                 out.write_all(bytemuck::cast_slice(&positions)).unwrap();
+            }
+            Task::Scatter => {
+                let per_dim = (generate as f64).powf(1. / 3.).ceil() as usize;
+                let input: Vec<_> = (0..per_dim)
+                    .flat_map(move |x| {
+                        (0..per_dim).flat_map(move |y| {
+                            (0..per_dim).map(move |z| {
+                                Vector4::new(x as f32, y as f32, z as f32, 0.)
+                                    .scale(1. / cell_size / 4.)
+                            })
+                        })
+                    })
+                    .collect();
+                assert!(input.len() >= generate as usize);
+                out.write_all(bytemuck::cast_slice(&input)).unwrap();
             }
             Task::BuildHashTable => {
                 let cells: Vec<Vector4<i32>> = (0..generate)
@@ -163,7 +179,6 @@ fn main() {
 
     let input_bytes = read(input_file).unwrap();
 
-    let cell_size = 1337.;
     let prefix_sum = gpu::prefix_sum::Settings {
         workgroup_size,
         dispatch_limit,

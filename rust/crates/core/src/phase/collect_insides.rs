@@ -11,11 +11,11 @@ use nalgebra::{Matrix4, Vector3, Vector4};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 use squishy_volumes_api::T;
+use squishy_volumes_util::{NORMALIZATION_EPS, SafeInverse as _};
 use std::{array::from_fn, collections::hash_map::Entry};
 
 use crate::{
     kernels::{KERNEL_QUADRATIC_LENGTH, kernel_quadratic},
-    math::{NORMALIZATION_EPS, safe_inverse::SafeInverse},
     profile,
     state::{grids::Rasterized, particles::ParticleState, util::check_shifted_quadratic},
 };

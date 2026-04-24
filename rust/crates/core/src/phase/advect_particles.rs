@@ -10,9 +10,9 @@ use anyhow::{Context, Error, Result};
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use squishy_volumes_api::T;
+use squishy_volumes_util::{elastic_energy_inviscid, try_elastic_energy_neo_hookean};
 
 use crate::{
-    elastic::{elastic_energy_inviscid, try_elastic_energy_neo_hookean},
     phase::PhaseInput,
     profile,
     state::particles::{ParticleParameters, ParticleState},

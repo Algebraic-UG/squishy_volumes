@@ -15,8 +15,11 @@ pollster.workspace = true
 bytemuck.workspace = true
 rand.workspace = true
 env_logger.workspace = true
+bitflags.workspace = true
+num.workspace = true
 
 lazy_static = "1.5.0"
 murmur3 = "0.5.2"
-num = "0.4.3"
 approx = "0.5.1"
+
+squishy_volumes_util.path = "../util"

@@ -12,12 +12,11 @@ use anyhow::Result;
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use squishy_volumes_api::T;
+use squishy_volumes_util::{
+    cauchy_stress_general_viscosity, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
+};
 
 use crate::{
-    elastic::{
-        cauchy_stress_general_viscosity, first_piola_stress_inviscid,
-        first_piola_stress_neo_hookean,
-    },
     kernels::kernel_quadratic,
     profile,
     state::particles::{ParticleParameters, ViscosityParameters},

@@ -37,7 +37,7 @@ impl ParticlesInput {
     pub fn test_input() -> Self {
         use nalgebra::Matrix4;
 
-        use crate::math::flat::{Flat3 as _, Flat16 as _};
+        use squishy_volumes_util::{Flat3 as _, Flat16 as _};
 
         let n = 10;
         Self {

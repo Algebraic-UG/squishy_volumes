@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use squishy_volumes_util::{Flat3, Flat9 as _, Flat16 as _};
 use std::iter::empty;
 use thiserror::Error;
 
@@ -16,7 +17,6 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
     input_file::InputConsts,
-    math::flat::{Flat3, Flat9, Flat16},
     state::{ObjectIndex, grids::GridMomentum, particles::ParticleState},
 };
 

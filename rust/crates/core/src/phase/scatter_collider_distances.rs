@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+pub const RASTERIZATION_LAYERS: usize = 3;
 use std::{mem::take, sync::mpsc::channel, thread::spawn};
 
 use anyhow::{Context as _, Result, bail};
@@ -17,7 +18,6 @@ use rayon::iter::{
 use rustc_hash::FxHashMap;
 
 use crate::{
-    math::RASTERIZATION_LAYERS,
     profile,
     rasterization::{RasterizationVertex, rasterize},
     state::{

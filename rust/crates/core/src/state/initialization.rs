@@ -17,12 +17,13 @@ use squishy_volumes_api::T;
 use thiserror::Error;
 use tracing::info;
 
+use squishy_volumes_util::{
+    bulk_modulus_in_bounds, exponent_in_bounds, lambda_stable_neo_hookean, mu_stable_neo_hookean,
+    poissons_ratio_in_bounds, youngs_modulus_in_bounds,
+};
+
 use crate::{
     ParticleFlags, Report, ReportInfo,
-    elastic::{
-        bulk_modulus_in_bounds, exponent_in_bounds, lambda_stable_neo_hookean,
-        mu_stable_neo_hookean, poissons_ratio_in_bounds, youngs_modulus_in_bounds,
-    },
     input_file::{InputFrame, InputHeader, InputObject},
     state::{
         ObjectIndex,
