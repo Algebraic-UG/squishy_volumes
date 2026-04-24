@@ -19,17 +19,13 @@ use crate::particle_parameters::{Fluid, Host, Solid};
 
 use super::*;
 
-#[test]
-fn test_solid_simple() {
-    let position_gradients_host = test_position_gradients_simple();
-    let parameters = test_lame_parameters().collect::<Vec<_>>();
-
+fn check(position_gradients: &[Matrix3<f32>], parameters: &[Host]) {
     let particle_parameters_host: Vec<_> = parameters
         .iter()
         .cloned()
-        .flat_map(|p| repeat(p).take(position_gradients_host.len()))
+        .flat_map(|p| repeat(p).take(position_gradients.len()))
         .collect();
-    let position_gradients_host = position_gradients_host.repeat(parameters.len());
+    let position_gradients_host = position_gradients.repeat(parameters.len());
     assert_eq!(
         particle_parameters_host.len(),
         position_gradients_host.len()
@@ -98,6 +94,22 @@ fn test_solid_simple() {
         );
         assert_relative_eq!(energies_cpu[i], energies_gpu[i], max_relative = 0.01);
     }
+}
+
+#[test]
+fn test_solid_simple() {
+    check(
+        &test_position_gradients_simple(),
+        &test_lame_parameters().collect::<Vec<_>>(),
+    );
+}
+
+#[test]
+fn test_solid_random() {
+    check(
+        &test_position_gradients_random(100),
+        &test_lame_parameters().collect::<Vec<_>>(),
+    );
 }
 
 fn run_elastic(
