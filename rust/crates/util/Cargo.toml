@@ -1,0 +1,10 @@
+[package]
+name = "squishy_volumes_util"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+rand.workspace = true
+nalgebra.workspace = true
+thiserror.workspace = true
