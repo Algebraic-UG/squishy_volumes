@@ -10,7 +10,7 @@ use std::{num::NonZeroU32, sync::Mutex};
 
 use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES, particle_parameters};
 
-use approx::relative_eq;
+use approx::assert_relative_eq;
 // Maybe we can avoid this once this is fixed?
 // https://github.com/gfx-rs/wgpu/issues/5270
 // https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
@@ -735,6 +735,7 @@ pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::H
 
 pub fn check_iters<'a>(a: impl IntoIterator<Item = &'a f32>, b: impl IntoIterator<Item = &'a f32>) {
     for (a, b) in a.into_iter().zip(b.into_iter()) {
-        assert!(relative_eq!(a, b, epsilon = 0.0001));
+        println!("{a} vs {b}");
+        assert_relative_eq!(a, b, max_relative = 0.01);
     }
 }

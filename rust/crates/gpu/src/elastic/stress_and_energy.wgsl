@@ -69,11 +69,9 @@ struct ParticleParameters {
 }
 
 fn invariant_2(position_gradient: mat3x3f) -> f32 {
-    return sqrt(
-        dot(position_gradient[0], position_gradient[0]) +
+    return dot(position_gradient[0], position_gradient[0]) +
         dot(position_gradient[1], position_gradient[1]) +
-        dot(position_gradient[2], position_gradient[2])
-    );
+        dot(position_gradient[2], position_gradient[2]);
 }
 
 fn invariant_3(position_gradient: mat3x3f) -> f32 {

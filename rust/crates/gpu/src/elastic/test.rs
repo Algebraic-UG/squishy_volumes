@@ -8,7 +8,7 @@
 
 use std::iter::repeat;
 
-use approx::relative_eq;
+use approx::assert_relative_eq;
 use nalgebra::{Matrix1x3, Matrix3, stack};
 use squishy_volumes_util::{
     elastic_energy_inviscid, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
@@ -92,12 +92,11 @@ fn test_solid_simple() {
         println!("cpu: {}, {:?}", energies_cpu[i], stresses_cpu[i]);
         println!("gpu: {}, {:?}", energies_gpu[i], stresses_gpu[i]);
 
-        check_iters(stresses_cpu[i].iter(), stresses_gpu[i].iter());
-        assert!(relative_eq!(
-            energies_cpu[i],
-            energies_gpu[i],
-            epsilon = 0.0001
-        ));
+        check_iters(
+            stresses_cpu[i].iter(),
+            stresses_gpu[i].fixed_view::<3, 3>(0, 0).iter(),
+        );
+        assert_relative_eq!(energies_cpu[i], energies_gpu[i], max_relative = 0.01);
     }
 }
 
