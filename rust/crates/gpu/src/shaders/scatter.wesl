@@ -159,7 +159,7 @@ fn main(
                 stress = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);
             }
 
-            tmp = velocity_gradient * mass - stress * transpose(position_gradient) * scaling * initial_volumes;
+            tmp = velocity_gradient * mass - stress * transpose(position_gradient) * scaling * initial_volume;
         }
 
         for (var grid_node_round = 0u; grid_node_round < grid_node_rounds; grid_node_round++) {
