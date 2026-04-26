@@ -11,7 +11,7 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use nalgebra::Vector4;
+use nalgebra::{Matrix4x3, Vector4};
 
 use super::*;
 
@@ -37,7 +37,14 @@ pub struct Input {
     pub cell_owns: Allocation,
     pub block_offsets: Allocation,
     pub block_table: Allocation,
+
+    pub masses: Allocation,
+    pub initial_volumes: Allocation,
+    pub particle_paramters: Allocation,
     pub positions: Allocation,
+    pub position_gradients: Allocation,
+    pub velocities: Allocation,
+    pub velocity_gradients: Allocation,
 }
 
 #[derive(Debug)]
@@ -45,6 +52,16 @@ pub struct InputAddendum {
     pub indirect_colors_batch: Vec<Indirect>,
     pub cell_ids: Vec<Vector4<i32>>,
     pub cell_owns: Vec<u32>,
+}
+
+pub struct InputData<'a> {
+    masses: &'a [f32],
+    initial_volumes: &'a [f32],
+    particle_parameters: &'a [particle_parameters::Device],
+    positions: &'a [Vector4<f32>],
+    position_gradients: &'a [Matrix4x3<f32>],
+    velocities: &'a [Vector4<f32>],
+    velocity_gradients: &'a [Matrix4x3<f32>],
 }
 
 impl Input {
@@ -56,22 +73,49 @@ impl Input {
         }: Settings,
         dispatch_limit: NonZeroU32,
         subgroup_size: NonZeroU32,
-        positions: &[Vector4<f32>],
+        InputData {
+            masses,
+            initial_volumes,
+            particle_parameters,
+            positions,
+            position_gradients,
+            velocities,
+            velocity_gradients,
+        }: InputData,
     ) -> (Self, InputAddendum) {
+        assert_eq!(masses.len(), initial_volumes.len());
+        assert_eq!(masses.len(), particle_parameters.len());
+        assert_eq!(masses.len(), positions.len());
+        assert_eq!(masses.len(), position_gradients.len());
+        assert_eq!(masses.len(), velocities.len());
+        assert_eq!(masses.len(), velocity_gradients.len());
+
         let indirect_particles = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
             len: positions.len() as u32,
         });
 
-        let positions: Vec<Vector4<f32>> = sort_positions_into_cells_on_cpu(
+        let indices = sort_positions_into_cells_on_cpu(
             &(0..positions.len() as u32).collect::<Vec<_>>(),
             positions,
             cell_size,
-        )
-        .into_iter()
-        .map(|index| positions[index as usize])
-        .collect();
+        );
+
+        fn permute<T: Clone>(indices: &[u32], to_permute: &[T]) -> Vec<T> {
+            indices
+                .iter()
+                .map(|&index| to_permute[index as usize].clone())
+                .collect()
+        }
+
+        let masses = permute(&indices, masses);
+        let initial_volumes = permute(&indices, initial_volumes);
+        let particle_paramters = permute(&indices, particle_parameters);
+        let positions = permute(&indices, positions);
+        let position_gradients = permute(&indices, position_gradients);
+        let velocities = permute(&indices, velocities);
+        let velocity_gradients = permute(&indices, velocity_gradients);
 
         let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
         let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
@@ -107,7 +151,14 @@ impl Input {
         let cell_owns = Allocation::new(device, "cell_owns", &owns);
         let block_offsets = Allocation::new(device, "block_offsets", &block_offsets);
         let block_table = Allocation::new(device, "block_table", &block_table);
+
+        let masses = Allocation::new(device, "masses", &masses);
+        let initial_volumes = Allocation::new(device, "initial_volumes", &initial_volumes);
+        let particle_paramters = Allocation::new(device, "particle_paramters", &particle_paramters);
         let positions = Allocation::new(device, "positions", &positions);
+        let position_gradients = Allocation::new(device, "position_gradients", &position_gradients);
+        let velocities = Allocation::new(device, "velocities", &velocities);
+        let velocity_gradients = Allocation::new(device, "velocity_gradients", &velocity_gradients);
 
         (
             Self {
@@ -119,7 +170,13 @@ impl Input {
                 cell_owns,
                 block_offsets,
                 block_table,
+                masses,
+                initial_volumes,
+                particle_paramters,
                 positions,
+                position_gradients,
+                velocities,
+                velocity_gradients,
             },
             addendum,
         )
@@ -148,16 +205,22 @@ impl PipelinePart for Scatter {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),
-                    (Block::MIN_BINDING_SIZE, false),
+                    (Indirect::MIN_BINDING_SIZE, true),        // indirect_particles
+                    (Indirect::MIN_BINDING_SIZE, true),        // indirect_colors_batch
+                    (u32::MIN_BINDING_SIZE, false),            // indices
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cells
+                    (u32::MIN_BINDING_SIZE, false),            // index_ranges
+                    (u32::MIN_BINDING_SIZE, false),            // owns
+                    (u32::MIN_BINDING_SIZE, false),            // block_table
+                    (u32::MIN_BINDING_SIZE, false),            // block_offsets
+                    (f32::MIN_BINDING_SIZE, false),            // masses
+                    (f32::MIN_BINDING_SIZE, false),            // initial_volumes
+                    (particle_parameters::Device::MIN_BINDING_SIZE, false), // parameters
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // positions
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // velocities
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // velocity_gradients
+                    (Block::MIN_BINDING_SIZE, false),          // blocks
                 ],
                 immediate_size: 4,
                 constants: [
@@ -183,7 +246,13 @@ impl PipelinePart for Scatter {
             cell_owns,
             block_offsets,
             block_table,
+            masses,
+            initial_volumes,
+            particle_paramters,
             positions,
+            position_gradients,
+            velocities,
+            velocity_gradients,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
@@ -210,7 +279,13 @@ impl PipelinePart for Scatter {
                     cell_owns.binding(),
                     block_table.binding(),
                     block_offsets.binding(),
+                    masses.binding(),
+                    initial_volumes.binding(),
+                    particle_paramters.binding(),
                     positions.binding(),
+                    position_gradients.binding(),
+                    velocities.binding(),
+                    velocity_gradients.binding(),
                     blocks.binding(),
                 ],
             ),

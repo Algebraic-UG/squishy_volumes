@@ -36,20 +36,20 @@ fn main(
     }
 
     let position_gradient = position_gradients[global_index];
-    let paramters = particle_parameters[global_index];
+    let parameters = particle_parameters[global_index];
 
-    if (paramters.flags & 1) > 0 {
-        let mu = paramters.a;
-        let lambda = paramters.b;
+    if (parameters.flags & 1) > 0 {
+        let mu = parameters.a;
+        let lambda = parameters.b;
 
         stresses[global_index] = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
         energies[global_index] = elastic_energy_neo_hookean(mu, lambda, position_gradient);
         return;
     }
 
-    if (paramters.flags & 2) > 0 {
-        let exponent = paramters.a;
-        let bulk_modulus = paramters.b;
+    if (parameters.flags & 2) > 0 {
+        let exponent = parameters.a;
+        let bulk_modulus = parameters.b;
 
         stresses[global_index] = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);
         energies[global_index] = elastic_energy_inviscid(bulk_modulus, exponent, position_gradient);

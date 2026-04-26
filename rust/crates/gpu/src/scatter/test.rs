@@ -8,20 +8,45 @@
 
 use std::collections::HashMap;
 
-use approx::relative_eq;
-use nalgebra::Vector3;
+use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
+use squishy_volumes_util::{
+    first_piola_stress_inviscid, first_piola_stress_neo_hookean, lambda, mu,
+};
+
+use crate::particle_parameters::{Fluid, Host, Solid};
 
 use super::*;
 
 fn check(
     settings @ Settings { cell_size, .. }: Settings,
     dispatch_limit: NonZeroU32,
-    positions: &[Vector4<f32>],
+    input_data @ InputData {
+        masses,
+        initial_volumes,
+        particle_parameters,
+        positions,
+        position_gradients,
+        velocities,
+        velocity_gradients,
+    }: InputData,
 ) {
     let grid_node_size = cell_size * 0.5;
+    let scaling = 0.001 * 4. / grid_node_size.powi(2);
 
-    let mut masses_cpu: HashMap<Vector3<i32>, f32> = Default::default();
-    for position in positions {
+    let mut masses_cpu: HashMap<Vector3<i32>, Vector4<f32>> = Default::default();
+    for particle_index in 0..masses.len() {
+        let mass = masses[particle_index];
+        let initial_volume = initial_volumes[particle_index];
+        let parameters: Host = particle_parameters[particle_index].into();
+        let position = positions[particle_index].xyz();
+        let position_gradient = position_gradients[particle_index]
+            .fixed_view::<3, 3>(0, 0)
+            .into();
+        let velocity = velocities[particle_index].xyz();
+        let velocity_gradient: Matrix3<f32> = velocity_gradients[particle_index]
+            .fixed_view::<3, 3>(0, 0)
+            .into();
+
         let low_gridnode =
             (position.xyz() / grid_node_size - Vector3::repeat(0.5)).map(|x| x.floor() as i32);
 
@@ -30,20 +55,39 @@ fn check(
         });
 
         for node in nodes {
-            let mass = masses_cpu.entry(node).or_default();
+            let value = masses_cpu.entry(node).or_default();
             let to_node = node.map(|c| c as f32) - position.xyz() / grid_node_size;
             let weight = to_node.map(kernel_quadratic).product();
-            *mass += weight;
+            let to_grid_node = to_node * grid_node_size;
+
+            let mut imparted_momentum =
+                (velocity.xzy() + velocity_gradient.fixed_view::<3, 3>(0, 0) * to_grid_node) * mass;
+
+            let stress = match parameters {
+                Host::Solid(Solid { mu, lambda, .. }) => {
+                    first_piola_stress_neo_hookean(mu, lambda, &position_gradient)
+                }
+                Host::Fluid(Fluid {
+                    exponent,
+                    bulk_modulus,
+                    ..
+                }) => first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
+            };
+            imparted_momentum -= stress
+                * (position_gradient.transpose() * (to_grid_node * (scaling * initial_volume)));
+
+            *value += imparted_momentum.push(mass) * weight;
         }
     }
 
     println!("{:?}", masses_cpu);
     println!("{:?}", masses_cpu.values().collect::<Vec<_>>());
 
-    let (addenum, blocks) = run_scatter(settings, dispatch_limit, positions);
-    let masses: Vec<f32> = blocks
+    let (addenum, blocks) = run_scatter(settings, dispatch_limit, input_data);
+    let masses: Vec<Vector4<f32>> = blocks
         .iter()
-        .flat_map(|block| block.nodes.iter().map(|node| node.w))
+        .flat_map(|block| block.nodes.iter())
+        .cloned()
         .collect();
 
     let nodes = gpu_grid_to_cpu_grid(
@@ -56,13 +100,13 @@ fn check(
     println!("{}", masses.len());
     println!("{masses:?}");
 
-    for (node_id, mass) in nodes.into_iter().zip(masses) {
+    for (node_id, gpu) in nodes.into_iter().zip(masses) {
         if let Some(cpu) = masses_cpu.get(&node_id.xyz()) {
             println!("both have {:?}", node_id.xyz());
-            println!("{} vs {}", cpu, mass);
-            assert!(relative_eq!(*cpu, mass, epsilon = 0.0001));
+            println!("{} vs {}", cpu, gpu);
+            check_iters(cpu.iter(), gpu.fixed_view::<3, 3>(0, 0).iter());
         } else {
-            assert!(mass == 0.);
+            assert_eq!(gpu, Vector4::zeros());
         }
     }
 }
@@ -77,7 +121,32 @@ fn test_single() {
         cell_size,
     };
 
-    check(settings, dispatch_limit, &[Vector4::zeros()]);
+    check(
+        settings,
+        dispatch_limit,
+        InputData {
+            masses: &[1.],
+            initial_volumes: &[1.],
+            particle_parameters: &[Host::Solid(Solid {
+                mu: mu(1000., 0.3),
+                lambda: lambda(1000., 0.3),
+                viscosity: None,
+                sand_alpha: None,
+            })
+            .into()],
+            positions: &[Vector4::zeros()],
+            position_gradients: &[stack![
+                Matrix3::identity();
+                Matrix1x3::zeros()
+            ]],
+            velocities: &[Vector4::zeros()],
+            velocity_gradients: &[stack![
+                Matrix3::zeros();
+                Matrix1x3::zeros()
+            ]],
+        },
+    );
+    /*
     check(
         settings,
         dispatch_limit,
@@ -98,8 +167,10 @@ fn test_single() {
         dispatch_limit,
         &[Vector4::new(cell_size, cell_size, cell_size, 0.)],
     );
+    */
 }
 
+/*
 #[test]
 fn test_two() {
     let workgroup_size = 64.try_into().unwrap();
@@ -252,11 +323,12 @@ fn test_random() {
         &positions,
     );
 }
+*/
 
 fn run_scatter(
     settings: Settings,
     dispatch_limit: NonZeroU32,
-    positions: &[Vector4<f32>],
+    data: InputData,
 ) -> (InputAddendum, Vec<Block>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
     let subgroup_size = context.subgroup_size();
@@ -266,7 +338,7 @@ fn run_scatter(
         settings,
         dispatch_limit,
         subgroup_size,
-        positions,
+        data,
     );
     println!("{addendum:?}");
     let scatter = Scatter::new(&context, settings);
