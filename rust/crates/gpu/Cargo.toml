@@ -4,7 +4,11 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[build-dependencies]
+wesl.workspace = true
+
 [dependencies]
+wesl.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 nalgebra.workspace = true

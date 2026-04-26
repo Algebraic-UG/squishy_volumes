@@ -25,3 +25,10 @@ rand = { version = "0.10.0", features = ["chacha"] }
 env_logger = "0.11.9"
 bitflags = "2.10.0"
 num = "0.4.3"
+
+# TODO: use crate.io's version once the changes from this PR are released
+# https://github.com/wgsl-tooling-wg/wesl-rs/pull/182
+#wesl = { version = "0.3.2", features = ["naga-ext"] }
+wesl.git = "ssh://git@github.com/wgsl-tooling-wg/wesl-rs.git"
+wesl.rev = "5b03878f8d6f78aca0318347548d54c6394af2d4"
+wesl.features = ["naga-ext"]

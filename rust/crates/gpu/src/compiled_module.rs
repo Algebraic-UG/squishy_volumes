@@ -88,7 +88,12 @@ macro_rules! let_compiled_module {
     ($name:ident, $settings:expr) => {
         let $name = CompiledModule::new(
             stringify!($name),
-            wgpu::include_wgsl!(concat!(stringify!($name), ".wgsl")),
+            wgpu::ShaderModuleDescriptor {
+                label: Some(stringify!($name)),
+                source: wgpu::ShaderSource::Wgsl(
+                    include_str!(concat!(env!("OUT_DIR"), "/", stringify!($name), ".wgsl")).into(),
+                ),
+            },
             $settings,
         );
     };
