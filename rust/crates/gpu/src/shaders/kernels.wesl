@@ -6,8 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-//https://github.com/gfx-rs/wgpu/issues/8202
-//enable subgroups;
+import super::util::{get_global_index, kernel_linear, kernel_quadratic, kernel_cubic};
 
 @group(0) @binding(0)
 var<storage, read_write> values: array<f32>;
@@ -28,7 +27,7 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    let global_index = get_global_index(num_workgroups, global_invocation_id);
+    let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index >= arrayLength(&values) {
         return;
     }
@@ -39,35 +38,4 @@ fn main(
     cubic[global_index] = kernel_cubic(value);
 }
 
-fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
-    return global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
-}
 
-fn kernel_linear(signed_x: f32) -> f32 {
-    let x = abs(signed_x);
-    if x < 1. { return 1. - x; } else { return 0.; }
-}
-
-fn kernel_quadratic(signed_x: f32) -> f32 {
-    let x = abs(signed_x);
-    if x < 1. / 2. {
-        return 3. / 4. - x * x;
-    } else if x < 3. / 2. {
-        return 1. / 2. * (3. / 2. - x) * (3. / 2. - x);
-    } else {
-        return 0.;
-    }
-}
-
-fn kernel_cubic(signed_x: f32) -> f32 {
-    let x = abs(signed_x);
-    if x < 1. {
-        return 1. / 2. * x * x * x - x * x + 2. / 3.;
-    } else if x < 2. {
-        return 1. / 6. * (2. - x) * (2. - x) * (2. - x);
-    } else {
-        return 0.;
-    }
-}

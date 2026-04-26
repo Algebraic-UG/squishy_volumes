@@ -6,8 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-//https://github.com/gfx-rs/wgpu/issues/8202
-//enable subgroups;
+import super::util::{Indirect, get_global_index, position_to_cell};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
@@ -32,7 +31,7 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    let global_index = get_global_index(num_workgroups, global_invocation_id);
+    let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index >= indirect.len {
         return;
     }
@@ -45,23 +44,6 @@ fn main(
         }
     }
 
-    cells[cell_index] = position_to_cell(positions[global_index]);
+    cells[cell_index] = position_to_cell(CELL_SIZE, positions[global_index]);
     index_ranges[cell_index] = global_index + 1;
-}
-
-fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
-    return global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
-}
-
-struct Indirect {
-    x: u32,
-    y: u32,
-    z: u32,
-    len: u32,
-}
-
-fn position_to_cell(position: vec3f) -> vec3i {
-    return vec3i(floor(position / CELL_SIZE + vec3f(0.25)));
 }

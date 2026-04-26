@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+import super::util::{Indirect, find_dispatch_xyz};
+
 @group(0) @binding(0)
 var<storage, read_write> indirect: Indirect;
 
@@ -36,7 +38,7 @@ fn main(
     var count_len = 0u;
     {
         let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
-        let dispatch_xyz = find_dispatch_xyz(indirect.len);
+        let dispatch_xyz = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, indirect.len);
         let actual_workgroup_count = dispatch_xyz.x * dispatch_xyz.y * dispatch_xyz.z;
         count_len = actual_workgroup_count * subgroups_per_workgroup * COLORS;
     }
@@ -55,36 +57,14 @@ fn main(
     let len = end - start;
 
     {
-        let dispatch_xyz = find_dispatch_xyz(len);
+        let dispatch_xyz = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);
         indirect_colors[global_index].x = dispatch_xyz.x;
         indirect_colors[global_index].y = dispatch_xyz.y;
         indirect_colors[global_index].z = dispatch_xyz.z;
     }
 
-    let dispatch_xyz = find_dispatch_xyz(len * subgroup_size);
+    let dispatch_xyz = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len * subgroup_size);
     indirect_colors_batch[global_index].x = dispatch_xyz.x;
     indirect_colors_batch[global_index].y = dispatch_xyz.y;
     indirect_colors_batch[global_index].z = dispatch_xyz.z;
-}
-
-struct Indirect {
-    x: u32,
-    y: u32,
-    z: u32,
-    len: u32,
-}
-
-fn div_ceil(left: u32, right: u32) -> u32 {
-    if left == 0 {
-        return 0;
-    }
-    return 1 + ((left - 1) / right);
-}
-
-fn find_dispatch_xyz(len: u32) -> vec3u {
-    let workgroup_count = div_ceil(len, WORKGROUP_SIZE);
-    let x = min(DISPATCH_LIMIT, workgroup_count);
-    let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
-    let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
-    return vec3u(x, y, z);
 }

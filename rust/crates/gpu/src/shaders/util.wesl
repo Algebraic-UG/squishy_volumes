@@ -1,11 +1,7 @@
-override WORKGROUP_SIZE: u32;
-override DISPATCH_LIMIT: u32;
-override CELL_SIZE: f32;
-
-fn get_global_index(num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
+fn get_global_index(workgroup_size: u32, num_workgroups: vec3<u32>, global_invocation_id: vec3<u32>) -> u32 {
     return global_invocation_id.x +
-        (global_invocation_id.y * WORKGROUP_SIZE * num_workgroups.x) +
-        (global_invocation_id.z * WORKGROUP_SIZE * num_workgroups.x * num_workgroups.y);
+        (global_invocation_id.y * workgroup_size * num_workgroups.x) +
+        (global_invocation_id.z * workgroup_size * num_workgroups.x * num_workgroups.y);
 }
 
 fn div_ceil(left: u32, right: u32) -> u32 {
@@ -36,11 +32,11 @@ fn int_pow(base: u32, exponent: u32) -> u32 {
     return result;
 }
 
-fn find_dispatch_xyz(len: u32) -> vec3u {
-    let workgroup_count = div_ceil(len, WORKGROUP_SIZE);
-    let x = min(DISPATCH_LIMIT, workgroup_count);
-    let y = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT));
-    let z = min(DISPATCH_LIMIT, div_ceil(workgroup_count, DISPATCH_LIMIT * DISPATCH_LIMIT));
+fn find_dispatch_xyz(dispatch_limit: u32, workgroup_size: u32, len: u32) -> vec3u {
+    let workgroup_count = div_ceil(len, workgroup_size);
+    let x = min(dispatch_limit, workgroup_count);
+    let y = min(dispatch_limit, div_ceil(workgroup_count, dispatch_limit));
+    let z = min(dispatch_limit, div_ceil(workgroup_count, dispatch_limit * dispatch_limit));
     return vec3u(x, y, z);
 }
 
@@ -125,8 +121,8 @@ fn block_offset(block: u32) -> vec3i {
     return offset;
 }
 
-fn position_to_cell(position: vec3f) -> vec3i {
-    return vec3i(floor(position / CELL_SIZE + vec3f(0.25)));
+fn position_to_cell(cell_size: f32, position: vec3f) -> vec3i {
+    return vec3i(floor(position / cell_size + vec3f(0.25)));
 }
 
 fn kernel_linear(signed_x: f32) -> f32 {
@@ -154,4 +150,109 @@ fn kernel_cubic(signed_x: f32) -> f32 {
     } else {
         return 0.;
     }
+}
+
+struct ParticleParameters {
+    flags: u32,
+    a: f32,
+    b: f32,
+    c: f32,
+    d: f32,
+    e: f32,
+}
+
+fn invariant_2(position_gradient: mat3x3f) -> f32 {
+    return dot(position_gradient[0], position_gradient[0]) +
+        dot(position_gradient[1], position_gradient[1]) +
+        dot(position_gradient[2], position_gradient[2]);
+}
+
+fn invariant_3(position_gradient: mat3x3f) -> f32 {
+    return determinant(position_gradient);
+}
+
+fn elastic_energy_neo_hookean_by_invariants(
+    mu: f32,
+    lambda: f32,
+    invariant_2: f32,
+    invariant_3: f32,
+) -> f32 {
+    return mu / 2. * (invariant_2 - 3.) - mu * log(invariant_3) + lambda / 2. * log(invariant_3) * log(invariant_3);
+}
+
+fn elastic_energy_neo_hookean(
+    mu: f32,
+    lambda: f32,
+    position_gradient: mat3x3f,
+) -> f32 {
+    return elastic_energy_neo_hookean_by_invariants(
+        mu, lambda, invariant_2(position_gradient), invariant_3(position_gradient)
+    );
+}
+
+fn elastic_energy_inviscid_by_invariant(bulk_modulus: f32, exponent: f32, invariant_3: f32) -> f32 {
+    let at_rest = bulk_modulus * (1. - 1. / (1. - exponent));
+    return bulk_modulus * (invariant_3 - pow(invariant_3, 1. - exponent) / (1. - exponent)) - at_rest;
+}
+
+fn elastic_energy_inviscid(
+    bulk_modulus: f32,
+    exponent: f32,
+    position_gradient: mat3x3f,
+) -> f32 {
+    return elastic_energy_inviscid_by_invariant(bulk_modulus, exponent, invariant_3(position_gradient));
+}
+
+fn partial_elastic_energy_neo_hookean_by_invariant_2(mu: f32) -> f32 {
+    return mu / 2.;
+}
+
+fn partial_invariant_2_by_position_gradient(position_gradient: mat3x3f) -> mat3x3f {
+    return 2. * position_gradient;
+}
+
+fn partial_elastic_energy_neo_hookean_by_invariant_3(mu: f32, lambda: f32, invariant_3: f32) -> f32 {
+    return (lambda * log(invariant_3) - mu) / invariant_3;
+}
+
+fn partial_invariant_3_by_position_gradient(position_gradient: mat3x3f) -> mat3x3f {
+    return mat3x3f(
+        cross(position_gradient[1], position_gradient[2]),
+        cross(position_gradient[2], position_gradient[0]),
+        cross(position_gradient[0], position_gradient[1]),
+    );
+}
+
+fn first_piola_stress_neo_hookean(
+    mu: f32,
+    lambda: f32,
+    position_gradient: mat3x3f,
+) -> mat3x3f {
+    return partial_elastic_energy_neo_hookean_by_invariant_2(mu)
+    * partial_invariant_2_by_position_gradient(position_gradient)
+    + partial_elastic_energy_neo_hookean_by_invariant_3(
+        mu,
+        lambda,
+        invariant_3(position_gradient),
+    ) * partial_invariant_3_by_position_gradient(position_gradient);
+}
+
+fn partial_elastic_energy_inviscid_by_invariant_3(
+    bulk_modulus: f32,
+    exponent: f32,
+    invariant_3: f32,
+) -> f32 {
+    return bulk_modulus * (1. - 1. / pow(invariant_3, exponent));
+}
+
+fn first_piola_stress_inviscid(
+    bulk_modulus: f32,
+    exponent: f32,
+    position_gradient: mat3x3f,
+) -> mat3x3f {
+    return partial_elastic_energy_inviscid_by_invariant_3(
+        bulk_modulus,
+        exponent,
+        invariant_3(position_gradient),
+    ) * partial_invariant_3_by_position_gradient(position_gradient);
 }
