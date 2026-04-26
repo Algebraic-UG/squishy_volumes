@@ -39,7 +39,7 @@ fn check(
         let initial_volume = initial_volumes[particle_index];
         let parameters: Host = particle_parameters[particle_index].into();
         let position = positions[particle_index].xyz();
-        let position_gradient = position_gradients[particle_index]
+        let position_gradient: Matrix3<f32> = position_gradients[particle_index]
             .fixed_view::<3, 3>(0, 0)
             .into();
         let velocity = velocities[particle_index].xyz();
@@ -48,7 +48,7 @@ fn check(
             .into();
 
         let low_gridnode =
-            (position.xyz() / grid_node_size - Vector3::repeat(0.5)).map(|x| x.floor() as i32);
+            (position / grid_node_size - Vector3::repeat(0.5)).map(|x| x.floor() as i32);
 
         let nodes = (0..3).flat_map(|i| {
             (0..3).flat_map(move |j| (0..3).map(move |k| low_gridnode + Vector3::new(i, j, k)))
@@ -56,12 +56,11 @@ fn check(
 
         for node in nodes {
             let value = masses_cpu.entry(node).or_default();
-            let to_node = node.map(|c| c as f32) - position.xyz() / grid_node_size;
+            let to_node = node.map(|c| c as f32) - position / grid_node_size;
             let weight = to_node.map(kernel_quadratic).product();
             let to_grid_node = to_node * grid_node_size;
 
-            let mut imparted_momentum =
-                (velocity.xzy() + velocity_gradient.fixed_view::<3, 3>(0, 0) * to_grid_node) * mass;
+            let mut imparted_momentum = (velocity + velocity_gradient * to_grid_node) * mass;
 
             let stress = match parameters {
                 Host::Solid(Solid { mu, lambda, .. }) => {
@@ -104,7 +103,7 @@ fn check(
         if let Some(cpu) = masses_cpu.get(&node_id.xyz()) {
             println!("both have {:?}", node_id.xyz());
             println!("{} vs {}", cpu, gpu);
-            check_iters(cpu.iter(), gpu.fixed_view::<3, 3>(0, 0).iter());
+            check_iters(cpu.iter(), gpu.iter());
         } else {
             assert_eq!(gpu, Vector4::zeros());
         }
