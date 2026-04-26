@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use rand::prelude::*;
+use rand::rngs::ChaCha8Rng;
 use std::collections::HashMap;
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
@@ -83,7 +85,7 @@ fn check(
     println!("{:?}", masses_cpu.values().collect::<Vec<_>>());
 
     let (addenum, blocks) = run_scatter(settings, dispatch_limit, input_data);
-    let masses: Vec<Vector4<f32>> = blocks
+    let blocks_flat: Vec<Vector4<f32>> = blocks
         .iter()
         .flat_map(|block| block.nodes.iter())
         .cloned()
@@ -95,11 +97,10 @@ fn check(
         &addenum.cell_owns,
     );
 
-    //assert_eq!(masses.len(), nodes.len());
-    println!("{}", masses.len());
-    println!("{masses:?}");
+    println!("{}", blocks_flat.len());
+    println!("{blocks_flat:?}");
 
-    for (node_id, gpu) in nodes.into_iter().zip(masses) {
+    for (node_id, gpu) in nodes.into_iter().zip(blocks_flat) {
         if let Some(cpu) = masses_cpu.get(&node_id.xyz()) {
             println!("both have {:?}", node_id.xyz());
             println!("{} vs {}", cpu, gpu);
@@ -111,7 +112,7 @@ fn check(
 }
 
 #[test]
-fn test_single() {
+fn test_single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let cell_size = 1.;
@@ -145,33 +146,10 @@ fn test_single() {
             ]],
         },
     );
-    /*
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(cell_size, 0., 0., 0.)],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(0., cell_size, 0., 0.)],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(0., 0., cell_size, 0.)],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(cell_size, cell_size, cell_size, 0.)],
-    );
-    */
 }
 
-/*
 #[test]
-fn test_two() {
+fn test_many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let cell_size = 1.;
@@ -179,150 +157,71 @@ fn test_two() {
         workgroup_size,
         cell_size,
     };
-    check(settings, dispatch_limit, &[Vector4::zeros(); 2]);
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(cell_size, 0., 0., 0.); 2],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(0., cell_size, 0., 0.); 2],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(0., 0., cell_size, 0.); 2],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(cell_size, cell_size, cell_size, 0.); 2],
-    );
-}
 
-#[test]
-fn test_two_colors() {
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 1.;
-    let settings = Settings {
-        workgroup_size,
-        cell_size,
-    };
-    check(
-        settings,
-        dispatch_limit,
-        &[
-            Vector4::new(cell_size, cell_size, cell_size, 0.) * -0.5,
-            Vector4::new(cell_size, cell_size, cell_size, 0.) * 0.5,
-        ],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[
-            Vector4::zeros(),
-            Vector4::new(cell_size, cell_size, cell_size, 0.),
-        ],
-    );
-}
+    let positions = many_positions();
+    let n = positions.len();
 
-#[test]
-fn test_100() {
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 1.;
-    let settings = Settings {
-        workgroup_size,
-        cell_size,
-    };
-    check(settings, dispatch_limit, &vec![Vector4::zeros(); 100]);
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(cell_size, 0., 0., 0.); 100],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(0., cell_size, 0., 0.); 100],
-    );
-    check(
-        settings,
-        dispatch_limit,
-        &[Vector4::new(0., 0., cell_size, 0.); 100],
-    );
-}
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    let masses = (0..n)
+        .map(|_| rng.random_range(0.01..0.05))
+        .collect::<Vec<_>>();
+    let initial_volumes = (0..n)
+        .map(|_| rng.random_range(0.01..0.05))
+        .collect::<Vec<_>>();
 
-#[test]
-fn test_simple() {
-    let positions = [
-        Vector4::new(-0.5, -0.5, -0.5, 0.),
-        Vector4::new(-0.5, -0.5, 0.5, 0.),
-        Vector4::new(-0.5, 0.5, -0.5, 0.),
-        Vector4::new(-0.5, 0.5, 0.5, 0.),
-        Vector4::new(0.5, -0.5, -0.5, 0.),
-        Vector4::new(0.5, -0.5, 0.5, 0.),
-        Vector4::new(0.5, 0.5, -0.5, 0.),
-        Vector4::new(0.5, 0.5, 0.5, 0.),
-    ];
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 1.;
+    let particle_parameters = test_lame_parameters()
+        .chain(test_lame_parameters())
+        .cycle()
+        .take(n)
+        .map(Into::into)
+        .collect::<Vec<_>>();
+    let position_gradients = test_position_gradients_random(n)
+        .into_iter()
+        .map(|m| stack![m; Matrix1x3::zeros()])
+        .collect::<Vec<_>>();
+    let velocities = (0..n)
+        .map(|_| {
+            Vector4::new(
+                rng.random_range(-1.0..1.),
+                rng.random_range(-1.0..1.),
+                rng.random_range(-1.0..1.),
+                0.,
+            )
+        })
+        .collect::<Vec<_>>();
+    let velocity_gradients = (0..n)
+        .map(|_| {
+            stack![
+                Matrix3::new(
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                );
+                Matrix1x3::zeros()
+            ]
+        })
+        .collect::<Vec<_>>();
+
     check(
-        Settings {
-            workgroup_size,
-            cell_size,
+        settings,
+        dispatch_limit,
+        InputData {
+            masses: &masses,
+            initial_volumes: &initial_volumes,
+            particle_parameters: &particle_parameters,
+            positions: &positions,
+            position_gradients: &position_gradients,
+            velocities: &velocities,
+            velocity_gradients: &velocity_gradients,
         },
-        dispatch_limit,
-        &positions,
     );
 }
-
-#[test]
-fn test_many() {
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 0.5;
-    check(
-        Settings {
-            workgroup_size,
-            cell_size,
-        },
-        dispatch_limit,
-        &many_positions(),
-    );
-}
-
-#[test]
-fn test_random() {
-    use rand::prelude::*;
-    use rand::rngs::ChaCha8Rng;
-
-    let positions: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
-        .random_iter::<f32>()
-        .take(1000 * 4)
-        .collect();
-    let positions: Vec<Vector4<f32>> = positions
-        .chunks_exact(4)
-        .map(Vector4::from_column_slice)
-        .collect();
-
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 1337.;
-    check(
-        Settings {
-            workgroup_size,
-            cell_size,
-        },
-        dispatch_limit,
-        &positions,
-    );
-}
-*/
 
 fn run_scatter(
     settings: Settings,

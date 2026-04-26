@@ -702,7 +702,7 @@ pub fn test_position_gradients_random(n: usize) -> Vec<Matrix3<f32>> {
     tmp
 }
 
-pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host> {
+pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host> + Clone {
     use particle_parameters::{Host, Solid};
 
     [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
@@ -719,7 +719,7 @@ pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host>
         })
 }
 
-pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::Host> {
+pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::Host> + Clone {
     use particle_parameters::{Fluid, Host};
 
     [(100., 2), (1000., 2), (100., 7), (1000., 7)]
