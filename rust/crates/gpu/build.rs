@@ -5,7 +5,7 @@ fn main() {
         .map(|dir_entry| dir_entry.path())
         .filter_map(|path| {
             path.extension()
-                .is_some_and(|ext| ext == "wgsl")
+                .is_some_and(|ext| ext == "wesl")
                 .then_some(path)
         })
     {
