@@ -50,7 +50,7 @@ pub struct Input {
 
 #[derive(Debug)]
 pub struct InputAddendum {
-    pub indirect_colors_batch: Vec<Indirect>,
+    pub indirect_cells: Indirect,
     pub cell_ids: Vec<Vector4<i32>>,
     pub cell_owns: Vec<u32>,
 }
@@ -122,7 +122,7 @@ impl Input {
 
         let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
         let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
-        let (cell_ids, index_ranges, _indirect_cells) = build_cells_on_cpu(
+        let (cell_ids, index_ranges, indirect_cells) = build_cells_on_cpu(
             workgroup_size,
             dispatch_limit,
             cell_size,
@@ -138,7 +138,7 @@ impl Input {
             color_cells_on_cpu(workgroup_size, dispatch_limit, subgroup_size, &cell_ids);
 
         let addendum = InputAddendum {
-            indirect_colors_batch: indirect_colors_batch.clone(),
+            indirect_cells,
             cell_ids: cell_ids.clone(),
             cell_owns: owns.clone(),
         };

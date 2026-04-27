@@ -30,7 +30,7 @@ fn check(
     println!("{:?}", grid_cpu);
     println!("{:?}", grid_cpu.values().collect::<Vec<_>>());
 
-    let (addenum, blocks) = run_scatter(settings, dispatch_limit, input_data);
+    let (addendum, blocks) = run_scatter(settings, dispatch_limit, input_data);
     let blocks_flat: Vec<Vector4<f32>> = blocks
         .iter()
         .flat_map(|block| block.nodes.iter())
@@ -38,9 +38,9 @@ fn check(
         .collect();
 
     let nodes = gpu_grid_to_cpu_grid(
-        *addenum.indirect_colors_batch.last().unwrap(),
-        &addenum.cell_ids,
-        &addenum.cell_owns,
+        addendum.indirect_cells,
+        &addendum.cell_ids,
+        &addendum.cell_owns,
     );
 
     println!("{}", blocks_flat.len());
