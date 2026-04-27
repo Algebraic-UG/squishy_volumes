@@ -1,6 +1,8 @@
-use nalgebra::Vector4;
+use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector4, stack};
 use squishy_volumes_gpu::{
-    Block, DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, scatter::*,
+    Block, DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart,
+    particle_parameters::{Host, Solid},
+    scatter::*,
 };
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
@@ -12,19 +14,43 @@ pub fn scatter_on_gpu(
 ) -> Vec<Block> {
     let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
     context
-        .setup_allocator(positions.len() as u64 * 200, "allocator", true)
+        .setup_allocator(positions.len() as u64 * 165, "allocator", true)
         .unwrap();
     context
         .setup_indirect_allocator(400, "indirect allocator", true)
         .unwrap();
 
     let scatter = Scatter::new(&context, settings);
-    let (input, addendum) = Input::new(
+    let n = positions.len();
+    let (input, _addendum) = Input::new(
         context.device(),
         settings,
         (u16::MAX as u32).try_into().unwrap(),
         context.subgroup_size(),
-        positions,
+        InputData {
+            masses: &vec![1.; n],
+            initial_volumes: &vec![1.; n],
+            particle_parameters: &vec![
+                Host::Solid(Solid {
+                    mu: 1.,
+                    lambda: 1.,
+                    viscosity: None,
+                    sand_alpha: None,
+                })
+                .into();
+                n
+            ],
+            positions,
+            position_gradients: &vec![
+                stack![
+                    Matrix3::identity();
+                    Matrix1x3::zeros()
+                ];
+                n
+            ],
+            velocities: &vec![Vector4::zeros(); n],
+            velocity_gradients: &vec![Matrix4x3::zeros(); n],
+        },
     );
 
     if let Some(tool) = tool {

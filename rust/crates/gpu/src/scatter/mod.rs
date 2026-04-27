@@ -55,13 +55,13 @@ pub struct InputAddendum {
 }
 
 pub struct InputData<'a> {
-    masses: &'a [f32],
-    initial_volumes: &'a [f32],
-    particle_parameters: &'a [particle_parameters::Device],
-    positions: &'a [Vector4<f32>],
-    position_gradients: &'a [Matrix4x3<f32>],
-    velocities: &'a [Vector4<f32>],
-    velocity_gradients: &'a [Matrix4x3<f32>],
+    pub masses: &'a [f32],
+    pub initial_volumes: &'a [f32],
+    pub particle_parameters: &'a [particle_parameters::Device],
+    pub positions: &'a [Vector4<f32>],
+    pub position_gradients: &'a [Matrix4x3<f32>],
+    pub velocities: &'a [Vector4<f32>],
+    pub velocity_gradients: &'a [Matrix4x3<f32>],
 }
 
 impl Input {

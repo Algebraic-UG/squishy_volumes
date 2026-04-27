@@ -9,7 +9,7 @@ use convert_case::{Case, Casing};
 use nalgebra::Vector4;
 use rand::{random_iter, rng, seq::SliceRandom};
 use squishy_volumes_gpu::{
-    Indirect, grid_on_cpu, i32_to_u32_offset, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
+    grid_on_cpu, i32_to_u32_offset, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
     sort_on_cpu, sort_positions_into_cells_on_cpu,
 };
 use tracing::{dispatcher::set_global_default, info};
@@ -253,7 +253,7 @@ fn main() {
         }
         Task::Scatter => {
             let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let output = match mode {
+            let _output = match mode {
                 Mode::Cpu => todo!(),
                 Mode::Gpu => scatter_on_gpu(
                     tool,

@@ -209,12 +209,10 @@ pub fn color_cells_on_cpu(
     cells: &[Vector4<i32>],
 ) -> (Vec<Indirect>, Vec<Indirect>, Vec<u32>) {
     let keys: Vec<u32> = cells_to_colorkeys_on_cpu(cells);
-    println!("keys: {keys:?}");
 
     let counts = (0..8)
         .map(|color| keys.iter().filter(|key| **key == color).count() as u32)
         .collect::<Vec<_>>();
-    println!("counts: {counts:?}");
     let prefix_sum: Vec<_> = counts
         .iter()
         .scan(0, |prefix_sum, item| {
