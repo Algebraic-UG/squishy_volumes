@@ -10,12 +10,13 @@ use super::*;
 
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
-use std::collections::HashSet;
+use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::iter::once;
 use std::num::NonZeroU32;
 
-use nalgebra::Vector4;
+use nalgebra::{Matrix3, Vector3, Vector4};
 
 pub const MAX_NUM_PARTICLES: u32 = 1000000;
 
@@ -381,4 +382,71 @@ pub fn kernel_cubic(x: f32) -> f32 {
     } else {
         0.
     }
+}
+
+pub fn scatter_on_cpu(
+    cell_size: f32,
+    time_step: f32,
+    scatter::InputData {
+        masses,
+        initial_volumes,
+        particle_parameters,
+        positions,
+        position_gradients,
+        velocities,
+        velocity_gradients,
+    }: scatter::InputData,
+) -> HashMap<Vector3<i32>, Vector4<f32>> {
+    use particle_parameters::{Fluid, Host, Solid};
+
+    let grid_node_size = cell_size * 0.5;
+    let scaling = time_step * 4. / grid_node_size.powi(2);
+
+    let mut grid_cpu: HashMap<Vector3<i32>, Vector4<f32>> = Default::default();
+    for particle_index in 0..masses.len() {
+        let mass = masses[particle_index];
+        let initial_volume = initial_volumes[particle_index];
+        let parameters: Host = particle_parameters[particle_index].into();
+        let position = positions[particle_index].xyz();
+        let position_gradient: Matrix3<f32> = position_gradients[particle_index]
+            .fixed_view::<3, 3>(0, 0)
+            .into();
+        let velocity = velocities[particle_index].xyz();
+        let velocity_gradient: Matrix3<f32> = velocity_gradients[particle_index]
+            .fixed_view::<3, 3>(0, 0)
+            .into();
+
+        let low_gridnode =
+            (position / grid_node_size - Vector3::repeat(0.5)).map(|x| x.floor() as i32);
+
+        let nodes = (0..3).flat_map(|i| {
+            (0..3).flat_map(move |j| (0..3).map(move |k| low_gridnode + Vector3::new(i, j, k)))
+        });
+
+        for node in nodes {
+            let value = grid_cpu.entry(node).or_default();
+            let to_node = node.map(|c| c as f32) - position / grid_node_size;
+            let weight = to_node.map(kernel_quadratic).product();
+            let to_grid_node = to_node * grid_node_size;
+
+            let mut imparted_momentum = (velocity + velocity_gradient * to_grid_node) * mass;
+
+            let stress = match parameters {
+                Host::Solid(Solid { mu, lambda, .. }) => {
+                    first_piola_stress_neo_hookean(mu, lambda, &position_gradient)
+                }
+                Host::Fluid(Fluid {
+                    exponent,
+                    bulk_modulus,
+                    ..
+                }) => first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
+            };
+            imparted_momentum -= stress
+                * (position_gradient.transpose() * (to_grid_node * (scaling * initial_volume)));
+
+            *value += imparted_momentum.push(mass) * weight;
+        }
+    }
+
+    grid_cpu
 }

@@ -122,6 +122,7 @@ fn main() {
         .unwrap_or(test_data.join(format!("{mode:?}-{task:?}-out.bin").to_case(Case::Kebab)));
 
     let cell_size = 1.;
+    let time_step = 0.001;
     if let Some(generate) = generate {
         let mut out = File::create(&input_file).unwrap();
         match task {
@@ -260,6 +261,7 @@ fn main() {
                     gpu::scatter::Settings {
                         workgroup_size,
                         cell_size,
+                        time_step,
                     },
                     input,
                 ),

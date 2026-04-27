@@ -69,7 +69,7 @@ pub use prepare_grid::PrepareGrid;
 pub use radix_sort::RadixSort;
 pub use recycle_to_indirect::RecycleToIndirect;
 pub use reorder_indices::ReorderIndices;
-//pub use scatter::Scatter;
+pub use scatter::Scatter;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 
 #[cfg(test)]

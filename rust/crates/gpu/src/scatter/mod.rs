@@ -23,6 +23,7 @@ pub struct Scatter {
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub cell_size: f32,
+    pub time_step: f32,
 }
 
 pub struct Parameters;
@@ -54,6 +55,7 @@ pub struct InputAddendum {
     pub cell_owns: Vec<u32>,
 }
 
+#[derive(Clone)]
 pub struct InputData<'a> {
     pub masses: &'a [f32],
     pub initial_volumes: &'a [f32],
@@ -70,6 +72,7 @@ impl Input {
         Settings {
             workgroup_size,
             cell_size,
+            ..
         }: Settings,
         dispatch_limit: NonZeroU32,
         subgroup_size: NonZeroU32,
@@ -198,6 +201,7 @@ impl PipelinePart for Scatter {
         Settings {
             workgroup_size,
             cell_size,
+            time_step,
         }: Settings,
     ) -> Self {
         let_compiled_module!(
@@ -226,6 +230,7 @@ impl PipelinePart for Scatter {
                 constants: [
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("CELL_SIZE", cell_size as f64),
+                    ("TIME_STEP", time_step as f64),
                 ]
             }
         );

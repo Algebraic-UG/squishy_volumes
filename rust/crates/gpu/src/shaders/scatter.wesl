@@ -64,6 +64,7 @@ var<immediate> color: u32;
 
 override WORKGROUP_SIZE: u32;
 override CELL_SIZE: f32;
+override TIME_STEP: f32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -72,9 +73,8 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    let time_step = 0.001;
     let grid_node_size = CELL_SIZE * 0.5;
-    let scaling = time_step * 4. / (grid_node_size * grid_node_size);
+    let scaling = TIME_STEP * 4. / (grid_node_size * grid_node_size);
 
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     var color_index = global_index / subgroup_size;
