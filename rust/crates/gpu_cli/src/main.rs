@@ -20,13 +20,14 @@ use clap::{Parser, ValueEnum};
 use squishy_volumes_gpu as gpu;
 
 use crate::{
-    build_hash_table::build_hash_table_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
-    prefix_sum::prefix_sum_on_gpu, prepare_grid::prepare_grid_on_gpu,
-    radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
+    build_hash_table::build_hash_table_on_gpu, collect::collect_on_gpu,
+    positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
+    prepare_grid::prepare_grid_on_gpu, radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
     sort_positions_into_cells::sort_positions_into_cells_on_gpu,
 };
 
 mod build_hash_table;
+mod collect;
 mod positions_to_keys;
 mod prefix_sum;
 mod prepare_grid;
@@ -59,6 +60,7 @@ enum Task {
     BuildHashTable,
     PrepareGrid,
     Scatter,
+    Collect,
 }
 
 #[derive(Parser)]
@@ -144,7 +146,7 @@ fn main() {
                     .collect();
                 out.write_all(bytemuck::cast_slice(&positions)).unwrap();
             }
-            Task::Scatter => {
+            Task::Scatter | Task::Collect => {
                 let per_dim = (generate as f64).powf(1. / 3.).ceil() as usize;
                 let input: Vec<_> = (0..per_dim)
                     .flat_map(move |x| {
@@ -259,6 +261,21 @@ fn main() {
                 Mode::Gpu => scatter_on_gpu(
                     tool,
                     gpu::scatter::Settings {
+                        workgroup_size,
+                        cell_size,
+                        time_step,
+                    },
+                    input,
+                ),
+            };
+        }
+        Task::Collect => {
+            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
+            let _output = match mode {
+                Mode::Cpu => todo!(),
+                Mode::Gpu => collect_on_gpu(
+                    tool,
+                    gpu::collect::Settings {
                         workgroup_size,
                         cell_size,
                         time_step,

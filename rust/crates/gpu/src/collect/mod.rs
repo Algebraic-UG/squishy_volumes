@@ -87,15 +87,25 @@ impl Input {
             cell_size,
         );
 
-        assert_eq!((0..positions.len() as u32).collect::<Vec<_>>(), indices);
+        fn permute<T: Clone>(indices: &[u32], to_permute: &[T]) -> Vec<T> {
+            indices
+                .iter()
+                .map(|&index| to_permute[index as usize].clone())
+                .collect()
+        }
 
-        let boundaries = find_cell_boundaries_on_cpu(positions, cell_size);
+        let positions = permute(&indices, positions);
+        let position_gradients = permute(&indices, position_gradients);
+        let velocities = permute(&indices, velocities);
+        let velocity_gradients = permute(&indices, velocity_gradients);
+
+        let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
         let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
         let (cell_ids, index_ranges, indirect_cells) = build_cells_on_cpu(
             workgroup_size,
             dispatch_limit,
             cell_size,
-            positions,
+            &positions,
             &prefixed_boundaries,
         );
         let mut indirect_cells_batch = Indirect::new(IndirectSettings {
@@ -130,10 +140,10 @@ impl Input {
         let block_offsets = Allocation::new(device, "block_offsets", &block_offsets);
         let block_table = Allocation::new(device, "block_table", &block_table);
 
-        let positions = Allocation::new(device, "positions", positions);
-        let position_gradients = Allocation::new(device, "position_gradients", position_gradients);
-        let velocities = Allocation::new(device, "velocities", velocities);
-        let velocity_gradients = Allocation::new(device, "velocity_gradients", velocity_gradients);
+        let positions = Allocation::new(device, "positions", &positions);
+        let position_gradients = Allocation::new(device, "position_gradients", &position_gradients);
+        let velocities = Allocation::new(device, "velocities", &velocities);
+        let velocity_gradients = Allocation::new(device, "velocity_gradients", &velocity_gradients);
 
         let blocks = Allocation::new(device, "blocks", &blocks);
 
