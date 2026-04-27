@@ -222,8 +222,6 @@ impl PipelinePart for Collect {
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        encoder.clear_buffer(blocks.buffer(), blocks.offset(), Some(blocks.size().get()));
-
         let mut compute_pass = encoder.begin_compute_pass(self.collect.label);
         compute_pass.set_pipeline(&self.collect.compute_pipeline);
         compute_pass.set_bind_group(
