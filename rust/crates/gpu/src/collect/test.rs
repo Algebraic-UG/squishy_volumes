@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::collections::HashSet;
-
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
 
@@ -25,42 +23,69 @@ fn check(
         ..
     }: Settings,
     dispatch_limit: NonZeroU32,
-    input_data: InputData,
+    input_data: scatter::InputData,
 ) {
-    let grid_cpu = scatter_on_cpu(cell_size, time_step, input_data.clone());
-
-    println!("{:?}", grid_cpu);
-    println!("{:?}", grid_cpu.values().collect::<Vec<_>>());
-
-    let (addendum, blocks) = run_scatter(settings, dispatch_limit, input_data);
-    let blocks_flat: Vec<Vector4<f32>> = blocks
-        .iter()
-        .flat_map(|block| block.nodes.iter())
-        .cloned()
-        .collect();
-
-    let nodes = gpu_grid_to_cpu_grid(
-        addendum.indirect_cells,
-        &addendum.cell_ids,
-        &addendum.cell_owns,
+    let indices = sort_positions_into_cells_on_cpu(
+        &(0..input_data.positions.len() as u32).collect::<Vec<_>>(),
+        input_data.positions,
+        cell_size,
     );
 
-    println!("{}", blocks_flat.len());
-    println!("{blocks_flat:?}");
-
-    for (node_id, gpu) in nodes.iter().zip(blocks_flat) {
-        if let Some(cpu) = grid_cpu.get(&node_id.xyz()) {
-            println!("both have {:?}", node_id.xyz());
-            println!("{} vs {}", cpu, gpu);
-            check_iters(cpu.iter(), gpu.iter());
-        } else {
-            assert_eq!(gpu, Vector4::zeros());
-        }
+    fn permute<T: Clone>(indices: &[u32], to_permute: &[T]) -> Vec<T> {
+        indices
+            .iter()
+            .map(|&index| to_permute[index as usize].clone())
+            .collect()
     }
 
-    let super_set: HashSet<_> = nodes.into_iter().collect();
-    for node in grid_cpu.keys() {
-        assert!(super_set.contains(&node.push(0)));
+    let masses = permute(&indices, input_data.masses);
+    let initial_volumes = permute(&indices, input_data.initial_volumes);
+    let particle_parameters = permute(&indices, input_data.particle_parameters);
+    let positions = permute(&indices, input_data.positions);
+    let position_gradients = permute(&indices, input_data.position_gradients);
+    let velocities = permute(&indices, input_data.velocities);
+    let velocity_gradients = permute(&indices, input_data.velocity_gradients);
+
+    let input_data = scatter::InputData {
+        masses: &masses,
+        initial_volumes: &initial_volumes,
+        particle_parameters: &particle_parameters,
+        positions: &positions,
+        position_gradients: &position_gradients,
+        velocities: &velocities,
+        velocity_gradients: &velocity_gradients,
+    };
+
+    let grid_cpu = scatter_on_cpu(cell_size, time_step, input_data.clone());
+    let (positions_cpu, position_gradients_cpu, velocities_cpu, velocity_gradients_cpu) =
+        collect_on_cpu(cell_size, time_step, input_data.clone(), grid_cpu);
+
+    let (positions_gpu, position_gradients_gpu, velocities_gpu, velocity_gradients_gpu) =
+        run_collect(settings, dispatch_limit, input_data);
+
+    println!("positions:");
+    for (cpu, gpu) in positions_cpu.into_iter().zip(positions_gpu) {
+        println!("{cpu:?} vs {gpu:?}");
+        check_iters(cpu.iter(), gpu.iter());
+    }
+    println!("position gradients:");
+    for (cpu, gpu) in position_gradients_cpu
+        .into_iter()
+        .zip(position_gradients_gpu)
+    {
+        println!("{cpu:?} vs {gpu:?}");
+        check_iters(cpu.iter(), gpu.fixed_view::<3, 3>(0, 0).iter());
+    }
+    println!("velocities:");
+    for (cpu, gpu) in velocities_cpu.into_iter().zip(velocities_gpu) {
+        check_iters(cpu.iter(), gpu.iter());
+    }
+    println!("velocity gradients:");
+    for (cpu, gpu) in velocity_gradients_cpu
+        .into_iter()
+        .zip(velocity_gradients_gpu)
+    {
+        check_iters(cpu.iter(), gpu.fixed_view::<3, 3>(0, 0).iter());
     }
 }
 
@@ -79,7 +104,7 @@ fn test_single_undeformed() {
     check(
         settings,
         dispatch_limit,
-        InputData {
+        scatter::InputData {
             masses: &[1.],
             initial_volumes: &[1.],
             particle_parameters: &[Host::Solid(Solid {
@@ -91,7 +116,7 @@ fn test_single_undeformed() {
             .into()],
             positions: &[Vector4::zeros()],
             position_gradients: &[stack![
-                Matrix3::identity();
+                Matrix3::identity() * 2.;
                 Matrix1x3::zeros()
             ]],
             velocities: &[Vector4::zeros()],
@@ -168,7 +193,7 @@ fn test_many_random_props() {
     check(
         settings,
         dispatch_limit,
-        InputData {
+        scatter::InputData {
             masses: &masses,
             initial_volumes: &initial_volumes,
             particle_parameters: &particle_parameters,
@@ -180,39 +205,67 @@ fn test_many_random_props() {
     );
 }
 
-fn run_scatter(
+fn run_collect(
     settings: Settings,
     dispatch_limit: NonZeroU32,
-    data: InputData,
-) -> (InputAddendum, Vec<Block>) {
+    data: scatter::InputData,
+) -> (
+    Vec<Vector4<f32>>,
+    Vec<Matrix4x3<f32>>,
+    Vec<Vector4<f32>>,
+    Vec<Matrix4x3<f32>>,
+) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
     let subgroup_size = context.subgroup_size();
 
-    let (input, addendum) = Input::new(
+    let input = Input::new(
         context.device(),
         settings,
         dispatch_limit,
         subgroup_size,
         data,
     );
-    println!("{addendum:?}");
-    let scatter = Scatter::new(&context, settings);
+    let scatter = Collect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { blocks } = scatter
+    let Output {
+        positions,
+        position_gradients,
+        velocities,
+        velocity_gradients,
+    } = scatter
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, blocks);
-    download.copy(&mut encoder);
+    let downloads = DownloadsToHost::new(
+        &context,
+        [
+            positions,
+            position_gradients,
+            velocities,
+            velocity_gradients,
+        ],
+    );
+    downloads.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
 
-    let download = download.prep();
+    let downloads = downloads.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    (addendum, download.to_vec())
+    let [
+        positions,
+        position_gradients,
+        velocities,
+        velocity_gradients,
+    ] = downloads.try_into().unwrap();
+    (
+        positions.to_vec(),
+        position_gradients.to_vec(),
+        velocities.to_vec(),
+        velocity_gradients.to_vec(),
+    )
 }

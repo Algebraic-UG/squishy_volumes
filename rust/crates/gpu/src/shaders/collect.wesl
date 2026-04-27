@@ -9,55 +9,41 @@
 import super::util::{Indirect, get_global_index, div_ceil, murmur_of_cell, block_offset, kernel_quadratic, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters};
 
 @group(0) @binding(0)
-var<storage, read> indirect_colors_batch: array<Indirect>;
+var<storage, read> indirect_cells_batch: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> indices: array<u32>;
-
-@group(0) @binding(2)
 var<storage, read_write> cells: array<vec3i>;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> index_ranges: array<u32>;
 
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> owns: array<u32>;
 
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read_write> block_table: array<u32>;
 
-@group(0) @binding(6)
+@group(0) @binding(5)
 var<storage, read_write> block_offsets: array<u32>;
 
 // particle stuff
 
-@group(0) @binding(7)
-var<storage, read_write> masses: array<f32>;
-
-@group(0) @binding(8)
-var<storage, read_write> initial_volumes: array<f32>;
-
-@group(0) @binding(9)
-var<storage, read_write> parameters: array<ParticleParameters>;
-
-@group(0) @binding(10)
+@group(0) @binding(6)
 var<storage, read_write> positions: array<vec3<f32>>;
 
-@group(0) @binding(11)
+@group(0) @binding(7)
 var<storage, read_write> position_gradients: array<mat3x3<f32>>;
 
-@group(0) @binding(12)
+@group(0) @binding(8)
 var<storage, read_write> velocities: array<vec3<f32>>;
 
-@group(0) @binding(13)
+@group(0) @binding(9)
 var<storage, read_write> velocity_gradients: array<mat3x3<f32>>;
 
 // grid stuff
 
-@group(0) @binding(14)
+@group(0) @binding(10)
 var<storage, read_write> blocks: array<array<vec4f,8>>;
-
-var<immediate> color: u32;
 
 override WORKGROUP_SIZE: u32;
 override CELL_SIZE: f32;
@@ -74,14 +60,10 @@ fn main(
     let scaling = TIME_STEP * 4. / (grid_node_size * grid_node_size);
 
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    var color_index = global_index / subgroup_size;
-    if color > 0 {
-        color_index += indirect_colors_batch[color - 1].len;
-    }
-    if color_index >= indirect_colors_batch[color].len {
+    let cell_index = global_index / subgroup_size;
+    if cell_index >= indirect_cells_batch.len {
         return;
     }
-    let cell_index = indices[color_index];
 
     let cell_id = cells[cell_index];
 
@@ -130,33 +112,11 @@ fn main(
         let particle_index = particle_start + particle_round * subgroup_size + subgroup_invocation_id;
         let particle_valid = particle_index < particle_end;
 
-        var mass = 0.;
-        var normalized_position = vec3f(0.);
+        var position = vec3f(0.);
         var velocity = vec3f(0.);
-        var tmp = mat3x3f();
+        var velocity_gradient = mat3x3f();
         if particle_valid {
-            mass = masses[particle_index];
-            normalized_position = positions[particle_index] / grid_node_size;
-            velocity = velocities[particle_index];
-
-            let initial_volume = initial_volumes[particle_index];
-            let parameter = parameters[particle_index];
-            let position_gradient = position_gradients[particle_index];
-            let velocity_gradient = velocity_gradients[particle_index];
-
-            var stress = mat3x3f();
-            if (parameter.flags & 1) > 0 {
-                let mu = parameter.a;
-                let lambda = parameter.b;
-                stress = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
-            }
-            if (parameter.flags & 2) > 0 {
-                let exponent = parameter.a;
-                let bulk_modulus = parameter.b;
-                stress = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);
-            }
-
-            tmp = velocity_gradient * mass - stress * transpose(position_gradient) * scaling * initial_volume;
+            position = positions[particle_index];
         }
 
         for (var grid_node_round = 0u; grid_node_round < grid_node_rounds; grid_node_round++) {
@@ -168,18 +128,31 @@ fn main(
                 node = subgroupShuffle(node, (subgroup_invocation_id + 1) % subgroup_size);
                 node_id = subgroupShuffle(node_id, (subgroup_invocation_id + 1) % subgroup_size);
 
-                if !particle_valid {
+                if !particle_valid || node.w == 0. {
                     continue;
                 }
 
-                let to_grid_node = vec3f(node_id) - normalized_position;
+                let to_grid_node = vec3f(node_id) * grid_node_size - position;
+                let to_grid_node_normalized = to_grid_node / grid_node_size;
 
-                let weight = kernel_quadratic(to_grid_node.x) * kernel_quadratic(to_grid_node.y) * kernel_quadratic(to_grid_node.z);
+                let weight = kernel_quadratic(to_grid_node_normalized.x) * kernel_quadratic(to_grid_node_normalized.y) * kernel_quadratic(to_grid_node_normalized.z);
 
-                node += vec4f(velocity * mass + tmp * to_grid_node * grid_node_size, mass) * weight;
+                let tmp = node.xyz * (weight / node.w);
+                velocity += tmp;
+                velocity_gradient += mat3x3f(
+                    tmp * to_grid_node.x,
+                    tmp * to_grid_node.y,
+                    tmp * to_grid_node.z,
+                );
             }
+        }
 
-            blocks[block_index][node_index] = node;
+        if particle_valid {
+            velocity_gradient *= 4. / grid_node_size / grid_node_size;
+            positions[particle_index] = position + velocity * TIME_STEP;
+            velocities[particle_index] = velocity;
+            position_gradients[particle_index] += velocity_gradient * position_gradients[particle_index] * TIME_STEP;
+            velocity_gradients[particle_index] = velocity_gradient;
         }
     }
 }

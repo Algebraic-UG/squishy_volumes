@@ -285,6 +285,7 @@ pub fn block_offset(block: u32) -> Vector4<i32> {
     )
 }
 
+// TODO: should this return Vector3?
 pub fn gpu_grid_to_cpu_grid(
     indirect: Indirect,
     cell_ids: &[Vector4<i32>],
@@ -449,4 +450,71 @@ pub fn scatter_on_cpu(
     }
 
     grid_cpu
+}
+
+pub fn collect_on_cpu(
+    cell_size: f32,
+    time_step: f32,
+    scatter::InputData {
+        positions,
+        position_gradients,
+        ..
+    }: scatter::InputData,
+    grid: HashMap<Vector3<i32>, Vector4<f32>>,
+) -> (
+    Vec<Vector3<f32>>,
+    Vec<Matrix3<f32>>,
+    Vec<Vector3<f32>>,
+    Vec<Matrix3<f32>>,
+) {
+    let grid_node_size = cell_size * 0.5;
+
+    let mut new_positions: Vec<Vector3<f32>> = positions.iter().map(Vector4::xyz).collect();
+    let mut new_position_gradients: Vec<Matrix3<f32>> = position_gradients
+        .iter()
+        .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+        .collect();
+    let mut velocities: Vec<Vector3<f32>> = vec![Vector3::zeros(); positions.len()];
+    let mut velocity_gradients: Vec<Matrix3<f32>> = vec![Matrix3::zeros(); positions.len()];
+    for particle_index in 0..positions.len() {
+        let position = &mut new_positions[particle_index];
+        let position_gradient = &mut new_position_gradients[particle_index];
+        let velocity = &mut velocities[particle_index];
+        let velocity_gradient = &mut velocity_gradients[particle_index];
+
+        let low_gridnode =
+            (*position / grid_node_size - Vector3::repeat(0.5)).map(|x| x.floor() as i32);
+
+        let nodes = (0..3).flat_map(|i| {
+            (0..3).flat_map(move |j| (0..3).map(move |k| low_gridnode + Vector3::new(i, j, k)))
+        });
+
+        for node in nodes {
+            let value = grid.get(&node).unwrap();
+            if value.w == 0. {
+                continue;
+            }
+
+            let node_velocity = value.xyz() / value.w;
+
+            let to_node = node.map(|c| c as f32) - *position / grid_node_size;
+            let weight = to_node.map(kernel_quadratic).product();
+            let to_grid_node = to_node * grid_node_size;
+
+            *velocity += node_velocity * weight;
+            *velocity_gradient += (node_velocity * weight) * to_grid_node.transpose();
+        }
+
+        *velocity_gradient *= 4. / grid_node_size / grid_node_size;
+
+        *position += *velocity * time_step;
+        *position_gradient += *velocity_gradient * *position_gradient * time_step;
+    }
+
+    (
+        new_positions,
+        new_position_gradients,
+        velocities,
+        velocity_gradients,
+    )
 }
