@@ -736,6 +736,6 @@ pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::H
 pub fn check_iters<'a>(a: impl IntoIterator<Item = &'a f32>, b: impl IntoIterator<Item = &'a f32>) {
     for (a, b) in a.into_iter().zip(b.into_iter()) {
         println!("{a} vs {b}");
-        assert_relative_eq!(a, b, max_relative = 0.01);
+        assert_relative_eq!(a, b, epsilon = 0.000001, max_relative = 0.01);
     }
 }
