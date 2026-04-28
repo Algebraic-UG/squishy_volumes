@@ -35,11 +35,11 @@ pub fn sort_positions_into_cells_on_gpu(
     let mut profiler =
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
     let scope = profiler.scope("run_positions_into_cells", &mut encoder);
-    let Output { indices_out } = sort_positions_into_cells
+    let Output { permutation } = sort_positions_into_cells
         .record(&mut context, &mut scope.into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, indices_out);
+    let download = DownloadToHost::new(&context, permutation);
     download.copy(&mut encoder);
 
     profiler.resolve_queries(&mut encoder);

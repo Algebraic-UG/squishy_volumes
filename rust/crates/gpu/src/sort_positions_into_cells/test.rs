@@ -76,11 +76,11 @@ fn run_sort_positions_into_cells(settings: Settings, positions: &[Vector4<f32>])
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { indices_out } = sort_positions_into_cells
+    let Output { permutation } = sort_positions_into_cells
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, indices_out);
+    let download = DownloadToHost::new(&context, permutation);
     download.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
     let download = download.prep();

@@ -62,7 +62,7 @@ impl Input {
 }
 
 pub struct Output {
-    pub indices_out: Allocation,
+    pub permutation: Allocation,
 }
 
 impl PipelinePart for SortPositionsIntoCells {
@@ -134,7 +134,7 @@ impl PipelinePart for SortPositionsIntoCells {
             )?);
         }
         Ok(Output {
-            indices_out: indices_out.unwrap(),
+            permutation: indices_out.unwrap(),
         })
     }
 }
