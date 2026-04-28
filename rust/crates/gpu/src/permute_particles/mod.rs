@@ -35,6 +35,8 @@ pub struct Input {
     pub parameters_in: Allocation,
     pub positions_in: Allocation,
     pub position_gradients_in: Allocation,
+    pub velocities_in: Allocation,
+    pub velocity_gradients_in: Allocation,
 }
 
 pub struct InputData<'a> {
@@ -45,6 +47,8 @@ pub struct InputData<'a> {
     pub parameters: &'a [particle_parameters::Device],
     pub positions: &'a [Vector4<f32>],
     pub position_gradients: &'a [Matrix4x3<f32>],
+    pub velocities: &'a [Vector4<f32>],
+    pub velocity_gradients: &'a [Matrix4x3<f32>],
 }
 
 impl Input {
@@ -60,6 +64,8 @@ impl Input {
             parameters,
             positions,
             position_gradients,
+            velocities,
+            velocity_gradients,
         }: InputData,
     ) -> Self {
         assert_eq!(permutation.len(), indices.len());
@@ -68,6 +74,8 @@ impl Input {
         assert_eq!(permutation.len(), parameters.len());
         assert_eq!(permutation.len(), positions.len());
         assert_eq!(permutation.len(), position_gradients.len());
+        assert_eq!(permutation.len(), velocities.len());
+        assert_eq!(permutation.len(), velocity_gradients.len());
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
@@ -83,6 +91,9 @@ impl Input {
         let positions_in = Allocation::new(device, "positions_in", positions);
         let position_gradients_in =
             Allocation::new(device, "position_gradients_in", position_gradients);
+        let velocities_in = Allocation::new(device, "velocities_in", velocities);
+        let velocity_gradients_in =
+            Allocation::new(device, "velocity_gradients_in", velocity_gradients);
 
         Self {
             indirect,
@@ -93,6 +104,8 @@ impl Input {
             parameters_in,
             positions_in,
             position_gradients_in,
+            velocities_in,
+            velocity_gradients_in,
         }
     }
 }
@@ -104,6 +117,8 @@ pub struct Output {
     pub parameters_out: Allocation,
     pub positions_out: Allocation,
     pub position_gradients_out: Allocation,
+    pub velocities_out: Allocation,
+    pub velocity_gradients_out: Allocation,
 }
 
 impl PipelinePart for PermuteParticles {
@@ -129,12 +144,16 @@ impl PipelinePart for PermuteParticles {
                     (Device::MIN_BINDING_SIZE, false),           // parameters_in
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),   // positions_in
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients_in
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),   // velocities_in
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // velocity_gradients_in
                     (u32::MIN_BINDING_SIZE, false),              // indices_out
                     (f32::MIN_BINDING_SIZE, false),              // masses_out
                     (f32::MIN_BINDING_SIZE, false),              // initial_volumes_out
                     (Device::MIN_BINDING_SIZE, false),           // parameters_out
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),   // positions_out
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients_out
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),   // velocities_out
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // velocity_gradients_out
                 ],
                 immediate_size: 0,
                 constants: [("WORKGROUP_SIZE", settings.workgroup_size.get() as f64)],
@@ -157,6 +176,8 @@ impl PipelinePart for PermuteParticles {
             parameters_in,
             positions_in,
             position_gradients_in,
+            velocities_in,
+            velocity_gradients_in,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
@@ -182,6 +203,13 @@ impl PipelinePart for PermuteParticles {
             "position_gradients_out",
             position_gradients_in.len::<Matrix4x3<f32>>(),
         )?;
+        let velocities_out = context
+            .allocator()?
+            .allocate::<Vector4<f32>>("velocities_out", velocities_in.len::<Vector4<f32>>())?;
+        let velocity_gradients_out = context.allocator()?.allocate::<Matrix4x3<f32>>(
+            "velocity_gradients_out",
+            velocity_gradients_in.len::<Matrix4x3<f32>>(),
+        )?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.permute_particles.label);
         compute_pass.set_pipeline(&self.permute_particles.compute_pipeline);
@@ -199,12 +227,16 @@ impl PipelinePart for PermuteParticles {
                     parameters_in.binding(),
                     positions_in.binding(),
                     position_gradients_in.binding(),
+                    velocities_in.binding(),
+                    velocity_gradients_in.binding(),
                     indices_out.binding(),
                     masses_out.binding(),
                     initial_volumes_out.binding(),
                     parameters_out.binding(),
                     positions_out.binding(),
                     position_gradients_out.binding(),
+                    velocities_out.binding(),
+                    velocity_gradients_out.binding(),
                 ],
             ),
             &[],
@@ -218,6 +250,8 @@ impl PipelinePart for PermuteParticles {
             parameters_out,
             positions_out,
             position_gradients_out,
+            velocities_out,
+            velocity_gradients_out,
         })
     }
 }

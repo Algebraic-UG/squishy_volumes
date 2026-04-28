@@ -33,22 +33,34 @@ var<storage, read_write> positions_in: array<vec3<f32>>;
 var<storage, read_write> position_gradients_in: array<mat3x3<f32>>;
 
 @group(0) @binding(8)
-var<storage, read_write> indices_out: array<u32>;
+var<storage, read_write> velocities_in: array<vec3<f32>>;
 
 @group(0) @binding(9)
-var<storage, read_write> masses_out: array<f32>;
+var<storage, read_write> velocity_gradients_in: array<mat3x3<f32>>;
 
 @group(0) @binding(10)
-var<storage, read_write> initial_volumes_out: array<f32>;
+var<storage, read_write> indices_out: array<u32>;
 
 @group(0) @binding(11)
-var<storage, read_write> parameters_out: array<ParticleParameters>;
+var<storage, read_write> masses_out: array<f32>;
 
 @group(0) @binding(12)
-var<storage, read_write> positions_out: array<vec3<f32>>;
+var<storage, read_write> initial_volumes_out: array<f32>;
 
 @group(0) @binding(13)
+var<storage, read_write> parameters_out: array<ParticleParameters>;
+
+@group(0) @binding(14)
+var<storage, read_write> positions_out: array<vec3<f32>>;
+
+@group(0) @binding(15)
 var<storage, read_write> position_gradients_out: array<mat3x3<f32>>;
+
+@group(0) @binding(16)
+var<storage, read_write> velocities_out: array<vec3<f32>>;
+
+@group(0) @binding(17)
+var<storage, read_write> velocity_gradients_out: array<mat3x3<f32>>;
 
 override WORKGROUP_SIZE: u32;
 
@@ -72,4 +84,6 @@ fn main(
     parameters_out[global_index] = parameters_in[prior_position];
     positions_out[global_index] = positions_in[prior_position];
     position_gradients_out[global_index] = position_gradients_in[prior_position];
+    velocities_out[global_index] = velocities_in[prior_position];
+    velocity_gradients_out[global_index] = velocity_gradients_in[prior_position];
 }

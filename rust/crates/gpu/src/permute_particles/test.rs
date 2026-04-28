@@ -19,6 +19,8 @@ fn check(
         parameters,
         positions,
         position_gradients,
+        velocities,
+        velocity_gradients,
     }: InputData,
 ) {
     let indices_cpu = permutation.permute(indices);
@@ -27,6 +29,8 @@ fn check(
     let parameters_cpu = permutation.permute(parameters);
     let positions_cpu = permutation.permute(positions);
     let position_gradients_cpu = permutation.permute(position_gradients);
+    let velocities_cpu = permutation.permute(velocities);
+    let velocity_gradients_cpu = permutation.permute(velocity_gradients);
 
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
@@ -38,6 +42,8 @@ fn check(
         parameters_gpu,
         positions_gpu,
         position_gradients_gpu,
+        velocities_gpu,
+        velocity_gradients_gpu,
     ) = run_permute_particles(workgroup_size, dispatch_limit, input_data);
 
     println!("indices:");
@@ -64,6 +70,20 @@ fn check(
     for (cpu, gpu) in position_gradients_cpu
         .into_iter()
         .zip(position_gradients_gpu)
+    {
+        check_iters(
+            cpu.fixed_view::<3, 3>(0, 0).iter(),
+            gpu.fixed_view::<3, 3>(0, 0).iter(),
+        );
+    }
+    println!("velocities:");
+    for (cpu, gpu) in velocities_cpu.into_iter().zip(velocities_gpu) {
+        check_iters(cpu.xyz().iter(), gpu.xyz().iter());
+    }
+    println!("velocity gradients:");
+    for (cpu, gpu) in velocity_gradients_cpu
+        .into_iter()
+        .zip(velocity_gradients_gpu)
     {
         check_iters(
             cpu.fixed_view::<3, 3>(0, 0).iter(),
@@ -110,6 +130,23 @@ fn test_random() {
         .into_iter()
         .map(|m| stack![m; Matrix1x3::zeros()])
         .collect::<Vec<_>>();
+    let velocities: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
+        .random_iter::<f32>()
+        .take(n * 4)
+        .collect();
+    let velocities: Vec<Vector4<f32>> = velocities
+        .chunks_exact(4)
+        .map(Vector4::from_column_slice)
+        .map(|p| p.xzy().push(0.))
+        .collect();
+    let velocity_gradients: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
+        .random_iter::<f32>()
+        .take(n * 12)
+        .collect();
+    let velocity_gradients: Vec<Matrix4x3<f32>> = velocity_gradients
+        .chunks_exact(12)
+        .map(Matrix4x3::from_column_slice)
+        .collect();
 
     check(InputData {
         permutation: &permutation,
@@ -119,6 +156,8 @@ fn test_random() {
         parameters: &particle_parameters,
         positions: &positions,
         position_gradients: &position_gradients,
+        velocities: &velocities,
+        velocity_gradients: &velocity_gradients,
     });
 }
 
@@ -131,6 +170,8 @@ fn run_permute_particles(
     Vec<f32>,
     Vec<f32>,
     Vec<particle_parameters::Device>,
+    Vec<Vector4<f32>>,
+    Vec<Matrix4x3<f32>>,
     Vec<Vector4<f32>>,
     Vec<Matrix4x3<f32>>,
 ) {
@@ -148,6 +189,8 @@ fn run_permute_particles(
         parameters_out,
         positions_out,
         position_gradients_out,
+        velocities_out,
+        velocity_gradients_out,
     } = permute_particles
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
@@ -161,6 +204,8 @@ fn run_permute_particles(
             parameters_out,
             positions_out,
             position_gradients_out,
+            velocities_out,
+            velocity_gradients_out,
         ],
     );
     downloads.copy(&mut encoder);
@@ -179,6 +224,8 @@ fn run_permute_particles(
         parameters_out,
         positions_out,
         position_gradients_out,
+        velocities_out,
+        velocity_gradients_out,
     ] = downloads.try_into().unwrap();
 
     let mut garbage_w: Vec<Vector4<f32>> = positions_out.to_vec();
@@ -191,5 +238,7 @@ fn run_permute_particles(
         parameters_out.to_vec(),
         positions_out.to_vec(),
         position_gradients_out.to_vec(),
+        velocities_out.to_vec(),
+        velocity_gradients_out.to_vec(),
     )
 }
