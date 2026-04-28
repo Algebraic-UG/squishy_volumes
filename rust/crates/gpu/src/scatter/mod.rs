@@ -40,7 +40,7 @@ pub struct Input {
 
     pub masses: Allocation,
     pub initial_volumes: Allocation,
-    pub particle_paramters: Allocation,
+    pub particle_parameters: Allocation,
     pub positions: Allocation,
     pub position_gradients: Allocation,
     pub velocities: Allocation,
@@ -92,26 +92,20 @@ impl Input {
         assert_eq!(masses.len(), velocities.len());
         assert_eq!(masses.len(), velocity_gradients.len());
 
-        let indices = sort_positions_into_cells_on_cpu(
+        let permutation = sort_positions_into_cells_on_cpu(
             &(0..positions.len() as u32).collect::<Vec<_>>(),
             positions,
             cell_size,
         );
+        let permutation = permutation.as_slice();
 
-        fn permute<T: Clone>(indices: &[u32], to_permute: &[T]) -> Vec<T> {
-            indices
-                .iter()
-                .map(|&index| to_permute[index as usize].clone())
-                .collect()
-        }
-
-        let masses = permute(&indices, masses);
-        let initial_volumes = permute(&indices, initial_volumes);
-        let particle_paramters = permute(&indices, particle_parameters);
-        let positions = permute(&indices, positions);
-        let position_gradients = permute(&indices, position_gradients);
-        let velocities = permute(&indices, velocities);
-        let velocity_gradients = permute(&indices, velocity_gradients);
+        let masses = permutation.permute(masses);
+        let initial_volumes = permutation.permute(initial_volumes);
+        let particle_parameters = permutation.permute(particle_parameters);
+        let positions = permutation.permute(positions);
+        let position_gradients = permutation.permute(position_gradients);
+        let velocities = permutation.permute(velocities);
+        let velocity_gradients = permutation.permute(velocity_gradients);
 
         let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
         let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
@@ -148,7 +142,8 @@ impl Input {
 
         let masses = Allocation::new(device, "masses", &masses);
         let initial_volumes = Allocation::new(device, "initial_volumes", &initial_volumes);
-        let particle_paramters = Allocation::new(device, "particle_paramters", &particle_paramters);
+        let particle_parameters =
+            Allocation::new(device, "particle_parameters", &particle_parameters);
         let positions = Allocation::new(device, "positions", &positions);
         let position_gradients = Allocation::new(device, "position_gradients", &position_gradients);
         let velocities = Allocation::new(device, "velocities", &velocities);
@@ -165,7 +160,7 @@ impl Input {
                 block_table,
                 masses,
                 initial_volumes,
-                particle_paramters,
+                particle_parameters,
                 positions,
                 position_gradients,
                 velocities,
@@ -241,7 +236,7 @@ impl PipelinePart for Scatter {
             block_table,
             masses,
             initial_volumes,
-            particle_paramters,
+            particle_parameters,
             positions,
             position_gradients,
             velocities,
@@ -273,7 +268,7 @@ impl PipelinePart for Scatter {
                     block_offsets.binding(),
                     masses.binding(),
                     initial_volumes.binding(),
-                    particle_paramters.binding(),
+                    particle_parameters.binding(),
                     positions.binding(),
                     position_gradients.binding(),
                     velocities.binding(),
