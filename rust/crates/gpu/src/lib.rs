@@ -51,6 +51,7 @@ pub mod recycle_to_indirect;
 pub mod reorder_indices;
 pub mod scatter;
 pub mod sort_positions_into_cells;
+pub mod step;
 
 pub use allocate_blocks::AllocateBlocks;
 pub use build_cells::BuildCells;
@@ -73,6 +74,7 @@ pub use recycle_to_indirect::RecycleToIndirect;
 pub use reorder_indices::ReorderIndices;
 pub use scatter::Scatter;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
+pub use step::Step;
 
 #[cfg(test)]
 mod test_util;
