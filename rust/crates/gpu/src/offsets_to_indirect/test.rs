@@ -10,16 +10,14 @@ use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 
 use super::*;
 
-#[test]
-fn test_simple() {
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = 4.try_into().unwrap();
-    let settings = Settings {
+fn check(
+    settings @ Settings {
         workgroup_size,
         dispatch_limit,
-    };
-
-    let numbers = [0, 1, 1, 1, 1, 1, 0, 1, 1, 1];
+    }: Settings,
+    numbers: &[u32],
+) {
+    let subgroup_size = SHARED_CONTEXT.lock().unwrap().subgroup_size();
     let prefixes = prefix_sum_on_cpu(&numbers);
 
     let indirect = Indirect::new(IndirectSettings {
@@ -27,56 +25,77 @@ fn test_simple() {
         dispatch_limit,
         len: prefixes.last().unwrap() + 1,
     });
-    assert_eq!(vec![indirect], run_offsets_to_indirect(settings, &prefixes),);
+    let mut indirect_batch = Indirect::new(IndirectSettings {
+        workgroup_size,
+        dispatch_limit,
+        len: (prefixes.last().unwrap() + 1) * subgroup_size.get(),
+    });
+    indirect_batch.len = indirect.len;
+
+    assert_eq!(
+        (vec![indirect], vec![indirect_batch]),
+        run_offsets_to_indirect(settings, &prefixes),
+    );
+}
+
+#[test]
+fn test_simple() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = 4.try_into().unwrap();
+
+    let numbers = [0, 1, 1, 1, 1, 1, 0, 1, 1, 1];
+    check(
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        },
+        &numbers,
+    );
 }
 
 #[test]
 fn test_random() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = 4.try_into().unwrap();
-    let settings = Settings {
-        workgroup_size,
-        dispatch_limit,
-    };
 
     let numbers: Vec<u32> = ChaCha8Rng::seed_from_u64(42)
         .random_iter::<bool>()
         .map(|bit| if bit { 1 } else { 0 })
         .take(10000)
         .collect();
-    let prefixes = prefix_sum_on_cpu(&numbers);
-
-    println!("{}", numbers.last().unwrap());
-    println!("{}", prefixes.last().unwrap());
-
-    let indirect = Indirect::new(IndirectSettings {
-        workgroup_size,
-        dispatch_limit,
-        len: prefixes.last().unwrap() + 1,
-    });
-    assert_eq!(vec![indirect], run_offsets_to_indirect(settings, &prefixes),);
+    check(
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        },
+        &numbers,
+    );
 }
 
-fn run_offsets_to_indirect(settings: Settings, offsets: &[u32]) -> Vec<Indirect> {
+fn run_offsets_to_indirect(settings: Settings, offsets: &[u32]) -> (Vec<Indirect>, Vec<Indirect>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, offsets);
     let offsets_to_indirect = OffsetsToIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let Output { new_indirect } = offsets_to_indirect
+    let Output {
+        new_indirect,
+        new_indirect_batch,
+    } = offsets_to_indirect
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, new_indirect);
-    download.copy(&mut encoder);
+    let downloads = DownloadsToHost::new(&context, [new_indirect, new_indirect_batch]);
+    downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let download = download.prep();
+    let downloads = downloads.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    let [new_indirect, new_indirect_batch] = downloads.try_into().unwrap();
+    (new_indirect.to_vec(), new_indirect_batch.to_vec())
 }

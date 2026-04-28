@@ -24,7 +24,7 @@ lazy_static! {
             .setup_allocator(1000000, "test allocator", true)
             .unwrap();
         context
-            .setup_indirect_allocator(1000, "test indirect allocator", true)
+            .setup_indirect_allocator(2048, "test indirect allocator", true)
             .unwrap();
         context
     });

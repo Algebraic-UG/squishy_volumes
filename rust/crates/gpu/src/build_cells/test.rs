@@ -124,6 +124,7 @@ fn run_build_cells(
         cell_ids,
         index_ranges,
         new_indirect,
+        ..
     } = build_cells
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();

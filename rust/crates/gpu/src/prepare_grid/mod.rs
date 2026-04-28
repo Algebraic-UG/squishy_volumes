@@ -74,6 +74,7 @@ impl Input {
 
 pub struct Output {
     pub indirect_cells: Allocation,
+    pub indirect_cells_batch: Allocation,
     pub indirect_colors: Allocation,
     pub indirect_colors_batch: Allocation,
 
@@ -184,6 +185,7 @@ impl PipelinePart for PrepareGrid {
             cell_ids,
             index_ranges: cell_index_ranges,
             new_indirect: indirect_cells,
+            new_indirect_batch: indirect_cells_batch,
         } = self.build_cells.record(
             context,
             encoder,
@@ -234,6 +236,7 @@ impl PipelinePart for PrepareGrid {
 
         Ok(Output {
             indirect_cells,
+            indirect_cells_batch,
             indirect_colors,
             indirect_colors_batch,
             cell_indices,

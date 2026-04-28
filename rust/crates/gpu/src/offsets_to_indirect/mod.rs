@@ -52,6 +52,7 @@ impl Input {
 
 pub struct Output {
     pub new_indirect: Allocation,
+    pub new_indirect_batch: Allocation,
 }
 
 impl PipelinePart for OffsetsToIndirect {
@@ -75,6 +76,7 @@ impl PipelinePart for OffsetsToIndirect {
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, true),
+                    (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
@@ -100,6 +102,9 @@ impl PipelinePart for OffsetsToIndirect {
         let new_indirect = context
             .indirect_allocator()?
             .allocate::<Indirect>("new_indirect", 1.try_into().unwrap())?;
+        let new_indirect_batch = context
+            .indirect_allocator()?
+            .allocate::<Indirect>("new_indirect_batch", 1.try_into().unwrap())?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.offsets_to_indirect.label);
         compute_pass.set_pipeline(&self.offsets_to_indirect.compute_pipeline);
@@ -112,6 +117,7 @@ impl PipelinePart for OffsetsToIndirect {
                     indirect.binding(),
                     offsets.binding(),
                     new_indirect.binding(),
+                    new_indirect_batch.binding(),
                 ],
             ),
             &[],
@@ -119,6 +125,9 @@ impl PipelinePart for OffsetsToIndirect {
 
         compute_pass.dispatch_workgroups(1, 1, 1);
 
-        Ok(Output { new_indirect })
+        Ok(Output {
+            new_indirect,
+            new_indirect_batch,
+        })
     }
 }

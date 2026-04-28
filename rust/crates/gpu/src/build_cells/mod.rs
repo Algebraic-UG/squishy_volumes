@@ -70,6 +70,7 @@ pub struct Output {
     pub cell_ids: Allocation,
     pub index_ranges: Allocation,
     pub new_indirect: Allocation,
+    pub new_indirect_batch: Allocation,
 }
 
 impl PipelinePart for BuildCells {
@@ -163,7 +164,10 @@ impl PipelinePart for BuildCells {
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
         drop(compute_pass);
 
-        let offsets_to_indirect::Output { new_indirect } = self.offsets_to_indirect.record(
+        let offsets_to_indirect::Output {
+            new_indirect,
+            new_indirect_batch,
+        } = self.offsets_to_indirect.record(
             context,
             encoder,
             offsets_to_indirect::Input {
@@ -177,6 +181,7 @@ impl PipelinePart for BuildCells {
             cell_ids,
             index_ranges,
             new_indirect,
+            new_indirect_batch,
         })
     }
 }
