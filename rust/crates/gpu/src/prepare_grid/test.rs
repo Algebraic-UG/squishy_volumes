@@ -56,7 +56,6 @@ fn test_single() {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             cell_size,
-            bit_count: 2.try_into().unwrap(),
         },
         &positions,
     );
@@ -82,7 +81,6 @@ fn test_simple() {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             cell_size,
-            bit_count: 2.try_into().unwrap(),
         },
         &positions,
     );
@@ -109,7 +107,6 @@ fn test_random() {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             cell_size,
-            bit_count: 2.try_into().unwrap(),
         },
         &positions,
     );
@@ -122,7 +119,6 @@ fn test_large() {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             cell_size: 1.,
-            bit_count: 2.try_into().unwrap(),
         },
         &many_positions(),
     );

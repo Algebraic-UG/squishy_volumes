@@ -8,7 +8,7 @@
 
 use std::num::NonZeroU32;
 
-use nalgebra::Vector4;
+use nalgebra::{Matrix4x3, Vector4};
 
 #[cfg(test)]
 mod test;
@@ -30,7 +30,21 @@ pub struct Input {
     pub indirect: Allocation,
     pub permutation: Allocation,
     pub indices_in: Allocation,
+    pub masses_in: Allocation,
+    pub initial_volumes_in: Allocation,
+    pub parameters_in: Allocation,
     pub positions_in: Allocation,
+    pub position_gradients_in: Allocation,
+}
+
+pub struct InputData<'a> {
+    pub permutation: &'a [u32],
+    pub indices: &'a [u32],
+    pub masses: &'a [f32],
+    pub initial_volumes: &'a [f32],
+    pub parameters: &'a [particle_parameters::Device],
+    pub positions: &'a [Vector4<f32>],
+    pub position_gradients: &'a [Matrix4x3<f32>],
 }
 
 impl Input {
@@ -38,35 +52,58 @@ impl Input {
         device: &wgpu::Device,
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
-        permutation: &[u32],
-        indices: &[u32],
-        positions: &[Vector4<f32>],
+        InputData {
+            permutation,
+            indices,
+            masses,
+            initial_volumes,
+            parameters,
+            positions,
+            position_gradients,
+        }: InputData,
     ) -> Self {
-        assert_eq!(permutation.len(), positions.len());
         assert_eq!(permutation.len(), indices.len());
+        assert_eq!(permutation.len(), masses.len());
+        assert_eq!(permutation.len(), initial_volumes.len());
+        assert_eq!(permutation.len(), parameters.len());
+        assert_eq!(permutation.len(), positions.len());
+        assert_eq!(permutation.len(), position_gradients.len());
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
             len: permutation.len() as u32,
         });
 
+        let indirect = Allocation::new(device, "indirect", &[indirect]);
         let permutation = Allocation::new(device, "permutation", permutation);
         let indices_in = Allocation::new(device, "indices_in", indices);
+        let masses_in = Allocation::new(device, "masses_in", masses);
+        let initial_volumes_in = Allocation::new(device, "initial_volumes_in", initial_volumes);
+        let parameters_in = Allocation::new(device, "parameters_in", parameters);
         let positions_in = Allocation::new(device, "positions_in", positions);
-        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let position_gradients_in =
+            Allocation::new(device, "position_gradients_in", position_gradients);
 
         Self {
             indirect,
             permutation,
             indices_in,
+            masses_in,
+            initial_volumes_in,
+            parameters_in,
             positions_in,
+            position_gradients_in,
         }
     }
 }
 
 pub struct Output {
     pub indices_out: Allocation,
+    pub masses_out: Allocation,
+    pub initial_volumes_out: Allocation,
+    pub parameters_out: Allocation,
     pub positions_out: Allocation,
+    pub position_gradients_out: Allocation,
 }
 
 impl PipelinePart for PermuteParticles {
@@ -77,18 +114,27 @@ impl PipelinePart for PermuteParticles {
 
     fn new(context: &GpuContext, settings: Settings) -> Self {
         let device = context.device();
+        use particle_parameters::Device;
 
         let_compiled_module!(
             permute_particles,
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),
+                    (Indirect::MIN_BINDING_SIZE, true),          // indirect
+                    (u32::MIN_BINDING_SIZE, false),              // permutation
+                    (u32::MIN_BINDING_SIZE, false),              // indices_in
+                    (f32::MIN_BINDING_SIZE, false),              // masses_in
+                    (f32::MIN_BINDING_SIZE, false),              // initial_volumes_in
+                    (Device::MIN_BINDING_SIZE, false),           // parameters_in
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),   // positions_in
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients_in
+                    (u32::MIN_BINDING_SIZE, false),              // indices_out
+                    (f32::MIN_BINDING_SIZE, false),              // masses_out
+                    (f32::MIN_BINDING_SIZE, false),              // initial_volumes_out
+                    (Device::MIN_BINDING_SIZE, false),           // parameters_out
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),   // positions_out
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients_out
                 ],
                 immediate_size: 0,
                 constants: [("WORKGROUP_SIZE", settings.workgroup_size.get() as f64)],
@@ -106,19 +152,36 @@ impl PipelinePart for PermuteParticles {
             indirect,
             permutation,
             indices_in,
+            masses_in,
+            initial_volumes_in,
+            parameters_in,
             positions_in,
+            position_gradients_in,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        assert_eq!(permutation.len::<u32>(), indices_in.len::<u32>());
-        assert_eq!(permutation.len::<u32>(), positions_in.len::<Vector4<f32>>());
-
         let indices_out = context
             .allocator()?
             .allocate::<u32>("indices_out", indices_in.len::<u32>())?;
+        let masses_out = context
+            .allocator()?
+            .allocate::<f32>("masses_out", masses_in.len::<f32>())?;
+        let initial_volumes_out = context
+            .allocator()?
+            .allocate::<f32>("initial_volumes_out", initial_volumes_in.len::<f32>())?;
+        let parameters_out = context
+            .allocator()?
+            .allocate::<particle_parameters::Device>(
+                "parameters_out",
+                parameters_in.len::<particle_parameters::Device>(),
+            )?;
         let positions_out = context
             .allocator()?
             .allocate::<Vector4<f32>>("positions_out", positions_in.len::<Vector4<f32>>())?;
+        let position_gradients_out = context.allocator()?.allocate::<Matrix4x3<f32>>(
+            "position_gradients_out",
+            position_gradients_in.len::<Matrix4x3<f32>>(),
+        )?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.permute_particles.label);
         compute_pass.set_pipeline(&self.permute_particles.compute_pipeline);
@@ -131,9 +194,17 @@ impl PipelinePart for PermuteParticles {
                     indirect.binding(),
                     permutation.binding(),
                     indices_in.binding(),
+                    masses_in.binding(),
+                    initial_volumes_in.binding(),
+                    parameters_in.binding(),
                     positions_in.binding(),
+                    position_gradients_in.binding(),
                     indices_out.binding(),
+                    masses_out.binding(),
+                    initial_volumes_out.binding(),
+                    parameters_out.binding(),
                     positions_out.binding(),
+                    position_gradients_out.binding(),
                 ],
             ),
             &[],
@@ -142,7 +213,11 @@ impl PipelinePart for PermuteParticles {
 
         Ok(Output {
             indices_out,
+            masses_out,
+            initial_volumes_out,
+            parameters_out,
             positions_out,
+            position_gradients_out,
         })
     }
 }

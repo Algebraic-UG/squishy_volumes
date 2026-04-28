@@ -306,7 +306,6 @@ fn main() {
                     gpu::prepare_grid::Settings {
                         workgroup_size,
                         dispatch_limit,
-                        bit_count,
                         cell_size,
                     },
                     input,

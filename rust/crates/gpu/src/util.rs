@@ -518,3 +518,16 @@ pub fn collect_on_cpu(
         velocity_gradients,
     )
 }
+
+pub trait Permutation {
+    fn permute<T: Clone>(&self, to_permute: &[T]) -> Vec<T>;
+}
+
+impl Permutation for &[u32] {
+    fn permute<T: Clone>(&self, to_permute: &[T]) -> Vec<T> {
+        assert_eq!(self.len(), to_permute.len());
+        self.iter()
+            .map(|&index| to_permute[index as usize].clone())
+            .collect()
+    }
+}

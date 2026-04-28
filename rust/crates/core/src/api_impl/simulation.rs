@@ -178,7 +178,6 @@ impl Simulation for SimulationImpl {
                 workgroup_size: 64.try_into().unwrap(),
                 dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
                 cell_size,
-                bit_count: 2.try_into().unwrap(),
             };
             let input = prepare_grid::Input::new(context.device(), settings.clone(), &positions);
             let pipeline_part = PrepareGrid::new(context, settings);

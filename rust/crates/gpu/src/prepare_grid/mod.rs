@@ -16,8 +16,6 @@ mod test;
 use super::*;
 
 pub struct PrepareGrid {
-    sort_positions_into_cells: SortPositionsIntoCells,
-    permute_particles: PermuteParticles,
     find_cell_boundaries: FindCellBoundaries,
     prefix_sum: PrefixSum,
     build_cells: BuildCells,
@@ -30,7 +28,6 @@ pub struct PrepareGrid {
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
-    pub bit_count: NonZeroU32,
     pub cell_size: f32,
 }
 
@@ -38,8 +35,7 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect_particles: Allocation,
-    pub indices_in: Allocation,
-    pub positions_in: Allocation,
+    pub positions: Allocation,
 }
 
 impl Input {
@@ -48,10 +44,18 @@ impl Input {
         Settings {
             workgroup_size,
             dispatch_limit,
+            cell_size,
             ..
         }: Settings,
         positions: &[Vector4<f32>],
     ) -> Self {
+        let permutation = sort_positions_into_cells_on_cpu(
+            &(0..positions.len() as u32).collect::<Vec<_>>(),
+            positions,
+            cell_size,
+        );
+        let positions = permutation.as_slice().permute(positions);
+
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,
             dispatch_limit,
@@ -59,17 +63,11 @@ impl Input {
         });
 
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect]);
-        let indices_in = Allocation::new(
-            device,
-            "indices_in",
-            &(0..positions.len() as u32).collect::<Vec<_>>(),
-        );
-        let positions_in = Allocation::new(device, "positions_in", positions);
+        let positions = Allocation::new(device, "positions", &positions);
 
         Self {
             indirect_particles,
-            indices_in,
-            positions_in,
+            positions,
         }
     }
 }
@@ -79,8 +77,6 @@ pub struct Output {
     pub indirect_colors: Allocation,
     pub indirect_colors_batch: Allocation,
 
-    pub indices_out: Allocation,
-    pub positions_out: Allocation,
     pub cell_indices: Allocation,
     pub cell_index_ranges: Allocation,
     pub cell_ids: Allocation,
@@ -100,21 +96,9 @@ impl PipelinePart for PrepareGrid {
         Settings {
             workgroup_size,
             dispatch_limit,
-            bit_count,
             cell_size,
         }: Settings,
     ) -> Self {
-        let sort_positions_into_cells = SortPositionsIntoCells::new(
-            context,
-            sort_positions_into_cells::Settings {
-                workgroup_size,
-                dispatch_limit,
-                cell_size,
-                bit_count,
-            },
-        );
-        let permute_particles =
-            PermuteParticles::new(context, permute_particles::Settings { workgroup_size });
         let find_cell_boundaries = FindCellBoundaries::new(
             context,
             find_cell_boundaries::Settings {
@@ -155,8 +139,6 @@ impl PipelinePart for PrepareGrid {
         );
 
         Self {
-            sort_positions_into_cells,
-            permute_particles,
             find_cell_boundaries,
             prefix_sum,
             build_cells,
@@ -172,44 +154,16 @@ impl PipelinePart for PrepareGrid {
         encoder: &mut CommandEncoder,
         Input {
             indirect_particles,
-            indices_in,
-            positions_in,
+            positions,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        let sort_positions_into_cells::Output {
-            indices_out: permutation,
-        } = self.sort_positions_into_cells.record(
-            context,
-            encoder,
-            sort_positions_into_cells::Input {
-                indirect: indirect_particles.clone(),
-                positions: positions_in.clone(),
-            },
-            sort_positions_into_cells::Parameters,
-        )?;
-
-        let permute_particles::Output {
-            indices_out,
-            positions_out,
-        } = self.permute_particles.record(
-            context,
-            encoder,
-            permute_particles::Input {
-                indirect: indirect_particles.clone(),
-                permutation,
-                indices_in,
-                positions_in,
-            },
-            permute_particles::Parameters,
-        )?;
-
         let find_cell_boundaries::Output { boundaries } = self.find_cell_boundaries.record(
             context,
             encoder,
             find_cell_boundaries::Input {
                 indirect: indirect_particles.clone(),
-                positions: positions_out.clone(),
+                positions: positions.clone(),
             },
             find_cell_boundaries::Parameters,
         )?;
@@ -235,7 +189,7 @@ impl PipelinePart for PrepareGrid {
             encoder,
             build_cells::Input {
                 indirect: indirect_particles.clone(),
-                positions: positions_out.clone(),
+                positions,
                 prefixed_boundaries,
             },
             build_cells::Parameters,
@@ -282,8 +236,6 @@ impl PipelinePart for PrepareGrid {
             indirect_cells,
             indirect_colors,
             indirect_colors_batch,
-            indices_out,
-            positions_out,
             cell_indices,
             cell_index_ranges,
             cell_ids,
