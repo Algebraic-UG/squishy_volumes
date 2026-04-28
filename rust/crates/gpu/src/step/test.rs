@@ -24,9 +24,7 @@ fn check(
         time_step,
         ..
     }: Settings,
-    dispatch_limit: NonZeroU32,
     input_data @ InputData {
-        indices,
         masses,
         initial_volumes,
         parameters,
@@ -34,6 +32,7 @@ fn check(
         position_gradients,
         velocities,
         velocity_gradients,
+        ..
     }: InputData,
 ) {
     let OutputData {
@@ -119,7 +118,6 @@ fn test_single_undeformed() {
 
     check(
         settings,
-        dispatch_limit,
         InputData {
             indices: &[0],
             masses: &[1.],
@@ -145,15 +143,17 @@ fn test_single_undeformed() {
     );
 }
 
-/*
 #[test]
 fn test_many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let bit_count = 2.try_into().unwrap();
     let cell_size = 1.;
     let time_step = 0.001;
     let settings = Settings {
         workgroup_size,
+        dispatch_limit,
+        bit_count,
         cell_size,
         time_step,
     };
@@ -161,6 +161,7 @@ fn test_many_random_props() {
     let positions = many_positions();
     let n = positions.len();
 
+    let indices: Vec<_> = (0..n as u32).collect();
     let mut rng = ChaCha8Rng::seed_from_u64(42);
     let masses = (0..n)
         .map(|_| rng.random_range(0.01..0.05))
@@ -210,11 +211,11 @@ fn test_many_random_props() {
 
     check(
         settings,
-        dispatch_limit,
         InputData {
+            indices: &indices,
             masses: &masses,
             initial_volumes: &initial_volumes,
-            particle_parameters: &particle_parameters,
+            parameters: &particle_parameters,
             positions: &positions,
             position_gradients: &position_gradients,
             velocities: &velocities,
@@ -222,7 +223,6 @@ fn test_many_random_props() {
         },
     );
 }
-*/
 
 fn run_step(settings: Settings, data: InputData) -> OutputData {
     let mut context = SHARED_CONTEXT.lock().unwrap();
