@@ -27,7 +27,16 @@ fn check(workgroup_size: NonZeroU32, dispatch_limit: NonZeroU32, cells: &[Vector
 
     let mut start: u32 = 0;
     for indirect_color in indirect_colors {
-        let cell = cells[indices[start as usize] as usize];
+        if start == indices.len() as u32 {
+            assert_eq!(start, indirect_color.len);
+            assert_eq!(0, indirect_color.x);
+            assert_eq!(0, indirect_color.y);
+            assert_eq!(0, indirect_color.z);
+            continue;
+        }
+
+        let index = indices[start as usize];
+        let cell = cells[index as usize];
 
         println!("now checking: {:?}", cell.map(|c| i32_to_u32_offset(c) & 1));
 
