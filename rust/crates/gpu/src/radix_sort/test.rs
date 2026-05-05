@@ -52,18 +52,75 @@ fn test_random() {
     );
 }
 
+#[test]
+fn specific() {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
+
+    let indirect = Indirect {
+        x: 1,
+        y: 1,
+        z: 1,
+        len: 3,
+    };
+    let keys = [2, 0, 1, 100, 200, 42];
+
+    let indirect = Allocation::new(context.device(), "indirect", &[indirect]);
+    let keys = Allocation::new(context.device(), "keys", &keys);
+
+    let indices = run_with_input(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            bit_count: 3.try_into().unwrap(),
+        },
+        &mut context,
+        Input {
+            indirect,
+            indices_in: None,
+            keys,
+        },
+        true,
+    );
+    println!("{indices:?}");
+    assert!(
+        (0..3)
+            .into_iter()
+            .all(|i| indices.as_slice()[0..3].contains(&i))
+    );
+}
+
 fn run_radix_sort(settings: Settings, indices: Option<&[u32]>, keys: &[u32]) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings.clone(), indices, keys);
+    run_with_input(settings, &mut context, input, false)
+}
 
+fn run_with_input(
+    settings: Settings,
+    context: &mut GpuContext,
+    input: Input,
+    one_round: bool,
+) -> Vec<u32> {
     let radix_sort = RadixSort::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let indices_out = radix_sort
-        .record_all_rounds(&mut context, &mut (&mut encoder).into(), input)
-        .unwrap();
+    let indices_out = if one_round {
+        radix_sort
+            .record(
+                context,
+                &mut (&mut encoder).into(),
+                input,
+                Parameters { bit_offset: 0 },
+            )
+            .unwrap()
+            .indices_out
+    } else {
+        radix_sort
+            .record_all_rounds(context, &mut (&mut encoder).into(), input)
+            .unwrap()
+    };
 
     let download = DownloadToHost::new(&context, indices_out);
     download.copy(&mut encoder);

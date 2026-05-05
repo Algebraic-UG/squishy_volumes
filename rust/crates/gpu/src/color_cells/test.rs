@@ -99,14 +99,62 @@ fn test_random() {
     );
 }
 
+#[test]
+fn specific() {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
+
+    let indirect = Indirect {
+        x: 1,
+        y: 1,
+        z: 1,
+        len: 3,
+    };
+    let cell_ids = [
+        Vector4::new(0, 0, 0, 0),
+        Vector4::new(0, 1, 1, 0),
+        Vector4::new(1, 0, 0, 0),
+        Vector4::new(-1265116668, -1698834319, -341376087, 0),
+        Vector4::new(1257020439, -1996311224, 1341727280, 0),
+        Vector4::new(1320270994, 1036904527, -1877740036, 0),
+    ];
+
+    let indirect = Allocation::new(context.device(), "indirect", &[indirect]);
+    let cell_ids = Allocation::new(context.device(), "cell_ids", &cell_ids);
+    let input = Input { indirect, cell_ids };
+
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+
+    let (_, _, indices) = run_with_input(
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        },
+        &mut context,
+        input,
+    );
+
+    println!("indices: {indices:?}");
+    for &index in indices.iter().take(3) {
+        assert!((index as usize) < 3);
+    }
+}
+
 fn run_color_cells(
     settings: Settings,
     cells: &[Vector4<i32>],
 ) -> (Vec<Indirect>, Vec<Indirect>, Vec<u32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
-
-    let color_cells = ColorCells::new(&context, settings);
     let input = Input::new(context.device(), settings, cells);
+    run_with_input(settings, &mut context, input)
+}
+
+fn run_with_input(
+    settings: Settings,
+    context: &mut GpuContext,
+    input: Input,
+) -> (Vec<Indirect>, Vec<Indirect>, Vec<u32>) {
+    let color_cells = ColorCells::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
@@ -115,7 +163,7 @@ fn run_color_cells(
         indirect_colors_batch,
         indices,
     } = color_cells
-        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .record(context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
     let downloads =
