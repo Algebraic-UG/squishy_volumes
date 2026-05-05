@@ -227,6 +227,7 @@ impl PipelinePart for Step {
                 },
                 sort_positions_into_cells::Parameters,
             )?;
+
         let permute_particles::Output {
             indices_out,
             masses_out,
@@ -253,6 +254,7 @@ impl PipelinePart for Step {
             },
             permute_particles::Parameters,
         )?;
+
         let prepare_grid::Output {
             indirect_cells,
             indirect_cells_batch,
@@ -296,6 +298,7 @@ impl PipelinePart for Step {
             },
             scatter::Parameters,
         )?;
+
         let collect::Output {
             positions: positions_out,
             position_gradients: position_gradients_out,

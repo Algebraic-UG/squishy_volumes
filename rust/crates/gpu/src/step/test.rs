@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::collections::HashSet;
-
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
 
@@ -35,14 +33,6 @@ fn check(
         ..
     }: InputData,
 ) {
-    let OutputData {
-        positions_out: positions_gpu,
-        position_gradients_out: position_gradients_gpu,
-        velocities_out: velocities_gpu,
-        velocity_gradients_out: velocity_gradients_gpu,
-        ..
-    } = run_step(settings, input_data);
-
     let permutation = sort_positions_into_cells_on_cpu(
         &(0..positions.len() as u32).collect::<Vec<_>>(),
         positions,
@@ -70,6 +60,14 @@ fn check(
     let position_gradients_cpu = permutation.permute(&position_gradients);
     let velocities_cpu = permutation.permute(&velocities);
     let velocity_gradients_cpu = permutation.permute(&velocity_gradients);
+
+    let OutputData {
+        positions_out: positions_gpu,
+        position_gradients_out: position_gradients_gpu,
+        velocities_out: velocities_gpu,
+        velocity_gradients_out: velocity_gradients_gpu,
+        ..
+    } = run_step(settings, input_data);
 
     println!("positions:");
     for (cpu, gpu) in positions_cpu.into_iter().zip(positions_gpu) {
