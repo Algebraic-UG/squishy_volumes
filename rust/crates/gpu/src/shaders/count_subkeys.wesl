@@ -9,7 +9,7 @@
 import super::util::{Indirect, get_global_index};
 
 @group(0) @binding(0)
-var<storage, read_write> indirect: Indirect;
+var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
 var<storage, read_write> keys: array<u32>;
@@ -32,12 +32,10 @@ fn main(
 ) {
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
 
-    let array_length = arrayLength(&keys);
-
     let counter_count = 1u << BIT_COUNT;
     let mask = counter_count - 1;
 
-    let key_valid = global_index < array_length;
+    let key_valid = global_index < indirect.len;
 
     var key = 0u;
     if key_valid {
