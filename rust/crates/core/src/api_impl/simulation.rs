@@ -13,9 +13,9 @@ use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
 use squishy_volumes_gpu::{
-    DownloadsToHost, DownloadsToHostReady, GpuContext, GpuError, PipelinePart, Step, collect,
+    DownloadsToHost, GpuContext, GpuError, PipelinePart, Step,
     particle_parameters::{Device, Fluid, Host, Solid},
-    permute_particles, prepare_grid, scatter, sort_positions_into_cells, step, wgpu,
+    step, wgpu,
 };
 use squishy_volumes_util::Flat3 as _;
 use tracing::{info, warn};
@@ -254,199 +254,33 @@ impl Simulation for SimulationImpl {
             for f in 0..number_of_frames.get() {
                 info!("start frame: {f}");
 
-                let mut encoder = if true {
-                    let mut encoder = context.device().create_command_encoder(&Default::default());
-                    let indirect_particles = input.indirect_particles.clone();
-                    let step::Output {
-                        indices_out,
-                        masses_out,
-                        initial_volumes_out,
-                        parameters_out,
-                        positions_out,
-                        position_gradients_out,
-                        velocities_out,
-                        velocity_gradients_out,
-                    } = pipeline_part.record(
-                        context,
-                        &mut (&mut encoder).into(),
-                        input,
-                        step::Parameters,
-                    )?;
-                    input = step::Input {
-                        indirect_particles,
-                        indices_in: indices_out.clone(),
-                        masses_in: masses_out,
-                        initial_volumes_in: initial_volumes_out,
-                        parameters_in: parameters_out,
-                        positions_in: positions_out.clone(),
-                        position_gradients_in: position_gradients_out.clone(),
-                        velocities_in: velocities_out.clone(),
-                        velocity_gradients_in: velocity_gradients_out.clone(),
-                    };
-                    encoder
-                } else {
-                    let step::Input {
-                        indirect_particles,
-                        indices_in,
-                        masses_in,
-                        initial_volumes_in,
-                        parameters_in,
-                        positions_in,
-                        position_gradients_in,
-                        velocities_in,
-                        velocity_gradients_in,
-                    } = input;
-
-                    info!("sort_positions_into_cells");
-                    let mut encoder = context.device().create_command_encoder(&Default::default());
-                    let sort_positions_into_cells::Output { permutation } =
-                        pipeline_part.sort_positions_into_cells.record(
-                            context,
-                            &mut (&mut encoder).into(),
-                            sort_positions_into_cells::Input {
-                                indirect: indirect_particles.clone(),
-                                positions: positions_in.clone(),
-                            },
-                            sort_positions_into_cells::Parameters,
-                        )?;
-                    context.queue().submit([encoder.finish()]);
-                    context
-                        .device()
-                        .poll(wgpu::PollType::wait_indefinitely())
-                        .unwrap();
-
-                    info!("permute_particles");
-                    let mut encoder = context.device().create_command_encoder(&Default::default());
-                    let permute_particles::Output {
-                        indices_out,
-                        masses_out,
-                        initial_volumes_out,
-                        parameters_out,
-                        positions_out,
-                        position_gradients_out,
-                        velocities_out,
-                        velocity_gradients_out,
-                    } = pipeline_part.permute_particles.record(
-                        context,
-                        &mut (&mut encoder).into(),
-                        permute_particles::Input {
-                            indirect: indirect_particles.clone(),
-                            permutation,
-                            indices_in,
-                            masses_in,
-                            initial_volumes_in,
-                            parameters_in,
-                            positions_in,
-                            position_gradients_in,
-                            velocities_in,
-                            velocity_gradients_in,
-                        },
-                        permute_particles::Parameters,
-                    )?;
-                    context.queue().submit([encoder.finish()]);
-                    context
-                        .device()
-                        .poll(wgpu::PollType::wait_indefinitely())
-                        .unwrap();
-
-                    info!("prepare_grid");
-                    let mut encoder = context.device().create_command_encoder(&Default::default());
-                    let prepare_grid::Output {
-                        indirect_cells,
-                        indirect_cells_batch,
-                        indirect_colors,
-                        indirect_colors_batch,
-                        cell_indices,
-                        cell_index_ranges,
-                        cell_ids,
-                        cell_owns,
-                        block_offsets,
-                        block_table,
-                    } = pipeline_part.prepare_grid.record(
-                        context,
-                        &mut (&mut encoder).into(),
-                        prepare_grid::Input {
-                            indirect_particles: indirect_particles.clone(),
-                            positions: positions_out.clone(),
-                        },
-                        prepare_grid::Parameters,
-                    )?;
-                    context.queue().submit([encoder.finish()]);
-                    context
-                        .device()
-                        .poll(wgpu::PollType::wait_indefinitely())
-                        .unwrap();
-                    drop(indirect_cells);
-                    drop(indirect_colors);
-
-                    info!("scatter");
-                    let mut encoder = context.device().create_command_encoder(&Default::default());
-                    let scatter::Output { blocks } = pipeline_part.scatter.record(
-                        context,
-                        &mut (&mut encoder).into(),
-                        scatter::Input {
-                            indirect_colors_batch,
-                            cell_indices,
-                            cell_index_ranges: cell_index_ranges.clone(),
-                            cell_ids: cell_ids.clone(),
-                            cell_owns: cell_owns.clone(),
-                            block_offsets: block_offsets.clone(),
-                            block_table: block_table.clone(),
-                            masses: masses_out.clone(),
-                            initial_volumes: initial_volumes_out.clone(),
-                            particle_parameters: parameters_out.clone(),
-                            positions: positions_out.clone(),
-                            position_gradients: position_gradients_out.clone(),
-                            velocities: velocities_out.clone(),
-                            velocity_gradients: velocity_gradients_out.clone(),
-                        },
-                        scatter::Parameters,
-                    )?;
-                    context.queue().submit([encoder.finish()]);
-                    context
-                        .device()
-                        .poll(wgpu::PollType::wait_indefinitely())
-                        .unwrap();
-
-                    info!("collect");
-                    let mut encoder = context.device().create_command_encoder(&Default::default());
-                    let collect::Output {
-                        positions: positions_out,
-                        position_gradients: position_gradients_out,
-                        velocities: velocities_out,
-                        velocity_gradients: velocity_gradients_out,
-                    } = pipeline_part.collect.record(
-                        context,
-                        &mut (&mut encoder).into(),
-                        collect::Input {
-                            indirect_cells_batch,
-                            cell_index_ranges,
-                            cell_ids,
-                            cell_owns,
-                            block_offsets,
-                            block_table,
-                            positions: positions_out,
-                            position_gradients: position_gradients_out,
-                            velocities: velocities_out,
-                            velocity_gradients: velocity_gradients_out,
-                            blocks,
-                        },
-                        collect::Parameters,
-                    )?;
-
-                    input = step::Input {
-                        indirect_particles,
-                        indices_in: indices_out.clone(),
-                        masses_in: masses_out,
-                        initial_volumes_in: initial_volumes_out,
-                        parameters_in: parameters_out,
-                        positions_in: positions_out.clone(),
-                        position_gradients_in: position_gradients_out.clone(),
-                        velocities_in: velocities_out.clone(),
-                        velocity_gradients_in: velocity_gradients_out.clone(),
-                    };
-
-                    encoder
+                let mut encoder = context.device().create_command_encoder(&Default::default());
+                let indirect_particles = input.indirect_particles.clone();
+                let step::Output {
+                    indices_out,
+                    masses_out,
+                    initial_volumes_out,
+                    parameters_out,
+                    positions_out,
+                    position_gradients_out,
+                    velocities_out,
+                    velocity_gradients_out,
+                } = pipeline_part.record(
+                    context,
+                    &mut (&mut encoder).into(),
+                    input,
+                    step::Parameters,
+                )?;
+                input = step::Input {
+                    indirect_particles,
+                    indices_in: indices_out.clone(),
+                    masses_in: masses_out,
+                    initial_volumes_in: initial_volumes_out,
+                    parameters_in: parameters_out,
+                    positions_in: positions_out.clone(),
+                    position_gradients_in: position_gradients_out.clone(),
+                    velocities_in: velocities_out.clone(),
+                    velocity_gradients_in: velocity_gradients_out.clone(),
                 };
 
                 let downloads = DownloadsToHost::new(

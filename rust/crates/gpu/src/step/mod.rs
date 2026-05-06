@@ -16,11 +16,11 @@ use nalgebra::{Matrix4x3, Vector4};
 use super::*;
 
 pub struct Step {
-    pub sort_positions_into_cells: SortPositionsIntoCells,
-    pub permute_particles: PermuteParticles,
-    pub prepare_grid: PrepareGrid,
-    pub scatter: Scatter,
-    pub collect: Collect,
+    sort_positions_into_cells: SortPositionsIntoCells,
+    permute_particles: PermuteParticles,
+    prepare_grid: PrepareGrid,
+    scatter: Scatter,
+    collect: Collect,
 }
 
 #[derive(Clone)]
