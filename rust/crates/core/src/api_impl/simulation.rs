@@ -9,12 +9,13 @@
 use std::{num::NonZero, path::PathBuf, sync::Arc};
 
 use anyhow::{Result, bail, ensure};
-use nalgebra::Vector4;
+use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
 use squishy_volumes_gpu::{
-    DownloadsToHost, GpuContext, GpuError, PipelinePart, PrepareGrid, gpu_grid_to_cpu_grid,
-    prepare_grid, wgpu,
+    DownloadsToHost, GpuContext, GpuError, PipelinePart, Step,
+    particle_parameters::{Device, Fluid, Host, Solid},
+    step, wgpu,
 };
 use squishy_volumes_util::Flat3 as _;
 use tracing::{info, warn};
@@ -163,40 +164,119 @@ impl Simulation for SimulationImpl {
 
         if gpu && let Ok(context) = self.gpu_context.as_mut() {
             context.setup_allocator(100000000, "main allocator", true)?;
-            context.setup_indirect_allocator(1000, "indirect allocator", true)?;
+            context.setup_indirect_allocator(2048, "indirect allocator", true)?;
 
             let cell_size = self.input_header.consts.scaled_grid_node_size() * 2.;
             let mut state = State::new(input_reader.read_header()?, input_reader.read_frame(0)?)?;
+            self.cache.store_frame(state.clone())?;
+
+            let settings = step::Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+                cell_size,
+                bit_count: 2.try_into().unwrap(),
+                time_step,
+            };
+
+            let indices = (0..state.particles.sort_map.len() as u32).collect::<Vec<_>>();
+            let parameters: Vec<Device> = state
+                .particles
+                .parameters
+                .iter()
+                .cloned()
+                .map(|parameter| {
+                    match parameter {
+                        crate::state::particles::ParticleParameters::Solid {
+                            mu,
+                            lambda,
+                            viscosity,
+                            sand_alpha,
+                        } => Host::Solid(Solid {
+                            mu,
+                            lambda,
+                            viscosity: None,
+                            sand_alpha: None,
+                        }),
+                        crate::state::particles::ParticleParameters::Fluid {
+                            exponent,
+                            bulk_modulus,
+                            viscosity,
+                        } => Host::Fluid(Fluid {
+                            exponent,
+                            bulk_modulus,
+                            viscosity: None,
+                        }),
+                    }
+                    .into()
+                })
+                .collect();
             let positions: Vec<Vector4<f32>> = state
                 .particles
                 .positions
                 .iter()
                 .map(|p| p.push(0.))
                 .collect();
+            let position_gradients: Vec<Matrix4x3<f32>> = state
+                .particles
+                .position_gradients
+                .iter()
+                .map(|m| stack![m; Matrix1x3::zeros()])
+                .collect();
+            let velocities: Vec<Vector4<f32>> = state
+                .particles
+                .velocities
+                .iter()
+                .map(|v| v.push(0.))
+                .collect();
+            let velocity_gradients: Vec<Matrix4x3<f32>> = state
+                .particles
+                .velocity_gradients
+                .iter()
+                .map(|m| stack![m; Matrix1x3::zeros()])
+                .collect();
 
-            let settings = prepare_grid::Settings {
-                workgroup_size: 64.try_into().unwrap(),
-                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
-                cell_size,
-            };
-            let input = prepare_grid::Input::new(context.device(), settings.clone(), &positions);
-            let pipeline_part = PrepareGrid::new(context, settings);
+            let input = step::Input::new(
+                context.device(),
+                settings.clone(),
+                step::InputData {
+                    indices: &indices,
+                    masses: &state.particles.masses,
+                    initial_volumes: &state.particles.initial_volumes,
+                    parameters: &parameters,
+                    positions: &positions,
+                    position_gradients: &position_gradients,
+                    velocities: &velocities,
+                    velocity_gradients: &velocity_gradients,
+                },
+            );
+            let pipeline_part = Step::new(context, settings);
 
             let mut encoder = context.device().create_command_encoder(&Default::default());
 
-            let prepare_grid::Output {
-                indirect_cells,
-                cell_ids,
-                cell_owns,
+            let step::Output {
+                indices_out,
+                positions_out,
+                position_gradients_out,
+                velocities_out,
+                velocity_gradients_out,
                 ..
             } = pipeline_part.record(
                 context,
                 &mut (&mut encoder).into(),
                 input,
-                prepare_grid::Parameters,
+                step::Parameters,
             )?;
 
-            let downloads = DownloadsToHost::new(context, [indirect_cells, cell_ids, cell_owns]);
+            let downloads = DownloadsToHost::new(
+                context,
+                [
+                    indices_out,
+                    positions_out,
+                    position_gradients_out,
+                    velocities_out,
+                    velocity_gradients_out,
+                ],
+            );
             downloads.copy(&mut encoder);
 
             context.queue().submit([encoder.finish()]);
@@ -208,20 +288,49 @@ impl Simulation for SimulationImpl {
                 .poll(wgpu::PollType::wait_indefinitely())
                 .unwrap();
 
-            let [indirect_cells, cell_ids, cell_owns] = downloads.try_into().unwrap();
+            let [
+                indices_out,
+                position_out,
+                position_gradients_out,
+                velocities_out,
+                velocity_gradients_out,
+            ] = downloads.try_into().unwrap();
 
-            let nodes = gpu_grid_to_cpu_grid(
-                indirect_cells.to_vec()[0],
-                &cell_ids.to_vec(),
-                &cell_owns.to_vec(),
-            );
-            info!(num_nodes = nodes.len());
-            for node in nodes {
-                ensure!(state.grid_momentum.map.insert(node.xyz(), 0).is_none());
+            state.particles.sort_map = indices_out
+                .to_vec::<u32>()
+                .into_iter()
+                .map(|i| i as usize)
+                .collect();
+            state.particles.positions = position_out
+                .to_vec::<Vector4<f32>>()
+                .iter()
+                .map(Vector4::xyz)
+                .collect();
+            state.particles.position_gradients = position_gradients_out
+                .to_vec::<Matrix4x3<f32>>()
+                .into_iter()
+                .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+                .collect();
+            state.particles.velocities = velocities_out
+                .to_vec::<Vector4<f32>>()
+                .iter()
+                .map(Vector4::xyz)
+                .collect();
+            state.particles.velocity_gradients = velocity_gradients_out
+                .to_vec::<Matrix4x3<f32>>()
+                .into_iter()
+                .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+                .collect();
+
+            state
+                .particles
+                .reverse_sort_map
+                .resize(state.particles.sort_map.len(), 0);
+            for (current, original) in state.particles.sort_map.iter().enumerate() {
+                state.particles.reverse_sort_map[*original] = current;
             }
 
             self.cache.store_frame(state)?;
-            info!("byee");
             return Ok(());
         }
 
