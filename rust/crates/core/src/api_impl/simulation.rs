@@ -183,14 +183,13 @@ impl Simulation for SimulationImpl {
                 .particles
                 .parameters
                 .iter()
-                .cloned()
                 .map(|parameter| {
-                    match parameter {
+                    match parameter.clone() {
                         crate::state::particles::ParticleParameters::Solid {
                             mu,
                             lambda,
-                            viscosity,
-                            sand_alpha,
+                            viscosity: _,
+                            sand_alpha: _,
                         } => Host::Solid(Solid {
                             mu,
                             lambda,
@@ -200,7 +199,7 @@ impl Simulation for SimulationImpl {
                         crate::state::particles::ParticleParameters::Fluid {
                             exponent,
                             bulk_modulus,
-                            viscosity,
+                            viscosity: _,
                         } => Host::Fluid(Fluid {
                             exponent,
                             bulk_modulus,
@@ -216,6 +215,7 @@ impl Simulation for SimulationImpl {
                 .iter()
                 .map(|p| p.push(0.))
                 .collect();
+            #[allow(clippy::toplevel_ref_arg)]
             let position_gradients: Vec<Matrix4x3<f32>> = state
                 .particles
                 .position_gradients
@@ -228,6 +228,7 @@ impl Simulation for SimulationImpl {
                 .iter()
                 .map(|v| v.push(0.))
                 .collect();
+            #[allow(clippy::toplevel_ref_arg)]
             let velocity_gradients: Vec<Matrix4x3<f32>> = state
                 .particles
                 .velocity_gradients
