@@ -18,7 +18,9 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
+use squishy_volumes_gpu::{PipelinePart as _, wgpu};
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -28,7 +30,7 @@ use crate::{
     phase::{Phase, PhaseInput},
     profile,
     report::{Report, ReportInfo},
-    state::State,
+    state::{GpuState, State},
     stats::ComputeStats,
 };
 
@@ -52,6 +54,7 @@ pub struct ComputeThreadSettings {
     pub next_frame: usize,
     pub adaptive_time_steps: bool,
     pub explicit: bool,
+    pub gpu_context: Option<squishy_volumes_gpu::GpuContext>,
 }
 
 impl ComputeThread {
@@ -66,6 +69,7 @@ impl ComputeThread {
             mut next_frame,
             adaptive_time_steps,
             explicit,
+            gpu_context,
         }: ComputeThreadSettings,
     ) -> Result<Self> {
         info!("starting compute thread");
@@ -87,8 +91,8 @@ impl ComputeThread {
                 let mut current_state = if next_frame == 0 {
                     info!("creating initial state");
                     let state = State::new(
-                        //run.clone(),
-                        //frame_report.clone(),
+                        run.clone(),
+                        frame_report.clone(),
                         input_reader.read_header()?,
                         input_reader.read_frame(0)?,
                     )?;
@@ -100,6 +104,14 @@ impl ComputeThread {
                     info!("loading checkpoint");
                     cache.fetch_frame(next_frame - 1)?
                 };
+
+                let mut gpu_state = gpu_context.map(|gpu_context| {
+                    current_state.to_gpu_state(
+                        time_step,
+                        consts.scaled_grid_node_size(),
+                        gpu_context,
+                    )
+                });
 
                 let input_interpolation = InputInterpolation::new(input_reader)?;
                 let mut phase_input = PhaseInput {
@@ -121,47 +133,151 @@ impl ComputeThread {
                     profile!("frame");
 
                     let start_compute_frame = Instant::now();
-
-                    let step_report = frame_report.new_sub(ReportInfo {
-                        name: "Simulation Milliseconds to Next Frame".to_string(),
-                        completed_steps: 0,
-                        steps_to_completion: NonZero::new(
-                            ((seconds_per_frame * 1000.) as usize).max(1),
-                        )
-                        .unwrap(),
-                    });
-
                     let next_stored_frame_time = next_frame as f64 * seconds_per_frame;
-
                     let mut substeps = 0;
 
-                    while current_state.time() < next_stored_frame_time {
-                        profile!("substep");
-                        let phase_report = step_report.new_sub(ReportInfo {
-                            name: "Phases".to_string(),
-                            completed_steps: 0,
-                            steps_to_completion: NonZero::new(Phase::iter().count()).unwrap(),
-                        });
-                        loop {
-                            if !run.load(Ordering::Relaxed) {
-                                return Ok(());
-                            }
+                    if let Some(GpuState {
+                        mut gpu_context,
+                        pipeline_part,
+                        mut next_input,
+                    }) = gpu_state
+                    {
+                        let indirect_particles = next_input.indirect_particles.clone();
+                        let mut encoder = gpu_context
+                            .device()
+                            .create_command_encoder(&Default::default());
+                        let squishy_volumes_gpu::step::Output {
+                            indices_out,
+                            masses_out,
+                            initial_volumes_out,
+                            parameters_out,
+                            positions_out,
+                            position_gradients_out,
+                            velocities_out,
+                            velocity_gradients_out,
+                        } = pipeline_part.record(
+                            &mut gpu_context,
+                            &mut (&mut encoder).into(),
+                            next_input,
+                            squishy_volumes_gpu::step::Parameters,
+                        )?;
+                        next_input = squishy_volumes_gpu::step::Input {
+                            indirect_particles,
+                            indices_in: indices_out.clone(),
+                            masses_in: masses_out,
+                            initial_volumes_in: initial_volumes_out,
+                            parameters_in: parameters_out,
+                            positions_in: positions_out.clone(),
+                            position_gradients_in: position_gradients_out.clone(),
+                            velocities_in: velocities_out.clone(),
+                            velocity_gradients_in: velocity_gradients_out.clone(),
+                        };
 
-                            current_state = current_state.next(&mut phase_input)?;
-                            phase_report.step();
-                            if !run.load(Ordering::Relaxed) {
-                                return Ok(());
-                            }
+                        let downloads = squishy_volumes_gpu::DownloadsToHost::new(
+                            &gpu_context,
+                            [
+                                next_input.indices_in.clone(),
+                                next_input.positions_in.clone(),
+                                next_input.position_gradients_in.clone(),
+                                next_input.velocities_in.clone(),
+                            ],
+                        );
+                        downloads.copy(&mut encoder);
 
-                            if current_state.phase() == Phase::default() {
-                                break;
-                            }
+                        info!("submit");
+                        gpu_context.queue().submit([encoder.finish()]);
+
+                        let downloads = downloads.prep();
+
+                        info!("wait");
+                        gpu_context
+                            .device()
+                            .poll(wgpu::PollType::wait_indefinitely())
+                            .unwrap();
+
+                        info!("download");
+                        let [
+                            indices_out,
+                            positions_out,
+                            position_gradients_out,
+                            velocities_out,
+                        ] = downloads.try_into().unwrap();
+
+                        current_state.particles.sort_map = indices_out
+                            .to_vec::<u32>()
+                            .into_iter()
+                            .map(|i| i as usize)
+                            .collect();
+                        current_state.particles.positions = positions_out
+                            .to_vec::<Vector4<f32>>()
+                            .iter()
+                            .map(Vector4::xyz)
+                            .collect();
+                        current_state.particles.position_gradients = position_gradients_out
+                            .to_vec::<Matrix4x3<f32>>()
+                            .into_iter()
+                            .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+                            .collect();
+                        current_state.particles.velocities = velocities_out
+                            .to_vec::<Vector4<f32>>()
+                            .iter()
+                            .map(Vector4::xyz)
+                            .collect();
+
+                        info!("reverse");
+                        current_state
+                            .particles
+                            .reverse_sort_map
+                            .resize(current_state.particles.sort_map.len(), 0);
+                        for (current, original) in
+                            current_state.particles.sort_map.iter().enumerate()
+                        {
+                            current_state.particles.reverse_sort_map[*original] = current;
                         }
 
-                        step_report.set_completed(
-                            ((current_state.time() % seconds_per_frame) * 1000.) as usize,
-                        );
-                        substeps += 1;
+                        gpu_state = Some(GpuState {
+                            gpu_context,
+                            pipeline_part,
+                            next_input,
+                        });
+                    } else {
+                        let step_report = frame_report.new_sub(ReportInfo {
+                            name: "Simulation Milliseconds to Next Frame".to_string(),
+                            completed_steps: 0,
+                            steps_to_completion: NonZero::new(
+                                ((seconds_per_frame * 1000.) as usize).max(1),
+                            )
+                            .unwrap(),
+                        });
+
+                        while current_state.time() < next_stored_frame_time {
+                            profile!("substep");
+                            let phase_report = step_report.new_sub(ReportInfo {
+                                name: "Phases".to_string(),
+                                completed_steps: 0,
+                                steps_to_completion: NonZero::new(Phase::iter().count()).unwrap(),
+                            });
+                            loop {
+                                if !run.load(Ordering::Relaxed) {
+                                    return Ok(());
+                                }
+
+                                current_state = current_state.next(&mut phase_input)?;
+                                phase_report.step();
+                                if !run.load(Ordering::Relaxed) {
+                                    return Ok(());
+                                }
+
+                                if current_state.phase() == Phase::default() {
+                                    break;
+                                }
+                            }
+
+                            step_report.set_completed(
+                                ((current_state.time() % seconds_per_frame) * 1000.) as usize,
+                            );
+                            substeps += 1;
+                        }
                     }
 
                     frame_report.step();

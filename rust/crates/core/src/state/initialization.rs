@@ -58,18 +58,18 @@ pub enum StateInitializationError {
 
 impl State {
     pub fn new(
-        //_run: Arc<AtomicBool>,
-        //report: Report,
+        _run: Arc<AtomicBool>,
+        report: Report,
         input_header: InputHeader,
         first_frame: InputFrame,
     ) -> Result<Self, StateInitializationError> {
         info!("Creating new simulation state from first input frame");
 
-        //let report = report.new_sub(ReportInfo {
-        //    name: "Initializing Objects".to_string(),
-        //    completed_steps: 0,
-        //    steps_to_completion: NonZero::new(input_header.objects.len().max(1)).unwrap(),
-        //});
+        let report = report.new_sub(ReportInfo {
+            name: "Initializing Objects".to_string(),
+            completed_steps: 0,
+            steps_to_completion: NonZero::new(input_header.objects.len().max(1)).unwrap(),
+        });
 
         let mut name_map = BTreeMap::new();
         let mut particles = Particles::default();
@@ -258,7 +258,7 @@ impl State {
                 }
             }
 
-            //report.step();
+            report.step();
         }
 
         let time = 0.;

@@ -6,11 +6,13 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
 use serde::{Deserialize, Serialize};
+use squishy_volumes_gpu::PipelinePart as _;
 use std::{collections::BTreeMap, iter::once};
 
 use crate::{
-    input_interpolation::InterpolatedInput, phase::Phase, state::grids::GridCollider,
+    input_interpolation::InterpolatedInput, phase::Phase, profile, state::grids::GridCollider,
     stats::StateStats,
 };
 
@@ -86,4 +88,115 @@ impl State {
             per_object_count,
         }
     }
+
+    pub fn to_gpu_state(
+        &self,
+        time_step: f32,
+        grid_node_size: f32,
+        gpu_context: squishy_volumes_gpu::GpuContext,
+    ) -> GpuState {
+        profile!("to_gpu_state");
+        let cell_size = grid_node_size * 2.;
+        let settings = squishy_volumes_gpu::step::Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size,
+            bit_count: 2.try_into().unwrap(),
+            time_step,
+        };
+
+        let indices = self
+            .particles
+            .sort_map
+            .iter()
+            .map(|index| *index as u32)
+            .collect::<Vec<_>>();
+        let parameters: Vec<squishy_volumes_gpu::particle_parameters::Device> = self
+            .particles
+            .parameters
+            .iter()
+            .map(|parameter| {
+                match parameter.clone() {
+                    crate::state::particles::ParticleParameters::Solid {
+                        mu,
+                        lambda,
+                        viscosity: _,
+                        sand_alpha: _,
+                    } => squishy_volumes_gpu::particle_parameters::Host::Solid(
+                        squishy_volumes_gpu::particle_parameters::Solid {
+                            mu,
+                            lambda,
+                            viscosity: None,
+                            sand_alpha: None,
+                        },
+                    ),
+                    crate::state::particles::ParticleParameters::Fluid {
+                        exponent,
+                        bulk_modulus,
+                        viscosity: _,
+                    } => squishy_volumes_gpu::particle_parameters::Host::Fluid(
+                        squishy_volumes_gpu::particle_parameters::Fluid {
+                            exponent,
+                            bulk_modulus,
+                            viscosity: None,
+                        },
+                    ),
+                }
+                .into()
+            })
+            .collect();
+        let positions: Vec<Vector4<f32>> = self
+            .particles
+            .positions
+            .iter()
+            .map(|p| p.push(0.))
+            .collect();
+        #[allow(clippy::toplevel_ref_arg)]
+        let position_gradients: Vec<Matrix4x3<f32>> = self
+            .particles
+            .position_gradients
+            .iter()
+            .map(|m| stack![m; Matrix1x3::zeros()])
+            .collect();
+        let velocities: Vec<Vector4<f32>> = self
+            .particles
+            .velocities
+            .iter()
+            .map(|v| v.push(0.))
+            .collect();
+        #[allow(clippy::toplevel_ref_arg)]
+        let velocity_gradients: Vec<Matrix4x3<f32>> = self
+            .particles
+            .velocity_gradients
+            .iter()
+            .map(|m| stack![m; Matrix1x3::zeros()])
+            .collect();
+        let next_input = squishy_volumes_gpu::step::Input::new(
+            gpu_context.device(),
+            settings.clone(),
+            squishy_volumes_gpu::step::InputData {
+                indices: &indices,
+                masses: &self.particles.masses,
+                initial_volumes: &self.particles.initial_volumes,
+                parameters: &parameters,
+                positions: &positions,
+                position_gradients: &position_gradients,
+                velocities: &velocities,
+                velocity_gradients: &velocity_gradients,
+            },
+        );
+        let pipeline_part = squishy_volumes_gpu::Step::new(&gpu_context, settings);
+
+        GpuState {
+            gpu_context,
+            pipeline_part,
+            next_input,
+        }
+    }
+}
+
+pub struct GpuState {
+    pub gpu_context: squishy_volumes_gpu::GpuContext,
+    pub pipeline_part: squishy_volumes_gpu::Step,
+    pub next_input: squishy_volumes_gpu::step::Input,
 }

@@ -8,15 +8,10 @@
 
 use std::{num::NonZero, path::PathBuf, sync::Arc};
 
-use anyhow::{Result, bail, ensure};
-use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
+use anyhow::{Result, ensure};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::{ComputeSettings, Simulation, T, Task};
-use squishy_volumes_gpu::{
-    DownloadsToHost, GpuContext, GpuError, PipelinePart, Step,
-    particle_parameters::{Device, Fluid, Host, Solid},
-    step, wgpu,
-};
+use squishy_volumes_gpu::GpuContext;
 use squishy_volumes_util::Flat3 as _;
 use tracing::{info, warn};
 
@@ -27,10 +22,7 @@ use crate::{
     directory_lock::DirectoryLock,
     input_file::{InputHeader, InputReader},
     simulation_input_path,
-    state::{
-        State,
-        attributes::{Attribute, AttributeConst},
-    },
+    state::attributes::{Attribute, AttributeConst},
     stats::{ComputeStats, Stats},
 };
 
@@ -42,8 +34,6 @@ pub struct SimulationImpl {
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
     cached_compute_stats: Option<ComputeStats>,
-
-    gpu_context: Result<GpuContext, GpuError>,
 }
 
 impl SimulationImpl {
@@ -81,15 +71,12 @@ impl SimulationImpl {
             max_bytes_on_disk,
         )?);
 
-        let gpu_context = GpuContext::new(input_header.consts.max_num_particles);
-
         Ok(Self {
             directory_lock,
             input_header,
             cache,
             compute_thread: None,
             cached_compute_stats: None,
-            gpu_context,
         })
     }
 }
@@ -126,11 +113,6 @@ impl Simulation for SimulationImpl {
             max_bytes_on_disk,
         }: ComputeSettings,
     ) -> Result<()> {
-        if gpu && let Err(e) = self.gpu_context.as_ref() {
-            // TODO
-            bail!(e.to_string());
-        }
-
         info!("starting compute");
         self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
 
@@ -151,6 +133,19 @@ impl Simulation for SimulationImpl {
 
         self.pause_compute();
 
+        let gpu_context = if gpu {
+            info!("setting up GPU context");
+            let n = self.input_header.consts.max_num_particles;
+            let mut gpu_context =
+                GpuContext::new(n).map_err(|e| anyhow::Error::msg(e.to_string()))?;
+            info!("setting up GPU allocators");
+            gpu_context.setup_allocator(n as u64 * 512, "main allocator", true)?;
+            gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
+            Some(gpu_context)
+        } else {
+            None
+        };
+
         info!("performing checks");
         info!("directory checks");
         self.directory_lock.check()?;
@@ -159,204 +154,8 @@ impl Simulation for SimulationImpl {
         info!("drop checks");
         self.cache.drop_frames(next_frame)?;
         info!("input checks");
-        let mut input_reader =
+        let input_reader =
             InputReader::new(simulation_input_path(self.directory_lock.directory()))?;
-
-        if gpu && let Ok(context) = self.gpu_context.as_mut() {
-            context.setup_allocator(100000000, "main allocator", true)?;
-            context.setup_indirect_allocator(2048, "indirect allocator", true)?;
-
-            let cell_size = self.input_header.consts.scaled_grid_node_size() * 2.;
-            let mut state = State::new(input_reader.read_header()?, input_reader.read_frame(0)?)?;
-            self.cache.store_frame(state.clone())?;
-
-            let settings = step::Settings {
-                workgroup_size: 64.try_into().unwrap(),
-                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
-                cell_size,
-                bit_count: 2.try_into().unwrap(),
-                time_step,
-            };
-
-            let indices = (0..state.particles.sort_map.len() as u32).collect::<Vec<_>>();
-            let parameters: Vec<Device> = state
-                .particles
-                .parameters
-                .iter()
-                .map(|parameter| {
-                    match parameter.clone() {
-                        crate::state::particles::ParticleParameters::Solid {
-                            mu,
-                            lambda,
-                            viscosity: _,
-                            sand_alpha: _,
-                        } => Host::Solid(Solid {
-                            mu,
-                            lambda,
-                            viscosity: None,
-                            sand_alpha: None,
-                        }),
-                        crate::state::particles::ParticleParameters::Fluid {
-                            exponent,
-                            bulk_modulus,
-                            viscosity: _,
-                        } => Host::Fluid(Fluid {
-                            exponent,
-                            bulk_modulus,
-                            viscosity: None,
-                        }),
-                    }
-                    .into()
-                })
-                .collect();
-            let positions: Vec<Vector4<f32>> = state
-                .particles
-                .positions
-                .iter()
-                .map(|p| p.push(0.))
-                .collect();
-            #[allow(clippy::toplevel_ref_arg)]
-            let position_gradients: Vec<Matrix4x3<f32>> = state
-                .particles
-                .position_gradients
-                .iter()
-                .map(|m| stack![m; Matrix1x3::zeros()])
-                .collect();
-            let velocities: Vec<Vector4<f32>> = state
-                .particles
-                .velocities
-                .iter()
-                .map(|v| v.push(0.))
-                .collect();
-            #[allow(clippy::toplevel_ref_arg)]
-            let velocity_gradients: Vec<Matrix4x3<f32>> = state
-                .particles
-                .velocity_gradients
-                .iter()
-                .map(|m| stack![m; Matrix1x3::zeros()])
-                .collect();
-
-            let mut input = step::Input::new(
-                context.device(),
-                settings.clone(),
-                step::InputData {
-                    indices: &indices,
-                    masses: &state.particles.masses,
-                    initial_volumes: &state.particles.initial_volumes,
-                    parameters: &parameters,
-                    positions: &positions,
-                    position_gradients: &position_gradients,
-                    velocities: &velocities,
-                    velocity_gradients: &velocity_gradients,
-                },
-            );
-            let pipeline_part = Step::new(context, settings);
-
-            for f in 0..number_of_frames.get() {
-                info!("start frame: {f}");
-
-                let mut encoder = context.device().create_command_encoder(&Default::default());
-                let indirect_particles = input.indirect_particles.clone();
-                let step::Output {
-                    indices_out,
-                    masses_out,
-                    initial_volumes_out,
-                    parameters_out,
-                    positions_out,
-                    position_gradients_out,
-                    velocities_out,
-                    velocity_gradients_out,
-                } = pipeline_part.record(
-                    context,
-                    &mut (&mut encoder).into(),
-                    input,
-                    step::Parameters,
-                )?;
-                input = step::Input {
-                    indirect_particles,
-                    indices_in: indices_out.clone(),
-                    masses_in: masses_out,
-                    initial_volumes_in: initial_volumes_out,
-                    parameters_in: parameters_out,
-                    positions_in: positions_out.clone(),
-                    position_gradients_in: position_gradients_out.clone(),
-                    velocities_in: velocities_out.clone(),
-                    velocity_gradients_in: velocity_gradients_out.clone(),
-                };
-
-                let downloads = DownloadsToHost::new(
-                    context,
-                    [
-                        input.indices_in.clone(),
-                        input.positions_in.clone(),
-                        input.position_gradients_in.clone(),
-                        input.velocities_in.clone(),
-                        input.velocity_gradients_in.clone(),
-                    ],
-                );
-                downloads.copy(&mut encoder);
-
-                info!("submit");
-                context.queue().submit([encoder.finish()]);
-
-                let downloads = downloads.prep();
-
-                info!("wait");
-                context
-                    .device()
-                    .poll(wgpu::PollType::wait_indefinitely())
-                    .unwrap();
-
-                info!("download");
-                let [
-                    indices_out,
-                    positions_out,
-                    position_gradients_out,
-                    velocities_out,
-                    velocity_gradients_out,
-                ] = downloads.try_into().unwrap();
-
-                state.particles.sort_map = indices_out
-                    .to_vec::<u32>()
-                    .into_iter()
-                    .map(|i| i as usize)
-                    .collect();
-                state.particles.positions = positions_out
-                    .to_vec::<Vector4<f32>>()
-                    .iter()
-                    .map(Vector4::xyz)
-                    .collect();
-                state.particles.position_gradients = position_gradients_out
-                    .to_vec::<Matrix4x3<f32>>()
-                    .into_iter()
-                    .map(|m| m.fixed_view::<3, 3>(0, 0).into())
-                    .collect();
-                state.particles.velocities = velocities_out
-                    .to_vec::<Vector4<f32>>()
-                    .iter()
-                    .map(Vector4::xyz)
-                    .collect();
-                state.particles.velocity_gradients = velocity_gradients_out
-                    .to_vec::<Matrix4x3<f32>>()
-                    .into_iter()
-                    .map(|m| m.fixed_view::<3, 3>(0, 0).into())
-                    .collect();
-
-                info!("reverse");
-                state
-                    .particles
-                    .reverse_sort_map
-                    .resize(state.particles.sort_map.len(), 0);
-                for (current, original) in state.particles.sort_map.iter().enumerate() {
-                    state.particles.reverse_sort_map[*original] = current;
-                }
-
-                info!("store");
-                self.cache.store_frame(state.clone())?;
-                info!("finished frame: {f}");
-            }
-            return Ok(());
-        }
 
         info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {
@@ -369,6 +168,7 @@ impl Simulation for SimulationImpl {
             next_frame,
             adaptive_time_steps,
             explicit,
+            gpu_context,
         })?);
         Ok(())
     }
