@@ -131,6 +131,9 @@ impl ComputeThread {
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
                     profile!("frame");
+                    if !run.load(Ordering::Relaxed) {
+                        return Ok(());
+                    }
 
                     let start_compute_frame = Instant::now();
                     let next_stored_frame_time = next_frame as f64 * seconds_per_frame;
@@ -146,32 +149,40 @@ impl ComputeThread {
                         let mut encoder = gpu_context
                             .device()
                             .create_command_encoder(&Default::default());
-                        let squishy_volumes_gpu::step::Output {
-                            indices_out,
-                            masses_out,
-                            initial_volumes_out,
-                            parameters_out,
-                            positions_out,
-                            position_gradients_out,
-                            velocities_out,
-                            velocity_gradients_out,
-                        } = pipeline_part.record(
-                            &mut gpu_context,
-                            &mut (&mut encoder).into(),
-                            next_input,
-                            squishy_volumes_gpu::step::Parameters,
-                        )?;
-                        next_input = squishy_volumes_gpu::step::Input {
-                            indirect_particles,
-                            indices_in: indices_out.clone(),
-                            masses_in: masses_out,
-                            initial_volumes_in: initial_volumes_out,
-                            parameters_in: parameters_out,
-                            positions_in: positions_out.clone(),
-                            position_gradients_in: position_gradients_out.clone(),
-                            velocities_in: velocities_out.clone(),
-                            velocity_gradients_in: velocity_gradients_out.clone(),
-                        };
+
+                        while current_state.time() < next_stored_frame_time {
+                            if !run.load(Ordering::Relaxed) {
+                                return Ok(());
+                            }
+
+                            let squishy_volumes_gpu::step::Output {
+                                indices_out,
+                                masses_out,
+                                initial_volumes_out,
+                                parameters_out,
+                                positions_out,
+                                position_gradients_out,
+                                velocities_out,
+                                velocity_gradients_out,
+                            } = pipeline_part.record(
+                                &mut gpu_context,
+                                &mut (&mut encoder).into(),
+                                next_input,
+                                squishy_volumes_gpu::step::Parameters,
+                            )?;
+                            next_input = squishy_volumes_gpu::step::Input {
+                                indirect_particles: indirect_particles.clone(),
+                                indices_in: indices_out.clone(),
+                                masses_in: masses_out,
+                                initial_volumes_in: initial_volumes_out,
+                                parameters_in: parameters_out,
+                                positions_in: positions_out.clone(),
+                                position_gradients_in: position_gradients_out.clone(),
+                                velocities_in: velocities_out.clone(),
+                                velocity_gradients_in: velocity_gradients_out.clone(),
+                            };
+                            current_state.time += time_step as f64;
+                        }
 
                         let downloads = squishy_volumes_gpu::DownloadsToHost::new(
                             &gpu_context,
