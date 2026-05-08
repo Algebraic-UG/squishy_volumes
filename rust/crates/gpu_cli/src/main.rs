@@ -23,7 +23,7 @@ use crate::{
     build_hash_table::build_hash_table_on_gpu, collect::collect_on_gpu,
     positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
     prepare_grid::prepare_grid_on_gpu, radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
-    sort_positions_into_cells::sort_positions_into_cells_on_gpu,
+    sort_positions_into_cells::sort_positions_into_cells_on_gpu, step::step_on_gpu,
 };
 
 mod build_hash_table;
@@ -34,6 +34,7 @@ mod prepare_grid;
 mod radix_sort;
 mod scatter;
 mod sort_positions_into_cells;
+mod step;
 mod window;
 
 mod profiler_output;
@@ -61,6 +62,7 @@ enum Task {
     PrepareGrid,
     Scatter,
     Collect,
+    Step,
 }
 
 #[derive(Parser)]
@@ -146,7 +148,7 @@ fn main() {
                     .collect();
                 out.write_all(bytemuck::cast_slice(&positions)).unwrap();
             }
-            Task::Scatter | Task::Collect => {
+            Task::Scatter | Task::Collect | Task::Step => {
                 let per_dim = (generate as f64).powf(1. / 3.).ceil() as usize;
                 let input: Vec<_> = (0..per_dim)
                     .flat_map(move |x| {
@@ -254,35 +256,55 @@ fn main() {
             };
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
-        Task::Scatter => {
+        Task::Scatter | Task::Collect | Task::Step => {
             let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let _output = match mode {
-                Mode::Cpu => todo!(),
-                Mode::Gpu => scatter_on_gpu(
-                    tool,
-                    gpu::scatter::Settings {
-                        workgroup_size,
-                        cell_size,
-                        time_step,
-                    },
-                    input,
-                ),
-            };
-        }
-        Task::Collect => {
-            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let _output = match mode {
-                Mode::Cpu => todo!(),
-                Mode::Gpu => collect_on_gpu(
-                    tool,
-                    gpu::collect::Settings {
-                        workgroup_size,
-                        cell_size,
-                        time_step,
-                    },
-                    input,
-                ),
-            };
+            match task {
+                Task::Scatter => {
+                    let _output = match mode {
+                        Mode::Cpu => todo!(),
+                        Mode::Gpu => scatter_on_gpu(
+                            tool,
+                            gpu::scatter::Settings {
+                                workgroup_size,
+                                cell_size,
+                                time_step,
+                            },
+                            input,
+                        ),
+                    };
+                }
+                Task::Collect => {
+                    let _output = match mode {
+                        Mode::Cpu => todo!(),
+                        Mode::Gpu => collect_on_gpu(
+                            tool,
+                            gpu::collect::Settings {
+                                workgroup_size,
+                                cell_size,
+                                time_step,
+                            },
+                            input,
+                        ),
+                    };
+                }
+                Task::Step => {
+                    let _output = match mode {
+                        Mode::Cpu => todo!(),
+                        Mode::Gpu => step_on_gpu(
+                            tool,
+                            gpu::step::Settings {
+                                workgroup_size,
+                                dispatch_limit,
+                                bit_count,
+                                cell_size,
+                                time_step,
+                            },
+                            input,
+                        ),
+                    };
+                }
+                _ => unreachable!(),
+            }
         }
         Task::BuildHashTable => {
             let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
