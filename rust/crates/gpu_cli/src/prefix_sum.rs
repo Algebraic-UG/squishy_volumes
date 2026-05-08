@@ -1,11 +1,9 @@
-use squishy_volumes_gpu::{
-    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, prefix_sum::*,
-};
+use squishy_volumes_gpu::{DownloadToHost, GpuContext, PipelinePart, prefix_sum::*};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
 pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]) -> Vec<u32> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(numbers.len() as u64 * 5, "allocator", true)
         .unwrap();

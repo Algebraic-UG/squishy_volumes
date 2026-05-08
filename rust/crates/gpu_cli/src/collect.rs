@@ -1,6 +1,6 @@
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector4, stack};
 use squishy_volumes_gpu::{
-    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart,
+    DownloadToHost, GpuContext, PipelinePart,
     collect::*,
     particle_parameters::{Host, Solid},
     scatter::InputData,
@@ -13,7 +13,7 @@ pub fn collect_on_gpu(
     settings: Settings,
     positions: &[Vector4<f32>],
 ) -> Vec<Vector4<f32>> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(positions.len() as u64 * 165, "allocator", true)
         .unwrap();

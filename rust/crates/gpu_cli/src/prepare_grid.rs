@@ -1,7 +1,6 @@
 use nalgebra::Vector4;
 use squishy_volumes_gpu::{
-    DownloadsToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, gpu_grid_to_cpu_grid,
-    prepare_grid::*,
+    DownloadsToHost, GpuContext, PipelinePart, gpu_grid_to_cpu_grid, prepare_grid::*,
 };
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
@@ -11,7 +10,7 @@ pub fn prepare_grid_on_gpu(
     settings: Settings,
     positions: &[Vector4<f32>],
 ) -> Vec<Vector4<i32>> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(positions.len().max(100) as u64 * 300, "allocator", true)
         .unwrap();

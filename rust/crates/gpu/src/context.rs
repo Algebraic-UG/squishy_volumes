@@ -22,7 +22,7 @@ pub struct GpuContext {
     indirect_allocator: Option<GpuAllocator>,
 }
 
-fn requirements(max_num_particles: u32) -> (wgpu::Features, wgpu::Limits) {
+fn requirements() -> (wgpu::Features, wgpu::Limits) {
     let mut features = wgpu::Features::empty();
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
@@ -32,16 +32,11 @@ fn requirements(max_num_particles: u32) -> (wgpu::Features, wgpu::Limits) {
     limits.max_immediate_size = 4;
     limits.max_storage_buffers_per_shader_stage = 18;
 
-    let size_requirement = (max_num_particles * 1024) as u64;
-
-    limits.max_buffer_size = size_requirement;
-    limits.max_storage_buffer_binding_size = size_requirement;
-
     (features, limits)
 }
 
 impl GpuContext {
-    pub fn new(max_num_particles: u32) -> Result<Self, GpuError> {
+    pub fn new() -> Result<Self, GpuError> {
         let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
         instance_descriptor.backends = wgpu::Backends::PRIMARY;
 
@@ -69,7 +64,14 @@ impl GpuContext {
             .then_some(())
             .ok_or(GpuError::ComputeNotSupported)?;
 
-        let (required_features, required_limits) = requirements(max_num_particles);
+        let (required_features, mut required_limits) = requirements();
+        required_limits.max_buffer_size = adapter.limits().max_buffer_size;
+        required_limits.max_storage_buffer_binding_size =
+            adapter.limits().max_storage_buffer_binding_size;
+        tracing::info!(
+            max_buffer_size = required_limits.max_buffer_size,
+            max_storage_buffer_binding_size = required_limits.max_storage_buffer_binding_size,
+        );
 
         let missing_features = required_features.difference(adapter.features());
         missing_features

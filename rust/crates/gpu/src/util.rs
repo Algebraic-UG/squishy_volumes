@@ -18,8 +18,6 @@ use std::num::NonZeroU32;
 
 use nalgebra::{Matrix3, Vector3, Vector4};
 
-pub const MAX_NUM_PARTICLES: u32 = 1000000;
-
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
 pub struct Block {

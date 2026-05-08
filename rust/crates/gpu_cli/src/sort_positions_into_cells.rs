@@ -1,7 +1,5 @@
 use nalgebra::Vector4;
-use squishy_volumes_gpu::{
-    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, sort_positions_into_cells::*,
-};
+use squishy_volumes_gpu::{DownloadToHost, GpuContext, PipelinePart, sort_positions_into_cells::*};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
@@ -10,7 +8,7 @@ pub fn sort_positions_into_cells_on_gpu(
     settings: Settings,
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(positions.len() as u64 * 16, "allocator", true)
         .unwrap();

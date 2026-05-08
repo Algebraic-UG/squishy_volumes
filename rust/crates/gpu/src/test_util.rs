@@ -8,7 +8,7 @@
 
 use std::{num::NonZeroU32, sync::Mutex};
 
-use crate::{GpuContext, Indirect, IndirectSettings, MAX_NUM_PARTICLES, particle_parameters};
+use crate::{GpuContext, Indirect, IndirectSettings, particle_parameters};
 
 use approx::assert_relative_eq;
 // Maybe we can avoid this once this is fixed?
@@ -19,7 +19,7 @@ use nalgebra::{Matrix3, Vector3, Vector4};
 use squishy_volumes_util::{lambda, mu};
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
-        let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+        let mut context = GpuContext::new().unwrap();
         context
             .setup_allocator(1000000, "test allocator", true)
             .unwrap();
@@ -88,7 +88,7 @@ pub fn count_subkeys_on_cpu(
 }
 
 pub fn get_subgroup_size() -> NonZeroU32 {
-    GpuContext::new(MAX_NUM_PARTICLES).unwrap().subgroup_size()
+    GpuContext::new().unwrap().subgroup_size()
 }
 
 pub fn sort_on_cpu_by_bits(

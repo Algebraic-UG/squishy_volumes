@@ -1,6 +1,4 @@
-use squishy_volumes_gpu::{
-    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, radix_sort::*,
-};
+use squishy_volumes_gpu::{DownloadToHost, GpuContext, PipelinePart, radix_sort::*};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
@@ -10,7 +8,7 @@ pub fn radix_sort_on_gpu(
     indices: &[u32],
     keys: &[u32],
 ) -> Vec<u32> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(indices.len() as u64 * 10, "allocator", true)
         .unwrap();

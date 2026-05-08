@@ -1,7 +1,5 @@
 use nalgebra::Vector4;
-use squishy_volumes_gpu::{
-    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, positions_to_keys::*,
-};
+use squishy_volumes_gpu::{DownloadToHost, GpuContext, PipelinePart, positions_to_keys::*};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
@@ -11,7 +9,7 @@ pub fn positions_to_keys_on_gpu(
     parameters: Parameters,
     positions: &[Vector4<f32>],
 ) -> Vec<u32> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(positions.len() as u64 * 4, "allocator", true)
         .unwrap();

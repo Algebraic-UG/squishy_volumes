@@ -1,7 +1,5 @@
 use nalgebra::Vector4;
-use squishy_volumes_gpu::{
-    DownloadToHost, GpuContext, MAX_NUM_PARTICLES, PipelinePart, build_hash_table::*,
-};
+use squishy_volumes_gpu::{DownloadToHost, GpuContext, PipelinePart, build_hash_table::*};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
@@ -10,7 +8,7 @@ pub fn build_hash_table_on_gpu(
     settings: Settings,
     cells: &[Vector4<i32>],
 ) -> Vec<u32> {
-    let mut context = GpuContext::new(MAX_NUM_PARTICLES).unwrap();
+    let mut context = GpuContext::new().unwrap();
     context
         .setup_allocator(cells.len() as u64 * 128, "allocator", true)
         .unwrap();
