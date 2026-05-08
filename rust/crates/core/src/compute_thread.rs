@@ -105,13 +105,24 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
-                let mut gpu_state = gpu_context.map(|gpu_context| {
-                    current_state.to_gpu_state(
+                let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
+                    info!("setting up GPU allocators");
+                    gpu_context.setup_allocator(
+                        current_state.particles.sort_map.len() as u64 * 2048,
+                        "main allocator",
+                        true,
+                    )?;
+                    gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
+
+                    info!("setting up GPU state");
+                    Some(current_state.to_gpu_state(
                         time_step,
                         consts.scaled_grid_node_size(),
                         gpu_context,
-                    )
-                });
+                    ))
+                } else {
+                    None
+                };
 
                 let input_interpolation = InputInterpolation::new(input_reader)?;
                 let mut phase_input = PhaseInput {

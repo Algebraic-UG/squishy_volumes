@@ -135,13 +135,7 @@ impl Simulation for SimulationImpl {
 
         let gpu_context = if gpu {
             info!("setting up GPU context");
-            let mut gpu_context =
-                GpuContext::new().map_err(|e| anyhow::Error::msg(e.to_string()))?;
-            info!("setting up GPU allocators");
-            let n = self.input_header.consts.max_num_particles;
-            gpu_context.setup_allocator(n as u64 * 256, "main allocator", true)?;
-            gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
-            Some(gpu_context)
+            Some(GpuContext::new().map_err(|e| anyhow::Error::msg(e.to_string()))?)
         } else {
             None
         };
