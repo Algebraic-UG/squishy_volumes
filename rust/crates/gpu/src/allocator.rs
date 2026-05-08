@@ -27,13 +27,18 @@ pub enum GpuAllocatorError {
     #[error("Failed to allocate buffer, requested {requested}, but max is {max}")]
     ExceedingMaxBufferSize { requested: u64, max: u64 },
     #[error("Failed to allocate buffer binding, requested {requested}, but max is {max}")]
-    ExceedingMaxBufferBindingSize { requested: u64, max: u64 },
+    ExceedingMaxBufferBindingSize {
+        label: &'static str,
+        requested: u64,
+        max: u64,
+    },
     #[error(
         "Failed to allocate binding, requested {requested},
 but the largest continous free space is {continuous_free}.
 In total free: {total_free}"
     )]
     FailedToFindSpace {
+        label: &'static str,
         requested: u64,
         continuous_free: u64,
         total_free: u64,
@@ -196,6 +201,7 @@ impl GpuAllocator {
         // sanity check
         if self.max_storage_buffer_binding_size < size.get() {
             return Err(GpuAllocatorError::ExceedingMaxBufferBindingSize {
+                label,
                 requested: size.get(),
                 max: self.max_storage_buffer_binding_size,
             });
@@ -243,6 +249,7 @@ impl GpuAllocator {
         }
 
         allocation.ok_or(GpuAllocatorError::FailedToFindSpace {
+            label,
             requested: size.get(),
             continuous_free: self.biggest_free(),
             total_free: self.total_free(),
