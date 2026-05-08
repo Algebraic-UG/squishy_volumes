@@ -122,7 +122,12 @@ fn main(
         for (var grid_node_round = 0u; grid_node_round < grid_node_rounds; grid_node_round++) {
             let node_index = node_start + node_stride * grid_node_round;
             var node = blocks[block_index][node_index];
-            var node_id = node_id_start + block_offset(node_index);
+            var node_id: vec3i = node_id_start + block_offset(node_index);
+
+            node.z -= node.w * 9.8 * TIME_STEP;
+            if node_id.z < 0 {
+                node.z = 0;
+            }
 
             for (var write_round = 0u; write_round < subgroup_size; write_round++) {
                 node = subgroupShuffle(node, (subgroup_invocation_id + 1) % subgroup_size);
