@@ -26,14 +26,16 @@ use thiserror::Error;
 pub enum GpuAllocatorError {
     #[error("Failed to allocate buffer, requested {requested}, but max is {max}")]
     ExceedingMaxBufferSize { requested: u64, max: u64 },
-    #[error("Failed to allocate buffer binding, requested {requested}, but max is {max}")]
+    #[error(
+        "Failed to allocate buffer binding for {label}, requested {requested}, but max is {max}"
+    )]
     ExceedingMaxBufferBindingSize {
         label: &'static str,
         requested: u64,
         max: u64,
     },
     #[error(
-        "Failed to allocate binding, requested {requested},
+        "Failed to allocate binding for {label}, requested {requested},
 but the largest continous free space is {continuous_free}.
 In total free: {total_free}"
     )]
