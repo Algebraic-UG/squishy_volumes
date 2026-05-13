@@ -16,6 +16,7 @@ mod download;
 mod error;
 mod indirect;
 mod pipeline_part;
+mod triangle;
 mod util;
 
 pub use allocator::*;
@@ -26,6 +27,7 @@ pub use download::*;
 pub use error::*;
 pub use indirect::*;
 pub use pipeline_part::*;
+pub use triangle::*;
 pub use util::*;
 
 pub mod allocate_blocks;
@@ -52,6 +54,7 @@ pub mod reorder_indices;
 pub mod scatter;
 pub mod sort_positions_into_cells;
 pub mod step;
+pub mod triangle_sdf;
 
 pub use allocate_blocks::AllocateBlocks;
 pub use build_cells::BuildCells;
@@ -75,8 +78,11 @@ pub use reorder_indices::ReorderIndices;
 pub use scatter::Scatter;
 pub use sort_positions_into_cells::SortPositionsIntoCells;
 pub use step::Step;
+pub use triangle_sdf::TriangleSdf;
 
 #[cfg(test)]
 mod test_util;
+#[cfg(test)]
+mod torus;
 #[cfg(test)]
 use test_util::*;

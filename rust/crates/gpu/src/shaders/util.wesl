@@ -256,3 +256,12 @@ fn first_piola_stress_inviscid(
         invariant_3(position_gradient),
     ) * partial_invariant_3_by_position_gradient(position_gradient);
 }
+
+const F32_MAX: f32 = 3.4028234663852886e38f;
+const NORMALIZATION_EPS: f32 = 1e-5;
+
+struct Triangle {
+    a: u32,
+    b: u32,
+    c: u32,
+}
