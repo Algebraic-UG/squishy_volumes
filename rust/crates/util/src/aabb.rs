@@ -16,6 +16,8 @@ pub trait AabbVector:
     fn splat(value: f32) -> Self;
     fn min(&self, other: &Self) -> Self;
     fn max(&self, other: &Self) -> Self;
+
+    fn lattice(min: Self, extents: Self, spacing: f32) -> (usize, impl Iterator<Item = Self>);
 }
 
 impl AabbVector for Vector2<f32> {
@@ -30,6 +32,19 @@ impl AabbVector for Vector2<f32> {
     fn max(&self, other: &Self) -> Self {
         self.sup(other)
     }
+
+    fn lattice(min: Self, extents: Self, spacing: f32) -> (usize, impl Iterator<Item = Self>) {
+        let n = (extents / spacing).map(|x| x.max(1.) as usize);
+        (
+            n.product(),
+            (0..=n.x).flat_map(move |i| {
+                (0..=n.y).map(move |j| {
+                    min + extents
+                        .component_mul(&Self::new(i as f32 / n.x as f32, j as f32 / n.y as f32))
+                })
+            }),
+        )
+    }
 }
 
 impl AabbVector for Vector3<f32> {
@@ -43,6 +58,24 @@ impl AabbVector for Vector3<f32> {
 
     fn max(&self, other: &Self) -> Self {
         self.sup(other)
+    }
+
+    fn lattice(min: Self, extents: Self, spacing: f32) -> (usize, impl Iterator<Item = Self>) {
+        let n = (extents / spacing).map(|x| x.max(1.) as usize);
+        (
+            n.product(),
+            (0..=n.x).flat_map(move |i| {
+                (0..=n.y).flat_map(move |j| {
+                    (0..=n.z).map(move |k| {
+                        min + extents.component_mul(&Self::new(
+                            i as f32 / n.x as f32,
+                            j as f32 / n.y as f32,
+                            k as f32 / n.z as f32,
+                        ))
+                    })
+                })
+            }),
+        )
     }
 }
 
@@ -71,5 +104,13 @@ impl<V: AabbVector> Aabb<V> {
             min: self.min.min(&point),
             max: self.max.max(&point),
         }
+    }
+
+    pub fn extents(&self) -> V {
+        self.max - self.min
+    }
+
+    pub fn lattice(&self, spacing: f32) -> (usize, impl Iterator<Item = V> + use<V>) {
+        V::lattice(self.min, self.extents(), spacing)
     }
 }
