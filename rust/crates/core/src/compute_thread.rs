@@ -157,10 +157,12 @@ impl ComputeThread {
                     }) = gpu_state
                     {
                         let indirect_particles = next_input.indirect_particles.clone();
+
                         let mut encoder = gpu_context
                             .device()
                             .create_command_encoder(&Default::default());
 
+                        let mut recorded_steps = 0;
                         while current_state.time() < next_stored_frame_time {
                             if !run.load(Ordering::Relaxed) {
                                 return Ok(());
@@ -193,6 +195,16 @@ impl ComputeThread {
                                 velocity_gradients_in: velocity_gradients_out.clone(),
                             };
                             current_state.time += time_step as f64;
+
+                            recorded_steps += 1;
+                            if recorded_steps > 10 {
+                                info!("submit");
+                                gpu_context.queue().submit([encoder.finish()]);
+                                encoder = gpu_context
+                                    .device()
+                                    .create_command_encoder(&Default::default());
+                                recorded_steps = 0;
+                            }
                         }
 
                         let downloads = squishy_volumes_gpu::DownloadsToHost::new(
