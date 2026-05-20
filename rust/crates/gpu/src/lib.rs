@@ -38,7 +38,7 @@ pub mod cells_to_murmur;
 pub mod collect;
 pub mod color_cells;
 //pub mod count_colliders;
-//pub mod build_blocks;
+pub mod build_blocks;
 pub mod count_subkeys;
 pub mod counts_indirect;
 pub mod elastic;
