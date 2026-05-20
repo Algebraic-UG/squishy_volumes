@@ -103,7 +103,7 @@ fn run_build_hash_table(
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), workgroup_size, dispatch_limit, cells);
-    let build_hash_table = BuildHashTable::new(&context, Settings { workgroup_size });
+    let build_hash_table = BuildHashTableFromCells::new(&context, Settings { workgroup_size });
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

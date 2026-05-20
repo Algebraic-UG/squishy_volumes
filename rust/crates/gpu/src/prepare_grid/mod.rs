@@ -20,7 +20,7 @@ pub struct PrepareGrid {
     prefix_sum: PrefixSum,
     build_cells: BuildCells,
     color_cells: ColorCells,
-    build_hash_table: BuildHashTable,
+    build_hash_table_from_cells: BuildHashTableFromCells,
     allocate_blocks: AllocateBlocks,
 }
 
@@ -129,8 +129,10 @@ impl PipelinePart for PrepareGrid {
                 dispatch_limit,
             },
         );
-        let build_hash_table =
-            BuildHashTable::new(context, build_hash_table::Settings { workgroup_size });
+        let build_hash_table_from_cells = BuildHashTableFromCells::new(
+            context,
+            build_hash_table_from_cells::Settings { workgroup_size },
+        );
         let allocate_blocks = AllocateBlocks::new(
             context,
             allocate_blocks::Settings {
@@ -144,7 +146,7 @@ impl PipelinePart for PrepareGrid {
             prefix_sum,
             build_cells,
             color_cells,
-            build_hash_table,
+            build_hash_table_from_cells,
             allocate_blocks,
         }
     }
@@ -211,17 +213,17 @@ impl PipelinePart for PrepareGrid {
             color_cells::Parameters,
         )?;
 
-        let build_hash_table::Output {
+        let build_hash_table_from_cells::Output {
             block_table,
             owns: cell_owns,
-        } = self.build_hash_table.record(
+        } = self.build_hash_table_from_cells.record(
             context,
             encoder,
-            build_hash_table::Input {
+            build_hash_table_from_cells::Input {
                 indirect: indirect_cells.clone(),
                 cell_ids: cell_ids.clone(),
             },
-            build_hash_table::Parameters,
+            build_hash_table_from_cells::Parameters,
         )?;
 
         let allocate_blocks::Output { block_offsets } = self.allocate_blocks.record(

@@ -1,5 +1,7 @@
 use nalgebra::Vector4;
-use squishy_volumes_gpu::{DownloadToHost, GpuContext, PipelinePart, build_hash_table::*};
+use squishy_volumes_gpu::{
+    DownloadToHost, GpuContext, PipelinePart, build_hash_table_from_cells::*,
+};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
@@ -23,7 +25,7 @@ pub fn build_hash_table_on_gpu(
         cells,
     );
 
-    let build_hash_table = BuildHashTable::new(&context, settings);
+    let build_hash_table = BuildHashTableFromCells::new(&context, settings);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {

@@ -32,11 +32,13 @@ pub use util::*;
 
 pub mod allocate_blocks;
 pub mod build_cells;
-pub mod build_hash_table;
+pub mod build_hash_table_from_cells;
 pub mod cells_to_colorkeys;
 pub mod cells_to_murmur;
 pub mod collect;
 pub mod color_cells;
+//pub mod count_colliders;
+//pub mod build_blocks;
 pub mod count_subkeys;
 pub mod counts_indirect;
 pub mod elastic;
@@ -58,7 +60,7 @@ pub mod triangle_sdf;
 
 pub use allocate_blocks::AllocateBlocks;
 pub use build_cells::BuildCells;
-pub use build_hash_table::BuildHashTable;
+pub use build_hash_table_from_cells::BuildHashTableFromCells;
 pub use cells_to_colorkeys::CellsToColorkeys;
 pub use cells_to_murmur::CellsToMurmur;
 pub use collect::Collect;

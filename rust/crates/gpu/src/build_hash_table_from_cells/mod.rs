@@ -15,8 +15,8 @@ use nalgebra::Vector4;
 
 use super::*;
 
-pub struct BuildHashTable {
-    build_hash_table: CompiledModule,
+pub struct BuildHashTableFromCells {
+    build_hash_table_from_cells: CompiledModule,
 }
 
 pub struct Settings {
@@ -55,7 +55,7 @@ pub struct Output {
     pub owns: Allocation,
 }
 
-impl PipelinePart for BuildHashTable {
+impl PipelinePart for BuildHashTableFromCells {
     type Settings = Settings;
     type Parameters = Parameters;
     type Input = Input;
@@ -64,7 +64,7 @@ impl PipelinePart for BuildHashTable {
     fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let device = context.device();
         let_compiled_module!(
-            build_hash_table,
+            build_hash_table_from_cells,
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
@@ -78,7 +78,9 @@ impl PipelinePart for BuildHashTable {
             }
         );
 
-        Self { build_hash_table }
+        Self {
+            build_hash_table_from_cells,
+        }
     }
 
     fn record(
@@ -104,13 +106,13 @@ impl PipelinePart for BuildHashTable {
             Some(block_table.size().get()),
         );
 
-        let mut compute_pass = encoder.begin_compute_pass(self.build_hash_table.label);
-        compute_pass.set_pipeline(&self.build_hash_table.compute_pipeline);
+        let mut compute_pass = encoder.begin_compute_pass(self.build_hash_table_from_cells.label);
+        compute_pass.set_pipeline(&self.build_hash_table_from_cells.compute_pipeline);
         compute_pass.set_bind_group(
             0,
             &create_bind_group(
                 context.device(),
-                &self.build_hash_table,
+                &self.build_hash_table_from_cells,
                 [
                     indirect.binding(),
                     cell_ids.binding(),
@@ -126,7 +128,7 @@ impl PipelinePart for BuildHashTable {
     }
 }
 
-impl BuildHashTable {
+impl BuildHashTableFromCells {
     // control load factor to be at most 0.5
     // TODO: this is way too much for most sparsity patterns
     pub fn max_table(&self, cell_count: u32) -> u32 {
