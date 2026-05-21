@@ -17,13 +17,11 @@ use super::*;
 
 pub struct BuildCells {
     build_cells: CompiledModule,
-    offsets_to_indirect: OffsetsToIndirect,
 }
 
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
-    pub dispatch_limit: NonZeroU32,
     pub cell_size: f32,
 }
 
@@ -38,11 +36,8 @@ pub struct Input {
 impl Input {
     pub fn new(
         device: &wgpu::Device,
-        Settings {
-            workgroup_size,
-            dispatch_limit,
-            ..
-        }: Settings,
+        Settings { workgroup_size, .. }: Settings,
+        dispatch_limit: NonZeroU32,
         positions: &[Vector4<f32>],
         prefixed_boundaries: &[u32],
     ) -> Self {
@@ -69,8 +64,6 @@ impl Input {
 pub struct Output {
     pub cell_ids: Allocation,
     pub index_ranges: Allocation,
-    pub new_indirect: Allocation,
-    pub new_indirect_batch: Allocation,
 }
 
 impl PipelinePart for BuildCells {
@@ -83,7 +76,6 @@ impl PipelinePart for BuildCells {
         context: &GpuContext,
         Settings {
             workgroup_size,
-            dispatch_limit,
             cell_size,
         }: Settings,
     ) -> Self {
@@ -107,18 +99,7 @@ impl PipelinePart for BuildCells {
             }
         );
 
-        let offsets_to_indirect = OffsetsToIndirect::new(
-            context,
-            offsets_to_indirect::Settings {
-                workgroup_size,
-                dispatch_limit,
-            },
-        );
-
-        Self {
-            build_cells,
-            offsets_to_indirect,
-        }
+        Self { build_cells }
     }
 
     fn record(
@@ -164,24 +145,9 @@ impl PipelinePart for BuildCells {
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
         drop(compute_pass);
 
-        let offsets_to_indirect::Output {
-            new_indirect,
-            new_indirect_batch,
-        } = self.offsets_to_indirect.record(
-            context,
-            encoder,
-            offsets_to_indirect::Input {
-                indirect,
-                offsets: prefixed_boundaries,
-            },
-            offsets_to_indirect::Parameters,
-        )?;
-
         Ok(Output {
             cell_ids,
             index_ranges,
-            new_indirect,
-            new_indirect_batch,
         })
     }
 }

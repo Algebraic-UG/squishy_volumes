@@ -11,23 +11,20 @@ use super::*;
 fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32) {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let num_cells = *prefixed_boundaries.last().unwrap() as usize + 1;
 
-    let (mut cells, mut index_ranges, new_indirect) = run_build_cells(
+    let (mut cells, mut index_ranges) = run_build_cells(
         Settings {
             workgroup_size,
-            dispatch_limit,
             cell_size,
         },
+        dispatch_limit,
         positions,
         prefixed_boundaries,
     );
 
     let mut index_start = 0;
-    for (index_end, cell) in index_ranges
-        .iter()
-        .zip(cells.clone())
-        .take(new_indirect.len as usize)
-    {
+    for (index_end, cell) in index_ranges.iter().zip(cells.clone()).take(num_cells) {
         for index in index_start..*index_end {
             println!("{cell:?}, {index}");
             assert_eq!(
@@ -38,19 +35,19 @@ fn check(positions: &[Vector4<f32>], prefixed_boundaries: &[u32], cell_size: f32
         index_start = index_end + 1;
     }
 
-    cells.resize(new_indirect.len as usize, Default::default());
-    index_ranges.resize(new_indirect.len as usize, Default::default());
+    cells.resize(num_cells, Default::default());
+    index_ranges.resize(num_cells, Default::default());
 
-    assert_eq!(
-        build_cells_on_cpu(
-            workgroup_size,
-            dispatch_limit,
-            cell_size,
-            positions,
-            prefixed_boundaries,
-        ),
-        (cells, index_ranges, new_indirect),
+    let (cpu_cells, cpu_index_ranges, _) = build_cells_on_cpu(
+        workgroup_size,
+        dispatch_limit,
+        cell_size,
+        positions,
+        prefixed_boundaries,
     );
+
+    assert_eq!(cpu_cells, cells);
+    assert_eq!(cpu_index_ranges, index_ranges);
 }
 
 #[test]
@@ -110,12 +107,19 @@ fn test_random() {
 
 fn run_build_cells(
     settings: Settings,
+    dispatch_limit: NonZeroU32,
     positions: &[Vector4<f32>],
     prefixed_boundaries: &[u32],
-) -> (Vec<Vector4<i32>>, Vec<u32>, Indirect) {
+) -> (Vec<Vector4<i32>>, Vec<u32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings, positions, prefixed_boundaries);
+    let input = Input::new(
+        context.device(),
+        settings,
+        dispatch_limit,
+        positions,
+        prefixed_boundaries,
+    );
     let build_cells = BuildCells::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
@@ -123,13 +127,11 @@ fn run_build_cells(
     let Output {
         cell_ids,
         index_ranges,
-        new_indirect,
-        ..
     } = build_cells
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(&context, [cell_ids, index_ranges, new_indirect]);
+    let downloads = DownloadsToHost::new(&context, [cell_ids, index_ranges]);
     downloads.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
 
@@ -139,9 +141,9 @@ fn run_build_cells(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let [cell_ids, index_ranges, new_indirect] = downloads.try_into().unwrap();
+    let [cell_ids, index_ranges] = downloads.try_into().unwrap();
     let mut garbage_w: Vec<Vector4<i32>> = cell_ids.to_vec();
     garbage_w.iter_mut().for_each(|v| v.w = 0);
 
-    (garbage_w, index_ranges.to_vec(), new_indirect.to_vec()[0])
+    (garbage_w, index_ranges.to_vec())
 }

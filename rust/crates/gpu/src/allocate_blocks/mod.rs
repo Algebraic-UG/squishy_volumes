@@ -16,6 +16,7 @@ use super::*;
 pub struct AllocateBlocks {
     owns_to_pops: CompiledModule,
     prefix_sum: PrefixSum,
+    len_to_indirect: LenToIndirect,
 }
 
 #[derive(Clone, Copy)]
@@ -55,6 +56,7 @@ impl Input {
 
 pub struct Output {
     pub block_offsets: Allocation,
+    pub indirect_blocks: Allocation,
 }
 
 impl PipelinePart for AllocateBlocks {
@@ -94,9 +96,18 @@ impl PipelinePart for AllocateBlocks {
             },
         );
 
+        let len_to_indirect = LenToIndirect::new(
+            context,
+            len_to_indirect::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
+
         Self {
             owns_to_pops,
             prefix_sum,
+            len_to_indirect,
         }
     }
 
@@ -125,18 +136,34 @@ impl PipelinePart for AllocateBlocks {
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
         drop(compute_pass);
 
-        let prefix_sum::Output { prefix_sums } = self.prefix_sum.record(
+        let prefix_sum::Output {
+            prefix_sums: block_offsets,
+            total_sum,
+        } = self.prefix_sum.record(
             context,
             encoder,
             prefix_sum::Input {
                 indirect,
                 numbers: pops,
             },
-            prefix_sum::Parameters,
+            prefix_sum::Parameters { total_sum: true },
+        )?;
+
+        let len_to_indirect::Output {
+            new_indirect: indirect_blocks,
+            ..
+        } = self.len_to_indirect.record(
+            context,
+            encoder,
+            len_to_indirect::Input {
+                len: total_sum.unwrap(),
+            },
+            len_to_indirect::Parameters,
         )?;
 
         Ok(Output {
-            block_offsets: prefix_sums,
+            block_offsets,
+            indirect_blocks,
         })
     }
 }

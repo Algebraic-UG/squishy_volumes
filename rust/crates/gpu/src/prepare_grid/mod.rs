@@ -18,6 +18,7 @@ use super::*;
 pub struct PrepareGrid {
     find_cell_boundaries: FindCellBoundaries,
     prefix_sum: PrefixSum,
+    len_to_indirect: LenToIndirect,
     build_cells: BuildCells,
     color_cells: ColorCells,
     build_hash_table_from_cells: BuildHashTableFromCells,
@@ -114,11 +115,18 @@ impl PipelinePart for PrepareGrid {
                 dispatch_limit,
             },
         );
+
+        let len_to_indirect = LenToIndirect::new(
+            context,
+            len_to_indirect::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
         let build_cells = BuildCells::new(
             context,
             build_cells::Settings {
                 workgroup_size,
-                dispatch_limit,
                 cell_size,
             },
         );
@@ -144,6 +152,7 @@ impl PipelinePart for PrepareGrid {
         Self {
             find_cell_boundaries,
             prefix_sum,
+            len_to_indirect,
             build_cells,
             color_cells,
             build_hash_table_from_cells,
@@ -173,6 +182,7 @@ impl PipelinePart for PrepareGrid {
 
         let prefix_sum::Output {
             prefix_sums: prefixed_boundaries,
+            total_sum: total_cells,
         } = self.prefix_sum.record(
             context,
             encoder,
@@ -180,14 +190,24 @@ impl PipelinePart for PrepareGrid {
                 indirect: indirect_particles.clone(),
                 numbers: boundaries,
             },
-            prefix_sum::Parameters,
+            prefix_sum::Parameters { total_sum: true },
+        )?;
+
+        let len_to_indirect::Output {
+            new_indirect: indirect_cells,
+            new_indirect_batch: indirect_cells_batch,
+        } = self.len_to_indirect.record(
+            context,
+            encoder,
+            len_to_indirect::Input {
+                len: total_cells.unwrap(),
+            },
+            len_to_indirect::Parameters,
         )?;
 
         let build_cells::Output {
             cell_ids,
             index_ranges: cell_index_ranges,
-            new_indirect: indirect_cells,
-            new_indirect_batch: indirect_cells_batch,
         } = self.build_cells.record(
             context,
             encoder,
@@ -226,7 +246,10 @@ impl PipelinePart for PrepareGrid {
             build_hash_table_from_cells::Parameters,
         )?;
 
-        let allocate_blocks::Output { block_offsets } = self.allocate_blocks.record(
+        let allocate_blocks::Output {
+            block_offsets,
+            indirect_blocks,
+        } = self.allocate_blocks.record(
             context,
             encoder,
             allocate_blocks::Input {

@@ -13,8 +13,8 @@ use std::num::NonZeroU32;
 
 use super::*;
 
-pub struct OffsetsToIndirect {
-    offsets_to_indirect: CompiledModule,
+pub struct LenToIndirect {
+    len_to_indirect: CompiledModule,
 }
 
 #[derive(Clone, Copy)]
@@ -26,27 +26,13 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
-    pub indirect: Allocation,
-    pub offsets: Allocation,
+    pub len: Allocation,
 }
 
 impl Input {
-    pub fn new(
-        device: &wgpu::Device,
-        Settings {
-            workgroup_size,
-            dispatch_limit,
-        }: Settings,
-        offsets: &[u32],
-    ) -> Self {
-        let indirect = Indirect::new(IndirectSettings {
-            workgroup_size,
-            dispatch_limit,
-            len: offsets.len() as u32,
-        });
-        let indirect = Allocation::new(device, "indirect", &[indirect]);
-        let offsets = Allocation::new(device, "offsets", offsets);
-        Self { indirect, offsets }
+    pub fn new(device: &wgpu::Device, len: u32) -> Self {
+        let len = Allocation::new(device, "len", &[len]);
+        Self { len }
     }
 }
 
@@ -55,7 +41,7 @@ pub struct Output {
     pub new_indirect_batch: Allocation,
 }
 
-impl PipelinePart for OffsetsToIndirect {
+impl PipelinePart for LenToIndirect {
     type Settings = Settings;
     type Parameters = Parameters;
     type Input = Input;
@@ -70,11 +56,10 @@ impl PipelinePart for OffsetsToIndirect {
     ) -> Self {
         let device = context.device();
         let_compiled_module!(
-            offsets_to_indirect,
+            len_to_indirect,
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, true),
                     (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
@@ -87,16 +72,14 @@ impl PipelinePart for OffsetsToIndirect {
             }
         );
 
-        Self {
-            offsets_to_indirect,
-        }
+        Self { len_to_indirect }
     }
 
     fn record(
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input { indirect, offsets }: Input,
+        Input { len }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
         let new_indirect = context
@@ -106,16 +89,15 @@ impl PipelinePart for OffsetsToIndirect {
             .indirect_allocator()?
             .allocate::<Indirect>("new_indirect_batch", 1.try_into().unwrap())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.offsets_to_indirect.label);
-        compute_pass.set_pipeline(&self.offsets_to_indirect.compute_pipeline);
+        let mut compute_pass = encoder.begin_compute_pass(self.len_to_indirect.label);
+        compute_pass.set_pipeline(&self.len_to_indirect.compute_pipeline);
         compute_pass.set_bind_group(
             0,
             &create_bind_group(
                 context.device(),
-                &self.offsets_to_indirect,
+                &self.len_to_indirect,
                 [
-                    indirect.binding(),
-                    offsets.binding(),
+                    len.binding(),
                     new_indirect.binding(),
                     new_indirect_batch.binding(),
                 ],

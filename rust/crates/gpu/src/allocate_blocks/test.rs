@@ -63,7 +63,7 @@ fn run_allocate_blocks(settings: Settings, owns: &[u32]) -> Vec<u32> {
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { block_offsets } = allocate_blocks
+    let Output { block_offsets, .. } = allocate_blocks
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 

@@ -18,6 +18,7 @@ pub struct PrefixSum {
     prepare_indirect: CompiledModule,
     build_levels: CompiledModule,
     fill_final: CompiledModule,
+    total_sum: CompiledModule,
 }
 
 #[derive(Clone, Copy)]
@@ -26,7 +27,9 @@ pub struct Settings {
     pub dispatch_limit: NonZeroU32,
 }
 
-pub struct Parameters;
+pub struct Parameters {
+    pub total_sum: bool,
+}
 
 pub struct Input {
     pub indirect: Allocation,
@@ -57,6 +60,7 @@ impl Input {
 
 pub struct Output {
     pub prefix_sums: Allocation,
+    pub total_sum: Option<Allocation>,
 }
 
 impl PipelinePart for PrefixSum {
@@ -114,11 +118,26 @@ impl PipelinePart for PrefixSum {
             }
         );
 
+        let_compiled_module!(
+            total_sum,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false)
+                ],
+                immediate_size: 0,
+                constants: [("WORKGROUP_SIZE", subgroup_size as f64)],
+            }
+        );
+
         Self {
             subgroup_size,
             prepare_indirect,
             build_levels,
             fill_final,
+            total_sum,
         }
     }
 
@@ -127,7 +146,7 @@ impl PipelinePart for PrefixSum {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         input: Input,
-        _: Parameters,
+        Parameters { total_sum }: Parameters,
     ) -> Result<Output, GpuError> {
         let len = input.numbers.len::<u32>();
 
@@ -191,7 +210,36 @@ impl PipelinePart for PrefixSum {
             &[],
         );
         compute_pass.dispatch_workgroups_indirect(input.indirect.buffer(), input.indirect.offset());
+        drop(compute_pass);
 
-        Ok(Output { prefix_sums })
+        let total_sum = if total_sum {
+            let total_sum = context
+                .allocator()?
+                .allocate::<u32>("total_sum", 1.try_into().unwrap())?;
+            let mut compute_pass = encoder.begin_compute_pass(self.total_sum.label);
+            compute_pass.set_pipeline(&self.total_sum.compute_pipeline);
+            compute_pass.set_bind_group(
+                0,
+                &create_bind_group(
+                    context.device(),
+                    &self.fill_final,
+                    [
+                        input.indirect.binding(),
+                        input.numbers.binding(),
+                        total_sum.binding(),
+                    ],
+                ),
+                &[],
+            );
+            compute_pass.dispatch_workgroups(1, 1, 1);
+            Some(total_sum)
+        } else {
+            None
+        };
+
+        Ok(Output {
+            prefix_sums,
+            total_sum,
+        })
     }
 }

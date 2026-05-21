@@ -162,15 +162,19 @@ impl PipelinePart for RadixSort {
             },
             counts_indirect::Parameters,
         )?;
-        let prefix_sum::Output { prefix_sums } = self.prefix_sum.record(
+        let prefix_sum::Output {
+            prefix_sums,
+            total_sum,
+        } = self.prefix_sum.record(
             context,
             encoder,
             prefix_sum::Input {
                 indirect: indirect_counts,
                 numbers: counts,
             },
-            prefix_sum::Parameters,
+            prefix_sum::Parameters { total_sum: false },
         )?;
+        assert!(total_sum.is_none());
         let reorder_indices::Output { indices_out } = self.reorder_indices.record(
             context,
             encoder,

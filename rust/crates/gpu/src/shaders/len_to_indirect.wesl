@@ -9,15 +9,12 @@
 import super::util::{Indirect, find_dispatch_xyz};
 
 @group(0) @binding(0)
-var<storage, read_write> indirect: Indirect;
+var<storage, read> len: u32;
 
 @group(0) @binding(1)
-var<storage, read> offsets: array<u32>;
-
-@group(0) @binding(2)
 var<storage, read_write> new_indirect: Indirect;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> new_indirect_batch: Indirect;
 
 override DISPATCH_LIMIT: u32;
@@ -27,11 +24,6 @@ override WORKGROUP_SIZE: u32;
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
-    // this better not be zero.
-    let last = indirect.len - 1;
-
-    let len = offsets[last] + 1;
-
     {
         let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);
         new_indirect.x = dispatch_xzy.x;

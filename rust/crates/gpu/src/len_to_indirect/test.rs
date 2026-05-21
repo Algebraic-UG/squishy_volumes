@@ -18,24 +18,21 @@ fn check(
     numbers: &[u32],
 ) {
     let subgroup_size = SHARED_CONTEXT.lock().unwrap().subgroup_size();
-    let prefixes = prefix_sum_on_cpu(&numbers);
+    let len = numbers.iter().sum();
 
     let indirect = Indirect::new(IndirectSettings {
         workgroup_size,
         dispatch_limit,
-        len: prefixes.last().unwrap() + 1,
+        len,
     });
     let mut indirect_batch = Indirect::new(IndirectSettings {
         workgroup_size,
         dispatch_limit,
-        len: (prefixes.last().unwrap() + 1) * subgroup_size.get(),
+        len: len * subgroup_size.get(),
     });
     indirect_batch.len = indirect.len;
 
-    assert_eq!(
-        (vec![indirect], vec![indirect_batch]),
-        run_offsets_to_indirect(settings, &prefixes),
-    );
+    assert_eq!((vec![indirect], vec![indirect_batch]), run(settings, len),);
 }
 
 #[test]
@@ -72,17 +69,17 @@ fn test_random() {
     );
 }
 
-fn run_offsets_to_indirect(settings: Settings, offsets: &[u32]) -> (Vec<Indirect>, Vec<Indirect>) {
+fn run(settings: Settings, len: u32) -> (Vec<Indirect>, Vec<Indirect>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings, offsets);
-    let offsets_to_indirect = OffsetsToIndirect::new(&context, settings);
+    let input = Input::new(context.device(), len);
+    let len_to_indirect = LenToIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let Output {
         new_indirect,
         new_indirect_batch,
-    } = offsets_to_indirect
+    } = len_to_indirect
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 

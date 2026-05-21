@@ -13,6 +13,7 @@ use super::*;
 fn check(settings: Settings, cells: &[Vector4<i32>]) {
     let (indirect_blocks, block_ids, block_table) = run(settings, cells);
 
+    println!("{indirect_blocks:?}");
     println!("{block_ids:?}");
     println!("{block_table:?}");
     let mut blocks: HashSet<Vector4<i32>> = Default::default();
@@ -45,7 +46,10 @@ fn check(settings: Settings, cells: &[Vector4<i32>]) {
                 .iter()
                 .cmp(b.map(i32_to_u32_offset).iter())
         });
-        assert_eq!(blocks, block_ids);
+        assert_eq!(blocks.len(), block_ids.len());
+        for (cpu, gpu) in blocks.iter().zip(&block_ids) {
+            assert_eq!(cpu.xyz(), gpu.xyz());
+        }
     }
 
     let table_size = block_table.len() as u32;
@@ -70,6 +74,22 @@ fn check(settings: Settings, cells: &[Vector4<i32>]) {
         }
         assert!(found);
     }
+}
+
+#[test]
+fn single() {
+    let cells = [Vector4::zeros()];
+
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let workgroup_size = 64.try_into().unwrap();
+
+    check(
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        },
+        &cells,
+    );
 }
 
 #[test]

@@ -18,7 +18,6 @@ use super::*;
 pub struct BuildBlocks {
     build_hash_table_from_cells: BuildHashTableFromCells,
     allocate_blocks: AllocateBlocks,
-    offsets_to_indirect: OffsetsToIndirect,
     build_blocks: CompiledModule,
     build_hash_table_from_blocks: CompiledModule,
 }
@@ -91,13 +90,6 @@ impl PipelinePart for BuildBlocks {
                 dispatch_limit,
             },
         );
-        let offsets_to_indirect = OffsetsToIndirect::new(
-            context,
-            offsets_to_indirect::Settings {
-                workgroup_size,
-                dispatch_limit,
-            },
-        );
 
         let_compiled_module!(
             build_blocks,
@@ -133,7 +125,6 @@ impl PipelinePart for BuildBlocks {
             build_hash_table_from_cells,
             allocate_blocks,
             build_blocks,
-            offsets_to_indirect,
             build_hash_table_from_blocks,
         }
     }
@@ -159,7 +150,10 @@ impl PipelinePart for BuildBlocks {
                 build_hash_table_from_cells::Parameters,
             )?;
 
-        let allocate_blocks::Output { block_offsets } = self.allocate_blocks.record(
+        let allocate_blocks::Output {
+            block_offsets,
+            indirect_blocks,
+        } = self.allocate_blocks.record(
             context,
             encoder,
             allocate_blocks::Input {
@@ -167,19 +161,6 @@ impl PipelinePart for BuildBlocks {
                 owns: owns.clone(),
             },
             allocate_blocks::Parameters,
-        )?;
-
-        let offsets_to_indirect::Output {
-            new_indirect: indirect_blocks,
-            ..
-        } = self.offsets_to_indirect.record(
-            context,
-            encoder,
-            offsets_to_indirect::Input {
-                indirect: indirect_cells.clone(),
-                offsets: block_offsets.clone(),
-            },
-            offsets_to_indirect::Parameters,
         )?;
 
         // TODO: this is overkill

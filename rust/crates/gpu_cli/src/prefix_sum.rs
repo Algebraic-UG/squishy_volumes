@@ -18,7 +18,12 @@ pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]
     if let Some(tool) = tool {
         run_with_window(tool, context, |mut context, encoder| {
             prefix_sum
-                .record(&mut context, &mut encoder.into(), input, Parameters)
+                .record(
+                    &mut context,
+                    &mut encoder.into(),
+                    input,
+                    Parameters { total_sum: false },
+                )
                 .unwrap();
         });
         return Default::default();
@@ -31,8 +36,13 @@ pub fn prefix_sum_on_gpu(tool: Option<Tool>, settings: Settings, numbers: &[u32]
     let mut profiler =
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
     let scope = profiler.scope("run_prefix_sum", &mut encoder);
-    let Output { prefix_sums } = prefix_sum
-        .record(&mut context, &mut scope.into(), input, Parameters)
+    let Output { prefix_sums, .. } = prefix_sum
+        .record(
+            &mut context,
+            &mut scope.into(),
+            input,
+            Parameters { total_sum: false },
+        )
         .unwrap();
 
     let download = DownloadToHost::new(&context, prefix_sums);
