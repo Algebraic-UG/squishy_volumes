@@ -40,7 +40,7 @@ fn main(
     var offset = block_offsets[global_index];
 
     for (var block = 0u; block < 8; block++) {
-        if (cell_own & block) == 0 {
+        if (cell_own & (1u << block)) == 0 {
             continue;
         }
         block_ids[offset] = cell_id + block_offset(block);
