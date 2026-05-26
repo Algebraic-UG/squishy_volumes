@@ -203,7 +203,7 @@ pub fn build_hash_table_on_cpu_simple(cell_ids: &[Vector4<i32>]) -> (Vec<Vector4
     let block_ids: Vec<_> = block_ids.into_iter().collect();
 
     for (block_index, block_id) in block_ids.iter().enumerate() {
-        let hash = cell_to_murmur(&block_id);
+        let hash = cell_to_murmur(block_id);
         let mut slot = hash & table_mask;
         while block_table[slot as usize] != 0 {
             slot += 1;
@@ -317,7 +317,7 @@ pub fn gpu_grid_to_cpu_grid(block_ids: &[Vector4<i32>]) -> Vec<Vector4<i32>> {
         .iter()
         .flat_map(|block_id| {
             (0..8).map(|node| {
-                block_id.xzy().push(0) * 2 - Vector4::new(1, 1, 1, 0) + block_offset(node)
+                block_id.xyz().push(0) * 2 - Vector4::new(1, 1, 1, 0) + block_offset(node)
             })
         })
         .collect()

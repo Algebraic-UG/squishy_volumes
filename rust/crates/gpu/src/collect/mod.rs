@@ -9,7 +9,7 @@
 #[cfg(test)]
 mod test;
 
-use std::num::NonZeroU32;
+use std::{array::from_fn, num::NonZeroU32};
 
 use nalgebra::{Matrix4x3, Vector4};
 
@@ -117,19 +117,20 @@ impl Input {
 
         let (block_ids, block_table) = build_hash_table_on_cpu_simple(&cell_ids);
 
-        let blocks = {
-            let nodes = gpu_grid_to_cpu_grid(&block_ids)
-                .iter()
-                .map(|cell_id| *grid_cpu.get(&cell_id.xyz()).unwrap_or(&Vector4::zeros()))
-                .collect::<Vec<_>>();
-            assert!(nodes.len().is_multiple_of(8));
-            nodes
-                .chunks(8)
-                .map(|chunk| Block {
-                    nodes: chunk.try_into().unwrap(),
-                })
-                .collect::<Vec<_>>()
-        };
+        let blocks: Vec<Block> = block_ids
+            .iter()
+            .map(|block_id| {
+                let low_node = block_id * 2 - Vector4::repeat(1);
+                Block {
+                    nodes: from_fn(|node| {
+                        let node_id = low_node + block_offset(node as u32);
+                        *grid_cpu.get(&node_id.xyz()).unwrap_or(&Vector4::zeros())
+                    }),
+                }
+            })
+            .collect();
+
+        println!("blocks: {blocks:?}");
 
         let indirect_cells_batch =
             Allocation::new(device, "indirect_cells_batch", &[indirect_cells_batch]);

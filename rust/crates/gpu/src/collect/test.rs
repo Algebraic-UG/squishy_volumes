@@ -116,7 +116,7 @@ fn test_single_undeformed() {
             .into()],
             positions: &[Vector4::zeros()],
             position_gradients: &[stack![
-                Matrix3::identity() ;
+                Matrix3::identity();
                 Matrix1x3::zeros()
             ]],
             velocities: &[Vector4::zeros()],
@@ -264,7 +264,7 @@ fn run_collect(
         subgroup_size,
         data,
     );
-    let scatter = Collect::new(&context, settings);
+    let collect = Collect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
@@ -273,7 +273,7 @@ fn run_collect(
         position_gradients,
         velocities,
         velocity_gradients,
-    } = scatter
+    } = collect
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 

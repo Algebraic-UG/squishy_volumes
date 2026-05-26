@@ -3695,6 +3695,7 @@ dependencies = [
  "pollster",
  "rand 0.10.0",
  "squishy_volumes_gpu",
+ "squishy_volumes_util",
  "tracing",
  "tracing-subscriber",
  "wgpu",

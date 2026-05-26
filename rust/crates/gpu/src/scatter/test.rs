@@ -33,27 +33,22 @@ fn check(
     println!("{:?}", grid_cpu.values().collect::<Vec<_>>());
 
     let (blocks, block_ids) = run_scatter(settings, dispatch_limit, input_data);
-    let blocks_flat: Vec<Vector4<f32>> = blocks
-        .iter()
-        .flat_map(|block| block.nodes.iter())
-        .cloned()
-        .collect();
-    let node_ids = gpu_grid_to_cpu_grid(&block_ids);
 
-    println!("{}", blocks_flat.len());
-    println!("{blocks_flat:?}");
-
-    for (node_id, gpu) in node_ids.iter().zip(blocks_flat) {
-        if let Some(cpu) = grid_cpu.get(&node_id.xyz()) {
-            println!("both have {:?}", node_id.xyz());
-            println!("{} vs {}", cpu, gpu);
-            check_iters(cpu.iter(), gpu.iter());
-        } else {
-            assert_eq!(gpu, Vector4::zeros());
+    for (block_index, (block, block_id)) in blocks.iter().zip(&block_ids).enumerate() {
+        println!("block {block_index}, {block_id:?}");
+        let low_node = block_id * 2 - Vector4::repeat(1);
+        for node in 0..8 {
+            let node_id = low_node + block_offset(node as u32);
+            if let Some(cpu) = grid_cpu.get(&node_id.xyz()) {
+                println!("both have {:?}", node_id.xyz());
+                check_iters(cpu.iter(), block.nodes[node].iter());
+            } else {
+                assert_eq!(block.nodes[node], Vector4::zeros());
+            }
         }
     }
 
-    let super_set: HashSet<_> = node_ids.into_iter().collect();
+    let super_set: HashSet<_> = gpu_grid_to_cpu_grid(&block_ids).into_iter().collect();
     for node in grid_cpu.keys() {
         assert!(super_set.contains(&node.push(0)));
     }

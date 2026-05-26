@@ -18,5 +18,6 @@ env_logger.workspace = true
 rand.workspace = true
 nalgebra.workspace = true
 
+squishy_volumes_util.path = "../util"
 squishy_volumes_gpu.path = "../gpu"
 convert_case = "0.11.0"
