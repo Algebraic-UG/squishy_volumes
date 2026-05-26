@@ -12,7 +12,7 @@ import super::util::{Indirect, get_global_index};
 var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> owns: array<u32>;
+var<storage, read_write> bits: array<u32>;
 
 @group(0) @binding(2)
 var<storage, read_write> pops: array<u32>;
@@ -25,9 +25,9 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     var global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    if global_index >= arrayLength(&owns) {
+    if global_index >= arrayLength(&bits) {
         return;
     }
 
-    pops[global_index] = countOneBits(owns[global_index]);
+    pops[global_index] = countOneBits(bits[global_index]);
 }

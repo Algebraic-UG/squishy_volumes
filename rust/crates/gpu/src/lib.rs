@@ -31,6 +31,8 @@ pub use triangle::*;
 pub use util::*;
 
 pub mod allocate_blocks;
+pub mod bits_to_pops;
+pub mod build_blocks;
 pub mod build_cells;
 pub mod build_hash_table_from_cells;
 pub mod cells_to_colorkeys;
@@ -38,7 +40,6 @@ pub mod cells_to_murmur;
 pub mod collect;
 pub mod color_cells;
 //pub mod count_colliders;
-pub mod build_blocks;
 pub mod count_subkeys;
 pub mod counts_indirect;
 pub mod elastic;
@@ -59,6 +60,7 @@ pub mod step;
 pub mod triangle_sdf;
 
 pub use allocate_blocks::AllocateBlocks;
+pub use bits_to_pops::BitsToPops;
 pub use build_blocks::BuildBlocks;
 pub use build_cells::BuildCells;
 pub use build_hash_table_from_cells::BuildHashTableFromCells;

@@ -14,7 +14,7 @@ mod test;
 use super::*;
 
 pub struct AllocateBlocks {
-    owns_to_pops: CompiledModule,
+    bits_to_pops: BitsToPops,
     prefix_sum: PrefixSum,
     len_to_indirect: LenToIndirect,
 }
@@ -72,21 +72,7 @@ impl PipelinePart for AllocateBlocks {
             dispatch_limit,
         }: Settings,
     ) -> Self {
-        let device = context.device();
-
-        let_compiled_module!(
-            owns_to_pops,
-            CompiledModuleSettings {
-                device,
-                bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                ],
-                immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
-            }
-        );
+        let bits_to_pops = BitsToPops::new(context, bits_to_pops::Settings { workgroup_size });
 
         let prefix_sum = PrefixSum::new(
             context,
@@ -105,7 +91,7 @@ impl PipelinePart for AllocateBlocks {
         );
 
         Self {
-            owns_to_pops,
+            bits_to_pops,
             prefix_sum,
             len_to_indirect,
         }
@@ -118,23 +104,15 @@ impl PipelinePart for AllocateBlocks {
         Input { indirect, owns }: Input,
         _: Self::Parameters,
     ) -> Result<Output, GpuError> {
-        let pops = context
-            .allocator()?
-            .allocate::<u32>("pops", owns.len::<u32>())?;
-
-        let mut compute_pass = encoder.begin_compute_pass(self.owns_to_pops.label);
-        compute_pass.set_pipeline(&self.owns_to_pops.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
-                &self.owns_to_pops,
-                [indirect.binding(), owns.binding(), pops.binding()],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
-        drop(compute_pass);
+        let bits_to_pops::Output { pops } = self.bits_to_pops.record(
+            context,
+            encoder,
+            bits_to_pops::Input {
+                indirect: indirect.clone(),
+                bits: owns,
+            },
+            bits_to_pops::Parameters,
+        )?;
 
         let prefix_sum::Output {
             prefix_sums: block_offsets,
