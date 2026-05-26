@@ -187,6 +187,34 @@ pub fn build_hash_table_on_cpu(cell_ids: &[Vector4<i32>]) -> (Vec<u32>, Vec<u32>
     (block_table, owns)
 }
 
+pub fn build_hash_table_on_cpu_simple(cell_ids: &[Vector4<i32>]) -> (Vec<Vector4<i32>>, Vec<u32>) {
+    let mut block_ids: HashSet<Vector4<i32>> = Default::default();
+    let mut block_table: Vec<u32> = vec![0; (cell_ids.len() * 8 * 2).next_power_of_two()];
+    let table_mask = block_table.len() as u32 - 1;
+    for cell_id in cell_ids {
+        for x in 0..2 {
+            for y in 0..2 {
+                for z in 0..2 {
+                    block_ids.insert(cell_id + Vector4::new(x, y, z, 0));
+                }
+            }
+        }
+    }
+    let block_ids: Vec<_> = block_ids.into_iter().collect();
+
+    for (block_index, block_id) in block_ids.iter().enumerate() {
+        let hash = cell_to_murmur(&block_id);
+        let mut slot = hash & table_mask;
+        while block_table[slot as usize] != 0 {
+            slot += 1;
+            slot &= table_mask;
+        }
+        block_table[slot as usize] = block_index as u32 + 1;
+    }
+
+    (block_ids, block_table)
+}
+
 pub fn cells_to_colorkeys_on_cpu(cells: &[Vector4<i32>]) -> Vec<u32> {
     cells
         .iter()
@@ -284,22 +312,13 @@ pub fn block_offset(block: u32) -> Vector4<i32> {
 }
 
 // TODO: should this return Vector3?
-pub fn gpu_grid_to_cpu_grid(
-    indirect: Indirect,
-    cell_ids: &[Vector4<i32>],
-    cell_owns: &[u32],
-) -> Vec<Vector4<i32>> {
-    cell_ids
+pub fn gpu_grid_to_cpu_grid(block_ids: &[Vector4<i32>]) -> Vec<Vector4<i32>> {
+    block_ids
         .iter()
-        .zip(cell_owns)
-        .take(indirect.len as usize)
-        .flat_map(move |(cell_id, cell_own)| {
-            (0..8)
-                .filter(move |block| cell_own & (1 << block) > 0)
-                .flat_map(move |block| {
-                    let node_id = (cell_id + block_offset(block)) * 2 - Vector4::new(1, 1, 1, 0);
-                    (0..8).map(move |node| node_id.xyz().push(0) + block_offset(node))
-                })
+        .flat_map(|block_id| {
+            (0..8).map(|node| {
+                block_id.xzy().push(0) * 2 - Vector4::new(1, 1, 1, 0) + block_offset(node)
+            })
         })
         .collect()
 }

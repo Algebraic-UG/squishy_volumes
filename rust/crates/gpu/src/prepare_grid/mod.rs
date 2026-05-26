@@ -21,8 +21,7 @@ pub struct PrepareGrid {
     len_to_indirect: LenToIndirect,
     build_cells: BuildCells,
     color_cells: ColorCells,
-    build_hash_table_from_cells: BuildHashTableFromCells,
-    allocate_blocks: AllocateBlocks,
+    build_blocks: BuildBlocks,
 }
 
 #[derive(Clone)]
@@ -78,12 +77,13 @@ pub struct Output {
     pub indirect_cells_batch: Allocation,
     pub indirect_colors: Allocation,
     pub indirect_colors_batch: Allocation,
+    pub indirect_blocks: Allocation,
 
     pub cell_indices: Allocation,
     pub cell_index_ranges: Allocation,
     pub cell_ids: Allocation,
-    pub cell_owns: Allocation,
-    pub block_offsets: Allocation,
+
+    pub block_ids: Allocation,
     pub block_table: Allocation,
 }
 
@@ -137,13 +137,9 @@ impl PipelinePart for PrepareGrid {
                 dispatch_limit,
             },
         );
-        let build_hash_table_from_cells = BuildHashTableFromCells::new(
+        let build_blocks = BuildBlocks::new(
             context,
-            build_hash_table_from_cells::Settings { workgroup_size },
-        );
-        let allocate_blocks = AllocateBlocks::new(
-            context,
-            allocate_blocks::Settings {
+            build_blocks::Settings {
                 workgroup_size,
                 dispatch_limit,
             },
@@ -155,8 +151,7 @@ impl PipelinePart for PrepareGrid {
             len_to_indirect,
             build_cells,
             color_cells,
-            build_hash_table_from_cells,
-            allocate_blocks,
+            build_blocks,
         }
     }
 
@@ -233,30 +228,18 @@ impl PipelinePart for PrepareGrid {
             color_cells::Parameters,
         )?;
 
-        let build_hash_table_from_cells::Output {
+        let build_blocks::Output {
+            indirect_blocks,
+            block_ids,
             block_table,
-            owns: cell_owns,
-        } = self.build_hash_table_from_cells.record(
+        } = self.build_blocks.record(
             context,
             encoder,
-            build_hash_table_from_cells::Input {
-                indirect: indirect_cells.clone(),
+            build_blocks::Input {
+                indirect_cells: indirect_cells.clone(),
                 cell_ids: cell_ids.clone(),
             },
-            build_hash_table_from_cells::Parameters,
-        )?;
-
-        let allocate_blocks::Output {
-            block_offsets,
-            indirect_blocks,
-        } = self.allocate_blocks.record(
-            context,
-            encoder,
-            allocate_blocks::Input {
-                indirect: indirect_cells.clone(),
-                owns: cell_owns.clone(),
-            },
-            allocate_blocks::Parameters,
+            build_blocks::Parameters,
         )?;
 
         Ok(Output {
@@ -264,11 +247,11 @@ impl PipelinePart for PrepareGrid {
             indirect_cells_batch,
             indirect_colors,
             indirect_colors_batch,
+            indirect_blocks,
             cell_indices,
             cell_index_ranges,
             cell_ids,
-            cell_owns,
-            block_offsets,
+            block_ids,
             block_table,
         })
     }

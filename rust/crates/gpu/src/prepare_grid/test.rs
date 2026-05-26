@@ -25,28 +25,14 @@ fn check(settings: Settings, positions: &[Vector4<f32>]) {
         }
     }
 
-    let (indirect_cells, cell_ids, cell_owns, cell_indices) = run_prepare_grid(settings, positions);
-    let num_cells = indirect_cells[0].len as usize;
-    println!("num_cells: {num_cells}");
-    println!("indirect_cells: {indirect_cells:?}");
-    println!("cell_ids: {cell_ids:?}");
-    println!("cell_indices: {cell_indices:?}");
-    for &index in cell_indices.iter().take(num_cells) {
-        assert!((index as usize) < num_cells);
-    }
+    let (indirect_blocks, block_ids) = run_prepare_grid(settings, positions);
+    let num_blocks = indirect_blocks[0].len as usize;
+    println!("num_blocks: {num_blocks}");
+    println!("indirect_cells: {num_blocks:?}");
+    println!("block_ids: {block_ids:?}");
 
     let mut blocks_gpu: HashSet<Vector4<i32>> = Default::default();
-    for block_id in cell_ids
-        .into_iter()
-        .zip(cell_owns)
-        .take(indirect_cells[0].len as usize)
-        .flat_map(|(cell, owns)| {
-            println!("cell: {cell:?}, owns: {owns}");
-            (0..8)
-                .filter(move |block| owns & (1 << block) > 0)
-                .map(move |block| cell + block_offset(block))
-        })
-    {
+    for block_id in block_ids {
         assert!(blocks_gpu.insert(block_id));
     }
 
@@ -351,7 +337,7 @@ fn test_large() {
 fn run_prepare_grid(
     settings: Settings,
     positions: &[Vector4<f32>],
-) -> (Vec<Indirect>, Vec<Vector4<i32>>, Vec<u32>, Vec<u32>) {
+) -> (Vec<Indirect>, Vec<Vector4<i32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings.clone(), positions);
@@ -360,19 +346,14 @@ fn run_prepare_grid(
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output {
-        indirect_cells,
-        cell_ids,
-        cell_owns,
-        cell_indices,
+        indirect_blocks,
+        block_ids,
         ..
     } = prepare_grid
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(
-        &context,
-        [indirect_cells, cell_ids, cell_owns, cell_indices],
-    );
+    let downloads = DownloadsToHost::new(&context, [indirect_blocks, block_ids]);
     downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
@@ -384,15 +365,10 @@ fn run_prepare_grid(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let [indirect_cells, cell_ids, cell_owns, cell_indices] = downloads.try_into().unwrap();
+    let [indirect_blocks, block_ids] = downloads.try_into().unwrap();
 
-    let mut garbage_w: Vec<Vector4<i32>> = cell_ids.to_vec();
+    let mut garbage_w: Vec<Vector4<i32>> = block_ids.to_vec();
     garbage_w.iter_mut().for_each(|v| v.w = 0);
 
-    (
-        indirect_cells.to_vec(),
-        garbage_w,
-        cell_owns.to_vec(),
-        cell_indices.to_vec(),
-    )
+    (indirect_blocks.to_vec(), garbage_w)
 }

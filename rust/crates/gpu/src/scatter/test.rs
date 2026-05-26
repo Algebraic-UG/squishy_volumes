@@ -32,23 +32,18 @@ fn check(
     println!("{:?}", grid_cpu);
     println!("{:?}", grid_cpu.values().collect::<Vec<_>>());
 
-    let (addendum, blocks) = run_scatter(settings, dispatch_limit, input_data);
+    let (blocks, block_ids) = run_scatter(settings, dispatch_limit, input_data);
     let blocks_flat: Vec<Vector4<f32>> = blocks
         .iter()
         .flat_map(|block| block.nodes.iter())
         .cloned()
         .collect();
-
-    let nodes = gpu_grid_to_cpu_grid(
-        addendum.indirect_cells,
-        &addendum.cell_ids,
-        &addendum.cell_owns,
-    );
+    let node_ids = gpu_grid_to_cpu_grid(&block_ids);
 
     println!("{}", blocks_flat.len());
     println!("{blocks_flat:?}");
 
-    for (node_id, gpu) in nodes.iter().zip(blocks_flat) {
+    for (node_id, gpu) in node_ids.iter().zip(blocks_flat) {
         if let Some(cpu) = grid_cpu.get(&node_id.xyz()) {
             println!("both have {:?}", node_id.xyz());
             println!("{} vs {}", cpu, gpu);
@@ -58,7 +53,7 @@ fn check(
         }
     }
 
-    let super_set: HashSet<_> = nodes.into_iter().collect();
+    let super_set: HashSet<_> = node_ids.into_iter().collect();
     for node in grid_cpu.keys() {
         assert!(super_set.contains(&node.push(0)));
     }
@@ -184,18 +179,17 @@ fn run_scatter(
     settings: Settings,
     dispatch_limit: NonZeroU32,
     data: InputData,
-) -> (InputAddendum, Vec<Block>) {
+) -> (Vec<Block>, Vec<Vector4<i32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
     let subgroup_size = context.subgroup_size();
 
-    let (input, addendum) = Input::new(
+    let (input, block_ids_vec) = Input::new(
         context.device(),
         settings,
         dispatch_limit,
         subgroup_size,
         data,
     );
-    println!("{addendum:?}");
     let scatter = Scatter::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
@@ -214,5 +208,5 @@ fn run_scatter(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    (addendum, download.to_vec())
+    (download.to_vec(), block_ids_vec)
 }

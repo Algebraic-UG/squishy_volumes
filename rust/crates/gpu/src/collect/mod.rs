@@ -33,8 +33,8 @@ pub struct Input {
 
     pub cell_index_ranges: Allocation,
     pub cell_ids: Allocation,
-    pub cell_owns: Allocation,
-    pub block_offsets: Allocation,
+
+    pub block_ids: Allocation,
     pub block_table: Allocation,
 
     pub positions: Allocation,
@@ -115,29 +115,28 @@ impl Input {
         });
         indirect_cells_batch.len = indirect_cells.len;
 
-        let (block_table, owns) = build_hash_table_on_cpu(&cell_ids);
-        let pops: Vec<_> = owns.iter().cloned().map(u32::count_ones).collect();
-        let block_offsets = prefix_sum_on_cpu(&pops);
+        let (block_ids, block_table) = build_hash_table_on_cpu_simple(&cell_ids);
 
-        let nodes = gpu_grid_to_cpu_grid(indirect_cells, &cell_ids, &owns)
-            .iter()
-            .map(|cell_id| *grid_cpu.get(&cell_id.xyz()).unwrap_or(&Vector4::zeros()))
-            .collect::<Vec<_>>();
-        assert!(nodes.len().is_multiple_of(8));
-        let blocks = nodes
-            .chunks(8)
-            .map(|chunk| Block {
-                nodes: chunk.try_into().unwrap(),
-            })
-            .collect::<Vec<_>>();
+        let blocks = {
+            let nodes = gpu_grid_to_cpu_grid(&block_ids)
+                .iter()
+                .map(|cell_id| *grid_cpu.get(&cell_id.xyz()).unwrap_or(&Vector4::zeros()))
+                .collect::<Vec<_>>();
+            assert!(nodes.len().is_multiple_of(8));
+            nodes
+                .chunks(8)
+                .map(|chunk| Block {
+                    nodes: chunk.try_into().unwrap(),
+                })
+                .collect::<Vec<_>>()
+        };
 
         let indirect_cells_batch =
             Allocation::new(device, "indirect_cells_batch", &[indirect_cells_batch]);
 
         let cell_index_ranges = Allocation::new(device, "cell_index_ranges", &index_ranges);
         let cell_ids = Allocation::new(device, "cell_ids", &cell_ids);
-        let cell_owns = Allocation::new(device, "cell_owns", &owns);
-        let block_offsets = Allocation::new(device, "block_offsets", &block_offsets);
+        let block_ids = Allocation::new(device, "block_ids", &block_ids);
         let block_table = Allocation::new(device, "block_table", &block_table);
 
         let positions = Allocation::new(device, "positions", &positions);
@@ -151,8 +150,7 @@ impl Input {
             indirect_cells_batch,
             cell_index_ranges,
             cell_ids,
-            cell_owns,
-            block_offsets,
+            block_ids,
             block_table,
             positions,
             position_gradients,
@@ -190,11 +188,10 @@ impl PipelinePart for Collect {
                 device: context.device(),
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),        // indirect_cells_batch
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cells
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cell_ids
                     (u32::MIN_BINDING_SIZE, false),            // index_ranges
-                    (u32::MIN_BINDING_SIZE, false),            // owns
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // block_ids
                     (u32::MIN_BINDING_SIZE, false),            // block_table
-                    (u32::MIN_BINDING_SIZE, false),            // block_offsets
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // positions
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // velocities
@@ -221,8 +218,7 @@ impl PipelinePart for Collect {
             indirect_cells_batch,
             cell_index_ranges,
             cell_ids,
-            cell_owns,
-            block_offsets,
+            block_ids,
             block_table,
             positions,
             position_gradients,
@@ -243,9 +239,8 @@ impl PipelinePart for Collect {
                     indirect_cells_batch.binding(),
                     cell_ids.binding(),
                     cell_index_ranges.binding(),
-                    cell_owns.binding(),
+                    block_ids.binding(),
                     block_table.binding(),
-                    block_offsets.binding(),
                     positions.binding(),
                     position_gradients.binding(),
                     velocities.binding(),

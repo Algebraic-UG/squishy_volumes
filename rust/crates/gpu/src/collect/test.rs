@@ -116,6 +116,45 @@ fn test_single_undeformed() {
             .into()],
             positions: &[Vector4::zeros()],
             position_gradients: &[stack![
+                Matrix3::identity() ;
+                Matrix1x3::zeros()
+            ]],
+            velocities: &[Vector4::zeros()],
+            velocity_gradients: &[stack![
+                Matrix3::zeros();
+                Matrix1x3::zeros()
+            ]],
+        },
+    );
+}
+
+#[test]
+fn test_single_deformed() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let cell_size = 1.;
+    let time_step = 0.001;
+    let settings = Settings {
+        workgroup_size,
+        cell_size,
+        time_step,
+    };
+
+    check(
+        settings,
+        dispatch_limit,
+        scatter::InputData {
+            masses: &[1.],
+            initial_volumes: &[1.],
+            particle_parameters: &[Host::Solid(Solid {
+                mu: mu(1000., 0.3),
+                lambda: lambda(1000., 0.3),
+                viscosity: None,
+                sand_alpha: None,
+            })
+            .into()],
+            positions: &[Vector4::zeros()],
+            position_gradients: &[stack![
                 Matrix3::identity() * 2.;
                 Matrix1x3::zeros()
             ]],

@@ -1,6 +1,6 @@
 use nalgebra::Vector4;
 use squishy_volumes_gpu::{
-    DownloadsToHost, GpuContext, PipelinePart, gpu_grid_to_cpu_grid, prepare_grid::*,
+    DownloadsToHost, GpuContext, Indirect, PipelinePart, gpu_grid_to_cpu_grid, prepare_grid::*,
 };
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
@@ -37,15 +37,14 @@ pub fn prepare_grid_on_gpu(
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
     let scope = profiler.scope("run_prepare_grid", &mut encoder);
     let Output {
-        indirect_cells,
-        cell_ids,
-        cell_owns,
+        indirect_blocks,
+        block_ids,
         ..
     } = prepare_grid
         .record(&mut context, &mut scope.into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(&context, [indirect_cells, cell_ids, cell_owns]);
+    let downloads = DownloadsToHost::new(&context, [indirect_blocks, block_ids]);
     downloads.copy(&mut encoder);
 
     profiler.resolve_queries(&mut encoder);
@@ -61,11 +60,9 @@ pub fn prepare_grid_on_gpu(
         .unwrap();
 
     profiler_output(&context, &mut profiler);
-    let [indirect_cells, cell_ids, cell_owns] = downloads.try_into().unwrap();
+    let [indirect_blocks, block_ids] = downloads.try_into().unwrap();
 
     gpu_grid_to_cpu_grid(
-        indirect_cells.to_vec()[0],
-        &cell_ids.to_vec(),
-        &cell_owns.to_vec(),
+        &block_ids.to_vec()[0..indirect_blocks.to_vec::<Indirect>()[0].len as usize],
     )
 }

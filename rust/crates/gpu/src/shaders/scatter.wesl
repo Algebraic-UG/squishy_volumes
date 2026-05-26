@@ -15,46 +15,43 @@ var<storage, read> indirect_colors_batch: array<Indirect>;
 var<storage, read_write> indices: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read_write> cells: array<vec3i>;
+var<storage, read_write> cell_ids: array<vec3i>;
 
 @group(0) @binding(3)
 var<storage, read_write> index_ranges: array<u32>;
 
 @group(0) @binding(4)
-var<storage, read_write> owns: array<u32>;
+var<storage, read_write> block_ids: array<vec3i>;
 
 @group(0) @binding(5)
 var<storage, read_write> block_table: array<u32>;
 
-@group(0) @binding(6)
-var<storage, read_write> block_offsets: array<u32>;
-
 // particle stuff
 
-@group(0) @binding(7)
+@group(0) @binding(6)
 var<storage, read_write> masses: array<f32>;
 
-@group(0) @binding(8)
+@group(0) @binding(7)
 var<storage, read_write> initial_volumes: array<f32>;
 
-@group(0) @binding(9)
+@group(0) @binding(8)
 var<storage, read_write> parameters: array<ParticleParameters>;
 
-@group(0) @binding(10)
+@group(0) @binding(9)
 var<storage, read_write> positions: array<vec3<f32>>;
 
-@group(0) @binding(11)
+@group(0) @binding(10)
 var<storage, read_write> position_gradients: array<mat3x3<f32>>;
 
-@group(0) @binding(12)
+@group(0) @binding(11)
 var<storage, read_write> velocities: array<vec3<f32>>;
 
-@group(0) @binding(13)
+@group(0) @binding(12)
 var<storage, read_write> velocity_gradients: array<mat3x3<f32>>;
 
 // grid stuff
 
-@group(0) @binding(14)
+@group(0) @binding(13)
 var<storage, read_write> blocks: array<array<vec4f,8>>;
 
 var<immediate> color: u32;
@@ -83,7 +80,7 @@ fn main(
     }
     let cell_index = indices[color_index];
 
-    let cell_id = cells[cell_index];
+    let cell_id = cell_ids[cell_index];
 
     let grid_node_rounds = 64u / subgroup_size;
     let block = grid_node_rounds * subgroup_invocation_id / 8;
@@ -91,27 +88,17 @@ fn main(
     let block_id = cell_id + block_offset(block);
     let hash = murmur_of_cell(block_id);
     let table_mask = arrayLength(&block_table) - 1;
-    let index_mask = (1u << 29) - 1;
-
     var slot = hash & table_mask;
 
-    var owning_block = 0u;
-    var owning_cell_index = 0u;
+    var block_index = 0u;
     loop {
-        let block_and_index = block_table[slot];
-        owning_block = block_and_index >> 29;
-        owning_cell_index = (block_and_index & index_mask) - 1;
-        let owning_cell_id = cells[owning_cell_index];
-        if all(owning_cell_id + block_offset(owning_block) == block_id) {
+        block_index = block_table[slot] - 1;
+        if all(block_ids[block_index] == block_id) {
             break;
         }
         slot += 1;
         slot &= table_mask;
     }
-
-    let block_mask = (1u << owning_block) - 1;
-    let blocks_before = countOneBits(owns[owning_cell_index] & block_mask);
-    let block_index = block_offsets[owning_cell_index] + blocks_before;
 
     var particle_start = 0u;
     if cell_index > 0 {

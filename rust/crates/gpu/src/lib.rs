@@ -59,6 +59,7 @@ pub mod step;
 pub mod triangle_sdf;
 
 pub use allocate_blocks::AllocateBlocks;
+pub use build_blocks::BuildBlocks;
 pub use build_cells::BuildCells;
 pub use build_hash_table_from_cells::BuildHashTableFromCells;
 pub use cells_to_colorkeys::CellsToColorkeys;

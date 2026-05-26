@@ -34,8 +34,8 @@ pub struct Input {
     pub cell_indices: Allocation,
     pub cell_index_ranges: Allocation,
     pub cell_ids: Allocation,
-    pub cell_owns: Allocation,
-    pub block_offsets: Allocation,
+
+    pub block_ids: Allocation,
     pub block_table: Allocation,
 
     pub masses: Allocation,
@@ -45,13 +45,6 @@ pub struct Input {
     pub position_gradients: Allocation,
     pub velocities: Allocation,
     pub velocity_gradients: Allocation,
-}
-
-#[derive(Debug)]
-pub struct InputAddendum {
-    pub indirect_cells: Indirect,
-    pub cell_ids: Vec<Vector4<i32>>,
-    pub cell_owns: Vec<u32>,
 }
 
 #[derive(Clone)]
@@ -84,7 +77,7 @@ impl Input {
             velocities,
             velocity_gradients,
         }: InputData,
-    ) -> (Self, InputAddendum) {
+    ) -> (Self, Vec<Vector4<i32>>) {
         assert_eq!(masses.len(), initial_volumes.len());
         assert_eq!(masses.len(), particle_parameters.len());
         assert_eq!(masses.len(), positions.len());
@@ -109,7 +102,7 @@ impl Input {
 
         let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
         let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
-        let (cell_ids, index_ranges, indirect_cells) = build_cells_on_cpu(
+        let (cell_ids, index_ranges, _) = build_cells_on_cpu(
             workgroup_size,
             dispatch_limit,
             cell_size,
@@ -117,18 +110,10 @@ impl Input {
             &prefixed_boundaries,
         );
 
-        let (block_table, owns) = build_hash_table_on_cpu(&cell_ids);
-        let pops: Vec<_> = owns.iter().cloned().map(u32::count_ones).collect();
-        let block_offsets = prefix_sum_on_cpu(&pops);
+        let (block_ids_vec, block_table) = build_hash_table_on_cpu_simple(&cell_ids);
 
         let (_indirect_colors, indirect_colors_batch, cell_indices) =
             color_cells_on_cpu(workgroup_size, dispatch_limit, subgroup_size, &cell_ids);
-
-        let addendum = InputAddendum {
-            indirect_cells,
-            cell_ids: cell_ids.clone(),
-            cell_owns: owns.clone(),
-        };
 
         let indirect_colors_batch =
             Allocation::new(device, "indirect_colors_batch", &indirect_colors_batch);
@@ -136,8 +121,7 @@ impl Input {
         let cell_indices = Allocation::new(device, "cell_indices", &cell_indices);
         let cell_index_ranges = Allocation::new(device, "cell_index_ranges", &index_ranges);
         let cell_ids = Allocation::new(device, "cell_ids", &cell_ids);
-        let cell_owns = Allocation::new(device, "cell_owns", &owns);
-        let block_offsets = Allocation::new(device, "block_offsets", &block_offsets);
+        let block_ids = Allocation::new(device, "block_ids", &block_ids_vec);
         let block_table = Allocation::new(device, "block_table", &block_table);
 
         let masses = Allocation::new(device, "masses", &masses);
@@ -155,8 +139,7 @@ impl Input {
                 cell_indices,
                 cell_index_ranges,
                 cell_ids,
-                cell_owns,
-                block_offsets,
+                block_ids,
                 block_table,
                 masses,
                 initial_volumes,
@@ -166,7 +149,7 @@ impl Input {
                 velocities,
                 velocity_gradients,
             },
-            addendum,
+            block_ids_vec,
         )
     }
 }
@@ -196,11 +179,10 @@ impl PipelinePart for Scatter {
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),        // indirect_colors_batch
                     (u32::MIN_BINDING_SIZE, false),            // indices
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cells
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cell_ids
                     (u32::MIN_BINDING_SIZE, false),            // index_ranges
-                    (u32::MIN_BINDING_SIZE, false),            // owns
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // block_ids
                     (u32::MIN_BINDING_SIZE, false),            // block_table
-                    (u32::MIN_BINDING_SIZE, false),            // block_offsets
                     (f32::MIN_BINDING_SIZE, false),            // masses
                     (f32::MIN_BINDING_SIZE, false),            // initial_volumes
                     (particle_parameters::Device::MIN_BINDING_SIZE, false), // parameters
@@ -231,8 +213,7 @@ impl PipelinePart for Scatter {
             cell_indices,
             cell_index_ranges,
             cell_ids,
-            cell_owns,
-            block_offsets,
+            block_ids,
             block_table,
             masses,
             initial_volumes,
@@ -263,9 +244,8 @@ impl PipelinePart for Scatter {
                     cell_indices.binding(),
                     cell_ids.binding(),
                     cell_index_ranges.binding(),
-                    cell_owns.binding(),
+                    block_ids.binding(),
                     block_table.binding(),
-                    block_offsets.binding(),
                     masses.binding(),
                     initial_volumes.binding(),
                     particle_parameters.binding(),
