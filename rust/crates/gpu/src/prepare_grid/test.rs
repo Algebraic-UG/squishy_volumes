@@ -32,7 +32,7 @@ fn check(settings: Settings, positions: &[Vector4<f32>]) {
     println!("block_ids: {block_ids:?}");
 
     let mut blocks_gpu: HashSet<Vector4<i32>> = Default::default();
-    for block_id in block_ids {
+    for block_id in block_ids.into_iter().take(num_blocks) {
         assert!(blocks_gpu.insert(block_id));
     }
 
