@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -o pipefail
+
 SCRIPT_DIR="$(dirname "$0")"
 
 MODE="$1"
@@ -10,10 +12,15 @@ DATA_FILE="test_data/$MODE-$TASK.txt"
 > "$DATA_FILE"
 
 for ((i=500000; i<=6000000; i+=500000)); do
-    echo -n "$i " >> "$DATA_FILE"
-    cargo run --release --bin squishy_volumes_gpu_cli -- \
+    t=$(cargo run --release --bin squishy_volumes_gpu_cli -- \
         "$MODE" "$TASK" --generate $i \
-        | grep XXX | sed -E 's/.*XXX: ([0-9]+)/\1/' >> "$DATA_FILE"
+        | grep XXX | sed -E 's/.*XXX: ([0-9]+)/\1/')
+    if [[ $? -ne 0 ]]
+    then
+        echo "Looks like something went wrong with i=$i"
+        break
+    fi
+    echo "$i $t" >> "$DATA_FILE"
 done
 
 "$SCRIPT_DIR/only_plot.sh" "$MODE" "$TASK"
