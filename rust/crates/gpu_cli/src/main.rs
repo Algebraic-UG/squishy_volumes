@@ -21,13 +21,15 @@ use squishy_volumes_gpu as gpu;
 
 use crate::{
     build_hash_table_from_cells::build_hash_table_on_gpu, collect::collect_on_gpu,
-    positions_to_keys::positions_to_keys_on_gpu, prefix_sum::prefix_sum_on_gpu,
-    prepare_grid::prepare_grid_on_gpu, radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
+    count_colliders::count_colliders_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
+    prefix_sum::prefix_sum_on_gpu, prepare_grid::prepare_grid_on_gpu,
+    radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
     sort_positions_into_cells::sort_positions_into_cells_on_gpu, step::step_on_gpu,
 };
 
 mod build_hash_table_from_cells;
 mod collect;
+mod count_colliders;
 mod positions_to_keys;
 mod prefix_sum;
 mod prepare_grid;
@@ -63,6 +65,7 @@ enum Task {
     Scatter,
     Collect,
     Step,
+    CountColliders,
 }
 
 #[derive(Parser)]
@@ -176,6 +179,9 @@ fn main() {
                     .take(generate as usize)
                     .collect();
                 out.write_all(bytemuck::cast_slice(&positions)).unwrap();
+            }
+            Task::CountColliders => {
+                // TODO
             }
         }
 
@@ -340,5 +346,17 @@ fn main() {
             });
             out.write_all(bytemuck::cast_slice(&output)).unwrap();
         }
+        Task::CountColliders => match mode {
+            Mode::Cpu => todo!(),
+            Mode::Gpu => count_colliders_on_gpu(
+                tool,
+                gpu::count_colliders::Settings {
+                    workgroup_size,
+                    dispatch_limit,
+                    cell_size,
+                    layers: 3,
+                },
+            ),
+        },
     }
 }
