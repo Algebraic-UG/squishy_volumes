@@ -39,7 +39,6 @@ pub struct AllocatedMesh {
 
 pub struct Input {
     pub collider_meshes: Vec<AllocatedMesh>,
-    pub indirect_blocks: Allocation,
     pub block_ids: Allocation,
     pub block_table: Allocation,
 }
@@ -54,11 +53,6 @@ pub struct InputData<'a> {
 impl Input {
     pub fn new(
         device: &wgpu::Device,
-        Settings {
-            workgroup_size,
-            dispatch_limit,
-            ..
-        }: Settings,
         InputData {
             collider_meshes,
             block_ids,
@@ -87,19 +81,11 @@ impl Input {
             })
             .collect();
 
-        let indirect_blocks = Indirect::new(IndirectSettings {
-            workgroup_size,
-            dispatch_limit,
-            len: block_ids.len() as u32,
-        });
-        let indirect_blocks = Allocation::new(device, "indirect_blocks", &[indirect_blocks]);
-
         let block_ids = Allocation::new(device, "block_ids", block_ids);
         let block_table = Allocation::new(device, "block_table", block_table);
 
         Self {
             collider_meshes,
-            indirect_blocks,
             block_ids,
             block_table,
         }
@@ -158,7 +144,6 @@ impl PipelinePart for DetectColliders {
         encoder: &mut CommandEncoder,
         Input {
             collider_meshes,
-            indirect_blocks,
             block_ids,
             block_table,
         }: Input,

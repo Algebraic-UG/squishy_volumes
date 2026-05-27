@@ -217,7 +217,7 @@ fn torus() {
 
 fn run(settings: Settings, input_data: InputData) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
-    let input = Input::new(context.device(), settings, input_data);
+    let input = Input::new(context.device(), input_data);
     let detect_colliders = DetectColliders::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

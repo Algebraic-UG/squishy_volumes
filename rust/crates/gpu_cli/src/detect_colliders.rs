@@ -34,7 +34,7 @@ pub fn detect_colliders_on_gpu(tool: Option<Tool>, _settings: Settings) {
     // From test
 
     let detect_colliders = DetectColliders::new(&context, settings);
-    let input = Input::new(context.device(), settings, input_data);
+    let input = Input::new(context.device(), input_data);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
