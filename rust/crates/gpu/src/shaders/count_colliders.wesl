@@ -156,7 +156,7 @@ fn main(
             hits = hits.yx;
         }
         let normal_facing_min = i32(floor(hits.x / grid_node_size));
-        let normal_facing_max = i32(ceil(hits.x / grid_node_size));
+        let normal_facing_max = i32(ceil(hits.y / grid_node_size));
 
         for (var normal_facing = normal_facing_min; normal_facing <= normal_facing_max; normal_facing++) {
             var grid_node_id = vec3i(0);
