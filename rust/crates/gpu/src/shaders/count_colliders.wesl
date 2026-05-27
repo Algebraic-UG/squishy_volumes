@@ -121,7 +121,7 @@ fn main(
     let plane_min = vec2i(floor(min(plane_a, min(plane_b, plane_c)) / grid_node_size)) - vec2i(i32(LAYERS));
     let plane_max = vec2i(ceil(max(plane_a, max(plane_b, plane_c)) / grid_node_size)) + vec2i(i32(LAYERS));
 
-    let plane_range = vec2u(plane_max - plane_min);
+    let plane_range = vec2u(plane_max - plane_min) + vec2u(1);
     let num_plane_samples = plane_range.x * plane_range.y;
     let plane_sample_rounds = num_plane_samples / subgroup_size;
     for (var plane_sample_round = 0u; plane_sample_round <= plane_sample_rounds; plane_sample_round++) {
