@@ -15,9 +15,8 @@ use nalgebra::Vector4;
 
 use super::*;
 
-pub struct CountColliders {
-    count_colliders: CompiledModule,
-    bits_to_pops: BitsToPops,
+pub struct DetectColliders {
+    detect_colliders: CompiledModule,
 
     workgroup_size: NonZeroU32,
     dispatch_limit: NonZeroU32,
@@ -109,10 +108,9 @@ impl Input {
 
 pub struct Output {
     pub collider_bits: Allocation,
-    pub collider_pops: Allocation,
 }
 
-impl PipelinePart for CountColliders {
+impl PipelinePart for DetectColliders {
     type Settings = Settings;
     type Parameters = Parameters;
     type Input = Input;
@@ -128,7 +126,7 @@ impl PipelinePart for CountColliders {
         }: Settings,
     ) -> Self {
         let_compiled_module!(
-            count_colliders,
+            detect_colliders,
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
@@ -147,11 +145,8 @@ impl PipelinePart for CountColliders {
             }
         );
 
-        let bits_to_pops = BitsToPops::new(context, bits_to_pops::Settings { workgroup_size });
-
         Self {
-            count_colliders,
-            bits_to_pops,
+            detect_colliders,
             workgroup_size,
             dispatch_limit,
         }
@@ -179,8 +174,8 @@ impl PipelinePart for CountColliders {
         );
 
         {
-            let mut compute_pass = encoder.begin_compute_pass(self.count_colliders.label);
-            compute_pass.set_pipeline(&self.count_colliders.compute_pipeline);
+            let mut compute_pass = encoder.begin_compute_pass(self.detect_colliders.label);
+            compute_pass.set_pipeline(&self.detect_colliders.compute_pipeline);
             for (
                 collider_index,
                 AllocatedMesh {
@@ -193,7 +188,7 @@ impl PipelinePart for CountColliders {
                     0,
                     &create_bind_group(
                         context.device(),
-                        &self.count_colliders,
+                        &self.detect_colliders,
                         [
                             vertices.binding(),
                             triangles.binding(),
@@ -214,21 +209,6 @@ impl PipelinePart for CountColliders {
             }
         }
 
-        let bits_to_pops::Output {
-            pops: collider_pops,
-        } = self.bits_to_pops.record(
-            context,
-            encoder,
-            bits_to_pops::Input {
-                indirect: indirect_blocks,
-                bits: collider_bits.clone(),
-            },
-            bits_to_pops::Parameters,
-        )?;
-
-        Ok(Output {
-            collider_bits,
-            collider_pops,
-        })
+        Ok(Output { collider_bits })
     }
 }

@@ -60,12 +60,7 @@ fn check(
             }
         }
     }
-    let collider_pops_cpu: Vec<u32> = collider_bits_cpu
-        .iter()
-        .map(|bits| bits.count_ones())
-        .collect();
-
-    let (collider_bits_gpu, collider_pops_gpu) = run(settings, input_data);
+    let collider_bits_gpu = run(settings, input_data);
 
     for ((cpu, gpu), id) in collider_bits_cpu
         .into_iter()
@@ -74,7 +69,6 @@ fn check(
     {
         assert_eq!(cpu, gpu, "{id:?}");
     }
-    assert_eq!(collider_pops_cpu, collider_pops_gpu);
 }
 
 #[test]
@@ -221,29 +215,25 @@ fn torus() {
     );
 }
 
-fn run(settings: Settings, input_data: InputData) -> (Vec<u32>, Vec<u32>) {
+fn run(settings: Settings, input_data: InputData) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
     let input = Input::new(context.device(), settings, input_data);
-    let count_colliders = CountColliders::new(&context, settings);
+    let detect_colliders = DetectColliders::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let Output {
-        collider_bits,
-        collider_pops,
-    } = count_colliders
+    let Output { collider_bits } = detect_colliders
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(&context, [collider_bits, collider_pops]);
-    downloads.copy(&mut encoder);
+    let download = DownloadToHost::new(&context, collider_bits);
+    download.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
 
-    let downloads = downloads.prep();
+    let download = download.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
-    let [collider_bits, collider_pops] = downloads.try_into().unwrap();
 
-    (collider_bits.to_vec(), collider_pops.to_vec())
+    download.to_vec()
 }

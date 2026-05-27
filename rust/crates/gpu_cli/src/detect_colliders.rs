@@ -1,11 +1,11 @@
 use nalgebra::Vector4;
 use squishy_volumes_gpu::{
-    GpuContext, PipelinePart, Triangle, build_hash_table_on_cpu_simple, count_colliders::*,
+    GpuContext, PipelinePart, Triangle, build_hash_table_on_cpu_simple, detect_colliders::*,
 };
 
 use crate::{Tool, window::run_with_window};
 
-pub fn count_colliders_on_gpu(tool: Option<Tool>, _settings: Settings) {
+pub fn detect_colliders_on_gpu(tool: Option<Tool>, _settings: Settings) {
     let mut context = GpuContext::new().unwrap();
     context.setup_allocator(1 << 15, "allocator", true).unwrap();
     context
@@ -33,12 +33,12 @@ pub fn count_colliders_on_gpu(tool: Option<Tool>, _settings: Settings) {
     };
     // From test
 
-    let count_colliders = CountColliders::new(&context, settings);
+    let detect_colliders = DetectColliders::new(&context, settings);
     let input = Input::new(context.device(), settings, input_data);
 
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            count_colliders
+            detect_colliders
                 .record(context, &mut encoder.into(), input, Parameters)
                 .unwrap();
         });
