@@ -67,13 +67,13 @@ fn main(
     let offset = dot(n, a);
 
     var facing_axis = 0;
-    if n.y > n.x {
-        if n.y > n.z {
+    if abs(n.y) > abs(n.x) {
+        if abs(n.y) > abs(n.z) {
             facing_axis = 1;
         } else {
             facing_axis = 2;
         }
-    } else if n.z > n.x {
+    } else if abs(n.z) > abs(n.x) {
         facing_axis = 2;
     }
 
