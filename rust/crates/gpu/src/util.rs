@@ -10,7 +10,9 @@ use super::*;
 
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
-use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
+use squishy_volumes_util::{
+    first_piola_stress_inviscid, first_piola_stress_neo_hookean, rasterization,
+};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::iter::once;
@@ -547,4 +549,55 @@ impl Permutation for &[u32] {
             .map(|&index| to_permute[index as usize].clone())
             .collect()
     }
+}
+
+pub fn detect_colliders_on_cpu(
+    cell_size: f32,
+    layers: u32,
+    detect_colliders::InputData {
+        collider_meshes,
+        block_ids,
+        block_table,
+    }: &detect_colliders::InputData,
+) -> Vec<u32> {
+    let mut collider_bits: Vec<u32> = vec![0; block_ids.len()];
+    assert!(block_table.len().is_power_of_two());
+    let table_mask = block_table.len() as u32 - 1;
+    for (collider_index, (vertices, triangles)) in collider_meshes.iter().enumerate() {
+        for triangle in *triangles {
+            let a = vertices[triangle.a as usize].xyz();
+            let b = vertices[triangle.b as usize].xyz();
+            let c = vertices[triangle.c as usize].xyz();
+            let ab = a - b;
+            let ca = c - a;
+
+            let normal_area_2 = (-ab).cross(&ca);
+            let area_2 = normal_area_2.norm();
+            if area_2 < NORMALIZATION_EPS {
+                continue;
+            }
+            let n = normal_area_2 / area_2;
+
+            for candidate in
+                rasterization::candidates(&a, &b, &c, &n, cell_size / 2., layers as usize)
+            {
+                let block_id = (candidate + Vector3::repeat(1)) / 2;
+                let mut slot = cell_to_murmur(&block_id.push(0)) & table_mask;
+                loop {
+                    let entry = block_table[slot as usize];
+                    if entry == 0 {
+                        break;
+                    }
+                    let block_index = entry as usize - 1;
+                    if block_ids[block_index].xyz() == block_id {
+                        collider_bits[block_index] |= 1 << collider_index;
+                        break;
+                    }
+                    slot += 1;
+                    slot &= table_mask;
+                }
+            }
+        }
+    }
+    collider_bits
 }

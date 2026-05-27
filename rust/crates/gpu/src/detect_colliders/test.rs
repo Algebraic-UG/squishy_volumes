@@ -17,55 +17,15 @@ fn check(
     settings @ Settings {
         cell_size, layers, ..
     }: Settings,
-    input_data @ InputData {
-        block_ids,
-        block_table,
-        ..
-    }: InputData,
+    input_data: InputData,
 ) {
-    let mut collider_bits_cpu: Vec<u32> = vec![0; block_ids.len()];
-    assert!(block_table.len().is_power_of_two());
-    let table_mask = block_table.len() as u32 - 1;
-    for (collider_index, (vertices, triangles)) in input_data.collider_meshes.iter().enumerate() {
-        for triangle in *triangles {
-            let a = vertices[triangle.a as usize].xyz();
-            let b = vertices[triangle.b as usize].xyz();
-            let c = vertices[triangle.c as usize].xyz();
-            let ab = a - b;
-            let ca = c - a;
-
-            let normal_area_2 = (-ab).cross(&ca);
-            let area_2 = normal_area_2.norm();
-            if area_2 < NORMALIZATION_EPS {
-                continue;
-            }
-            let n = normal_area_2 / area_2;
-
-            for candidate in candidates(&a, &b, &c, &n, cell_size / 2., layers as usize) {
-                let block_id = (candidate + Vector3::repeat(1)) / 2;
-                let mut slot = cell_to_murmur(&block_id.push(0)) & table_mask;
-                loop {
-                    let entry = block_table[slot as usize];
-                    if entry == 0 {
-                        break;
-                    }
-                    let block_index = entry as usize - 1;
-                    if block_ids[block_index].xyz() == block_id {
-                        collider_bits_cpu[block_index] |= 1 << collider_index;
-                        break;
-                    }
-                    slot += 1;
-                    slot &= table_mask;
-                }
-            }
-        }
-    }
+    let collider_bits_cpu = detect_colliders_on_cpu(cell_size, layers, &input_data);
     let collider_bits_gpu = run(settings, input_data);
 
     for ((cpu, gpu), id) in collider_bits_cpu
         .into_iter()
         .zip(collider_bits_gpu)
-        .zip(block_ids)
+        .zip(input_data.block_ids)
     {
         assert_eq!(cpu, gpu, "{id:?}");
     }
