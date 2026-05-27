@@ -6,8 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::Vector3;
+use nalgebra::{Rotation3, Vector3};
 use squishy_volumes_util::{NORMALIZATION_EPS, rasterization::candidates};
+
+use crate::torus;
 
 use super::*;
 
@@ -24,8 +26,6 @@ fn check(
     let mut collider_bits_cpu: Vec<u32> = vec![0; block_ids.len()];
     assert!(block_table.len().is_power_of_two());
     let table_mask = block_table.len() as u32 - 1;
-    println!("{block_table:?}");
-    println!("{block_ids:?}");
     for (collider_index, (vertices, triangles)) in input_data.collider_meshes.iter().enumerate() {
         for triangle in *triangles {
             let a = vertices[triangle.a as usize].xyz();
@@ -67,9 +67,6 @@ fn check(
 
     let (collider_bits_gpu, collider_pops_gpu) = run(settings, input_data);
 
-    println!("{collider_bits_cpu:?}");
-    println!("{collider_bits_gpu:?}");
-
     for ((cpu, gpu), id) in collider_bits_cpu
         .into_iter()
         .zip(collider_bits_gpu)
@@ -77,6 +74,7 @@ fn check(
     {
         assert_eq!(cpu, gpu, "{id:?}");
     }
+    assert_eq!(collider_pops_cpu, collider_pops_gpu);
 }
 
 #[test]
@@ -156,6 +154,67 @@ fn embedded_triangle() {
         },
         InputData {
             collider_meshes: vec![(&vertices, &triangles)],
+            block_ids: &block_ids,
+            block_table: &block_table,
+        },
+    );
+}
+
+#[test]
+fn two_embedded_triangles() {
+    let vertices = vec![
+        Vector4::new(1., 1., 1., 0.),
+        Vector4::new(0., 1., 0., 0.),
+        Vector4::new(1., 0., 0., 0.),
+    ];
+
+    let vertices_2 = vertices
+        .iter()
+        .map(|v| (Rotation3::from_euler_angles(0.3, 0., 0.) * v.xyz()).push(0.))
+        .collect::<Vec<_>>();
+
+    let triangles = vec![Triangle { a: 0, b: 1, c: 2 }];
+
+    let cell_ids: Vec<_> = (-10..=10)
+        .flat_map(move |i| {
+            (-10..=10).flat_map(move |j| (-10..=10).map(move |k| Vector4::new(i, j, k, 0)))
+        })
+        .collect();
+    let (block_ids, block_table) = build_hash_table_on_cpu_simple(&cell_ids);
+
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size: 0.5,
+            layers: 3,
+        },
+        InputData {
+            collider_meshes: vec![(&vertices, &triangles), (&vertices_2, &triangles)],
+            block_ids: &block_ids,
+            block_table: &block_table,
+        },
+    );
+}
+
+#[test]
+fn torus() {
+    let cell_ids: Vec<_> = (-10..=10)
+        .flat_map(move |i| {
+            (-10..=10).flat_map(move |j| (-10..=10).map(move |k| Vector4::new(i, j, k, 0)))
+        })
+        .collect();
+    let (block_ids, block_table) = build_hash_table_on_cpu_simple(&cell_ids);
+
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size: 0.5,
+            layers: 3,
+        },
+        InputData {
+            collider_meshes: vec![(&torus::vertices(), &torus::triangles())],
             block_ids: &block_ids,
             block_table: &block_table,
         },
