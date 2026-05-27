@@ -59,11 +59,11 @@ fn main(
     let normal_area_2 = cross(-ab, ca);
     let area_2 = dot(normal_area_2, normal_area_2);
 
-    if area_2 < NORMALIZATION_EPS {
+    if area_2 < NORMALIZATION_EPS * NORMALIZATION_EPS {
         return;
     }
 
-    let n = normal_area_2 / area_2;
+    let n = normal_area_2 / sqrt(area_2);
     let offset = dot(n, a);
 
     var facing_axis = 0;
