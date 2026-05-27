@@ -130,7 +130,7 @@ fn main(
             break;
         }
         let plane_grid_node = plane_min + vec2i(vec2u(
-            plane_sample_index / plane_range.x,
+            plane_sample_index / plane_range.y,
             plane_sample_index % plane_range.y,
         ));
         let plane_p = vec2f(plane_grid_node) * grid_node_size;
