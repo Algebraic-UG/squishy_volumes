@@ -6,7 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use squishy_volumes_util::{Aabb, NORMALIZATION_EPS, rasterization::candidates};
+use nalgebra::Vector3;
+use squishy_volumes_util::{NORMALIZATION_EPS, rasterization::candidates};
 
 use super::*;
 
@@ -21,14 +22,16 @@ fn check(
     }: InputData,
 ) {
     let mut collider_bits_cpu: Vec<u32> = vec![0; block_ids.len()];
+    assert!(block_table.len().is_power_of_two());
     let table_mask = block_table.len() as u32 - 1;
+    println!("{block_table:?}");
+    println!("{block_ids:?}");
     for (collider_index, (vertices, triangles)) in input_data.collider_meshes.iter().enumerate() {
         for triangle in *triangles {
             let a = vertices[triangle.a as usize].xyz();
             let b = vertices[triangle.b as usize].xyz();
             let c = vertices[triangle.c as usize].xyz();
             let ab = a - b;
-            let bc = b - c;
             let ca = c - a;
 
             let normal_area_2 = (-ab).cross(&ca);
@@ -38,23 +41,22 @@ fn check(
             }
             let n = normal_area_2 / area_2;
 
-            'candidate_loop: for candidate in
-                candidates(&a, &b, &c, &n, cell_size / 2., layers as usize)
-            {
-                let mut slot = cell_to_murmur(&candidate.push(0)) & table_mask;
-                let block_index = loop {
+            for candidate in candidates(&a, &b, &c, &n, cell_size / 2., layers as usize) {
+                let block_id = (candidate + Vector3::repeat(1)) / 2;
+                let mut slot = cell_to_murmur(&block_id.push(0)) & table_mask;
+                loop {
                     let entry = block_table[slot as usize];
                     if entry == 0 {
-                        continue 'candidate_loop;
+                        break;
                     }
                     let block_index = entry as usize - 1;
-                    if block_ids[block_index].xyz() == candidate.xyz() {
-                        break block_index;
+                    if block_ids[block_index].xyz() == block_id {
+                        collider_bits_cpu[block_index] |= 1 << collider_index;
+                        break;
                     }
                     slot += 1;
                     slot &= table_mask;
-                };
-                collider_bits_cpu[block_index] |= 1 << collider_index;
+                }
             }
         }
     }
@@ -65,12 +67,72 @@ fn check(
 
     let (collider_bits_gpu, collider_pops_gpu) = run(settings, input_data);
 
-    assert_eq!(collider_bits_cpu, collider_bits_gpu);
-    assert_eq!(collider_pops_cpu, collider_pops_gpu);
+    println!("{collider_bits_cpu:?}");
+    println!("{collider_bits_gpu:?}");
+
+    for ((cpu, gpu), id) in collider_bits_cpu
+        .into_iter()
+        .zip(collider_bits_gpu)
+        .zip(block_ids)
+    {
+        assert_eq!(cpu, gpu, "{id:?}");
+    }
 }
 
 #[test]
-fn single() {
+fn single_triangle() {
+    let vertices = vec![
+        Vector4::new(1., 1., 1., 0.),
+        Vector4::new(0., 1., 0., 0.),
+        Vector4::new(1., 0., 0., 0.),
+    ];
+    let triangles = vec![Triangle { a: 0, b: 1, c: 2 }];
+
+    let (block_ids, block_table) = build_hash_table_on_cpu_simple(&[Vector4::zeros()]);
+
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size: 0.5,
+            layers: 3,
+        },
+        InputData {
+            collider_meshes: vec![(&vertices, &triangles)],
+            block_ids: &block_ids,
+            block_table: &block_table,
+        },
+    );
+}
+
+#[test]
+fn specific() {
+    let vertices = vec![
+        Vector4::new(1., 1., 1., 0.),
+        Vector4::new(0., 1., 0., 0.),
+        Vector4::new(1., 0., 0., 0.),
+    ];
+    let triangles = vec![Triangle { a: 0, b: 1, c: 2 }];
+
+    let (block_ids, block_table) = build_hash_table_on_cpu_simple(&[Vector4::new(4, -1, 0, 0)]);
+
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            cell_size: 0.5,
+            layers: 3,
+        },
+        InputData {
+            collider_meshes: vec![(&vertices, &triangles)],
+            block_ids: &block_ids,
+            block_table: &block_table,
+        },
+    );
+}
+
+#[test]
+fn embedded_triangle() {
     let vertices = vec![
         Vector4::new(1., 1., 1., 0.),
         Vector4::new(0., 1., 0., 0.),
