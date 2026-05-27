@@ -3725,8 +3725,10 @@ dependencies = [
 name = "squishy_volumes_util"
 version = "0.1.0"
 dependencies = [
+ "iter_enumeration",
  "nalgebra",
  "rand 0.10.0",
+ "squishy_volumes_api",
  "thiserror 2.0.18",
 ]
 

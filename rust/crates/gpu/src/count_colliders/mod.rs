@@ -11,37 +11,45 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use nalgebra::{Matrix4x3, Vector4};
+use nalgebra::Vector4;
 
 use super::*;
 
 pub struct CountColliders {
     count_colliders: CompiledModule,
+    bits_to_pops: BitsToPops,
+
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
 }
 
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
+    pub dispatch_limit: NonZeroU32,
     pub cell_size: f32,
+    pub layers: u32,
 }
 
 pub struct Parameters;
 
-pub struct Input {
+pub struct AllocatedMesh {
     pub vertices: Allocation,
     pub triangles: Allocation,
+}
 
-    pub cell_ids: Allocation,
-    pub cell_owns: Allocation,
-    pub block_offsets: Allocation,
+pub struct Input {
+    pub collider_meshes: Vec<AllocatedMesh>,
+    pub indirect_blocks: Allocation,
+    pub block_ids: Allocation,
     pub block_table: Allocation,
 }
 
 #[derive(Clone)]
 pub struct InputData<'a> {
-    pub positions: &'a [Vector4<f32>],
-    pub vertices: &'a [Vector4<f32>],
-    pub triangles: &'a [Vector4<u32>],
+    pub collider_meshes: Vec<(&'a [Vector4<f32>], &'a [Triangle])>,
+    pub block_ids: &'a [Vector4<i32>],
+    pub block_table: &'a [u32],
 }
 
 impl Input {
@@ -49,63 +57,59 @@ impl Input {
         device: &wgpu::Device,
         Settings {
             workgroup_size,
-            cell_size,
+            dispatch_limit,
+            ..
         }: Settings,
         InputData {
-            positions,
-            vertices,
-            triangles,
+            collider_meshes,
+            block_ids,
+            block_table,
         }: InputData,
     ) -> Self {
-        assert!(triangles.iter().all(|triangle| {
-            triangle.x < vertices.len() as u32
-                && triangle.y < vertices.len() as u32
-                && triangle.z < vertices.len() as u32
-        }));
+        for (vertices, triangles) in &collider_meshes {
+            assert!(
+                triangles
+                    .iter()
+                    .all(|Triangle { a, b, c }| (*a as usize) < vertices.len()
+                        && (*b as usize) < vertices.len()
+                        && (*c as usize) < vertices.len())
+            );
+        }
 
-        let permutation = sort_positions_into_cells_on_cpu(
-            &(0..positions.len() as u32).collect::<Vec<_>>(),
-            positions,
-            cell_size,
-        );
-        let permutation = permutation.as_slice();
-        let positions = permutation.permute(positions);
+        let collider_meshes = collider_meshes
+            .into_iter()
+            .map(|(vertices, triangles)| {
+                let vertices = Allocation::new(device, "vertices", vertices);
+                let triangles = Allocation::new(device, "triangles", triangles);
+                AllocatedMesh {
+                    vertices,
+                    triangles,
+                }
+            })
+            .collect();
 
-        let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
-        let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
-        let (cell_ids, _, _) = build_cells_on_cpu(
+        let indirect_blocks = Indirect::new(IndirectSettings {
             workgroup_size,
-            (u16::MAX as u32).try_into().unwrap(),
-            cell_size,
-            &positions,
-            &prefixed_boundaries,
-        );
+            dispatch_limit,
+            len: block_ids.len() as u32,
+        });
+        let indirect_blocks = Allocation::new(device, "indirect_blocks", &[indirect_blocks]);
 
-        let (block_table, owns) = build_hash_table_on_cpu(&cell_ids);
-        let pops: Vec<_> = owns.iter().cloned().map(u32::count_ones).collect();
-        let block_offsets = prefix_sum_on_cpu(&pops);
-
-        let vertices = Allocation::new(device, "vertices", vertices);
-        let triangles = Allocation::new(device, "triangles", triangles);
-
-        let cell_ids = Allocation::new(device, "cell_ids", &cell_ids);
-        let cell_owns = Allocation::new(device, "cell_owns", &owns);
-        let block_offsets = Allocation::new(device, "block_offsets", &block_offsets);
-        let block_table = Allocation::new(device, "block_table", &block_table);
+        let block_ids = Allocation::new(device, "block_ids", block_ids);
+        let block_table = Allocation::new(device, "block_table", block_table);
 
         Self {
-            vertices,
-            triangles,
-            cell_ids,
-            cell_owns,
-            block_offsets,
+            collider_meshes,
+            indirect_blocks,
+            block_ids,
             block_table,
         }
     }
 }
 
 pub struct Output {
-    pub collider_counts: Allocation,
+    pub collider_bits: Allocation,
+    pub collider_pops: Allocation,
 }
 
 impl PipelinePart for CountColliders {
@@ -118,40 +122,39 @@ impl PipelinePart for CountColliders {
         context: &GpuContext,
         Settings {
             workgroup_size,
+            dispatch_limit,
             cell_size,
+            layers,
         }: Settings,
     ) -> Self {
         let_compiled_module!(
-            scatter,
+            count_colliders,
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),        // indirect_colors_batch
-                    (u32::MIN_BINDING_SIZE, false),            // indices
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cells
-                    (u32::MIN_BINDING_SIZE, false),            // index_ranges
-                    (u32::MIN_BINDING_SIZE, false),            // owns
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertices
+                    (Triangle::MIN_BINDING_SIZE, false),       // triangles
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // block_ids
                     (u32::MIN_BINDING_SIZE, false),            // block_table
-                    (u32::MIN_BINDING_SIZE, false),            // block_offsets
-                    (f32::MIN_BINDING_SIZE, false),            // masses
-                    (f32::MIN_BINDING_SIZE, false),            // initial_volumes
-                    (particle_parameters::Device::MIN_BINDING_SIZE, false), // parameters
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // positions
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // velocities
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // velocity_gradients
-                    (Block::MIN_BINDING_SIZE, false),          // blocks
+                    (u32::MIN_BINDING_SIZE, false),            // collider_pops
                 ],
                 immediate_size: 4,
                 constants: [
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("CELL_SIZE", cell_size as f64),
-                    ("TIME_STEP", time_step as f64),
+                    ("LAYERS", layers as f64),
                 ]
             }
         );
 
-        Self { scatter }
+        let bits_to_pops = BitsToPops::new(context, bits_to_pops::Settings { workgroup_size });
+
+        Self {
+            count_colliders,
+            bits_to_pops,
+            workgroup_size,
+            dispatch_limit,
+        }
     }
 
     fn record(
@@ -159,65 +162,73 @@ impl PipelinePart for CountColliders {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            indirect_colors_batch,
-            cell_indices,
-            cell_index_ranges,
-            cell_ids,
-            cell_owns,
-            block_offsets,
+            collider_meshes,
+            indirect_blocks,
+            block_ids,
             block_table,
-            masses,
-            initial_volumes,
-            particle_parameters,
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        let blocks = context.allocator()?.allocate::<Block>(
-            "blocks",
-            (cell_indices.len::<u32>().get()).try_into().unwrap(),
-        )?;
-
-        encoder.clear_buffer(blocks.buffer(), blocks.offset(), Some(blocks.size().get()));
-
-        let mut compute_pass = encoder.begin_compute_pass(self.scatter.label);
-        compute_pass.set_pipeline(&self.scatter.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
-                &self.scatter,
-                [
-                    indirect_colors_batch.binding(),
-                    cell_indices.binding(),
-                    cell_ids.binding(),
-                    cell_index_ranges.binding(),
-                    cell_owns.binding(),
-                    block_table.binding(),
-                    block_offsets.binding(),
-                    masses.binding(),
-                    initial_volumes.binding(),
-                    particle_parameters.binding(),
-                    positions.binding(),
-                    position_gradients.binding(),
-                    velocities.binding(),
-                    velocity_gradients.binding(),
-                    blocks.binding(),
-                ],
-            ),
-            &[],
+        let collider_bits = context
+            .allocator()?
+            .allocate::<u32>("collider_bits", block_ids.len::<Vector4<i32>>())?;
+        encoder.clear_buffer(
+            collider_bits.buffer(),
+            collider_bits.offset(),
+            Some(collider_bits.size().get()),
         );
-        for color in 0..8u32 {
-            compute_pass.set_immediates(0, bytemuck::bytes_of(&color));
-            compute_pass.dispatch_workgroups_indirect(
-                indirect_colors_batch.buffer(),
-                indirect_colors_batch.offset() + Indirect::MIN_BINDING_SIZE.get() * color as u64,
-            );
+
+        {
+            let mut compute_pass = encoder.begin_compute_pass(self.count_colliders.label);
+            compute_pass.set_pipeline(&self.count_colliders.compute_pipeline);
+            for (
+                collider_index,
+                AllocatedMesh {
+                    vertices,
+                    triangles,
+                },
+            ) in collider_meshes.into_iter().enumerate()
+            {
+                compute_pass.set_bind_group(
+                    0,
+                    &create_bind_group(
+                        context.device(),
+                        &self.count_colliders,
+                        [
+                            vertices.binding(),
+                            triangles.binding(),
+                            block_ids.binding(),
+                            block_table.binding(),
+                            collider_bits.binding(),
+                        ],
+                    ),
+                    &[],
+                );
+                let Indirect { x, y, z, .. } = Indirect::new(IndirectSettings {
+                    workgroup_size: self.workgroup_size,
+                    dispatch_limit: self.dispatch_limit,
+                    len: triangles.len::<Triangle>().get() as u32 * context.subgroup_size().get(),
+                });
+                compute_pass.set_immediates(0, bytemuck::bytes_of(&(collider_index as u32)));
+                compute_pass.dispatch_workgroups(x, y, z);
+            }
         }
 
-        Ok(Output { blocks })
+        let bits_to_pops::Output {
+            pops: collider_pops,
+        } = self.bits_to_pops.record(
+            context,
+            encoder,
+            bits_to_pops::Input {
+                indirect: indirect_blocks,
+                bits: collider_bits.clone(),
+            },
+            bits_to_pops::Parameters,
+        )?;
+
+        Ok(Output {
+            collider_bits,
+            collider_pops,
+        })
     }
 }

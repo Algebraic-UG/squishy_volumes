@@ -10,6 +10,7 @@ mod aabb;
 mod consts;
 mod elastic;
 mod flat;
+pub mod rasterization;
 mod safe_inverse;
 mod typedefs;
 

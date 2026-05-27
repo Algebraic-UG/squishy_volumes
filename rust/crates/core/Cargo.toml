@@ -15,12 +15,12 @@ crate-type = ["rlib", "dylib"]
 strum_macros = "0.26.4"
 strum = { version = "0.26.3", features = ["derive"] }
 base64 = "0.22.1"
-iter_enumeration = "0.1.0"
 rayon = "1.10.0"
 rustc-hash = "2.1.1"
 tempfile = "3.23.0"
 rand = { version = "0.10.0", features = ["chacha"] }
 
+iter_enumeration.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 anyhow.workspace = true

@@ -8,3 +8,6 @@ license = "MIT"
 rand.workspace = true
 nalgebra.workspace = true
 thiserror.workspace = true
+iter_enumeration.workspace = true
+
+squishy_volumes_api.path = "../api"

@@ -265,3 +265,7 @@ struct Triangle {
     b: u32,
     c: u32,
 }
+
+fn perp(a: vec2f, b: vec2f) -> f32 {
+    return a.x * b.y - a.y * b.x;
+}
