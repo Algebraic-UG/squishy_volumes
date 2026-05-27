@@ -23,12 +23,16 @@ pub fn candidates(
     layers: usize,
 ) -> impl Iterator<Item = Vector3<i32>> + use<> {
     let offset = n.dot(a);
-    let facing_axis = n
-        .iter()
-        .enumerate()
-        .max_by(|a, b| a.1.abs().total_cmp(&b.1.abs()))
-        .unwrap()
-        .0;
+    let mut facing_axis = 0;
+    if n.y.abs() > n.x.abs() {
+        if n.y.abs() > n.z.abs() {
+            facing_axis = 1;
+        } else {
+            facing_axis = 2;
+        }
+    } else if n.z.abs() > n.x.abs() {
+        facing_axis = 2;
+    }
     let normal_facing_coord = n[facing_axis];
 
     let to_plane = |corner: &Vector3<T>| -> Vector2<T> {
