@@ -21,7 +21,7 @@ var<storage, read_write> block_ids: array<vec3i>;
 var<storage, read_write> block_table: array<u32>;
 
 @group(0) @binding(4)
-var<storage, read_write> collider_pops: array<atomic<u32>>;
+var<storage, read_write> collider_bits: array<atomic<u32>>;
 
 override WORKGROUP_SIZE: u32;
 override CELL_SIZE: f32;
@@ -173,7 +173,7 @@ fn main(
             if block_index == 0 {
                 continue;
             }
-            atomicOr(&collider_pops[block_index - 1], 1u << collider_index);
+            atomicOr(&collider_bits[block_index - 1], 1u << collider_index);
         }
     }
 }

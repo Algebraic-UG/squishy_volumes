@@ -136,7 +136,7 @@ impl PipelinePart for CountColliders {
                     (Triangle::MIN_BINDING_SIZE, false),       // triangles
                     (Vector4::<i32>::MIN_BINDING_SIZE, false), // block_ids
                     (u32::MIN_BINDING_SIZE, false),            // block_table
-                    (u32::MIN_BINDING_SIZE, false),            // collider_pops
+                    (u32::MIN_BINDING_SIZE, false),            // collider_bits
                 ],
                 immediate_size: 4,
                 constants: [
