@@ -146,7 +146,7 @@ fn main(
                 squared_distance_to_segment(plane_p, plane_b, plane_ab, plane_ab_ns),
                 squared_distance_to_segment(plane_p, plane_c, plane_bc, plane_bc_ns),
                 squared_distance_to_segment(plane_p, plane_a, plane_ca, plane_ca_ns),
-            ) > vec3f(side_margin_squared)
+            ) >= vec3f(side_margin_squared)
         ) {
             continue;
         }
