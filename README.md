@@ -9,7 +9,7 @@ Works in Blender 4.5 or newer.
 ## Where to Get the Extension
 
 You can either
-- ❤ buy the extension ❤ (TODO: shop link)
+- [❤ buy the extension ❤](https://algebraicug.gumroad.com/l/squishy_volumes)
 - download ZIP from [github release page](https://github.com/Algebraic-UG/squishy_volumes/releases)
 - [build from source](#building)
 
