@@ -27,7 +27,10 @@ pub fn detect_colliders_on_gpu(tool: Option<Tool>, _settings: Settings) {
     let triangles = vec![Triangle { a: 0, b: 1, c: 2 }];
     let (block_ids, block_table) = build_hash_table_on_cpu_simple(&[Vector4::new(4, -1, 0, 0)]);
     let input_data = InputData {
-        collider_meshes: vec![(&vertices, &triangles)],
+        collider_meshes: &[InputDataMesh {
+            vertices: &vertices,
+            triangles: &triangles,
+        }],
         block_ids: &block_ids,
         block_table: &block_table,
     };

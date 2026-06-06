@@ -6,8 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::{Rotation3, Vector3};
-use squishy_volumes_util::{NORMALIZATION_EPS, rasterization::candidates};
+use nalgebra::Rotation3;
 
 use crate::torus;
 
@@ -20,7 +19,7 @@ fn check(
     input_data: InputData,
 ) {
     let collider_bits_cpu = detect_colliders_on_cpu(cell_size, layers, &input_data);
-    let collider_bits_gpu = run(settings, input_data);
+    let collider_bits_gpu = run(settings, input_data.clone());
 
     for ((cpu, gpu), id) in collider_bits_cpu
         .into_iter()
@@ -50,7 +49,11 @@ fn single_triangle() {
             layers: 3,
         },
         InputData {
-            collider_meshes: vec![(&vertices, &triangles)],
+            collider_meshes: &[InputDataMesh {
+                vertices: &vertices,
+                triangles: &triangles,
+            }],
+
             block_ids: &block_ids,
             block_table: &block_table,
         },
@@ -76,7 +79,10 @@ fn specific() {
             layers: 3,
         },
         InputData {
-            collider_meshes: vec![(&vertices, &triangles)],
+            collider_meshes: &[InputDataMesh {
+                vertices: &vertices,
+                triangles: &triangles,
+            }],
             block_ids: &block_ids,
             block_table: &block_table,
         },
@@ -107,7 +113,10 @@ fn embedded_triangle() {
             layers: 3,
         },
         InputData {
-            collider_meshes: vec![(&vertices, &triangles)],
+            collider_meshes: &[InputDataMesh {
+                vertices: &vertices,
+                triangles: &triangles,
+            }],
             block_ids: &block_ids,
             block_table: &block_table,
         },
@@ -144,7 +153,17 @@ fn two_embedded_triangles() {
             layers: 3,
         },
         InputData {
-            collider_meshes: vec![(&vertices, &triangles), (&vertices_2, &triangles)],
+            collider_meshes: &[
+                InputDataMesh {
+                    vertices: &vertices,
+                    triangles: &triangles,
+                },
+                InputDataMesh {
+                    vertices: &vertices_2,
+                    triangles: &triangles,
+                },
+            ],
+
             block_ids: &block_ids,
             block_table: &block_table,
         },
@@ -168,7 +187,10 @@ fn torus() {
             layers: 3,
         },
         InputData {
-            collider_meshes: vec![(&torus::vertices(), &torus::triangles())],
+            collider_meshes: &[InputDataMesh {
+                vertices: &torus::vertices(),
+                triangles: &torus::triangles(),
+            }],
             block_ids: &block_ids,
             block_table: &block_table,
         },

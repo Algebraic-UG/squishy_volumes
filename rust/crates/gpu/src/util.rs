@@ -563,7 +563,14 @@ pub fn detect_colliders_on_cpu(
     let mut collider_bits: Vec<u32> = vec![0; block_ids.len()];
     assert!(block_table.len().is_power_of_two());
     let table_mask = block_table.len() as u32 - 1;
-    for (collider_index, (vertices, triangles)) in collider_meshes.iter().enumerate() {
+    for (
+        collider_index,
+        detect_colliders::InputDataMesh {
+            vertices,
+            triangles,
+        },
+    ) in collider_meshes.iter().enumerate()
+    {
         for triangle in *triangles {
             let a = vertices[triangle.a as usize].xyz();
             let b = vertices[triangle.b as usize].xyz();

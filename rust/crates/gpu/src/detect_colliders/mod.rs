@@ -32,20 +32,26 @@ pub struct Settings {
 
 pub struct Parameters;
 
-pub struct AllocatedMesh {
+pub struct InputMesh {
     pub vertices: Allocation,
     pub triangles: Allocation,
 }
 
 pub struct Input {
-    pub collider_meshes: Vec<AllocatedMesh>,
+    pub collider_meshes: Vec<InputMesh>,
     pub block_ids: Allocation,
     pub block_table: Allocation,
 }
 
 #[derive(Clone)]
+pub struct InputDataMesh<'a> {
+    pub vertices: &'a [Vector4<f32>],
+    pub triangles: &'a [Triangle],
+}
+
+#[derive(Clone)]
 pub struct InputData<'a> {
-    pub collider_meshes: Vec<(&'a [Vector4<f32>], &'a [Triangle])>,
+    pub collider_meshes: &'a [InputDataMesh<'a>],
     pub block_ids: &'a [Vector4<i32>],
     pub block_table: &'a [u32],
 }
@@ -59,7 +65,11 @@ impl Input {
             block_table,
         }: InputData,
     ) -> Self {
-        for (vertices, triangles) in &collider_meshes {
+        for InputDataMesh {
+            vertices,
+            triangles,
+        } in collider_meshes
+        {
             assert!(
                 triangles
                     .iter()
@@ -71,14 +81,19 @@ impl Input {
 
         let collider_meshes = collider_meshes
             .into_iter()
-            .map(|(vertices, triangles)| {
-                let vertices = Allocation::new(device, "vertices", vertices);
-                let triangles = Allocation::new(device, "triangles", triangles);
-                AllocatedMesh {
-                    vertices,
-                    triangles,
-                }
-            })
+            .map(
+                |InputDataMesh {
+                     vertices,
+                     triangles,
+                 }| {
+                    let vertices = Allocation::new(device, "vertices", vertices);
+                    let triangles = Allocation::new(device, "triangles", triangles);
+                    InputMesh {
+                        vertices,
+                        triangles,
+                    }
+                },
+            )
             .collect();
 
         let block_ids = Allocation::new(device, "block_ids", block_ids);
@@ -163,7 +178,7 @@ impl PipelinePart for DetectColliders {
             compute_pass.set_pipeline(&self.detect_colliders.compute_pipeline);
             for (
                 collider_index,
-                AllocatedMesh {
+                InputMesh {
                     vertices,
                     triangles,
                 },
