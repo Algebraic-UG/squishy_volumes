@@ -11,7 +11,7 @@ use super::*;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use squishy_volumes_util::{
-    first_piola_stress_inviscid, first_piola_stress_neo_hookean, rasterization,
+    NORMALIZATION_EPS, first_piola_stress_inviscid, first_piola_stress_neo_hookean, rasterization,
 };
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
