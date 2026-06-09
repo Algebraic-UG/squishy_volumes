@@ -9,5 +9,9 @@ rand.workspace = true
 nalgebra.workspace = true
 thiserror.workspace = true
 iter_enumeration.workspace = true
+rayon.workspace = true
+tracing.workspace = true
+clap.workspace = true
 
 squishy_volumes_api.path = "../api"
+bumpalo = "3.20.3"
