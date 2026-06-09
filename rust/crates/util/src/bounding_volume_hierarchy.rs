@@ -20,13 +20,19 @@ pub struct BoundingVolumeHierarchy {
     aabbs: Vec<Aabb<Vector3<i32>>>,
 }
 
+impl BoundingVolumeHierarchy {
+    pub fn nodes(&self) -> &[Node] {
+        &self.nodes
+    }
+}
+
 pub enum Node {
     Internal(Internal),
     Leaf(Leaf),
 }
 
 impl Node {
-    fn aabb(&self) -> Aabb<Vector3<i32>> {
+    pub fn aabb(&self) -> Aabb<Vector3<i32>> {
         match self {
             Node::Internal(internal) => internal.aabb,
             Node::Leaf(leaf) => leaf.aabb,
@@ -85,25 +91,29 @@ impl BoundingVolumeHierarchy {
             if level == 0 || indices.len() < LEAF_THRESHOLD {
                 nodes.push(Node::Leaf(Leaf { aabb, indices }));
             } else {
+                let child_level = level - 1;
                 let children = from_fn(|child| {
                     let child = child as i32;
                     let child_offset = aabb.min
                         + Vector3::new(
-                            (child & 0x30) << (level * 4),
-                            (child & 0x0C) << (level * 4),
-                            (child & 0x03) << (level * 4),
+                            ((child >> 4) & 3) << (2 * child_level), //
+                            ((child >> 2) & 3) << (2 * child_level), //
+                            ((child >> 0) & 3) << (2 * child_level), //
                         );
-                    let child_aabb = aabb_from_offset_and_level(&child_offset, level - 1);
+                    let child_aabb = aabb_from_offset_and_level(&child_offset, child_level);
                     let child_indices: Vec<u32> = indices
                         .iter()
                         .cloned()
-                        .filter(|index| aabbs[*index as usize].has_overlap(&child_aabb))
+                        .filter(|index| {
+                            let to_check = aabbs[*index as usize];
+                            to_check.has_overlap(&child_aabb)
+                        })
                         .collect();
 
                     if child_indices.is_empty() {
                         None
                     } else {
-                        Some(create(aabbs, nodes, level - 1, child_aabb, child_indices))
+                        Some(create(aabbs, nodes, child_level, child_aabb, child_indices))
                     }
                 });
                 nodes.push(Node::Internal(Internal { aabb, children }));
