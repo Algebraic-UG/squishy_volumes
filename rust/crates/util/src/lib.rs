@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 mod aabb;
+pub mod bounding_volume_hierarchy;
 mod consts;
 mod elastic;
 mod flat;
@@ -15,6 +16,7 @@ mod safe_inverse;
 mod typedefs;
 
 pub use aabb::Aabb;
+pub use bounding_volume_hierarchy::BoundingVolumeHierarchy;
 
 pub use consts::*;
 pub use elastic::*;
