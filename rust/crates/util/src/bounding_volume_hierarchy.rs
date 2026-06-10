@@ -24,6 +24,7 @@ impl BoundingVolumeHierarchy {
     }
 }
 
+#[derive(Debug)]
 pub enum Node {
     Internal(Internal),
     Leaf(Leaf),
@@ -46,20 +47,21 @@ fn aabb_from_offset_and_level(offset: &Vector3<i32>, level: u32) -> Aabb<Vector3
 }
 
 const NUM_CHILDREN: usize = 64;
-const LEAF_THRESHOLD: usize = 16;
 
+#[derive(Debug)]
 pub struct Internal {
     aabb: Aabb<Vector3<i32>>,
     children: [Option<u32>; NUM_CHILDREN],
 }
 
+#[derive(Debug)]
 pub struct Leaf {
     aabb: Aabb<Vector3<i32>>,
     indices: Vec<u32>,
 }
 
 impl BoundingVolumeHierarchy {
-    pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>) -> Option<Self> {
+    pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>, leaf_threshold: usize) -> Option<Self> {
         let aabb = aabbs
             .clone()
             .into_par_iter()
@@ -80,13 +82,14 @@ impl BoundingVolumeHierarchy {
         assert!(aabb.max.leq(&root_aabb.max));
 
         fn create(
+            leaf_threshold: usize,
             aabbs: &[Aabb<Vector3<i32>>],
             nodes: &mut Vec<Node>,
             level: u32,
             aabb: Aabb<Vector3<i32>>,
             indices: Vec<u32>,
         ) -> u32 {
-            if level == 0 || indices.len() < LEAF_THRESHOLD {
+            if level == 0 || indices.len() < leaf_threshold {
                 nodes.push(Node::Leaf(Leaf { aabb, indices }));
             } else {
                 let child_level = level - 1;
@@ -113,7 +116,14 @@ impl BoundingVolumeHierarchy {
                     if child_indices.is_empty() {
                         None
                     } else {
-                        Some(create(aabbs, nodes, child_level, child_aabb, child_indices))
+                        Some(create(
+                            leaf_threshold,
+                            aabbs,
+                            nodes,
+                            child_level,
+                            child_aabb,
+                            child_indices,
+                        ))
                     }
                 });
                 nodes.push(Node::Internal(Internal { aabb, children }));
@@ -123,7 +133,14 @@ impl BoundingVolumeHierarchy {
 
         let mut nodes: Vec<Node> = Default::default();
         let indices = (0..aabbs.len() as u32).collect();
-        create(&aabbs, &mut nodes, level, root_aabb, indices);
+        create(
+            leaf_threshold,
+            &aabbs,
+            &mut nodes,
+            level,
+            root_aabb,
+            indices,
+        );
 
         Some(Self { level, nodes })
     }
@@ -147,7 +164,7 @@ impl BoundingVolumeHierarchy {
 
         // the bits of the query encode the child 'path'
         let q = (point - internal.aabb.min).map(|c| c as u32);
-        for level in (0..=self.level).rev() {
+        for level in (0..self.level).rev() {
             #[rustfmt::skip]
             #[allow(clippy::identity_op)]
             let child =
@@ -169,4 +186,125 @@ impl BoundingVolumeHierarchy {
         }
         unreachable!();
     }
+}
+
+pub fn triangles_to_leaf_aabbs(
+    leaf_size: f32,
+    margin: f32,
+    vertices: &[Vector3<f32>],
+    triangles: &[[u32; 3]],
+) -> Vec<Aabb<Vector3<i32>>> {
+    triangles
+        .iter()
+        .map(|triangle| {
+            let aabb = Aabb::new(triangle.iter().map(|i| vertices[*i as usize]));
+            Aabb {
+                min: aabb.min.map(|c| ((c - margin) / leaf_size).floor() as i32),
+                max: aabb.max.map(|c| ((c + margin) / leaf_size).ceil() as i32),
+            }
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeSet;
+
+    use super::*;
+    use rand::prelude::*;
+    use rand::rngs::ChaCha8Rng;
+
+    fn generate_triangles() -> (Vec<Vector3<f32>>, Vec<[u32; 3]>) {
+        let mut rng = ChaCha8Rng::seed_from_u64(420);
+        let n = 1000;
+        (
+            (0..n)
+                .flat_map(|_| {
+                    let a = Vector3::new(
+                        rng.random_range(-20.0..20.0),
+                        rng.random_range(-20.0..20.0),
+                        rng.random_range(-20.0..20.0),
+                    );
+                    let b = a + Vector3::new(
+                        rng.random_range(-1.0..1.0),
+                        rng.random_range(-1.0..1.0),
+                        rng.random_range(-1.0..1.0),
+                    );
+                    let c = a + Vector3::new(
+                        rng.random_range(-1.0..1.0),
+                        rng.random_range(-1.0..1.0),
+                        rng.random_range(-1.0..1.0),
+                    );
+                    [a, b, c]
+                })
+                .collect(),
+            (0..n).map(|i| [i * 3, i * 3 + 1, i * 3 + 2]).collect(),
+        )
+    }
+
+    #[test]
+    fn queries() {
+        let (vertices, triangles) = generate_triangles();
+        let leaf_size = 1.;
+        let margin = 1.;
+        let leaf_aabbs = triangles_to_leaf_aabbs(leaf_size, margin, &vertices, &triangles);
+        let bvh = BoundingVolumeHierarchy::new(leaf_aabbs.clone(), 4).unwrap();
+        let aabbs: Vec<_> = leaf_aabbs
+            .iter()
+            .map(|Aabb { min, max }| Aabb {
+                min: min.map(|c| c as f32 * leaf_size),
+                max: max.map(|c| c as f32 * leaf_size),
+            })
+            .collect();
+
+        let mut rng = ChaCha8Rng::seed_from_u64(666);
+        for _ in 0..1000 {
+            let p = Vector3::new(
+                rng.random_range(-25.0..25.0),
+                rng.random_range(-25.0..25.0),
+                rng.random_range(-25.0..25.0),
+            );
+            let q = p.map(|c| (c / leaf_size).floor() as i32);
+            let subset: Vec<_> = aabbs
+                .iter()
+                .enumerate()
+                .filter_map(|(i, aabb)| aabb.contains(&p).then_some(i as u32))
+                .collect();
+            let superset: BTreeSet<_> = bvh.query(&q).iter().cloned().collect();
+            for &i in &subset {
+                if superset.contains(&i) {
+                    continue;
+                }
+                println!("{subset:?}");
+                println!("{superset:?}");
+                println!("for point: {p:?}, aka. query {q:?}");
+                println!(
+                    "this wasn't returned: {i}, aka. {:?}, or {:?}",
+                    aabbs[i as usize], leaf_aabbs[i as usize]
+                );
+                panic!();
+            }
+        }
+    }
+
+    //#[test]
+    //fn print() {
+    //    let (vertices, triangles) = generate_triangles();
+
+    //    use std::io::Write;
+
+    //    let file = std::fs::File::create("asdf.obj").unwrap();
+    //    let mut writer = std::io::BufWriter::new(file);
+
+    //    writeln!(writer, "# Wavefront OBJ").unwrap();
+
+    //    for v in vertices {
+    //        writeln!(writer, "v {} {} {}", v.x, v.y, v.z).unwrap();
+    //    }
+
+    //    for [a, b, c] in triangles {
+    //        // OBJ indices are 1-based
+    //        writeln!(writer, "f {} {} {}", a + 1, b + 1, c + 1).unwrap();
+    //    }
+    //}
 }
