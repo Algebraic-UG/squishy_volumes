@@ -21,6 +21,7 @@ rand.workspace = true
 env_logger.workspace = true
 bitflags.workspace = true
 num.workspace = true
+iter_enumeration.workspace = true
 
 lazy_static = "1.5.0"
 murmur3 = "0.5.2"

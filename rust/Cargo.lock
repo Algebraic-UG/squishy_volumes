@@ -3668,6 +3668,7 @@ dependencies = [
  "bitflags 2.11.0",
  "bytemuck",
  "env_logger",
+ "iter_enumeration",
  "lazy_static",
  "murmur3",
  "nalgebra",

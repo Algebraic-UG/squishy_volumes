@@ -10,6 +10,7 @@ pub use wgpu;
 
 mod allocator;
 mod allowed_in_binding;
+mod bounding_volume_hierarchy;
 mod compiled_module;
 mod context;
 mod download;
@@ -21,6 +22,7 @@ mod util;
 
 pub use allocator::*;
 pub use allowed_in_binding::*;
+pub use bounding_volume_hierarchy::*;
 pub use compiled_module::*;
 pub use context::*;
 pub use download::*;

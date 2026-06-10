@@ -19,11 +19,18 @@ pub struct BoundingVolumeHierarchy {
 }
 
 impl BoundingVolumeHierarchy {
+    pub fn level(&self) -> u32 {
+        self.level
+    }
     pub fn nodes(&self) -> &[Node] {
         &self.nodes
     }
+    pub fn aabb(&self) -> Aabb<Vector3<i32>> {
+        self.nodes.last().expect("root missing").aabb()
+    }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum Node {
     Internal(Internal),
@@ -54,10 +61,22 @@ pub struct Internal {
     children: [Option<u32>; NUM_CHILDREN],
 }
 
+impl Internal {
+    pub fn children(&self) -> &[Option<u32>; NUM_CHILDREN] {
+        &self.children
+    }
+}
+
 #[derive(Debug)]
 pub struct Leaf {
     aabb: Aabb<Vector3<i32>>,
     indices: Vec<u32>,
+}
+
+impl Leaf {
+    pub fn indices(&self) -> &[u32] {
+        &self.indices
+    }
 }
 
 impl BoundingVolumeHierarchy {
