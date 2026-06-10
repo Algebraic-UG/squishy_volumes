@@ -15,9 +15,7 @@ use crate::{Aabb, aabb::AabbVector as _};
 
 pub struct BoundingVolumeHierarchy {
     level: u32,
-    offset: Vector3<i32>,
     nodes: Vec<Node>,
-    aabbs: Vec<Aabb<Vector3<i32>>>,
 }
 
 impl BoundingVolumeHierarchy {
@@ -94,11 +92,13 @@ impl BoundingVolumeHierarchy {
                 let child_level = level - 1;
                 let children = from_fn(|child| {
                     let child = child as i32;
+                    #[rustfmt::skip]
+                    #[allow(clippy::identity_op)]
                     let child_offset = aabb.min
                         + Vector3::new(
-                            ((child >> 4) & 3) << (2 * child_level), //
-                            ((child >> 2) & 3) << (2 * child_level), //
-                            ((child >> 0) & 3) << (2 * child_level), //
+                            ((child >> 4) & 3) << (2 * child_level),
+                            ((child >> 2) & 3) << (2 * child_level),
+                            ((child >> 0) & 3) << (2 * child_level),
                         );
                     let child_aabb = aabb_from_offset_and_level(&child_offset, child_level);
                     let child_indices: Vec<u32> = indices
@@ -125,18 +125,48 @@ impl BoundingVolumeHierarchy {
         let indices = (0..aabbs.len() as u32).collect();
         create(&aabbs, &mut nodes, level, root_aabb, indices);
 
-        /*
-        let point = aabbs[0].min;
-        let query: Vector3<u32> = (point - offset).map(|c| (c / leaf_size).floor().max(0.) as u32);
-        let mask = 0x0000000F << (4 * level);
-        let child = ((query[0] & mask) << 8) | ((query[1] & mask) << 4) | (query[2] & mask);
-        */
+        Some(Self { level, nodes })
+    }
 
-        Some(Self {
-            level,
-            offset,
-            nodes,
-            aabbs,
-        })
+    pub fn query(&self, point: &Vector3<i32>) -> &[u32] {
+        // tree could be empty
+        let Some(root) = self.nodes.last() else {
+            return Default::default();
+        };
+        // query could be outside
+        if !root.aabb().contains(point) {
+            return Default::default();
+        }
+        // root could be leaf (maybe not? level is at least 1)
+        let mut internal = match root {
+            Node::Internal(internal) => internal,
+            Node::Leaf(Leaf { indices, .. }) => {
+                return indices;
+            }
+        };
+
+        // the bits of the query encode the child 'path'
+        let q = (point - internal.aabb.min).map(|c| c as u32);
+        for level in (0..=self.level).rev() {
+            #[rustfmt::skip]
+            #[allow(clippy::identity_op)]
+            let child =
+                  (((q[0] >> (2 * level)) & 3) << 4)
+                | (((q[1] >> (2 * level)) & 3) << 2)
+                | (((q[2] >> (2 * level)) & 3) << 0);
+            match internal.children[child as usize].map(|index| &self.nodes[index as usize]) {
+                Some(Node::Internal(next_internal)) => {
+                    internal = next_internal;
+                }
+                Some(Node::Leaf(Leaf { indices, .. })) => {
+                    return indices;
+                }
+                // empty space
+                None => {
+                    return Default::default();
+                }
+            }
+        }
+        unreachable!();
     }
 }

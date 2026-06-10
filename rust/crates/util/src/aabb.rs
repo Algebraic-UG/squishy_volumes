@@ -152,4 +152,8 @@ impl<V: AabbVector> Aabb<V> {
     pub fn has_overlap(&self, other: &Self) -> bool {
         self.min.leq(&other.max) && other.min.leq(&self.max)
     }
+
+    pub fn contains(&self, point: &V) -> bool {
+        self.min.leq(point) && point.leq(&self.max)
+    }
 }
