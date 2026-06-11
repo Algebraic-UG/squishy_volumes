@@ -1,6 +1,5 @@
 use nalgebra::{Vector3, Vector4};
-
-use crate::Triangle;
+use squishy_volumes_util::triangle::Triangle;
 
 pub fn vertices() -> Vec<Vector4<f32>> {
     #[allow(clippy::excessive_precision, clippy::approx_constant)]

@@ -241,7 +241,7 @@ mod test {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
-    fn generate_triangles() -> (Vec<Vector3<f32>>, Vec<[u32; 3]>) {
+    fn generate_triangles() -> (Vec<Vector3<f32>>, Vec<Triangle>) {
         let mut rng = ChaCha8Rng::seed_from_u64(420);
         let n = 1000;
         (
@@ -265,7 +265,13 @@ mod test {
                     [a, b, c]
                 })
                 .collect(),
-            (0..n).map(|i| [i * 3, i * 3 + 1, i * 3 + 2]).collect(),
+            (0..n)
+                .map(|i| Triangle {
+                    a: i * 3,
+                    b: i * 3 + 1,
+                    c: i * 3 + 2,
+                })
+                .collect(),
         )
     }
 
