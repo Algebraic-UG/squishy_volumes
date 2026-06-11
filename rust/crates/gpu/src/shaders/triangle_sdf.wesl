@@ -68,19 +68,25 @@ fn distance_to_triangle(p: vec3f, a: vec3f, b: vec3f, c: vec3f) -> f32 {
     if area_2 < NORMALIZATION_EPS {
         return F32_MAX;
     }
-    let normal = normal_area_2 / area_2;
+    let n = normal_area_2 / area_2;
 
-    let sa = dot(b - p, cross(normal, ab)) < 0.;
-    let sb = dot(c - p, cross(normal, bc)) < 0.;
-    let sc = dot(a - p, cross(normal, ca)) < 0.;
+    let sa = dot(n, cross(bc, c - p)) > 0.;
+    let sb = dot(n, cross(ca, a - p)) > 0.;
+    let sc = dot(n, cross(ab, b - p)) > 0.;
 
     if sa && sb && sc {
-        return abs(dot(p - a, normal));
-    } else if sa {
-        return distance_to_segment(p, b, c);
-    } else if sb {
-        return distance_to_segment(p, c, a);
-    } else {
-        return distance_to_segment(p, a, b);
+        return abs(dot(p - a, n));
     }
+
+    var distance: f32 = F32_MAX;
+    if !sa {
+        distance = min(distance, distance_to_segment(p, b, c));
+    }
+    if !sb {
+        distance = min(distance, distance_to_segment(p, c, a));
+    }
+    if !sc {
+        distance = min(distance, distance_to_segment(p, a, b));
+    }
+    return distance;
 }
