@@ -12,6 +12,7 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
+use squishy_volumes_util::triangle::Triangle;
 
 use super::*;
 

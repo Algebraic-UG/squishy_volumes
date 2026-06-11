@@ -1,7 +1,8 @@
 use nalgebra::Vector4;
 use squishy_volumes_gpu::{
-    GpuContext, PipelinePart, Triangle, build_hash_table_on_cpu_simple, detect_colliders::*,
+    GpuContext, PipelinePart, build_hash_table_on_cpu_simple, detect_colliders::*,
 };
+use squishy_volumes_util::triangle::Triangle;
 
 use crate::{Tool, window::run_with_window};
 
