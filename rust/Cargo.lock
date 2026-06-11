@@ -3727,6 +3727,7 @@ name = "squishy_volumes_util"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "bytemuck",
  "clap",
  "iter_enumeration",
  "nalgebra",

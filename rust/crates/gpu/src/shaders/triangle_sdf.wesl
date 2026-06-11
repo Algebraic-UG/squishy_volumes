@@ -28,6 +28,9 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
+    if global_index >= arrayLength(&test_positions) {
+        return;
+    }
 
     let p = test_positions[global_index];
 
@@ -67,18 +70,17 @@ fn distance_to_triangle(p: vec3f, a: vec3f, b: vec3f, c: vec3f) -> f32 {
     }
     let normal = normal_area_2 / area_2;
 
-    let bary_c = dot(p - b, cross(normal, ab)) / area_2;
-    let bary_a = dot(p - c, cross(normal, bc)) / area_2;
-    let bary_b = dot(p - a, cross(normal, ca)) / area_2;
+    let sa = dot(b - p, cross(normal, ab)) < 0.;
+    let sb = dot(c - p, cross(normal, bc)) < 0.;
+    let sc = dot(a - p, cross(normal, ca)) < 0.;
 
-    let sa = bary_a < 0.;
-    let sb = bary_b < 0.;
-    let sc = bary_c < 0.;
-
-    if (sa && sb && sc) || (!sa && !sb && !sc) {
+    if sa && sb && sc {
         return abs(dot(p - a, normal));
+    } else if sa {
+        return distance_to_segment(p, b, c);
+    } else if sb {
+        return distance_to_segment(p, c, a);
     } else {
-        return min(min(distance_to_segment(p, a, b),
-            distance_to_segment(p, b, c)), distance_to_segment(p, c, a));
+        return distance_to_segment(p, a, b);
     }
 }

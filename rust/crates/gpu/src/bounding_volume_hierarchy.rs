@@ -15,7 +15,7 @@ use crate::{Allocation, AllowedInBinding, prefix_sum_on_cpu};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
-struct Meta {
+pub struct BoundingVolumeHierarchyMeta {
     level: u32,
     leaf_size: f32,
     offset_x: i32,
@@ -23,7 +23,7 @@ struct Meta {
     offset_z: i32,
 }
 
-impl AllowedInBinding for Meta {
+impl AllowedInBinding for BoundingVolumeHierarchyMeta {
     const ALIGNMENT: NonZeroU64 = u32::ALIGNMENT;
 }
 
@@ -39,7 +39,7 @@ impl BoundingVolumeHierarchyAllocations {
         let meta = Allocation::new(
             device,
             "meta",
-            &[Meta {
+            &[BoundingVolumeHierarchyMeta {
                 level: bvh.level(),
                 leaf_size,
                 offset_x: offset.x,

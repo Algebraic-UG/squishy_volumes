@@ -11,7 +11,7 @@ use std::array::from_fn;
 use nalgebra::Vector3;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{Aabb, aabb::AabbVector as _};
+use crate::{Aabb, aabb::AabbVector as _, triangle::Triangle};
 
 pub struct BoundingVolumeHierarchy {
     level: u32,
@@ -26,7 +26,7 @@ impl BoundingVolumeHierarchy {
         &self.nodes
     }
     pub fn aabb(&self) -> Aabb<Vector3<i32>> {
-        self.nodes.last().expect("root missing").aabb()
+        self.nodes.first().expect("root missing").aabb()
     }
 }
 
@@ -80,7 +80,7 @@ impl Leaf {
 }
 
 impl BoundingVolumeHierarchy {
-    pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>, leaf_threshold: usize) -> Option<Self> {
+    pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>, leaf_threshold: u32) -> Option<Self> {
         let aabb = aabbs
             .clone()
             .into_par_iter()
@@ -101,16 +101,21 @@ impl BoundingVolumeHierarchy {
         assert!(aabb.max.leq(&root_aabb.max));
 
         fn create(
-            leaf_threshold: usize,
+            leaf_threshold: u32,
             aabbs: &[Aabb<Vector3<i32>>],
             nodes: &mut Vec<Node>,
             level: u32,
             aabb: Aabb<Vector3<i32>>,
             indices: Vec<u32>,
         ) -> u32 {
-            if level == 0 || indices.len() < leaf_threshold {
+            let index = nodes.len() as u32;
+            if level == 0 || indices.len() < leaf_threshold as usize {
                 nodes.push(Node::Leaf(Leaf { aabb, indices }));
             } else {
+                nodes.push(Node::Internal(Internal {
+                    aabb,
+                    children: [None; NUM_CHILDREN],
+                }));
                 let child_level = level - 1;
                 let children = from_fn(|child| {
                     let child = child as i32;
@@ -145,9 +150,12 @@ impl BoundingVolumeHierarchy {
                         ))
                     }
                 });
-                nodes.push(Node::Internal(Internal { aabb, children }));
+                let Node::Internal(internal) = &mut nodes[index as usize] else {
+                    unreachable!();
+                };
+                internal.children = children;
             }
-            nodes.len() as u32 - 1
+            index
         }
 
         let mut nodes: Vec<Node> = Default::default();
@@ -166,14 +174,14 @@ impl BoundingVolumeHierarchy {
 
     pub fn query(&self, point: &Vector3<i32>) -> &[u32] {
         // tree could be empty
-        let Some(root) = self.nodes.last() else {
+        let Some(root) = self.nodes.first() else {
             return Default::default();
         };
         // query could be outside
         if !root.aabb().contains(point) {
             return Default::default();
         }
-        // root could be leaf (maybe not? level is at least 1)
+        // root could be leaf (due to threshold)
         let mut internal = match root {
             Node::Internal(internal) => internal,
             Node::Leaf(Leaf { indices, .. }) => {
@@ -211,12 +219,12 @@ pub fn triangles_to_leaf_aabbs(
     leaf_size: f32,
     margin: f32,
     vertices: &[Vector3<f32>],
-    triangles: &[[u32; 3]],
+    triangles: &[Triangle],
 ) -> Vec<Aabb<Vector3<i32>>> {
     triangles
         .iter()
         .map(|triangle| {
-            let aabb = Aabb::new(triangle.iter().map(|i| vertices[*i as usize]));
+            let aabb = Aabb::new(triangle.into_iter().map(|i| vertices[i as usize].xyz()));
             Aabb {
                 min: aabb.min.map(|c| ((c - margin) / leaf_size).floor() as i32),
                 max: aabb.max.map(|c| ((c + margin) / leaf_size).ceil() as i32),

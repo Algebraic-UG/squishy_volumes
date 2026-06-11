@@ -12,6 +12,7 @@ iter_enumeration.workspace = true
 rayon.workspace = true
 tracing.workspace = true
 clap.workspace = true
+bytemuck.workspace = true
 
 squishy_volumes_api.path = "../api"
 bumpalo = "3.20.3"

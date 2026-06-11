@@ -13,6 +13,7 @@ mod elastic;
 mod flat;
 pub mod rasterization;
 mod safe_inverse;
+pub mod triangle;
 mod typedefs;
 
 pub use aabb::Aabb;

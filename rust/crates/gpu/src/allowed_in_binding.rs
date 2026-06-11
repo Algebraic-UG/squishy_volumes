@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix4x3, Vector4};
+use squishy_volumes_util::triangle::Triangle;
 use std::num::NonZeroU64;
 use std::sync::atomic::AtomicU32;
 
@@ -30,3 +31,7 @@ impl AllowedInBinding for Block {
     const ALIGNMENT: NonZeroU64 = Vector4::<f32>::ALIGNMENT;
 }
 impl AllowedInBinding for Indirect {}
+
+impl AllowedInBinding for Triangle {
+    const ALIGNMENT: std::num::NonZeroU64 = u32::ALIGNMENT;
+}

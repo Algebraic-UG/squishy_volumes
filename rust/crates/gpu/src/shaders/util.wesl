@@ -258,6 +258,7 @@ fn first_piola_stress_inviscid(
 }
 
 const F32_MAX: f32 = 3.4028234663852886e38f;
+const U32_MAX: u32 = ~0u;
 const NORMALIZATION_EPS: f32 = 1e-5;
 
 struct Triangle {
@@ -268,4 +269,17 @@ struct Triangle {
 
 fn perp(a: vec2f, b: vec2f) -> f32 {
     return a.x * b.y - a.y * b.x;
+}
+
+fn try_normalize(n: vec3f, alternative: vec3f) -> vec3f {
+    let l2 = dot(n, n);
+    if l2 < NORMALIZATION_EPS * NORMALIZATION_EPS {
+        return alternative;
+    } else {
+        return n / sqrt(l2);
+    }
+}
+
+fn sign(v: f32) -> f32 {
+    return select(-1., 1., v >= 0.);
 }
