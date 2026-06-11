@@ -14,7 +14,7 @@ var<storage, read_write> vertex_triangle_offsets: array<u32>;
 @group(0) @binding(1)
 var<storage, read_write> vertex_triangle_lists: array<u32>;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> vertex_normals: array<vec3f>;
 
 @group(0) @binding(3)
@@ -28,7 +28,7 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3u,
 ) {
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    if global_index >= arrayLength(&triangle_indices) {
+    if global_index >= arrayLength(&vertex_triangle_offsets) {
         return;
     }
 
