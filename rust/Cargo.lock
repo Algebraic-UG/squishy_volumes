@@ -3675,6 +3675,7 @@ dependencies = [
  "num",
  "pollster",
  "rand 0.10.0",
+ "rustc-hash 2.1.1",
  "squishy_volumes_util",
  "thiserror 2.0.18",
  "tracing",

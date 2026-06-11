@@ -31,6 +31,7 @@ pub use pipeline_part::*;
 pub use util::*;
 
 pub mod allocate_blocks;
+pub mod animate_mesh;
 pub mod bits_to_pops;
 pub mod build_blocks;
 pub mod build_cells;
@@ -61,6 +62,7 @@ pub mod step;
 pub mod triangle_sdf;
 
 pub use allocate_blocks::AllocateBlocks;
+pub use animate_mesh::AnimateMesh;
 pub use bits_to_pops::BitsToPops;
 pub use build_blocks::BuildBlocks;
 pub use build_cells::BuildCells;

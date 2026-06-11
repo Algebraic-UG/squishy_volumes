@@ -15,7 +15,6 @@ crate-type = ["rlib", "dylib"]
 strum_macros = "0.26.4"
 strum = { version = "0.26.3", features = ["derive"] }
 base64 = "0.22.1"
-rustc-hash = "2.1.1"
 tempfile = "3.23.0"
 rand = { version = "0.10.0", features = ["chacha"] }
 
@@ -31,6 +30,7 @@ build-info.workspace = true
 nalgebra.workspace = true
 bitflags.workspace = true
 rayon.workspace = true
+rustc-hash.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
