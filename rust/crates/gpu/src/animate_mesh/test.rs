@@ -21,6 +21,7 @@ fn check(
     let vertex_triangle_lists = triangle_lists(vertex_positions_start.len(), triangle_indices);
     for step in 0..5 {
         let factor = step as f32 / 5.;
+        println!("factor: {factor}");
 
         let cpu_vertex_positions: Vec<Vector3<f32>> = vertex_positions_start
             .iter()
@@ -47,6 +48,8 @@ fn check(
                     normal += cpu_triangle_normals[*index as usize];
                 }
                 normal
+                    .try_normalize(NORMALIZATION_EPS)
+                    .unwrap_or(Vector3::zeros())
             })
             .collect::<Vec<_>>();
 
@@ -59,12 +62,15 @@ fn check(
             Parameters { factor },
         );
 
+        println!("vertex positions");
         for (cpu, gpu) in cpu_vertex_positions.iter().zip(gpu_vertex_positions) {
             check_iters(cpu.iter(), gpu.iter());
         }
+        println!("triangle normals");
         for (cpu, gpu) in cpu_triangle_normals.iter().zip(gpu_triangle_normals) {
             check_iters(cpu.iter(), gpu.iter());
         }
+        println!("vertex normals");
         for (cpu, gpu) in cpu_vertex_normals.iter().zip(gpu_vertex_normals) {
             check_iters(cpu.iter(), gpu.iter());
         }
