@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use nalgebra::Vector3;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
@@ -74,4 +75,86 @@ pub fn compute_triangle_opposites(triangle_indices: &[Triangle]) -> Vec<Opposite
                 .into()
         })
         .collect()
+}
+
+pub struct DistanceResult {
+    pub distance: f32,
+    pub to_p: Vector3<f32>,
+    pub normal: Vector3<f32>,
+}
+pub fn segment_distance_result(
+    p: &Vector3<f32>,
+    start: &Vector3<f32>,
+    end: &Vector3<f32>,
+    start_normal: &Vector3<f32>,
+    segment_normal: &Vector3<f32>,
+    end_normal: &Vector3<f32>,
+) -> DistanceResult {
+    let segment = end - start;
+    let along_segment = (p - start).dot(&segment) / segment.dot(&segment);
+    if along_segment < 0. {
+        DistanceResult {
+            distance: (p - start).norm(),
+            to_p: p - start,
+            normal: *start_normal,
+        }
+    } else if along_segment < 1. {
+        DistanceResult {
+            distance: (p - start - segment * along_segment).norm(),
+            to_p: p - start - segment * along_segment,
+            normal: *segment_normal,
+        }
+    } else {
+        DistanceResult {
+            distance: (p - end).norm(),
+            to_p: p - end,
+            normal: *end_normal,
+        }
+    }
+}
+
+fn distance_to_segment(p: &Vector3<f32>, start: &Vector3<f32>, end: &Vector3<f32>) -> f32 {
+    let segment = end - start;
+    let along_segment = (p - start).dot(&segment) / segment.dot(&segment);
+    if along_segment < 0. {
+        (p - start).norm()
+    } else if along_segment < 1. {
+        (p - start - segment * along_segment).norm()
+    } else {
+        (p - end).norm()
+    }
+}
+
+pub fn distance_to_triangle(
+    p: &Vector3<f32>,
+    a: &Vector3<f32>,
+    b: &Vector3<f32>,
+    c: &Vector3<f32>,
+    n: &Vector3<f32>,
+) -> f32 {
+    let ab = a - b;
+    let bc = b - c;
+    let ca = c - a;
+
+    let sa = n.dot(&bc.cross(&(c - p))) > 0.;
+    let sb = n.dot(&ca.cross(&(a - p))) > 0.;
+    let sc = n.dot(&ab.cross(&(b - p))) > 0.;
+
+    if sa && sb && sc {
+        return (p - a).dot(n).abs();
+    }
+
+    let mut distance: f32 = f32::MAX;
+
+    if !sa {
+        distance = distance.min(distance_to_segment(p, b, c));
+    }
+    if !sb {
+        distance = distance.min(distance_to_segment(p, c, a));
+    }
+    if !sc {
+        distance = distance.min(distance_to_segment(p, a, b));
+    }
+
+    distance
 }

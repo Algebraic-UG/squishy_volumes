@@ -8,6 +8,7 @@
 
 mod aabb;
 pub mod bounding_volume_hierarchy;
+pub mod collider_bits;
 mod consts;
 mod elastic;
 mod flat;

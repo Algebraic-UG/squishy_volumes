@@ -130,11 +130,9 @@ fn main(
         let sb = bary_b > 0.;
         let sc = bary_c > 0.;
 
-        var distance = 0.;
         var to_p = vec3f(0.);
         if sa && sb && sc {
-            distance = dot(p - a, normal);
-            to_p = normal * distance;
+            to_p = normal * dot(p - a, normal);
         } else {
             let ab_f = dot(p - b, ab) / dot(ab, ab);
             let bc_f = dot(p - c, bc) / dot(bc, bc);
@@ -170,15 +168,15 @@ fn main(
             if all(normal == vec3f(0.)) {
                 continue;
             }
-            distance = length(to_p) * sign(dot(normal, to_p));
         }
 
+        let new_side = 0 <= dot(normal, to_p);
         if (collider_bits & (0x00010000u << collider)) == 0 {
-            if abs(distance) < ACCEPT_DISTANCE {
-                if distance < 0. {
-                    bits = 0x00010000u << collider;
-                } else {
+            if length(to_p) < ACCEPT_DISTANCE {
+                if new_side {
                     bits = 0x00010001u << collider;
+                } else {
+                    bits = 0x00010000u << collider;
                 }
             }
             continue;
@@ -186,13 +184,13 @@ fn main(
 
         bits = collider_bits;
 
-        if ((collider_bits & (1u << collider)) == 0) != (distance < 0) {
+        if ((collider_bits & (1u << collider)) != 0) == new_side {
             continue;
         }
 
         // TODO: friction
 
-        velocity -= distance / TIME_STEP * to_p;
+        velocity -= to_p / TIME_STEP;
 
         continuing {
             collider_bits &= ~(0x00010001u << collider);
