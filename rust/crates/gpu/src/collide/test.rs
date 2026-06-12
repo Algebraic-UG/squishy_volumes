@@ -101,7 +101,7 @@ fn check(
 
 #[test]
 fn simple() {
-    let particle_positions = vec![Vector4::new(1., 1., 1., 0.)];
+    let particle_positions = vec![Vector4::new(0.5, 0.5, 0.5, 0.)];
     let particle_collider_bits = vec![0];
     let particle_velocities = vec![Vector4::zeros()];
     let vertex_positions = vec![
@@ -113,8 +113,8 @@ fn simple() {
     let triangle_collider = vec![0];
     let triangle_frictions = vec![0.];
 
-    let forget_distance = 0.13;
-    let accept_distance = 0.1;
+    let forget_distance = 2.;
+    let accept_distance = 1.;
     let time_step = 0.01;
     let leaf_size = 1.;
     let leaf_threshold = 0;
