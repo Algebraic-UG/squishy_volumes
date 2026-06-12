@@ -11,6 +11,7 @@ pub mod bounding_volume_hierarchy;
 mod consts;
 mod elastic;
 mod flat;
+pub mod mesh;
 pub mod rasterization;
 mod safe_inverse;
 pub mod triangle;

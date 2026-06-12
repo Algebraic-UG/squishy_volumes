@@ -18,7 +18,8 @@ fn check(
         triangle_indices,
     }: InputData,
 ) {
-    let vertex_triangle_lists = triangle_lists(vertex_positions_start.len(), triangle_indices);
+    let vertex_triangle_lists =
+        compute_triangle_lists(vertex_positions_start.len(), triangle_indices);
     for step in 0..5 {
         let factor = step as f32 / 5.;
         println!("factor: {factor}");

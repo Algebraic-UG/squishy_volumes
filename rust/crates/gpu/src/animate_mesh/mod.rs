@@ -13,7 +13,7 @@ use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
 use rustc_hash::FxHashMap;
-use squishy_volumes_util::triangle::Triangle;
+use squishy_volumes_util::{mesh::compute_triangle_lists, triangle::Triangle};
 
 use super::*;
 
@@ -51,34 +51,6 @@ pub struct InputData<'a> {
     pub triangle_indices: &'a [Triangle],
 }
 
-fn triangle_lists(num_vertices: usize, triangle_indices: &[Triangle]) -> Vec<Vec<u32>> {
-    let mut vertex_to_triangles: Vec<Vec<u32>> = vec![Default::default(); num_vertices];
-    for (triangle_index, indices) in triangle_indices.iter().enumerate() {
-        for vertex_index in indices.iter() {
-            vertex_to_triangles[*vertex_index as usize].push(triangle_index as u32);
-        }
-    }
-    vertex_to_triangles
-        .iter_mut()
-        .enumerate()
-        .for_each(|(this_vertex, triangles)| {
-            let mut neighbor_counts: FxHashMap<u32, u8> = Default::default();
-            for triangle_index in triangles.iter() {
-                for &vertex_index in triangle_indices[*triangle_index as usize].iter() {
-                    if vertex_index != this_vertex as u32 {
-                        *neighbor_counts.entry(vertex_index).or_default() += 1;
-                    }
-                }
-            }
-            assert!(neighbor_counts.values().all(|&count| count <= 2));
-            if neighbor_counts.into_values().any(|count| count != 2) {
-                triangles.clear();
-            }
-        });
-    vertex_to_triangles.push(Default::default());
-    vertex_to_triangles
-}
-
 impl Input {
     pub fn new(
         device: &wgpu::Device,
@@ -95,7 +67,8 @@ impl Input {
                 .all(|&index| (index as usize) < vertex_positions_start.len())
         }));
 
-        let vertex_triangle_lists = triangle_lists(vertex_positions_start.len(), triangle_indices);
+        let vertex_triangle_lists =
+            compute_triangle_lists(vertex_positions_start.len(), triangle_indices);
 
         let vertex_triangle_offsets = prefix_sum_on_cpu(
             &vertex_triangle_lists

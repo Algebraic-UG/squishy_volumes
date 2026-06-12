@@ -13,6 +13,8 @@ rayon.workspace = true
 tracing.workspace = true
 clap.workspace = true
 bytemuck.workspace = true
+rustc-hash.workspace = true
+smallvec.workspace = true
 
 squishy_volumes_api.path = "../api"
 bumpalo = "3.20.3"

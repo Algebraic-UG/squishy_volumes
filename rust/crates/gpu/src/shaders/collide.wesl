@@ -56,7 +56,7 @@ var<storage, read_write> triangle_normals: array<vec3f>;
 var<storage, read_write> triangle_opposites: array<Opposite>;
 
 @group(0) @binding(9)
-var<storage, read_write> triangle_friction: array<f32>;
+var<storage, read_write> triangle_frictions: array<f32>;
 
 // acceleration sturcture
 
@@ -186,7 +186,7 @@ fn main(
 
         bits = collider_bits;
 
-        if ((collider_bits & (1 << collider)) == 0) ^ (distance < 0) {
+        if ((collider_bits & (1u << collider)) == 0) != (distance < 0) {
             continue;
         }
 
@@ -212,11 +212,11 @@ struct EdgeResult {
 }
 
 fn find_relevant_triangle_indices(p: vec3f) -> vec2u {
-    let q = vec3i(floor(p / bvh_meta.leaf_size)) - vec3i(bvh_meta.offset_x, bvh_meta.offset_y, bvh_meta.offset_z);
-    if any(q < vec3i(0)) || any(q >= vec3i(1 << (bvh_meta.level * 2))) {
+    let i = vec3i(floor(p / bvh_meta.leaf_size)) - vec3i(bvh_meta.offset_x, bvh_meta.offset_y, bvh_meta.offset_z);
+    if any(i < vec3i(0)) || any(i >= vec3i(1 << (bvh_meta.level * 2))) {
         return vec2u(0, 0);
     }
-    let q = vec3u(q);
+    let q = vec3u(i);
 
     var node = 0u;
     for (var level = bvh_meta.level - 1u; level >= 0; level--) {
@@ -232,16 +232,16 @@ fn find_relevant_triangle_indices(p: vec3f) -> vec2u {
 
         var offset = 0u;
         if child < 32 {
-            if (child_bits_00_32 & (1 << child)) == 0 {
+            if (child_bits_00_32 & (1u << child)) == 0 {
                 return vec2u(0, 0);
             }
-            offset += countOneBits(child_bits_00_32 & ((1 << child) - 1));
+            offset += countOneBits(child_bits_00_32 & ((1u << child) - 1));
         } else {
-            if (child_bits_32_64 & (1 << (child - 32))) == 0 {
+            if (child_bits_32_64 & (1u << (child - 32))) == 0 {
                 return vec2u(0, 0);
             }
             offset += countOneBits(child_bits_00_32);
-            offset += countOneBits(child_bits_32_64 & ((1 << (child - 32)) - 1));
+            offset += countOneBits(child_bits_32_64 & ((1u << (child - 32)) - 1));
         }
         node = bvh_nodes[node + 2 + offset];
     }
@@ -257,7 +257,7 @@ fn find_closest_triangle_per_collider(p: vec3f, triangle_indices_start_end: vec2
         U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX,
         U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX, U32_MAX,
     );
-    var min_distance_per_collider: array<f32, 16> = array<u32,16>(
+    var min_distance_per_collider: array<f32, 16> = array<f32,16>(
         F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX,
         F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX, F32_MAX,
     );
