@@ -75,6 +75,7 @@ fn triangle_lists(num_vertices: usize, triangle_indices: &[Triangle]) -> Vec<Vec
                 triangles.clear();
             }
         });
+    vertex_to_triangles.push(Default::default());
     vertex_to_triangles
 }
 
@@ -102,10 +103,13 @@ impl Input {
                 .map(|v| v.len() as u32)
                 .collect::<Vec<_>>(),
         );
-        let vertex_triangle_lists = vertex_triangle_lists
+        let mut vertex_triangle_lists = vertex_triangle_lists
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
+        if vertex_triangle_lists.is_empty() {
+            vertex_triangle_lists.push(0);
+        }
 
         let vertex_positions_start =
             Allocation::new(device, "vertex_positions_start", vertex_positions_start);
