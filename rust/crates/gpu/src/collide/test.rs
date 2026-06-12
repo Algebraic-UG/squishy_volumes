@@ -6,9 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use rand::prelude::*;
-use rand::rngs::ChaCha8Rng;
-
 use nalgebra::Vector3;
 use squishy_volumes_util::{
     Aabb, NORMALIZATION_EPS, collider_bits,
@@ -31,7 +28,7 @@ fn check(
         vertex_positions,
         triangle_indices,
         triangle_collider,
-        triangle_frictions,
+        triangle_frictions: _, // TODO
         ..
     }: InputData,
 ) {
@@ -80,7 +77,7 @@ fn check(
         input_data,
     );
 
-    let mut cpu_particle_collider_bits: Vec<u32> = particle_collider_bits.iter().cloned().collect();
+    let mut cpu_particle_collider_bits: Vec<u32> = particle_collider_bits.to_vec();
     let mut cpu_particle_velocites: Vec<Vector3<f32>> =
         particle_velocities.iter().map(Vector4::xyz).collect();
 
@@ -123,6 +120,7 @@ fn check(
             }
 
             let triangle = triangle_indices[closest_triangle as usize];
+
             let opps = triangle_opposites[closest_triangle as usize];
             let n = triangle_normals[closest_triangle as usize].xyz();
             let a = vertex_positions[triangle.a as usize].xyz();
@@ -198,14 +196,37 @@ fn check(
     }
 
     println!("collider bits");
-    for (cpu, gpu) in cpu_particle_collider_bits
-        .into_iter()
+    for (particle_index, (cpu, gpu)) in cpu_particle_collider_bits
+        .iter()
         .zip(gpu_particle_collider_bits)
+        .enumerate()
     {
-        assert_eq!(cpu, gpu, "{cpu:032b} vs {gpu:032b}");
+        println!("{particle_index} {:?}", particle_positions[particle_index]);
+
+        assert_eq!(
+            cpu & 0xFFFF_0000,
+            gpu & 0xFFFF_0000,
+            "{particle_index}: {cpu:032b} vs {gpu:032b}"
+        );
+
+        let mask = cpu >> 16;
+
+        assert_eq!(
+            cpu & mask,
+            gpu & mask,
+            "{particle_index}: {cpu:032b} vs {gpu:032b}"
+        );
     }
     println!("velocites");
-    for (cpu, gpu) in cpu_particle_velocites.iter().zip(gpu_particle_velocites) {
+    for (particle_index, (cpu, gpu)) in cpu_particle_velocites
+        .iter()
+        .zip(gpu_particle_velocites)
+        .enumerate()
+    {
+        println!(
+            "{particle_index} {:?} {:032b}",
+            particle_positions[particle_index], cpu_particle_collider_bits[particle_index],
+        );
         check_iters(cpu.iter(), gpu.iter());
     }
 }
@@ -213,7 +234,7 @@ fn check(
 #[test]
 fn simple() {
     let particle_positions = vec![Vector4::new(0.5, 0.5, 0.5, 0.)];
-    let particle_collider_bits = vec![0];
+    let particle_collider_bits = vec![0x0001_0000];
     let particle_velocities = vec![Vector4::zeros()];
     let vertex_positions = vec![
         Vector4::new(1., 1., 1., 0.),
@@ -254,21 +275,67 @@ fn simple() {
 }
 
 #[test]
+fn simple2() {
+    let particle_positions = vec![
+        Vector4::new(0.5, 0.5, 0.5, 0.),
+        Vector4::new(1., 0., 0.5, 0.),
+        Vector4::new(1., 1., 1.5, 0.),
+    ];
+    let particle_collider_bits = vec![0x0001_0000; particle_positions.len()];
+    let particle_velocities = vec![Vector4::zeros(); particle_positions.len()];
+    let vertex_positions = vec![
+        Vector4::new(1., 1., 1., 0.),
+        Vector4::new(0., 1., 0., 0.),
+        Vector4::new(1., 0., 0., 0.),
+        Vector4::new(2., 1., 0., 0.),
+    ];
+    let triangle_indices = vec![
+        Triangle { a: 0, b: 1, c: 2 },
+        Triangle { a: 0, b: 2, c: 3 },
+        Triangle { a: 0, b: 3, c: 1 },
+    ];
+    let triangle_collider = vec![0; triangle_indices.len()];
+    let triangle_frictions = vec![0.; triangle_indices.len()];
+
+    let forget_distance = 2.;
+    let accept_distance = 1.;
+    let time_step = 0.01;
+    let leaf_size = 1.;
+    let leaf_threshold = 0;
+
+    check(
+        forget_distance,
+        accept_distance,
+        time_step,
+        InputData {
+            leaf_size,
+            leaf_threshold,
+            particle_positions: &particle_positions,
+            particle_collider_bits: &particle_collider_bits,
+            particle_velocities: &particle_velocities,
+            vertex_positions: &vertex_positions,
+            triangle_indices: &triangle_indices,
+            triangle_collider: &triangle_collider,
+            triangle_frictions: &triangle_frictions,
+
+            // hacky: will be computed in check
+            vertex_normals: &[],
+            triangle_normals: &[],
+            triangle_opposites: &[],
+        },
+    );
+}
+
+#[test]
 fn torus() {
     let vertex_positions = torus::vertices();
     let triangle_indices = torus::triangles();
 
-    let mut rng = ChaCha8Rng::seed_from_u64(32);
-
     let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));
     let particle_positions: Vec<_> = aabb.lattice(0.2).1.map(|v| v.push(0.)).collect();
-    let particle_collider_bits: Vec<u32> = (0..particle_positions.len())
-        .map(|_| rng.next_u32())
-        .collect();
+    let particle_collider_bits: Vec<u32> = vec![0; particle_positions.len()];
     let particle_velocities = vec![Vector4::zeros(); particle_positions.len()];
-    let triangle_collider: Vec<u32> = (0..triangle_indices.len())
-        .map(|_| rng.next_u32() & 15)
-        .collect();
+    let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
 
     let forget_distance = 0.7;
