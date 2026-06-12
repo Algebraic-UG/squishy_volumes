@@ -6,9 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use rand::prelude::*;
+use rand::rngs::ChaCha8Rng;
+
 use nalgebra::Vector3;
 use squishy_volumes_util::{
-    NORMALIZATION_EPS, collider_bits,
+    Aabb, NORMALIZATION_EPS, collider_bits,
     mesh::{
         DistanceResult, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle,
         segment_distance_result,
@@ -250,20 +253,52 @@ fn simple() {
     );
 }
 
-/*
 #[test]
 fn torus() {
-    let vertices_0 = torus::vertices();
-    let vertices_1 = vertices_0.iter().map(|v| v * 2.).collect::<Vec<_>>();
-    let triangles = torus::triangles();
+    let vertex_positions = torus::vertices();
+    let triangle_indices = torus::triangles();
 
-    check(InputData {
-        vertex_positions_start: &vertices_0,
-        vertex_positions_end: &vertices_1,
-        triangle_indices: &triangles,
-    });
+    let mut rng = ChaCha8Rng::seed_from_u64(32);
+
+    let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));
+    let particle_positions: Vec<_> = aabb.lattice(0.2).1.map(|v| v.push(0.)).collect();
+    let particle_collider_bits: Vec<u32> = (0..particle_positions.len())
+        .map(|_| rng.next_u32())
+        .collect();
+    let particle_velocities = vec![Vector4::zeros(); particle_positions.len()];
+    let triangle_collider: Vec<u32> = (0..triangle_indices.len())
+        .map(|_| rng.next_u32() & 15)
+        .collect();
+    let triangle_frictions = vec![0.; triangle_indices.len()];
+
+    let forget_distance = 0.7;
+    let accept_distance = 0.5;
+    let time_step = 0.01;
+    let leaf_size = 0.5;
+    let leaf_threshold = 0;
+
+    check(
+        forget_distance,
+        accept_distance,
+        time_step,
+        InputData {
+            leaf_size,
+            leaf_threshold,
+            particle_positions: &particle_positions,
+            particle_collider_bits: &particle_collider_bits,
+            particle_velocities: &particle_velocities,
+            vertex_positions: &vertex_positions,
+            triangle_indices: &triangle_indices,
+            triangle_collider: &triangle_collider,
+            triangle_frictions: &triangle_frictions,
+
+            // hacky: will be computed in check
+            vertex_normals: &[],
+            triangle_normals: &[],
+            triangle_opposites: &[],
+        },
+    );
 }
-*/
 
 fn run(settings: Settings, input_data: InputData) -> (Vec<u32>, Vec<Vector4<f32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
