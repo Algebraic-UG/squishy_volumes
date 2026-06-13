@@ -105,25 +105,6 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
-                let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
-                    info!("setting up GPU allocators");
-                    gpu_context.setup_allocator(
-                        current_state.particles.sort_map.len().max(10) as u64 * 2048,
-                        "main allocator",
-                        true,
-                    )?;
-                    gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
-
-                    info!("setting up GPU state");
-                    Some(current_state.to_gpu_state(
-                        time_step,
-                        consts.scaled_grid_node_size(),
-                        gpu_context,
-                    ))
-                } else {
-                    None
-                };
-
                 let input_interpolation = InputInterpolation::new(input_reader)?;
                 let mut phase_input = PhaseInput {
                     consts,
@@ -137,6 +118,21 @@ impl ComputeThread {
                     time_step_prior: Default::default(),
                     adaptive_time_steps,
                     explicit,
+                };
+
+                let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
+                    info!("setting up GPU allocators");
+                    gpu_context.setup_allocator(
+                        current_state.particles.sort_map.len().max(10) as u64 * 2048,
+                        "main allocator",
+                        true,
+                    )?;
+                    gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
+
+                    info!("setting up GPU state");
+                    Some(current_state.to_gpu_state(&mut phase_input, gpu_context))
+                } else {
+                    None
                 };
 
                 let mut frame_times = VecDeque::new();
@@ -158,6 +154,18 @@ impl ComputeThread {
                     {
                         let indirect_particles = next_input.indirect_particles.clone();
 
+                        let vertex_positions_start = next_input.vertex_positions_start.clone();
+                        let vertex_positions_end = next_input.vertex_positions_end.clone();
+                        let vertex_triangle_offsets = next_input.vertex_triangle_offsets.clone();
+                        let vertex_triangle_lists = next_input.vertex_triangle_lists.clone();
+
+                        let triangle_indices = next_input.triangle_indices.clone();
+                        let triangle_collider = next_input.triangle_collider.clone();
+                        let triangle_opposites = next_input.triangle_opposites.clone();
+                        let triangle_frictions = next_input.triangle_frictions.clone();
+
+                        let bvh = next_input.bvh.clone();
+
                         let mut encoder = gpu_context
                             .device()
                             .create_command_encoder(&Default::default());
@@ -170,6 +178,7 @@ impl ComputeThread {
 
                             let squishy_volumes_gpu::step::Output {
                                 indices_out,
+                                collider_bits_out,
                                 masses_out,
                                 initial_volumes_out,
                                 parameters_out,
@@ -181,11 +190,16 @@ impl ComputeThread {
                                 &mut gpu_context,
                                 &mut (&mut encoder).into(),
                                 next_input,
-                                squishy_volumes_gpu::step::Parameters,
+                                squishy_volumes_gpu::step::Parameters {
+                                    factor: ((current_state.time()
+                                        * phase_input.consts.frames_per_second as f64)
+                                        % 1.) as f32,
+                                },
                             )?;
                             next_input = squishy_volumes_gpu::step::Input {
                                 indirect_particles: indirect_particles.clone(),
                                 indices_in: indices_out.clone(),
+                                collider_bits_in: collider_bits_out.clone(),
                                 masses_in: masses_out,
                                 initial_volumes_in: initial_volumes_out,
                                 parameters_in: parameters_out,
@@ -193,6 +207,17 @@ impl ComputeThread {
                                 position_gradients_in: position_gradients_out.clone(),
                                 velocities_in: velocities_out.clone(),
                                 velocity_gradients_in: velocity_gradients_out.clone(),
+
+                                vertex_positions_start: vertex_positions_start.clone(),
+                                vertex_positions_end: vertex_positions_end.clone(),
+                                vertex_triangle_offsets: vertex_triangle_offsets.clone(),
+                                vertex_triangle_lists: vertex_triangle_lists.clone(),
+
+                                triangle_indices: triangle_indices.clone(),
+                                triangle_collider: triangle_collider.clone(),
+                                triangle_opposites: triangle_opposites.clone(),
+                                triangle_frictions: triangle_frictions.clone(),
+                                bvh: bvh.clone(),
                             };
                             current_state.time += time_step as f64;
 

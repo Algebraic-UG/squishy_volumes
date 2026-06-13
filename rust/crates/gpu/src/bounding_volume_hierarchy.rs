@@ -27,6 +27,7 @@ impl AllowedInBinding for BoundingVolumeHierarchyMeta {
     const ALIGNMENT: NonZeroU64 = u32::ALIGNMENT;
 }
 
+#[derive(Clone)]
 pub struct BoundingVolumeHierarchyAllocations {
     pub meta: Allocation,
     pub nodes: Allocation,

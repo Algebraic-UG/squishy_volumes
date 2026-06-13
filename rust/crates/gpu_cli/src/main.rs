@@ -130,6 +130,8 @@ fn main() {
 
     let cell_size = 1.;
     let time_step = 0.001;
+    let forget_distance = cell_size * 1.1;
+    let accept_distance = cell_size;
     if let Some(generate) = generate {
         let mut out = File::create(&input_file).unwrap();
         match task {
@@ -303,6 +305,8 @@ fn main() {
                                 dispatch_limit,
                                 bit_count,
                                 cell_size,
+                                forget_distance,
+                                accept_distance,
                                 time_step,
                             },
                             input,

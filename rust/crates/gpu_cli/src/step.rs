@@ -4,6 +4,7 @@ use squishy_volumes_gpu::{
     particle_parameters::{Host, Solid},
     step::*,
 };
+use squishy_volumes_util::triangle::{Opposites, Triangle};
 
 use crate::{Tool, profiler_output::profiler_output, window::run_with_window};
 
@@ -24,9 +25,12 @@ pub fn step_on_gpu(
     let n = positions.len();
     let input = Input::new(
         context.device(),
+        1., // leaf_size
+        16, // leaf_threshold
         settings,
         InputData {
             indices: &vec![0; n],
+            collider_bits: &vec![0; n],
             masses: &vec![1.; n],
             initial_volumes: &vec![1.; n],
             parameters: &vec![
@@ -49,12 +53,33 @@ pub fn step_on_gpu(
             ],
             velocities: &vec![Vector4::zeros(); n],
             velocity_gradients: &vec![Matrix4x3::zeros(); n],
+
+            vertex_positions_start: &[
+                Vector4::new(1., 1., 1., 0.),
+                Vector4::new(0., 1., 0., 0.),
+                Vector4::new(1., 0., 0., 0.),
+            ],
+            vertex_positions_end: &[
+                Vector4::new(1., 1., 1., 0.),
+                Vector4::new(0., 1., 0., 0.),
+                Vector4::new(1., 0., 0., 0.),
+            ],
+            triangle_indices: &[Triangle { a: 0, b: 1, c: 1 }],
+            triangle_collider: &[0],
+            triangle_opposites: &[Opposites {
+                ab: u32::MAX,
+                bc: u32::MAX,
+                ca: u32::MAX,
+            }],
+            triangle_frictions: &[0.],
         },
     );
 
+    let paramters = Parameters { factor: 0. };
+
     if let Some(tool) = tool {
         run_with_window(tool, context, |context, encoder| {
-            step.record(context, &mut encoder.into(), input, Parameters)
+            step.record(context, &mut encoder.into(), input, paramters)
                 .unwrap();
         });
         return Default::default();
@@ -66,7 +91,7 @@ pub fn step_on_gpu(
         wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
     let scope = profiler.scope("run_step", &mut encoder);
     let Output { positions_out, .. } = step
-        .record(&mut context, &mut scope.into(), input, Parameters)
+        .record(&mut context, &mut scope.into(), input, paramters)
         .unwrap();
 
     let download = DownloadToHost::new(&context, positions_out);

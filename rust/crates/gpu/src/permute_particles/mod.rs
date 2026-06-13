@@ -30,6 +30,7 @@ pub struct Input {
     pub indirect: Allocation,
     pub permutation: Allocation,
     pub indices_in: Allocation,
+    pub collider_bits_in: Allocation,
     pub masses_in: Allocation,
     pub initial_volumes_in: Allocation,
     pub parameters_in: Allocation,
@@ -42,6 +43,7 @@ pub struct Input {
 pub struct InputData<'a> {
     pub permutation: &'a [u32],
     pub indices: &'a [u32],
+    pub collider_bits: &'a [u32],
     pub masses: &'a [f32],
     pub initial_volumes: &'a [f32],
     pub parameters: &'a [particle_parameters::Device],
@@ -59,6 +61,7 @@ impl Input {
         InputData {
             permutation,
             indices,
+            collider_bits,
             masses,
             initial_volumes,
             parameters,
@@ -69,6 +72,7 @@ impl Input {
         }: InputData,
     ) -> Self {
         assert_eq!(permutation.len(), indices.len());
+        assert_eq!(permutation.len(), collider_bits.len());
         assert_eq!(permutation.len(), masses.len());
         assert_eq!(permutation.len(), initial_volumes.len());
         assert_eq!(permutation.len(), parameters.len());
@@ -85,6 +89,7 @@ impl Input {
         let indirect = Allocation::new(device, "indirect", &[indirect]);
         let permutation = Allocation::new(device, "permutation", permutation);
         let indices_in = Allocation::new(device, "indices_in", indices);
+        let collider_bits_in = Allocation::new(device, "collider_bits_in", collider_bits);
         let masses_in = Allocation::new(device, "masses_in", masses);
         let initial_volumes_in = Allocation::new(device, "initial_volumes_in", initial_volumes);
         let parameters_in = Allocation::new(device, "parameters_in", parameters);
@@ -99,6 +104,7 @@ impl Input {
             indirect,
             permutation,
             indices_in,
+            collider_bits_in,
             masses_in,
             initial_volumes_in,
             parameters_in,
@@ -112,6 +118,7 @@ impl Input {
 
 pub struct Output {
     pub indices_out: Allocation,
+    pub collider_bits_out: Allocation,
     pub masses_out: Allocation,
     pub initial_volumes_out: Allocation,
     pub parameters_out: Allocation,
@@ -171,6 +178,7 @@ impl PipelinePart for PermuteParticles {
             indirect,
             permutation,
             indices_in,
+            collider_bits_in,
             masses_in,
             initial_volumes_in,
             parameters_in,
@@ -184,6 +192,9 @@ impl PipelinePart for PermuteParticles {
         let indices_out = context
             .allocator()?
             .allocate::<u32>("indices_out", indices_in.len::<u32>())?;
+        let collider_bits_out = context
+            .allocator()?
+            .allocate::<u32>("collider_bits_out", collider_bits_in.len::<u32>())?;
         let masses_out = context
             .allocator()?
             .allocate::<f32>("masses_out", masses_in.len::<f32>())?;
@@ -222,6 +233,7 @@ impl PipelinePart for PermuteParticles {
                     indirect.binding(),
                     permutation.binding(),
                     indices_in.binding(),
+                    collider_bits_in.binding(),
                     masses_in.binding(),
                     initial_volumes_in.binding(),
                     parameters_in.binding(),
@@ -230,7 +242,7 @@ impl PipelinePart for PermuteParticles {
                     velocities_in.binding(),
                     velocity_gradients_in.binding(),
                     indices_out.binding(),
-                    masses_out.binding(),
+                    collider_bits_out.binding(),
                     initial_volumes_out.binding(),
                     parameters_out.binding(),
                     positions_out.binding(),
@@ -245,6 +257,7 @@ impl PipelinePart for PermuteParticles {
 
         Ok(Output {
             indices_out,
+            collider_bits_out,
             masses_out,
             initial_volumes_out,
             parameters_out,
