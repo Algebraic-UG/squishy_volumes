@@ -77,6 +77,17 @@ impl DownloadToHost {
 }
 
 impl DownloadToHostReady<'_> {
+    pub fn map<T, U, F>(&self, f: F) -> Vec<U>
+    where
+        T: bytemuck::Pod,
+        F: FnMut(&T) -> U,
+    {
+        bytemuck::cast_slice::<u8, T>(&self.data_slice.get_mapped_range())
+            .iter()
+            .map(f)
+            .collect()
+    }
+
     pub fn to_vec<T: bytemuck::Pod>(&self) -> Vec<T> {
         bytemuck::cast_slice(&self.data_slice.get_mapped_range()).to_vec()
     }

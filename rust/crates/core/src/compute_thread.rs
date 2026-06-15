@@ -19,8 +19,10 @@ use std::{
 
 use anyhow::{Context, Result};
 use nalgebra::{Matrix4x3, Vector4};
+use rustc_hash::FxHashMap;
 use squishy_volumes_api::{T, Task};
 use squishy_volumes_gpu::{PipelinePart as _, wgpu};
+use squishy_volumes_util::collider_bits;
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -242,6 +244,7 @@ impl ComputeThread {
                             &gpu_context,
                             [
                                 next_input.indices_in.clone(),
+                                next_input.collider_bits_in.clone(),
                                 next_input.positions_in.clone(),
                                 next_input.position_gradients_in.clone(),
                                 next_input.velocities_in.clone(),
@@ -263,6 +266,7 @@ impl ComputeThread {
                         info!("download");
                         let [
                             indices_out,
+                            collider_bits_out,
                             positions_out,
                             position_gradients_out,
                             velocities_out,
@@ -273,6 +277,15 @@ impl ComputeThread {
                             .into_iter()
                             .map(|i| i as usize)
                             .collect();
+                        current_state.particles.collider_insides =
+                            collider_bits_out.map(|bits: &u32| -> FxHashMap<usize, bool> {
+                                (0..16)
+                                    .filter_map(|collider| {
+                                        collider_bits::get(*bits, collider)
+                                            .map(|side| (collider, side))
+                                    })
+                                    .collect()
+                            });
                         current_state.particles.positions = positions_out
                             .to_vec::<Vector4<f32>>()
                             .iter()
