@@ -100,7 +100,7 @@ fn main(
         let particle_valid = particle_index < particle_end;
 
         var position = vec3f(0.);
-        var velocity = vec3f(0.);
+        var velocity = TIME_STEP * vec3f(0., 0., -9.8);
         var velocity_gradient = mat3x3f();
         if particle_valid {
             position = positions[particle_index];
