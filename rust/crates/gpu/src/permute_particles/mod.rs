@@ -146,6 +146,7 @@ impl PipelinePart for PermuteParticles {
                     (Indirect::MIN_BINDING_SIZE, true),          // indirect
                     (u32::MIN_BINDING_SIZE, false),              // permutation
                     (u32::MIN_BINDING_SIZE, false),              // indices_in
+                    (u32::MIN_BINDING_SIZE, false),              // collider_bits_in
                     (f32::MIN_BINDING_SIZE, false),              // masses_in
                     (f32::MIN_BINDING_SIZE, false),              // initial_volumes_in
                     (Device::MIN_BINDING_SIZE, false),           // parameters_in
@@ -154,6 +155,7 @@ impl PipelinePart for PermuteParticles {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),   // velocities_in
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // velocity_gradients_in
                     (u32::MIN_BINDING_SIZE, false),              // indices_out
+                    (u32::MIN_BINDING_SIZE, false),              // collider_bits_out
                     (f32::MIN_BINDING_SIZE, false),              // masses_out
                     (f32::MIN_BINDING_SIZE, false),              // initial_volumes_out
                     (Device::MIN_BINDING_SIZE, false),           // parameters_out
@@ -243,6 +245,7 @@ impl PipelinePart for PermuteParticles {
                     velocity_gradients_in.binding(),
                     indices_out.binding(),
                     collider_bits_out.binding(),
+                    masses_out.binding(),
                     initial_volumes_out.binding(),
                     parameters_out.binding(),
                     positions_out.binding(),

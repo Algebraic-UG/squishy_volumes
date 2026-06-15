@@ -30,7 +30,7 @@ fn requirements() -> (wgpu::Features, wgpu::Limits) {
 
     let mut limits = wgpu::Limits::downlevel_defaults();
     limits.max_immediate_size = 4;
-    limits.max_storage_buffers_per_shader_stage = 18;
+    limits.max_storage_buffers_per_shader_stage = 20;
 
     (features, limits)
 }
