@@ -99,19 +99,26 @@ impl InputInterpolationPoint {
         let mut particle_flags: Vec<ParticleFlags> = Default::default();
         let mut particle_goal_positions: Vec<Vector3<T>> = Default::default();
         for (name, mut input) in particles_inputs.into_iter() {
-            if input.flags.len() != input.goal_positions.len() {
-                return Err(InterpolationError::AttributeLengthMismatch {
-                    name,
-                    attribute_a: "ParticleFlags".to_string(),
-                    attribute_b: format!("{:?}", FrameBulkParticles::GoalPositions),
-                });
-            }
-
             if !input.goal_positions.len().is_multiple_of(3) {
+                tracing::error!(goal_positions_len = input.goal_positions.len());
                 return Err(InterpolationError::FlattedNotCorrectMultiple {
                     name,
                     attribute: format!("{:?}", FrameBulkParticles::GoalPositions),
                     multiple: 3,
+                });
+            }
+
+            if !input.goal_positions.is_empty()
+                && input.flags.len() != input.goal_positions.len() / 3
+            {
+                tracing::error!(
+                    flags_len = input.flags.len(),
+                    goal_positions_len = input.goal_positions.len()
+                );
+                return Err(InterpolationError::AttributeLengthMismatch {
+                    name,
+                    attribute_a: "ParticleFlags".to_string(),
+                    attribute_b: format!("{:?}", FrameBulkParticles::GoalPositions),
                 });
             }
 

@@ -44,6 +44,10 @@ def create_input_header(simulation):
     max_num_particles = get_max_num_particles()
 
     consts = {
+        # TODO: add to preferences?
+        "leaf_size": grid_node_size * 2.0,
+        "leaf_threshold": 16,
+        #
         "grid_node_size": grid_node_size,
         "simulation_scale": simulation_scale,
         "frames_per_second": frames_per_second,
