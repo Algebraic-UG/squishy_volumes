@@ -17,7 +17,6 @@ mod input_file;
 mod input_interpolation;
 pub mod kernels;
 mod phase;
-mod rasterization;
 mod report;
 mod state;
 mod stats;

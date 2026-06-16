@@ -21,16 +21,12 @@ use crate::profile;
 mod advect_particles;
 mod collect_insides;
 mod collect_velocity;
-mod conform_to_colliders;
 mod cull_particles;
 mod external_force;
 mod goal_forces;
 mod implicit_solve;
-mod limit_time_step;
-//mod move_collider;
 mod interpolate_input;
-mod register_contributors;
-mod scatter_collider_distances;
+mod limit_time_step;
 mod scatter_momentum;
 mod sort;
 mod update_momentum_maps;
@@ -41,21 +37,17 @@ pub enum Phase {
     #[default]
     InterpolateInput,
     Sort,
-    ScatterColliderDistances,
     CollectInsides,
+    ExternalForce,
     GoalForces,
     UpdateMomentumMaps,
-    RegisterContributors,
     LimitTimeStepBeforeForce,
     ScatterMomentum,
     ScatterMomentumExplicit,
-    ExternalForce,
-    ConformToColliders,
     ImplicitSolve,
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
     AdvectParticles,
-    //MoveCollider,
     CullParticles,
 }
 
@@ -64,21 +56,17 @@ impl Phase {
         match self {
             Self::InterpolateInput => State::interpolate_input,
             Self::Sort => State::sort,
-            Self::ScatterColliderDistances => State::scatter_collider_distances,
             Self::CollectInsides => State::collect_insides,
+            Self::ExternalForce => State::external_force,
             Self::GoalForces => State::goal_forces,
             Self::UpdateMomentumMaps => State::update_momentum_maps,
-            Self::RegisterContributors => State::register_contributors,
             Self::LimitTimeStepBeforeForce => State::limit_time_step_before_force,
             Self::ScatterMomentum => State::scatter_momentum::<false>,
             Self::ScatterMomentumExplicit => State::scatter_momentum::<true>,
-            Self::ExternalForce => State::external_force,
-            Self::ConformToColliders => State::conform_to_colliders,
             Self::ImplicitSolve => State::implicit_solve,
             Self::CollectVelocity => State::collect_velocity,
             Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,
             Self::AdvectParticles => State::advect_particles,
-            //Self::MoveCollider => State::move_collider,
             Self::CullParticles => State::cull_particles,
         }
     }

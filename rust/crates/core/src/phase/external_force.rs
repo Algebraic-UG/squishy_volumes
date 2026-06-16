@@ -21,12 +21,10 @@ impl State {
             .as_ref()
             .expect("interpolated input missing")
             .gravity;
-        // TODO: try chaining
-        for grid in self.grid_momentums_mut() {
-            grid.velocities
-                .par_iter_mut()
-                .for_each(|velocity| *velocity += gravity * time_step);
-        }
+        self.particles
+            .velocities
+            .par_iter_mut()
+            .for_each(|velocity| *velocity += time_step * gravity);
 
         Ok(self)
     }

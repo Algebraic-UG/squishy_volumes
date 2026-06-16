@@ -6,18 +6,18 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use squishy_volumes_util::{Flat3, Flat9 as _, Flat16 as _};
+use squishy_volumes_util::{Flat3, Flat9 as _, Flat16 as _, collider_bits};
 use std::iter::empty;
 use thiserror::Error;
 
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::Matrix4;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
     input_file::InputConsts,
-    state::{ObjectIndex, grids::GridMomentum, particles::ParticleState},
+    state::{ObjectIndex, grids::GridKey, particles::ParticleState},
 };
 
 use super::State;
@@ -41,8 +41,7 @@ pub enum Attribute {
         name: String,
         attribute: AttributeMesh,
     },
-    GridMomentums(AttributeGridMomentums),
-    GridCollider(AttributeGridCollider),
+    Grid(AttributeGrid),
 }
 
 #[derive(Default, EnumIter, Serialize, Deserialize)]
@@ -56,27 +55,12 @@ pub enum AttributeConst {
 }
 
 #[derive(EnumIter, Serialize, Deserialize)]
-pub enum AttributeGridCollider {
-    Positions,
-    Distances(usize),
-    Normals(usize),
-    Velocities(usize),
-}
-
-#[derive(Serialize, Deserialize)]
-pub enum AttributeGridMomentums {
-    Free(AttributeGridMomentum),
-    Conformed {
-        name: String,
-        attribute: AttributeGridMomentum,
-    },
-}
-
-#[derive(EnumIter, Serialize, Deserialize)]
-pub enum AttributeGridMomentum {
+pub enum AttributeGrid {
     Masses,
     Positions,
     Velocities,
+    ColliderBitsA,
+    ColliderBitsB,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -121,12 +105,7 @@ impl State {
     pub fn available_attributes(&self) -> impl Iterator<Item = Attribute> + '_ {
         empty()
             .chain(AttributeConst::iter().map(Attribute::Const))
-            .chain(AttributeGridCollider::iter().map(Attribute::GridCollider))
-            .chain(
-                AttributeGridMomentum::iter()
-                    .map(AttributeGridMomentums::Free)
-                    .map(Attribute::GridMomentums),
-            )
+            .chain(AttributeGrid::iter().map(Attribute::Grid))
             .chain(self.name_map.iter().flat_map(|(name, _)| {
                 AttributeMesh::iter().map(|attribute| Attribute::Mesh {
                     name: name.to_string(),
@@ -195,9 +174,8 @@ impl State {
                                 .collect(),
                             AttributeParticles::ColliderInsides(collider_idx) => is
                                 .map(|i| {
-                                    ps.collider_insides[i]
-                                        .get(&collider_idx)
-                                        .map(|inside| if *inside { -1. } else { 1. })
+                                    collider_bits::get(ps.collider_bits[i], collider_idx)
+                                        .map(|inside| if inside { -1. } else { 1. })
                                         .unwrap_or(0.)
                                 })
                                 .collect(),
@@ -206,90 +184,37 @@ impl State {
                     _ => Err(AttributeError::ObjectTypeMismatch(name.clone()))?,
                 }
             }
-            Attribute::GridCollider(attribute) => match attribute {
-                AttributeGridCollider::Positions => self
-                    .grid_collider
+            Attribute::Grid(attribute) => match attribute {
+                AttributeGrid::Masses => self.grid.masses.clone(),
+                AttributeGrid::Positions => self
+                    .grid
+                    .map
                     .keys()
-                    .map(|grid_node_idx| {
-                        grid_node_idx.map(|i| i as T) * consts.unscaled_grid_node_size()
-                    })
-                    .flat_map(|position| position.flat())
-                    .collect(),
-                AttributeGridCollider::Distances(collider_idx) => self
-                    .grid_collider
-                    .values()
-                    .map(|grid_node| {
-                        grid_node
-                            .assume_ref()
-                            .get(&(collider_idx as u8))
-                            .map(|info| info.assume_valid().distance)
-                            .unwrap_or(T::MAX)
-                    })
-                    .collect(),
-                AttributeGridCollider::Normals(collider_idx) => self
-                    .grid_collider
-                    .values()
-                    .flat_map(|grid_node| {
-                        grid_node
-                            .assume_ref()
-                            .get(&(collider_idx as u8))
-                            .map(|info| info.assume_valid().normal)
-                            .unwrap_or(Vector3::zeros())
+                    .flat_map(|GridKey { node_id, .. }| {
+                        node_id
+                            .map(|c| c as f32 * consts.unscaled_grid_node_size())
                             .flat()
                     })
                     .collect(),
-                AttributeGridCollider::Velocities(collider_idx) => self
-                    .grid_collider
+                AttributeGrid::Velocities => self
+                    .grid
+                    .map
                     .values()
-                    .flat_map(|grid_node| {
-                        grid_node
-                            .assume_ref()
-                            .get(&(collider_idx as u8))
-                            .map(|info| info.assume_valid().velocity)
-                            .unwrap_or(Vector3::zeros())
-                            .flat()
-                    })
+                    .flat_map(|index| self.grid.velocities[*index].flat())
+                    .collect(),
+                AttributeGrid::ColliderBitsA => self
+                    .grid
+                    .map
+                    .keys()
+                    .map(|GridKey { collider_bits, .. }| (collider_bits & 0xFFFF) as f32)
+                    .collect(),
+                AttributeGrid::ColliderBitsB => self
+                    .grid
+                    .map
+                    .keys()
+                    .map(|GridKey { collider_bits, .. }| (collider_bits >> 16) as f32)
                     .collect(),
             },
-            Attribute::GridMomentums(attribute) => {
-                let fetch_flat_attribute_grid_momentum =
-                    |grid: &GridMomentum, attribute: AttributeGridMomentum| match attribute {
-                        AttributeGridMomentum::Masses => grid.masses.clone(),
-                        AttributeGridMomentum::Positions => {
-                            // after deserializing the hashmap has a different iteration order
-                            let mut messed_up = grid.map.iter().collect::<Vec<_>>();
-                            messed_up.sort_unstable_by_key(|(_, i)| **i);
-                            messed_up
-                                .into_iter()
-                                .map(|(grid_node_idx, _)| {
-                                    grid_node_idx.map(|i| i as T) * consts.unscaled_grid_node_size()
-                                })
-                                .flat_map(|position| position.flat())
-                                .collect()
-                        }
-                        AttributeGridMomentum::Velocities => {
-                            grid.velocities.iter().flat_map(Flat3::flat).collect()
-                        }
-                    };
-                match attribute {
-                    AttributeGridMomentums::Free(attribute) => {
-                        fetch_flat_attribute_grid_momentum(&self.grid_momentum, attribute)
-                    }
-                    AttributeGridMomentums::Conformed { name, attribute } => {
-                        let object_idx = self
-                            .name_map
-                            .get(&name)
-                            .ok_or(AttributeError::ObjectMissing(name.clone()))?;
-                        let ObjectIndex::Collider(collider_idx) = object_idx else {
-                            Err(AttributeError::ObjectTypeMismatch(name.clone()))?
-                        };
-                        fetch_flat_attribute_grid_momentum(
-                            &self.grid_collider_momentums[*collider_idx],
-                            attribute,
-                        )
-                    }
-                }
-            }
             _ => unreachable!("Should have been handled before"),
         };
         Ok(flat_attribute)

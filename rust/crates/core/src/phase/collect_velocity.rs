@@ -16,10 +16,7 @@ use crate::{
     kernels::{KERNEL_QUADRATIC_LENGTH, kernel_quadratic},
     phase::PhaseInput,
     profile,
-    state::{
-        particles::ParticleState,
-        util::{check_shifted_quadratic, find_worst_incompatibility},
-    },
+    state::{grids::GridKey, particles::ParticleState, util::check_shifted_quadratic},
 };
 
 use super::State;
@@ -32,13 +29,13 @@ impl State {
         self.particles
             .positions
             .par_iter()
-            .zip(&self.particles.collider_insides)
+            .zip(&self.particles.collider_bits)
             .zip(&mut self.particles.velocities)
             .zip(&mut self.particles.velocity_gradients)
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
             .for_each(
-                |(((position, collider_inside), velocity), velocity_gradient)| {
+                |(((position, &collider_bits), velocity), velocity_gradient)| {
                     *velocity = Vector3::zeros();
                     *velocity_gradient = Matrix3::zeros();
 
@@ -60,27 +57,20 @@ impl State {
                         for (j, y_weight) in y_weights.iter().enumerate() {
                             for (k, z_weight) in z_weights.iter().enumerate() {
                                 let weight = x_weight * y_weight * z_weight;
-                                let grid_idx = shift.map(|x| x as i32)
+                                let node_id = shift.map(|x| x as i32)
                                     + Vector3::new(i as i32, j as i32, k as i32);
 
-                                let incompatibility =
-                                    self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                                        find_worst_incompatibility(
-                                            collider_inside,
-                                            grid_node.assume_ref(),
-                                        )
-                                    });
-                                let grid_node_position = grid_idx.map(|i| i as T) * grid_node_size;
+                                let grid_node_position = node_id.map(|i| i as T) * grid_node_size;
                                 let to_grid_node = grid_node_position - position;
 
-                                let grid = if let Some(collider_idx) = incompatibility {
-                                    &self.grid_collider_momentums[collider_idx]
-                                } else {
-                                    &self.grid_momentum
+                                let grid_key = GridKey {
+                                    node_id,
+                                    collider_bits,
                                 };
 
-                                let grid_idx = grid.map.get(&grid_idx).expect("missing node");
-                                let grid_velocity = grid.velocities[*grid_idx];
+                                let grid_index =
+                                    self.grid.map.get(&grid_key).expect("missing node");
+                                let grid_velocity = self.grid.velocities[*grid_index];
                                 *velocity += grid_velocity * weight;
                                 *velocity_gradient +=
                                     (grid_velocity * weight) * to_grid_node.transpose();

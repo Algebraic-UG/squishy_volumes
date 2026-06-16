@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix3, Vector3};
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 
@@ -59,7 +58,7 @@ pub struct Particles {
     pub velocity_gradients: Vec<Matrix3<T>>,
 
     pub elastic_energies: Vec<T>,
-    pub collider_insides: Vec<FxHashMap<usize, bool>>,
+    pub collider_bits: Vec<u32>,
 
     pub trial_position_gradients: Vec<Matrix3<T>>,
     pub action_matrices: Vec<Matrix3<T>>,

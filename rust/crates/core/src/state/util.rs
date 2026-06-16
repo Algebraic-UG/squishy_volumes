@@ -7,10 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector3;
-use rustc_hash::FxHashMap;
 use squishy_volumes_api::T;
-
-use crate::state::grids::ColliderInfos;
 
 pub fn check_shifted_quadratic(shifted: Vector3<T>) -> bool {
     shifted.x >= 0.5
@@ -29,23 +26,4 @@ pub fn check_shifted_cubic(shifted: Vector3<T>) -> bool {
         && shifted.y <= 2.
         && shifted.z >= 1.
         && shifted.z <= 2.
-}
-
-pub fn find_worst_incompatibility(
-    collider_insides: &FxHashMap<usize, bool>,
-    grid_node: &ColliderInfos,
-) -> Option<usize> {
-    collider_insides
-        .iter()
-        .filter_map(|(collider_idx, inside)| {
-            Some((
-                *collider_idx,
-                grid_node.get(&(*collider_idx as u8)).and_then(|info| {
-                    let info = info.assume_valid();
-                    (inside ^ (info.distance < 0.)).then_some(info.distance.abs())
-                })?,
-            ))
-        })
-        .max_by(|(_, a), (_, b)| a.total_cmp(b))
-        .map(|(collider_idx, _)| collider_idx)
 }

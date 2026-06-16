@@ -7,159 +7,172 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use nalgebra::{Matrix4, Vector3, Vector4};
+use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use rustc_hash::FxHashMap;
-use squishy_volumes_api::T;
-use squishy_volumes_util::{NORMALIZATION_EPS, SafeInverse as _};
-use std::{array::from_fn, collections::hash_map::Entry};
+use squishy_volumes_util::{
+    collider_bits,
+    mesh::{DistanceResult, distance_to_triangle, segment_distance_result},
+    triangle::Triangle,
+};
 
 use crate::{
-    kernels::{KERNEL_QUADRATIC_LENGTH, kernel_quadratic},
+    input_interpolation::{InterpolatedInput, Topology},
     profile,
-    state::{grids::Rasterized, particles::ParticleState, util::check_shifted_quadratic},
+    state::particles::ParticleState,
 };
 
 use super::{PhaseInput, State};
 
 impl State {
-    // Collect the splatted distance information from the grid to the particles.
-    // The particles just store whether they are inside.
-    // While the information is at hand, perform penalty velocity updates for penetration.
     pub(super) fn collect_insides(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("collect_insides");
 
         let time_step = phase_input.time_step;
-        let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
-        // Since the grid has only partial information about the distances,
-        // we need to do MLS interpolation.
-        struct DistanceHelper {
-            distance_and_gradient: Vector4<T>,
-            matrix: Matrix4<T>,
-        }
+        let Topology {
+            triangle_indices,
+            triangle_opposites,
+            triangle_collider,
+            ..
+        } = phase_input.input_interpolation.topology();
 
-        impl Default for DistanceHelper {
-            fn default() -> Self {
-                Self {
-                    distance_and_gradient: Vector4::zeros(),
-                    matrix: Matrix4::zeros(),
-                }
-            }
-        }
+        let InterpolatedInput {
+            vertex_positions,
+            vertex_normals,
+            triangle_frictions: _, // TODO
+            triangle_normals,
+            ..
+        } = self
+            .interpolated_input
+            .as_ref()
+            .expect("no input interpolated");
 
         self.particles
             .positions
             .par_iter()
             .zip(&mut self.particles.velocities)
-            .zip(&mut self.particles.collider_insides)
+            .zip(&mut self.particles.collider_bits)
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
-            .for_each(|((position, velocity), collider_inside)| {
-                let mut distance_helpers: FxHashMap<usize, DistanceHelper> = Default::default();
+            .for_each(|((p, velocity), collider_bits)| {
+                let leaf = p.map(|c| (c / phase_input.consts.leaf_size).floor() as i32);
+                let triangles_to_check = phase_input.input_interpolation.bvh().query(&leaf);
+                if triangles_to_check.is_empty() {
+                    *collider_bits = 0;
+                    return;
+                }
 
-                let normalized = position / grid_node_size;
-                let shift = (normalized - Vector3::repeat(0.5)).map(T::floor);
-                let shifted = normalized - shift;
+                let mut closest_triangle_per_collider: [u32; 16] = [u32::MAX; 16];
+                let mut min_distance_per_collider: [f32; 16] = [f32::MAX; 16];
 
-                debug_assert!(check_shifted_quadratic(shifted));
+                for triangle_index in triangles_to_check {
+                    let n = &triangle_normals[*triangle_index as usize];
+                    if *n == Vector3::zeros() {
+                        continue;
+                    }
 
-                let [x_weights, y_weights, z_weights]: [[T; KERNEL_QUADRATIC_LENGTH]; 3] = {
-                    [
-                        from_fn(|i| kernel_quadratic(shifted.x - i as T)),
-                        from_fn(|i| kernel_quadratic(shifted.y - i as T)),
-                        from_fn(|i| kernel_quadratic(shifted.z - i as T)),
-                    ]
-                };
+                    let Triangle { a, b, c } = &triangle_indices[*triangle_index as usize];
 
-                for (i, x_weight) in x_weights.iter().enumerate() {
-                    for (j, y_weight) in y_weights.iter().enumerate() {
-                        for (k, z_weight) in z_weights.iter().enumerate() {
-                            let weight = x_weight * y_weight * z_weight;
-                            let grid_idx = shift.map(|x| x as i32)
-                                + Vector3::new(i as i32, j as i32, k as i32);
+                    let distance = distance_to_triangle(
+                        p,
+                        &vertex_positions[*a as usize],
+                        &vertex_positions[*b as usize],
+                        &vertex_positions[*c as usize],
+                        n,
+                    );
 
-                            let Some(grid_node) = self.grid_collider.get(&grid_idx) else {
-                                continue;
-                            };
+                    if distance >= phase_input.consts.forget_distance() {
+                        continue;
+                    }
 
-                            let linear_basis = Vector4::new(
-                                1.,
-                                i as T - shifted.x,
-                                j as T - shifted.y,
-                                k as T - shifted.z,
-                            );
-                            for (collider_idx, rasterized) in grid_node.assume_ref().iter() {
-                                let Rasterized::Valid(info) = rasterized else {
-                                    panic!("Invalid collider info");
-                                };
-                                let distance_helper =
-                                    distance_helpers.entry(*collider_idx as usize).or_default();
-                                distance_helper.distance_and_gradient +=
-                                    linear_basis * info.distance * weight;
-                                distance_helper.matrix +=
-                                    (linear_basis * weight) * linear_basis.transpose();
-                            }
-                        }
+                    let collider = triangle_collider[*triangle_index as usize] as usize;
+                    if distance < min_distance_per_collider[collider] {
+                        min_distance_per_collider[collider] = distance;
+                        closest_triangle_per_collider[collider] = *triangle_index;
                     }
                 }
 
-                // Convert the collected information into signed distance and normal.
-                // We need to be sure that the collected information is reliable.
-                // It's better to have a particle be oblivious to a collider for longer
-                // than to accept wonky distance and normal.
-                distance_helpers.retain(
-                    |_,
-                     DistanceHelper {
-                         distance_and_gradient,
-                         matrix,
-                     }| {
-                        let Some(m_inv) = matrix.safe_inverse() else {
-                            return false;
-                        };
-                        *distance_and_gradient = m_inv * *distance_and_gradient;
-                        let Some(gradient) = Vector3::new(
-                            distance_and_gradient.y,
-                            distance_and_gradient.z,
-                            distance_and_gradient.w,
-                        )
-                        .try_normalize(NORMALIZATION_EPS) else {
-                            return false;
-                        };
-                        distance_and_gradient.y = gradient.x;
-                        distance_and_gradient.z = gradient.y;
-                        distance_and_gradient.w = gradient.z;
-                        true
-                    },
-                );
-
-                // Now actually update the bits.
-                // If the particle moved away from a collider it drops the info.
-                collider_inside
-                    .retain(|collider_idx, _| distance_helpers.contains_key(collider_idx));
-                for (collider_idx, distance_helper) in distance_helpers.into_iter() {
-                    let distance = distance_helper.distance_and_gradient.x;
-                    let normal = Vector3::new(
-                        distance_helper.distance_and_gradient.y,
-                        distance_helper.distance_and_gradient.z,
-                        distance_helper.distance_and_gradient.w,
-                    );
-                    match collider_inside.entry(collider_idx) {
-                        // We already know the collider.
-                        // Stick with the side and receive penetration penalty.
-                        Entry::Occupied(occupied_entry) => {
-                            if occupied_entry.get() ^ (distance < 0.) {
-                                *velocity -= normal * normal.dot(velocity);
-                                let collider_velocity = Vector3::zeros(); // TODO
-                                *velocity += normal
-                                    * (collider_velocity.dot(&normal) - distance / time_step);
-                            }
-                        }
-                        // Collider is new, accept the side
-                        Entry::Vacant(vacant_entry) => {
-                            vacant_entry.insert(distance_helper.distance_and_gradient.x < 0.);
-                        }
+                for (collider, closest_triangle) in
+                    closest_triangle_per_collider.into_iter().enumerate()
+                {
+                    if closest_triangle == u32::MAX {
+                        collider_bits::set(collider_bits, collider, None);
+                        continue;
                     }
+
+                    let triangle = &triangle_indices[closest_triangle as usize];
+
+                    let opps = &triangle_opposites[closest_triangle as usize];
+                    let n = &triangle_normals[closest_triangle as usize];
+                    let a = &vertex_positions[triangle.a as usize];
+                    let b = &vertex_positions[triangle.b as usize];
+                    let c = &vertex_positions[triangle.c as usize];
+                    let a_n = &vertex_normals[triangle.a as usize];
+                    let b_n = &vertex_normals[triangle.b as usize];
+                    let c_n = &vertex_normals[triangle.c as usize];
+                    let ab_n = if opps.ab != u32::MAX {
+                        &triangle_normals[opps.ab as usize]
+                    } else {
+                        &Vector3::zeros()
+                    };
+                    let bc_n = if opps.bc != u32::MAX {
+                        &triangle_normals[opps.bc as usize]
+                    } else {
+                        &Vector3::zeros()
+                    };
+                    let ca_n = if opps.ca != u32::MAX {
+                        &triangle_normals[opps.ca as usize]
+                    } else {
+                        &Vector3::zeros()
+                    };
+
+                    let ab = a - b;
+                    let bc = b - c;
+                    let ca = c - a;
+
+                    let sa = n.dot(&bc.cross(&(c - p))) > 0.;
+                    let sb = n.dot(&ca.cross(&(a - p))) > 0.;
+                    let sc = n.dot(&ab.cross(&(b - p))) > 0.;
+
+                    let DistanceResult {
+                        distance,
+                        to_p,
+                        normal,
+                    } = if sa && sb && sc {
+                        DistanceResult {
+                            distance: (p - a).dot(&n).abs(),
+                            to_p: n * (p - a).dot(&n),
+                            normal: *n,
+                        }
+                    } else {
+                        [
+                            segment_distance_result(p, a, b, a_n, ab_n, b_n),
+                            segment_distance_result(p, b, c, b_n, bc_n, c_n),
+                            segment_distance_result(p, c, a, c_n, ca_n, a_n),
+                        ]
+                        .into_iter()
+                        .min_by(|a, b| a.distance.total_cmp(&b.distance))
+                        .unwrap()
+                    };
+
+                    if normal == Vector3::zeros() {
+                        collider_bits::set(collider_bits, collider, None);
+                        continue;
+                    }
+
+                    let new_side = 0. <= to_p.dot(&normal);
+                    let Some(prior_side) = collider_bits::get(*collider_bits, collider) else {
+                        if distance < phase_input.consts.accept_distance() {
+                            collider_bits::set(collider_bits, collider, Some(new_side));
+                        }
+                        continue;
+                    };
+
+                    if prior_side == new_side {
+                        continue;
+                    }
+
+                    *velocity -= to_p / time_step;
                 }
             });
 

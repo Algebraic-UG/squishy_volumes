@@ -17,7 +17,6 @@ use smallvec::SmallVec;
 use squishy_volumes_api::T;
 use squishy_volumes_util::{
     Aabb, BoundingVolumeHierarchy,
-    mesh::compute_triangle_lists,
     triangle::{Opposites, Triangle},
 };
 
@@ -149,7 +148,7 @@ impl InputInterpolationPoint {
     }
 }
 
-struct Topology {
+pub struct Topology {
     pub vertex_triangle_lists: Vec<SmallVec<[u32; 8]>>,
     pub triangle_indices: Vec<Triangle>,
     pub triangle_opposites: Vec<Opposites>,

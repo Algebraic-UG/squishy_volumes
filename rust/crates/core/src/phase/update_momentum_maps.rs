@@ -8,15 +8,17 @@
 
 use anyhow::Result;
 use nalgebra::Vector3;
-use rayon::iter::{
-    IndexedParallelIterator, IntoParallelRefIterator, ParallelBridge, ParallelIterator,
-};
-use std::{mem::take, sync::mpsc::channel, thread::spawn};
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::FxHashMap;
+use std::{sync::mpsc::channel, thread::spawn};
 
 use crate::{
     kernels::{kernel_quadratic_unrolled, position_to_shift_quadratic},
     profile,
-    state::{particles::ParticleState, util::find_worst_incompatibility},
+    state::{
+        grids::{GridKey, Mutex},
+        particles::ParticleState,
+    },
 };
 
 use super::{PhaseInput, State};
@@ -29,87 +31,92 @@ impl State {
         let grid_node_size = phase_input.consts.scaled_grid_node_size();
 
         {
+            // remove those entries that didn't receive any particles
             profile!("prune");
-            self.grid_momentums_mut().par_bridge().for_each(|grid| {
-                grid.map
-                    .retain(|_, idx| !grid.contributors[*idx].get_mut().unwrap().is_empty());
-            });
+            self.grid
+                .map
+                .retain(|_, idx| !self.grid.contributors[*idx].get_mut().unwrap().is_empty());
         }
 
-        let collider_maps = {
-            profile!("lookup copies");
-            self.grid_collider_momentums
-                .iter_mut()
-                .map(|grid| grid.map.clone())
-                .collect::<Vec<_>>()
-        };
+        {
+            // the pruning breaks the indexing
+            profile!("re-index");
+            self.grid
+                .map
+                .values_mut()
+                .enumerate()
+                .for_each(|(i, e)| *e = i);
+        }
 
-        let (senders, collectors): (Vec<_>, Vec<_>) = self
-            .grid_collider_momentums
-            .iter_mut()
-            .map(|grid| {
-                let mut map = take(&mut grid.map);
-                let (tx, rx) = channel();
-                (
-                    tx,
-                    spawn(move || {
-                        while let Ok(grid_idx) = rx.recv() {
-                            map.insert(grid_idx, 0);
-                        }
-                        map
-                    }),
-                )
-            })
-            .unzip();
+        // to avoid frequent reallocations we add nodes with generous capacity
+        let initial_capacity = 1 << 4;
 
-        let new_common_entries = self
-            .particles
+        {
+            // this effectively clears all the contributors
+            profile!("prepare");
+            self.grid.prepare_contributors(initial_capacity);
+        }
+
+        // we start a collector thread for the new entries
+        // this is a bit tricky: we need to make sure that the new entries' indices are offset
+        // and when we access the new contributors, we need to subtract that offset
+        let grid_index_offset = self.grid.map.len();
+        let mut next_grid_index = grid_index_offset;
+        let (tx, rx) = channel();
+        let collector = spawn(move || {
+            let mut map: FxHashMap<GridKey, usize> = Default::default();
+            let mut contributors: Vec<Mutex<Vec<usize>>> = Default::default();
+            while let Ok((grid_key, particle_index)) = rx.recv() {
+                let grid_index = *map.entry(grid_key).or_insert_with(|| {
+                    contributors.push(Vec::with_capacity(initial_capacity).into());
+                    let grid_index = next_grid_index;
+                    next_grid_index += 1;
+                    grid_index
+                });
+                contributors[grid_index - grid_index_offset]
+                    .get_mut()
+                    .unwrap()
+                    .push(particle_index);
+            }
+            (map, contributors)
+        });
+
+        // generate grid from particles
+        self.particles
             .positions
             .par_iter()
-            .zip(&self.particles.collider_insides)
+            .zip(&self.particles.collider_bits)
+            .enumerate()
             .zip(&self.particles.states)
             .filter_map(|(e, state)| (*state != ParticleState::Tombstoned).then_some(e))
-            .flat_map_iter(|(position, collider_inside)| {
+            .for_each(|(particle_index, (position, &collider_bits))| {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
-                kernel_quadratic_unrolled!(|grid_idx| {
-                    let grid_idx = grid_idx + shift;
-                    let incompatibility = self.grid_collider.get(&grid_idx).and_then(|grid_node| {
-                        find_worst_incompatibility(collider_inside, grid_node.assume_ref())
-                    });
+                kernel_quadratic_unrolled!(|grid_id| {
+                    let node_id = grid_id + shift;
+                    let key = GridKey {
+                        node_id,
+                        collider_bits,
+                    };
 
-                    if let Some(collider_idx) = incompatibility {
-                        if !collider_maps[collider_idx].contains_key(&grid_idx) {
-                            senders[collider_idx]
-                                .send(grid_idx)
-                                .expect("collector died");
-                        }
-                        return None;
+                    if let Some(grid_index) = self.grid.map.get(&key) {
+                        // if the entry exists, we register
+                        self.grid.contributors[*grid_index]
+                            .lock()
+                            .push(particle_index);
+                    } else {
+                        // otherwise it's handled in the collector
+                        tx.send((key, particle_index)).expect("collector died");
                     }
-
-                    (!self.grid_momentum.map.contains_key(&grid_idx)).then_some(grid_idx)
-                })
-                .into_iter()
-                .flatten()
-            })
-            .collect::<Vec<_>>();
-        self.grid_momentum
-            .map
-            .extend(new_common_entries.into_iter().map(|grid_idx| (grid_idx, 0)));
+                });
+            });
 
         {
+            // add the new entries
             profile!("collect");
-            drop(senders);
-            self.grid_collider_momentums
-                .iter_mut()
-                .zip(collectors)
-                .for_each(|(grid, collector)| grid.map = collector.join().unwrap());
-        }
-
-        {
-            profile!("re-index");
-            for grid in self.grid_momentums_mut() {
-                grid.map.values_mut().enumerate().for_each(|(i, e)| *e = i);
-            }
+            drop(tx);
+            let (map, mut contributors) = collector.join().unwrap();
+            self.grid.map.extend(map.into_iter());
+            self.grid.contributors.append(&mut contributors);
         }
 
         Ok(self)

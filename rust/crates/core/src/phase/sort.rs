@@ -73,7 +73,7 @@ impl State {
                     position_gradients,
                     velocities,
                     velocity_gradients,
-                    collider_insides,
+                    collider_bits,
 
                     // These will be overwritten anyway
                     reverse_sort_map: _,
@@ -107,7 +107,7 @@ impl State {
                     permute(s, &permutation, position_gradients);
                     permute(s, &permutation, velocities);
                     permute(s, &permutation, velocity_gradients);
-                    permute(s, &permutation, collider_insides);
+                    permute(s, &permutation, collider_bits);
                 });
             }
 
