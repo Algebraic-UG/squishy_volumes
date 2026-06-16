@@ -70,15 +70,7 @@ def create_material_display_uvw() -> bpy.types.Material:
     return _load_tree_clipper_material("material_display_uvw.json")
 
 
-def create_geometry_nodes_grid_distance() -> bpy.types.NodeTree:
-    colored_instances = create_material_colored_instances()
-    return _load_tree_clipper_tree(
-        "geometry_nodes_grid_distance.json",
-        [(469, colored_instances)],
-    )
-
-
-def create_geometry_nodes_grid_momentum() -> bpy.types.NodeTree:
+def create_geometry_nodes_grid() -> bpy.types.NodeTree:
     colored_instances = create_material_colored_instances()
     return _load_tree_clipper_tree(
         "geometry_nodes_grid_momentum.json",

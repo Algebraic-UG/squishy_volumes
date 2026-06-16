@@ -22,7 +22,8 @@ from ..magic_consts import (
     SQUISHY_VOLUMES_ELASTIC_ENERGY,
     SQUISHY_VOLUMES_STATE,
     SQUISHY_VOLUMES_TRANSFORM,
-    SQUISHY_VOLUMES_COLLIDER_INSIDE,
+    SQUISHY_VOLUMES_COLLIDER_BITS_A,
+    SQUISHY_VOLUMES_COLLIDER_BITS_B,
     SQUISHY_VOLUMES_INITIAL_POSITION,
     SQUISHY_VOLUMES_VELOCITY,
     SQUISHY_VOLUMES_DISTANCE,
@@ -37,12 +38,9 @@ from ..magic_consts import (
 
 
 def optional_attributes_set_all(optional_attributes, value):
-    optional_attributes.grid_collider_distances = value
-    optional_attributes.grid_collider_normals = value
-    optional_attributes.grid_collider_velocities = value
-
-    optional_attributes.grid_momentum_masses = value
-    optional_attributes.grid_momentum_velocities = value
+    optional_attributes.grid_collider_bits = value
+    optional_attributes.grid_masses = value
+    optional_attributes.grid_velocities = value
 
     optional_attributes.particle_states = value
     optional_attributes.particle_masses = value
@@ -52,7 +50,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.particle_sizes = value
     optional_attributes.particle_transformations = value
     optional_attributes.particle_energies = value
-    optional_attributes.particle_collider_insides = value
+    optional_attributes.particle_collider_bits = value
 
     optional_attributes.collider_normals = value
     optional_attributes.collider_velocities = value
@@ -77,9 +75,9 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
     # Attribute syncing
     # ----------------------------------------------------------------
 
-    grid_collider_distances: bpy.props.BoolProperty(
-        name="Distance",
-        description=f"Attribute name: {SQUISHY_VOLUMES_DISTANCE}",
+    grid_collider_bits: bpy.props.BoolProperty(
+        name="Collider Bits",
+        description=f"Attribute names: {SQUISHY_VOLUMES_COLLIDER_BITS_A}, {SQUISHY_VOLUMES_COLLIDER_BITS_B}",
         default=True,
         options=set(),
     )  # type: ignore
@@ -98,14 +96,14 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    grid_momentum_masses: bpy.props.BoolProperty(
+    grid_masses: bpy.props.BoolProperty(
         name="Masses",
         description=f"Attribute name: {SQUISHY_VOLUMES_MASS}",
         default=True,
         options=set(),
     )  # type: ignore
 
-    grid_momentum_velocities: bpy.props.BoolProperty(
+    grid_velocities: bpy.props.BoolProperty(
         name="Velocities",
         description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
@@ -168,9 +166,9 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    particle_collider_insides: bpy.props.BoolProperty(
-        name="Collider Insides",
-        description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_INSIDE}_X",
+    particle_collider_bits: bpy.props.BoolProperty(
+        name="Collider Bits",
+        description=f"Attribute names: {SQUISHY_VOLUMES_COLLIDER_BITS_A}, {SQUISHY_VOLUMES_COLLIDER_BITS_B}",
         default=True,
         options=set(),
     )  # type: ignore

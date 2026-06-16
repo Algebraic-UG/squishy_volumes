@@ -81,7 +81,8 @@ pub enum AttributeParticles {
     ElasticEnergies,
     Sizes,
     Transformations,
-    ColliderInsides(usize),
+    ColliderBitsA,
+    ColliderBitsB,
 }
 
 #[derive(EnumIter, Serialize, Deserialize)]
@@ -172,13 +173,12 @@ impl State {
                                     .flat()
                                 })
                                 .collect(),
-                            AttributeParticles::ColliderInsides(collider_idx) => is
-                                .map(|i| {
-                                    collider_bits::get(ps.collider_bits[i], collider_idx)
-                                        .map(|inside| if inside { -1. } else { 1. })
-                                        .unwrap_or(0.)
-                                })
-                                .collect(),
+                            AttributeParticles::ColliderBitsA => {
+                                is.map(|i| (ps.collider_bits[i] & 0xFFFF) as f32).collect()
+                            }
+                            AttributeParticles::ColliderBitsB => {
+                                is.map(|i| (ps.collider_bits[i] >> 16) as f32).collect()
+                            }
                         }
                     }
                     _ => Err(AttributeError::ObjectTypeMismatch(name.clone()))?,

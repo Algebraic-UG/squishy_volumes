@@ -28,9 +28,7 @@ from ..util import copy_simple_property_group, frame_to_load
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
     COLLIDER_SAMPLES,
-    GRID_COLLIDER,
-    GRID_MOMENTUM_CONFORMED,
-    GRID_MOMENTUM_FREE,
+    GRID,
     INPUT_MESH,
     PARTICLES,
     OUTPUT_TYPES,
@@ -178,13 +176,8 @@ each frame."""
                 f"Added {obj.name} to output objects of {simulation.name}.",
             )
 
-        if self.output_type == GRID_COLLIDER:  # ty:ignore[unresolved-attribute]
-            create_output_obj(
-                output_name="Collider Distances - Output", input_name=None
-            )
-
-        if self.output_type == GRID_MOMENTUM_FREE:  # ty:ignore[unresolved-attribute]
-            create_output_obj(output_name="Grid Momentum - Output", input_name=None)
+        if self.output_type == GRID:  # ty:ignore[unresolved-attribute]
+            create_output_obj(output_name="Grid - Output", input_name=None)
 
         if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
             if self.called_from_script:
@@ -194,15 +187,6 @@ each frame."""
                 )
 
             for output in self.particle_outputs:
-                if not output.select:
-                    continue
-                create_output_obj(
-                    output_name=output.output_name,
-                    input_name=output.input_name,
-                )
-
-        if self.output_type == GRID_MOMENTUM_CONFORMED:  # ty:ignore[unresolved-attribute]
-            for output in self.collider_outputs:
                 if not output.select:
                     continue
                 create_output_obj(
@@ -243,7 +227,6 @@ each frame."""
         assert isinstance(self.layout, bpy.types.UILayout)
         propname = {
             PARTICLES: "particle_outputs",
-            GRID_MOMENTUM_CONFORMED: "collider_outputs",
         }.get(self.output_type)  # ty:ignore[unresolved-attribute]
         if propname is None:
             return
@@ -272,17 +255,12 @@ each frame."""
         grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
         grid.label(text="Attribute")
         grid.label(text="Type")
-        if output_type == GRID_COLLIDER:
-            grid.prop(self, "grid_collider_distances")
+        if output_type == GRID:
+            grid.prop(self, "grid_collider_bits")
             grid.label(text="FLOAT")
-            grid.prop(self, "grid_collider_normals")
-            grid.label(text="FLOAT_VECTOR")
-            grid.prop(self, "grid_collider_velocities")
-            grid.label(text="FLOAT_VECTOR")
-        if output_type in [GRID_MOMENTUM_FREE, GRID_MOMENTUM_CONFORMED]:
-            grid.prop(self, "grid_momentum_masses")
+            grid.prop(self, "grid_masses")
             grid.label(text="FLOAT")
-            grid.prop(self, "grid_momentum_velocities")
+            grid.prop(self, "grid_velocities")
             grid.label(text="FLOAT_VECTOR")
         if output_type == PARTICLES:
             grid.prop(self, "particle_states")
@@ -301,7 +279,7 @@ each frame."""
             grid.label(text="FLOAT4X4")
             grid.prop(self, "particle_energies")
             grid.label(text="FLOAT")
-            grid.prop(self, "particle_collider_insides")
+            grid.prop(self, "particle_collider_bits")
             grid.label(text="FLOAT")
         if output_type == COLLIDER_SAMPLES:
             grid.prop(self, "collider_normals")
