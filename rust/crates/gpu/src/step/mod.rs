@@ -168,10 +168,10 @@ impl Input {
         let aabbs = make_aabbs(vertex_positions_start)
             .into_iter()
             .zip(make_aabbs(vertex_positions_end))
-            .map(|(start, end)| start.extend(end.min).extend(end.max))
+            .map(|(start, end)| start.extend(&end.min).extend(&end.max))
             .collect();
 
-        let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold).unwrap();
+        let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
 
         let indirect = Indirect::new(IndirectSettings {
             workgroup_size,

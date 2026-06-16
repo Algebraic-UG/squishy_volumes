@@ -111,7 +111,7 @@ impl Input {
         let aabbs =
             triangles_to_leaf_aabbs(leaf_size, *forget_distance, &vertices_3d, triangle_indices);
 
-        let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold).unwrap();
+        let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
 
         let particle_positions = Allocation::new(device, "particle_positions", particle_positions);
         let particle_collider_bits =

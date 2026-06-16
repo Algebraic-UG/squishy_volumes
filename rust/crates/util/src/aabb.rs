@@ -131,13 +131,21 @@ impl<V: AabbVector> Default for Aabb<V> {
 
 impl<V: AabbVector> Aabb<V> {
     pub fn new(points: impl Iterator<Item = V>) -> Self {
+        points.fold(Default::default(), |aabb, v| aabb.extend(&v))
+    }
+
+    pub fn new_from_ref<'a, I>(points: I) -> Self
+    where
+        I: Iterator<Item = &'a V>,
+        V: 'a,
+    {
         points.fold(Default::default(), Self::extend)
     }
 
-    pub fn extend(self, point: V) -> Self {
+    pub fn extend(self, point: &V) -> Self {
         Self {
-            min: self.min.min(&point),
-            max: self.max.max(&point),
+            min: self.min.min(point),
+            max: self.max.max(point),
         }
     }
 

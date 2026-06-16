@@ -13,6 +13,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{Aabb, aabb::AabbVector as _, triangle::Triangle};
 
+#[derive(Default)]
 pub struct BoundingVolumeHierarchy {
     level: u32,
     nodes: Vec<Node>,
@@ -80,16 +81,16 @@ impl Leaf {
 }
 
 impl BoundingVolumeHierarchy {
-    pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>, leaf_threshold: u32) -> Option<Self> {
+    pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>, leaf_threshold: u32) -> Self {
         let aabb = aabbs
             .clone()
             .into_par_iter()
-            .reduce(Aabb::default, |a, b| a.extend(b.min).extend(b.max));
+            .reduce(Aabb::default, |a, b| a.extend(&b.min).extend(&b.max));
         let longest_side = aabb.extents().max();
 
         if longest_side <= 0 {
             tracing::warn!("Bounding Volumes Hierarchy emtpy.");
-            return None;
+            return Self::default();
         }
 
         let level = longest_side.ilog(4) + 1;
@@ -169,7 +170,7 @@ impl BoundingVolumeHierarchy {
             indices,
         );
 
-        Some(Self { level, nodes })
+        Self { level, nodes }
     }
 
     pub fn query(&self, point: &Vector3<i32>) -> &[u32] {

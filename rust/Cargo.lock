@@ -3649,6 +3649,7 @@ dependencies = [
  "serde",
  "serde_json",
  "small-map",
+ "smallvec",
  "squishy_volumes_api",
  "squishy_volumes_gpu",
  "squishy_volumes_util",

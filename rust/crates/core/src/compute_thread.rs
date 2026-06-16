@@ -107,7 +107,8 @@ impl ComputeThread {
                     cache.fetch_frame(next_frame - 1)?
                 };
 
-                let input_interpolation = InputInterpolation::new(input_reader)?;
+                let input_interpolation =
+                    InputInterpolation::new(input_reader, &consts, next_frame - 1)?;
                 let mut phase_input = PhaseInput {
                     consts,
                     input_interpolation,

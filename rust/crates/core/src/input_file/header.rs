@@ -15,6 +15,8 @@ use squishy_volumes_api::T;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct InputConsts {
     grid_node_size: T,
+    pub leaf_size: T,
+    pub leaf_threshold: u32,
     pub max_num_particles: u32,
     pub simulation_scale: T,
     pub frames_per_second: u32,
@@ -26,6 +28,8 @@ pub struct InputConsts {
 impl Default for InputConsts {
     fn default() -> Self {
         Self {
+            leaf_size: 1.,
+            leaf_threshold: 16,
             max_num_particles: 10000000,
             grid_node_size: 0.5,
             simulation_scale: 1.,
@@ -43,6 +47,14 @@ impl InputConsts {
 
     pub fn unscaled_grid_node_size(&self) -> T {
         self.grid_node_size
+    }
+
+    pub fn accept_distance(&self) -> T {
+        self.scaled_grid_node_size() * 2.
+    }
+
+    pub fn forget_distance(&self) -> T {
+        self.scaled_grid_node_size() * 2.2
     }
 }
 

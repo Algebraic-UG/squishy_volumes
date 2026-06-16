@@ -47,6 +47,10 @@ impl InputReader {
         self.size
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.frame_offsets.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.frame_offsets.len()
     }

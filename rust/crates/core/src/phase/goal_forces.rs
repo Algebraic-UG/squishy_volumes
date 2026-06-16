@@ -6,9 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 
-use crate::{ParticleFlags, phase::PhaseInput, profile, state::ObjectIndex};
+use crate::{ParticleFlags, phase::PhaseInput, profile};
 
 use super::State;
 
@@ -21,29 +21,19 @@ impl State {
             .interpolated_input
             .as_ref()
             .context("Missing interpolated input")?;
-        for (name, particles_input) in &interpolated_input.particles_input {
-            let object_index = self.name_map.get(name).context("Missing object")?;
-            let ObjectIndex::Particles(index) = object_index else {
-                bail!("Wrong object type");
-            };
-            for (particle_object_index, particle_world_index) in
-                self.particle_objects[*index].particles.iter().enumerate()
-            {
-                let flags = &particles_input.flags[particle_object_index];
-                if !flags.contains(ParticleFlags::HasGoal) {
-                    continue;
-                }
-
-                let particle_world_index = self.particles.reverse_sort_map[*particle_world_index];
-                let goal_position = particles_input
-                    .goal_positions
-                    .get(particle_object_index)
-                    .context("Missing goal position")?;
-                let position = &self.particles.positions[particle_world_index];
-
-                self.particles.velocities[particle_world_index] =
-                    (goal_position - position) / time_step;
+        for (initial_index, (flags, goal_position)) in interpolated_input
+            .particle_flags
+            .iter()
+            .zip(&interpolated_input.particle_goal_positions)
+            .enumerate()
+        {
+            if !flags.contains(ParticleFlags::HasGoal) {
+                continue;
             }
+
+            let current_index = self.particles.reverse_sort_map[initial_index];
+            let position = &self.particles.positions[current_index];
+            self.particles.velocities[current_index] = (goal_position - position) / time_step;
         }
         Ok(self)
     }

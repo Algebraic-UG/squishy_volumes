@@ -6,15 +6,13 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::{Result, ensure};
+use anyhow::Result;
+use nalgebra::Vector3;
+use rayon::iter::{IndexedParallelIterator as _, IntoParallelRefIterator, ParallelIterator as _};
 use squishy_volumes_api::T;
+use squishy_volumes_util::{NORMALIZATION_EPS, triangle::Triangle};
 
-use crate::{
-    input_interpolation::{
-        InterpolatedInput, InterpolatedInputCollider, InterpolatedInputParticles,
-    },
-    profile,
-};
+use crate::{input_interpolation::InterpolatedInput, profile};
 
 use super::{PhaseInput, State};
 
@@ -30,21 +28,8 @@ impl State {
             .input_interpolation
             .load(&phase_input.consts, frame_time.floor() as usize)?;
 
-        let a = phase_input
-            .input_interpolation
-            .a()
-            .map(|point| &point.interpolant)
-            .expect("there's always the a point");
-
-        let Some(b) = phase_input
-            .input_interpolation
-            .b()
-            .map(|point| &point.interpolant)
-        else {
-            // in this case assume a constant extrapolation from a
-            self.interpolated_input = Some(a.clone());
-            return Ok(self);
-        };
+        let a = phase_input.input_interpolation.a();
+        let b = phase_input.input_interpolation.b().unwrap_or(a);
 
         // linear interpolation between a and b
         let factor_b = (frame_time % 1.) as T;
@@ -52,96 +37,68 @@ impl State {
 
         let gravity = factor_a * a.gravity + factor_b * b.gravity;
 
-        let particles_input = a
-            .particles_input
-            .iter()
-            .zip(b.particles_input.iter())
-            .map(|((name_a, input_a), (name_b, input_b))| {
-                ensure!(name_a == name_b);
-                ensure!(input_a.goal_positions.len() == input_b.goal_positions.len());
+        let particle_flags = a.particle_flags.clone();
 
-                let flags = input_a.flags.clone();
-                let goal_positions = input_a
-                    .goal_positions
-                    .iter()
-                    .zip(&input_b.goal_positions)
-                    .map(|(position_a, position_b)| factor_a * position_a + factor_b * position_b)
-                    .collect();
+        let particle_goal_positions: Vec<Vector3<T>> = a
+            .particle_goal_positions
+            .par_iter()
+            .zip(&b.particle_goal_positions)
+            .map(|(a, b)| factor_a * a + factor_b * b)
+            .collect();
 
-                Ok((
-                    name_a.clone(),
-                    InterpolatedInputParticles {
-                        flags,
-                        goal_positions,
-                    },
-                ))
+        let vertex_positions: Vec<Vector3<T>> = a
+            .vertex_positions
+            .par_iter()
+            .zip(&b.vertex_positions)
+            .map(|(a, b)| factor_a * a + factor_b * b)
+            .collect();
+
+        let triangle_normals: Vec<Vector3<T>> = phase_input
+            .input_interpolation
+            .topology()
+            .triangle_indices
+            .par_iter()
+            .map(|Triangle { a, b, c }| {
+                let a = &vertex_positions[*a as usize];
+                let b = &vertex_positions[*b as usize];
+                let c = &vertex_positions[*c as usize];
+                (b - a)
+                    .cross(&(c - a))
+                    .try_normalize(NORMALIZATION_EPS)
+                    .unwrap_or(Vector3::zeros())
             })
-            .collect::<Result<_>>()?;
+            .collect();
 
-        let collider_input = a
-            .collider_input
-            .iter()
-            .zip(b.collider_input.iter())
-            .map(|((name_a, input_a), (name_b, input_b))| {
-                ensure!(name_a == name_b);
-                let vertex_positions: Vec<_> = input_a
-                    .vertex_positions
+        let vertex_normals: Vec<Vector3<T>> = phase_input
+            .input_interpolation
+            .topology()
+            .vertex_triangle_lists
+            .par_iter()
+            .map(|triangles| {
+                triangles
                     .iter()
-                    .zip(&input_b.vertex_positions)
-                    .map(|(position_a, position_b)| factor_a * position_a + factor_b * position_b)
-                    .collect();
-                let vertex_velocities = input_a
-                    .vertex_positions
-                    .iter()
-                    .zip(&input_b.vertex_positions)
-                    .map(|(position_a, position_b)| {
-                        (position_b - position_a) * phase_input.consts.frames_per_second as T
-                    })
-                    .collect();
-
-                let vertex_normals = input_a
-                    .vertex_normals
-                    .iter()
-                    .zip(&input_b.vertex_normals)
-                    .map(|(normal_a, normal_b)| {
-                        if let (Some(normal_a), Some(normal_b)) = (normal_a, normal_b) {
-                            Some(
-                                normal_a
-                                    .try_slerp(normal_b, factor_b, 0.)
-                                    .unwrap_or(if factor_b < 0.5 { *normal_a } else { *normal_b }),
-                            )
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                let triangle_frictions = input_a
-                    .triangle_frictions
-                    .iter()
-                    .zip(&input_b.triangle_frictions)
-                    .map(|(friction_a, friction_b)| factor_a * friction_a + factor_b * friction_b)
-                    .collect();
-
-                Ok((
-                    name_a.clone(),
-                    InterpolatedInputCollider {
-                        vertex_positions,
-                        vertex_normals,
-                        vertex_velocities,
-                        triangle_frictions,
-
-                        // assume topology constant from a
-                        triangles: input_a.triangles.clone(),
-                        edges_with_opposites: input_a.edges_with_opposites.clone(),
-                    },
-                ))
+                    .map(|triangle_index| triangle_normals[*triangle_index as usize])
+                    .sum::<Vector3<T>>()
+                    .try_normalize(NORMALIZATION_EPS)
+                    .unwrap_or(Vector3::zeros())
             })
-            .collect::<Result<_>>()?;
+            .collect();
+
+        let triangle_frictions: Vec<T> = a
+            .triangle_frictions
+            .par_iter()
+            .zip(&b.triangle_frictions)
+            .map(|(a, b)| factor_a * a + factor_b * b)
+            .collect();
 
         self.interpolated_input = Some(InterpolatedInput {
             gravity,
-            particles_input,
-            collider_input,
+            particle_flags,
+            particle_goal_positions,
+            vertex_positions,
+            vertex_normals,
+            triangle_frictions,
+            triangle_normals,
         });
 
         Ok(self)
