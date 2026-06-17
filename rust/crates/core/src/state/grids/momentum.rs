@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector3;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
@@ -35,6 +34,8 @@ pub struct GridKey {
 pub struct GridMomentum {
     pub map: FxHashMap<GridKey, usize>,
 
+    pub keys: Vec<GridKey>,
+
     pub contributors: Vec<Mutex<Vec<usize>>>,
 
     pub masses: Vec<T>,
@@ -49,15 +50,4 @@ pub struct GridMomentum {
 
     //pub cg_direction: Vec<Vector3<T>>,
     //pub cg_conjugated: Vec<Vector3<T>>,
-}
-
-impl GridMomentum {
-    pub fn prepare_contributors(&mut self, initial_capacity: usize) {
-        self.contributors
-            .par_iter_mut()
-            .for_each(|v| v.get_mut().unwrap().clear());
-        self.contributors.resize_with(self.map.len(), || {
-            Vec::with_capacity(initial_capacity).into()
-        });
-    }
 }

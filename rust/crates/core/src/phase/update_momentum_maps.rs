@@ -8,7 +8,13 @@
 
 use anyhow::Result;
 use nalgebra::Vector3;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::{
+    iter::{
+        IndexedParallelIterator, IntoParallelRefIterator, IntoParallelRefMutIterator as _,
+        ParallelIterator,
+    },
+    slice::ParallelSliceMut as _,
+};
 use rustc_hash::FxHashMap;
 use std::{sync::mpsc::channel, thread::spawn};
 
@@ -48,14 +54,19 @@ impl State {
                 .for_each(|(i, e)| *e = i);
         }
 
+        {
+            profile!("prepare");
+            self.grid
+                .contributors
+                .par_iter_mut()
+                .for_each(|v| v.get_mut().unwrap().clear());
+            self.grid
+                .contributors
+                .resize(self.grid.map.len(), Default::default());
+        }
+
         // to avoid frequent reallocations we add nodes with generous capacity
         let initial_capacity = 1 << 4;
-
-        {
-            // this effectively clears all the contributors
-            profile!("prepare");
-            self.grid.prepare_contributors(initial_capacity);
-        }
 
         // we start a collector thread for the new entries
         // this is a bit tricky: we need to make sure that the new entries' indices are offset
@@ -115,8 +126,20 @@ impl State {
             profile!("collect");
             drop(tx);
             let (map, mut contributors) = collector.join().unwrap();
-            self.grid.map.extend(map.into_iter());
+            self.grid.map.extend(map);
             self.grid.contributors.append(&mut contributors);
+        }
+
+        {
+            profile!("sort keys");
+            let mut keys: Vec<(GridKey, usize)> = self
+                .grid
+                .map
+                .iter()
+                .map(|(key, &index)| (key.clone(), index))
+                .collect();
+            keys.par_sort_by_key(|keys| keys.1);
+            self.grid.keys = keys.into_iter().map(|key| key.0).collect();
         }
 
         Ok(self)
