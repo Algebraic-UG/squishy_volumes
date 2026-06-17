@@ -236,8 +236,6 @@ Note that this also discards all computed frames in the cache."""
         if sim is not None:
             sim.drop()
 
-        context.scene.frame_set(simulation.capture_start_frame)
-
         input_header = create_input_header(simulation)
 
         self.report({"INFO"}, f"Collected input header for {simulation.name}")
@@ -257,6 +255,9 @@ Note that this also discards all computed frames in the cache."""
             bpy.ops.scene.squishy_volumes_write_input_to_cache_modal("INVOKE_DEFAULT")  # ty: ignore[unresolved-attribute]
             return {"FINISHED"}
 
+        prior_frame = context.scene.frame_current
+        context.scene.frame_set(simulation.capture_start_frame)
+
         for i in range(simulation.capture_frames):
             capture_input_frame(
                 simulation=simulation,
@@ -264,6 +265,8 @@ Note that this also discards all computed frames in the cache."""
             )
             if i + 1 < simulation.capture_frames:
                 context.scene.frame_set(context.scene.frame_current + 1)
+
+        context.scene.frame_set(prior_frame)
 
         sim = Simulation.new()
         if simulation.immediately_start_baking:
@@ -307,9 +310,13 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
     bl_options = set()
 
     _timer = None
+    prior_frame = None
 
     def invoke(self, context, event):
         simulation = get_selected_simulation(context.scene)
+
+        self.prior_frame = context.scene.frame_current
+        context.scene.frame_set(simulation.capture_start_frame)
 
         self._timer = context.window_manager.event_timer_add(
             time_step=0, window=context.window
@@ -331,6 +338,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
                 {"WARNING"},
                 f"Capture of {simulation.name} incomplete due to user cancellation.",
             )
+            context.scene.frame_set(self.prior_frame)
             return {"CANCELLED"}
 
         captured_frames = context.scene.frame_current - simulation.capture_start_frame
@@ -352,6 +360,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
             context.scene.frame_set(context.scene.frame_current + 1)
             return {"RUNNING_MODAL"}
 
+        context.scene.frame_set(self.prior_frame)
         context.window_manager.progress_end()
 
         self.report({"INFO"}, f"Finished capturing input for {simulation.name}")
