@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [ "crates/*" ]
+exclude = [ "crates/gpu_with_blocks" ]
 
 [workspace.dependencies]
 anyhow = "1.0.93"
