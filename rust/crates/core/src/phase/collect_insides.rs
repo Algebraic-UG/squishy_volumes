@@ -111,19 +111,19 @@ impl State {
                     let b_n = &vertex_normals[triangle.b as usize];
                     let c_n = &vertex_normals[triangle.c as usize];
                     let ab_n = if opps.ab != u32::MAX {
-                        &triangle_normals[opps.ab as usize]
+                        n + triangle_normals[opps.ab as usize]
                     } else {
-                        &Vector3::zeros()
+                        Vector3::zeros()
                     };
                     let bc_n = if opps.bc != u32::MAX {
-                        &triangle_normals[opps.bc as usize]
+                        n + triangle_normals[opps.bc as usize]
                     } else {
-                        &Vector3::zeros()
+                        Vector3::zeros()
                     };
                     let ca_n = if opps.ca != u32::MAX {
-                        &triangle_normals[opps.ca as usize]
+                        n + triangle_normals[opps.ca as usize]
                     } else {
-                        &Vector3::zeros()
+                        Vector3::zeros()
                     };
 
                     let ab = a - b;
@@ -146,9 +146,9 @@ impl State {
                         }
                     } else {
                         [
-                            segment_distance_result(p, a, b, a_n, ab_n, b_n),
-                            segment_distance_result(p, b, c, b_n, bc_n, c_n),
-                            segment_distance_result(p, c, a, c_n, ca_n, a_n),
+                            segment_distance_result(p, a, b, a_n, &ab_n, b_n),
+                            segment_distance_result(p, b, c, b_n, &bc_n, c_n),
+                            segment_distance_result(p, c, a, c_n, &ca_n, a_n),
                         ]
                         .into_iter()
                         .min_by(|a, b| a.distance.total_cmp(&b.distance))
