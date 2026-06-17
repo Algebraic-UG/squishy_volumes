@@ -375,7 +375,7 @@ impl Topology {
                 },
             ));
             triangle_collider.resize(
-                triangle_collider.len() + input.triangles.len(),
+                triangle_collider.len() + input.triangles.len() / 3,
                 collider as u32,
             );
 
