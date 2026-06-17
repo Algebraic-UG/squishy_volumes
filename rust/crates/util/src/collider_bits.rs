@@ -30,3 +30,9 @@ pub fn set(bits: &mut u32, collider: usize, side: Option<bool>) {
         None => {}
     }
 }
+
+pub fn compatible(a: &u32, b: &u32) -> bool {
+    let mask = (a & b) >> 16;
+    let diff = a ^ b;
+    (mask & diff) == 0
+}

@@ -70,7 +70,7 @@ impl State {
 
                                 let grid_index =
                                     self.grid.map.get(&grid_key).expect("missing node");
-                                let grid_velocity = self.grid.velocities[*grid_index];
+                                let grid_velocity = self.grid.velocities[*grid_index as usize];
                                 *velocity += grid_velocity * weight;
                                 *velocity_gradient +=
                                     (grid_velocity * weight) * to_grid_node.transpose();

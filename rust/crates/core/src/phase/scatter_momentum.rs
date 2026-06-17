@@ -47,6 +47,7 @@ impl State {
             .for_each(
                 |(((GridKey { node_id, .. }, contributors), mass), velocity)| {
                     for &particle_idx in contributors.get_mut().unwrap().iter() {
+                        let particle_idx = particle_idx as usize;
                         let normalized = self.particles.positions[particle_idx] / grid_node_size;
 
                         let to_grid_node_normalized = node_id.map(|x| x as T) - normalized;
@@ -111,13 +112,6 @@ impl State {
 
                         *mass += weight * self.particles.masses[particle_idx];
                         *velocity += imparted_momentum;
-                    }
-
-                    if *mass > 0. {
-                        *velocity /= *mass;
-                    } else {
-                        // Numerical edge case
-                        *velocity = Vector3::zeros();
                     }
                 },
             );

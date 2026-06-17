@@ -298,8 +298,17 @@ impl Topology {
                 });
             }
 
+            if !input.vertex_positions.len().is_multiple_of(3) {
+                tracing::error!(vertex_positions_len = input.vertex_positions.len());
+                return Err(InterpolationError::FlattedNotCorrectMultiple {
+                    name,
+                    attribute: format!("{:?}", FrameBulkCollider::VertexPositions),
+                    multiple: 3,
+                });
+            }
+
             for (triangle_index, &vertex_index) in input.triangles.iter().enumerate() {
-                if vertex_index < 0 || vertex_index as usize >= input.vertex_positions.len() {
+                if vertex_index < 0 || vertex_index as usize >= input.vertex_positions.len() / 3 {
                     return Err(InterpolationError::VertexIndexOutOfRange {
                         name,
                         triangle_index: triangle_index / 3,
@@ -370,7 +379,7 @@ impl Topology {
                 collider as u32,
             );
 
-            vertex_index_offset += input.vertex_positions.len() as u32;
+            vertex_index_offset += input.vertex_positions.len() as u32 / 3;
         }
 
         let mut vertex_triangle_lists: Vec<SmallVec<[u32; 8]>> =

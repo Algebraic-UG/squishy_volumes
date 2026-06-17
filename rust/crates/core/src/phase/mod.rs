@@ -27,6 +27,7 @@ mod goal_forces;
 mod implicit_solve;
 mod interpolate_input;
 mod limit_time_step;
+mod meld_grid;
 mod scatter_momentum;
 mod sort;
 mod update_momentum_maps;
@@ -44,6 +45,7 @@ pub enum Phase {
     LimitTimeStepBeforeForce,
     ScatterMomentum,
     ScatterMomentumExplicit,
+    MeldGrid,
     ImplicitSolve,
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
@@ -63,6 +65,7 @@ impl Phase {
             Self::LimitTimeStepBeforeForce => State::limit_time_step_before_force,
             Self::ScatterMomentum => State::scatter_momentum::<false>,
             Self::ScatterMomentumExplicit => State::scatter_momentum::<true>,
+            Self::MeldGrid => State::meld_grid,
             Self::ImplicitSolve => State::implicit_solve,
             Self::CollectVelocity => State::collect_velocity,
             Self::LimitTimeStepBeforeIntegrate => State::limit_time_step_before_integrate,

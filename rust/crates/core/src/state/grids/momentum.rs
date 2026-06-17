@@ -9,6 +9,7 @@
 use nalgebra::Vector3;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use squishy_volumes_api::T;
 
 use super::Mutex;
@@ -32,11 +33,13 @@ pub struct GridKey {
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct GridMomentum {
-    pub map: FxHashMap<GridKey, usize>,
+    pub map: FxHashMap<GridKey, u32>,
+
+    pub multi_map: FxHashMap<Vector3<i32>, SmallVec<[u32; 3]>>,
 
     pub keys: Vec<GridKey>,
 
-    pub contributors: Vec<Mutex<Vec<usize>>>,
+    pub contributors: Vec<Mutex<SmallVec<[u32; 16]>>>,
 
     pub masses: Vec<T>,
     pub velocities: Vec<Vector3<T>>,

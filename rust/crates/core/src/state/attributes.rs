@@ -200,7 +200,7 @@ impl State {
                     .grid
                     .map
                     .values()
-                    .flat_map(|index| self.grid.velocities[*index].flat())
+                    .flat_map(|index| self.grid.velocities[*index as usize].flat())
                     .collect(),
                 AttributeGrid::ColliderBitsA => self
                     .grid

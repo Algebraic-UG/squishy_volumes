@@ -16,6 +16,7 @@ use rayon::{
     slice::ParallelSliceMut as _,
 };
 use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 use std::{sync::mpsc::channel, thread::spawn};
 
 use crate::{
@@ -39,9 +40,12 @@ impl State {
         {
             // remove those entries that didn't receive any particles
             profile!("prune");
-            self.grid
-                .map
-                .retain(|_, idx| !self.grid.contributors[*idx].get_mut().unwrap().is_empty());
+            self.grid.map.retain(|_, idx| {
+                !self.grid.contributors[*idx as usize]
+                    .get_mut()
+                    .unwrap()
+                    .is_empty()
+            });
         }
 
         {
@@ -51,7 +55,7 @@ impl State {
                 .map
                 .values_mut()
                 .enumerate()
-                .for_each(|(i, e)| *e = i);
+                .for_each(|(i, e)| *e = i as u32);
         }
 
         {
@@ -65,26 +69,23 @@ impl State {
                 .resize(self.grid.map.len(), Default::default());
         }
 
-        // to avoid frequent reallocations we add nodes with generous capacity
-        let initial_capacity = 1 << 4;
-
         // we start a collector thread for the new entries
         // this is a bit tricky: we need to make sure that the new entries' indices are offset
         // and when we access the new contributors, we need to subtract that offset
-        let grid_index_offset = self.grid.map.len();
+        let grid_index_offset = self.grid.map.len() as u32;
         let mut next_grid_index = grid_index_offset;
         let (tx, rx) = channel();
         let collector = spawn(move || {
-            let mut map: FxHashMap<GridKey, usize> = Default::default();
-            let mut contributors: Vec<Mutex<Vec<usize>>> = Default::default();
+            let mut map: FxHashMap<GridKey, u32> = Default::default();
+            let mut contributors: Vec<Mutex<SmallVec<[u32; 16]>>> = Default::default();
             while let Ok((grid_key, particle_index)) = rx.recv() {
                 let grid_index = *map.entry(grid_key).or_insert_with(|| {
-                    contributors.push(Vec::with_capacity(initial_capacity).into());
+                    contributors.push(SmallVec::new().into());
                     let grid_index = next_grid_index;
                     next_grid_index += 1;
                     grid_index
                 });
-                contributors[grid_index - grid_index_offset]
+                contributors[(grid_index - grid_index_offset) as usize]
                     .get_mut()
                     .unwrap()
                     .push(particle_index);
@@ -111,12 +112,13 @@ impl State {
 
                     if let Some(grid_index) = self.grid.map.get(&key) {
                         // if the entry exists, we register
-                        self.grid.contributors[*grid_index]
+                        self.grid.contributors[*grid_index as usize]
                             .lock()
-                            .push(particle_index);
+                            .push(particle_index as u32);
                     } else {
                         // otherwise it's handled in the collector
-                        tx.send((key, particle_index)).expect("collector died");
+                        tx.send((key, particle_index as u32))
+                            .expect("collector died");
                     }
                 });
             });
@@ -132,7 +134,7 @@ impl State {
 
         {
             profile!("sort keys");
-            let mut keys: Vec<(GridKey, usize)> = self
+            let mut keys: Vec<(GridKey, u32)> = self
                 .grid
                 .map
                 .iter()
@@ -140,6 +142,18 @@ impl State {
                 .collect();
             keys.par_sort_by_key(|keys| keys.1);
             self.grid.keys = keys.into_iter().map(|key| key.0).collect();
+        }
+
+        {
+            profile!("multi map");
+            self.grid.multi_map.clear();
+            for (index, GridKey { node_id, .. }) in self.grid.keys.iter().enumerate() {
+                self.grid
+                    .multi_map
+                    .entry(*node_id)
+                    .or_default()
+                    .push(index as u32);
+            }
         }
 
         Ok(self)
