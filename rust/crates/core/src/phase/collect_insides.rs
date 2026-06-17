@@ -140,8 +140,8 @@ impl State {
                         normal,
                     } = if sa && sb && sc {
                         DistanceResult {
-                            distance: (p - a).dot(&n).abs(),
-                            to_p: n * (p - a).dot(&n),
+                            distance: (p - a).dot(n).abs(),
+                            to_p: n * (p - a).dot(n),
                             normal: *n,
                         }
                     } else {

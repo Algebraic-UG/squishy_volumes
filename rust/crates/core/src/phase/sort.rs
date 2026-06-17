@@ -122,22 +122,6 @@ impl State {
             }
         }
 
-        /*TODO
-        {
-            profile!("collider");
-            for collider in &mut self.collider_objects {
-                collider
-                    .surface_samples
-                    .par_sort_unstable_by_key(|surface_sample| {
-                        to_sorting_pos(
-                            &collider
-                                .kinematic
-                                .to_world_position(surface_sample.position),
-                        )
-                    });
-            }
-        }
-        */
         Ok(self)
     }
 }
