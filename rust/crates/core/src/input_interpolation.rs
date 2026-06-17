@@ -289,7 +289,8 @@ impl Topology {
         let mut triangle_collider: Vec<u32> = Default::default();
         let mut triangle_opposites: Vec<Opposites> = Default::default();
         for (collider, (name, input)) in frame.collider_inputs.into_iter().enumerate() {
-            if input.triangles.len().is_multiple_of(3) {
+            if !input.triangles.len().is_multiple_of(3) {
+                tracing::error!(triangle_len = input.triangles.len());
                 return Err(InterpolationError::FlattedNotCorrectMultiple {
                     name,
                     attribute: format!("{:?}", FrameBulkCollider::Triangles),
