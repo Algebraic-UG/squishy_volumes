@@ -10,7 +10,7 @@ use anyhow::Result;
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_util::{
-    collider_bits,
+    NORMALIZATION_EPS, collider_bits,
     mesh::{DistanceResult, distance_to_triangle, segment_distance_result},
     triangle::Triangle,
 };
@@ -39,7 +39,7 @@ impl State {
         let InterpolatedInput {
             vertex_positions,
             vertex_normals,
-            triangle_frictions: _, // TODO
+            triangle_frictions,
             triangle_normals,
             ..
         } = self
@@ -99,11 +99,12 @@ impl State {
                         collider_bits::set(collider_bits, collider, None);
                         continue;
                     }
+                    let closest_triangle = closest_triangle as usize;
 
-                    let triangle = &triangle_indices[closest_triangle as usize];
+                    let triangle = &triangle_indices[closest_triangle];
 
-                    let opps = &triangle_opposites[closest_triangle as usize];
-                    let n = &triangle_normals[closest_triangle as usize];
+                    let opps = &triangle_opposites[closest_triangle];
+                    let n = &triangle_normals[closest_triangle];
                     let a = &vertex_positions[triangle.a as usize];
                     let b = &vertex_positions[triangle.b as usize];
                     let c = &vertex_positions[triangle.c as usize];
@@ -170,6 +171,14 @@ impl State {
 
                     if prior_side == new_side {
                         continue;
+                    }
+
+                    if distance > NORMALIZATION_EPS {
+                        let to_p_normalized = to_p / distance;
+                        let tangential =
+                            *velocity - to_p_normalized * velocity.dot(&to_p_normalized);
+                        *velocity -=
+                            tangential * (distance * triangle_frictions[closest_triangle]).min(1.);
                     }
 
                     *velocity -= to_p / time_step;
