@@ -48,7 +48,7 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         for _ in 0..hash_table.len() {
             let index = hash_table[slot as usize] as usize;
             if index == 0 {
-                panic!();
+                panic!("didn't find {query:?}");
             }
             let index = index - 1;
             if node_ids_and_collider_bits[index] == query {
@@ -103,7 +103,7 @@ fn test_simple() {
         Settings {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
-            grid_node_size: 1.,
+            grid_node_size: 1.1,
         },
         &positions_and_collider_bits,
     );
