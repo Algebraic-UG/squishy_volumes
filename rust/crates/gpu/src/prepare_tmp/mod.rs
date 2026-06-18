@@ -192,6 +192,7 @@ impl PipelinePart for PrepareTmp {
                     particle_position_gradients.binding(),
                     particle_velocities.binding(),
                     particle_velocity_gradients.binding(),
+                    particle_tmp.binding(),
                 ],
             ),
             &[],

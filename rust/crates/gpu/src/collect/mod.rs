@@ -141,7 +141,7 @@ impl PipelinePart for Collect {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (u32::MIN_BINDING_SIZE, true),                      // hash_table
+                    (u32::MIN_BINDING_SIZE, false),                     // hash_table
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits
                     (Vector4::<i32>::MIN_BINDING_SIZE, false),        // node_momentums
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits

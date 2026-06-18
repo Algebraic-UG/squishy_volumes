@@ -6,28 +6,16 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-/*
-use std::collections::HashSet;
-
-use rand::prelude::*;
-use rand::rngs::ChaCha8Rng;
-
-use nalgebra::{Matrix1x3, Matrix3, stack};
-use squishy_volumes_util::{lambda, mu};
-
-use crate::particle_parameters::{Host, Solid};
+use nalgebra::Vector3;
 
 use super::*;
 
-fn check(
-    settings @ Settings {
-        cell_size,
-        time_step,
-        ..
-    }: Settings,
-    dispatch_limit: NonZeroU32,
-    input_data: InputData,
-) {
+fn check(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) {
+    let gpu_node_momentums = run(settings, dispatch_limit, input_data);
+    println!("{gpu_node_momentums:?}");
+    todo!();
+
+    /*
     let grid_cpu = scatter_on_cpu(cell_size, time_step, input_data.clone());
 
     println!("{:?}", grid_cpu);
@@ -53,148 +41,86 @@ fn check(
     for node in grid_cpu.keys() {
         assert!(super_set.contains(&node.push(0)));
     }
+    */
 }
 
 #[test]
 fn test_single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 1.;
-    let time_step = 0.001;
+    let grid_node_size = 1.;
     let settings = Settings {
         workgroup_size,
-        cell_size,
-        time_step,
+        grid_node_size,
     };
 
-    check(
-        settings,
-        dispatch_limit,
-        InputData {
-            masses: &[1.],
-            initial_volumes: &[1.],
-            particle_parameters: &[Host::Solid(Solid {
-                mu: mu(1000., 0.3),
-                lambda: lambda(1000., 0.3),
-                viscosity: None,
-                sand_alpha: None,
-            })
-            .into()],
-            positions: &[Vector4::zeros()],
-            position_gradients: &[stack![
-                Matrix3::identity();
-                Matrix1x3::zeros()
-            ]],
-            velocities: &[Vector4::zeros()],
-            velocity_gradients: &[stack![
-                Matrix3::zeros();
-                Matrix1x3::zeros()
-            ]],
-        },
-    );
-}
-
-#[test]
-fn test_many_random_props() {
-    let workgroup_size = 64.try_into().unwrap();
-    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let cell_size = 1.;
-    let time_step = 0.001;
-    let settings = Settings {
-        workgroup_size,
-        cell_size,
-        time_step,
-    };
-
-    let positions = many_positions();
-    let n = positions.len();
-
-    let mut rng = ChaCha8Rng::seed_from_u64(42);
-    let masses = (0..n)
-        .map(|_| rng.random_range(0.01..0.05))
-        .collect::<Vec<_>>();
-    let initial_volumes = (0..n)
-        .map(|_| rng.random_range(0.01..0.05))
-        .collect::<Vec<_>>();
-
-    let particle_parameters = test_lame_parameters()
-        .chain(test_lame_parameters())
-        .cycle()
-        .take(n)
-        .map(Into::into)
-        .collect::<Vec<_>>();
-    let position_gradients = test_position_gradients_random(n)
+    let contributor_offsets = (0..27).collect::<Vec<_>>();
+    let contributors = [0; 27];
+    let node_ids = [
+        Vector3::new(0, 0, 0),
+        Vector3::new(0, 0, 1),
+        Vector3::new(0, 0, 2),
+        Vector3::new(0, 1, 0),
+        Vector3::new(0, 1, 1),
+        Vector3::new(0, 1, 2),
+        Vector3::new(0, 2, 0),
+        Vector3::new(0, 2, 1),
+        Vector3::new(0, 2, 2),
+        Vector3::new(1, 0, 0),
+        Vector3::new(1, 0, 1),
+        Vector3::new(1, 0, 2),
+        Vector3::new(1, 1, 0),
+        Vector3::new(1, 1, 1),
+        Vector3::new(1, 1, 2),
+        Vector3::new(1, 2, 0),
+        Vector3::new(1, 2, 1),
+        Vector3::new(1, 2, 2),
+        Vector3::new(2, 0, 0),
+        Vector3::new(2, 0, 1),
+        Vector3::new(2, 0, 2),
+        Vector3::new(2, 1, 0),
+        Vector3::new(2, 1, 1),
+        Vector3::new(2, 1, 2),
+        Vector3::new(2, 2, 0),
+        Vector3::new(2, 2, 1),
+        Vector3::new(2, 2, 2),
+    ];
+    let node_ids_and_collider_bits = node_ids
         .into_iter()
-        .map(|m| stack![m; Matrix1x3::zeros()])
-        .collect::<Vec<_>>();
-    let velocities = (0..n)
-        .map(|_| {
-            Vector4::new(
-                rng.random_range(-1.0..1.),
-                rng.random_range(-1.0..1.),
-                rng.random_range(-1.0..1.),
-                0.,
-            )
+        .map(|node_id| NodeIdAndColliderBits {
+            node_id,
+            collider_bits: 0,
         })
         .collect::<Vec<_>>();
-    let velocity_gradients = (0..n)
-        .map(|_| {
-            stack![
-                Matrix3::new(
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                    rng.random_range(-1.0..1.),
-                );
-                Matrix1x3::zeros()
-            ]
-        })
-        .collect::<Vec<_>>();
+    let particle_tmp = [Matrix4::new(
+        0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 1., 1.,
+    )];
 
     check(
         settings,
         dispatch_limit,
         InputData {
-            masses: &masses,
-            initial_volumes: &initial_volumes,
-            particle_parameters: &particle_parameters,
-            positions: &positions,
-            position_gradients: &position_gradients,
-            velocities: &velocities,
-            velocity_gradients: &velocity_gradients,
+            contributor_offsets: &contributor_offsets,
+            contributors: &contributors,
+            node_ids_and_collider_bits: &node_ids_and_collider_bits,
+            particle_tmp: &particle_tmp,
         },
     );
 }
 
-fn run_scatter(
-    settings: Settings,
-    dispatch_limit: NonZeroU32,
-    data: InputData,
-) -> (Vec<Block>, Vec<Vector4<i32>>) {
+fn run(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) -> Vec<Vector4<f32>> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
-    let subgroup_size = context.subgroup_size();
 
-    let (input, block_ids_vec) = Input::new(
-        context.device(),
-        settings,
-        dispatch_limit,
-        subgroup_size,
-        data,
-    );
+    let input = Input::new(context.device(), settings, dispatch_limit, input_data);
     let scatter = Scatter::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { blocks } = scatter
+    let Output { node_momentums } = scatter
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, blocks);
+    let download = DownloadToHost::new(&context, node_momentums);
     download.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
 
@@ -204,6 +130,5 @@ fn run_scatter(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    (download.to_vec(), block_ids_vec)
+    download.to_vec()
 }
-*/

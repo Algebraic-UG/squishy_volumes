@@ -6,4 +6,84 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-// TODO
+use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
+use squishy_volumes_util::{lambda, mu};
+
+use crate::particle_parameters::{Host, Solid};
+
+use super::*;
+
+fn check(settings: Settings, input_data: InputData<'_>) {
+    let particle_tmp = run(settings, input_data);
+    println!("{particle_tmp:?}");
+    todo!()
+}
+
+#[test]
+fn test_single_undeformed() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let grid_node_size = 1.;
+    let time_step = 0.001;
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        grid_node_size,
+        time_step,
+    };
+
+    check(
+        settings,
+        InputData {
+            particle_masses: &[1.],
+            particle_initial_volumes: &[1.],
+            particle_parameters: &[Host::Solid(Solid {
+                mu: mu(1000., 0.3),
+                lambda: lambda(1000., 0.3),
+                viscosity: None,
+                sand_alpha: None,
+            })
+            .into()],
+            particle_positions_and_collider_bits: &[PositionAndColliderBits {
+                position: Vector3::zeros(),
+                collider_bits: 0,
+            }],
+            particle_position_gradients: &[stack![
+                Matrix3::identity();
+                Matrix1x3::zeros()
+            ]],
+            particle_velocities: &[Vector4::zeros()],
+            particle_velocity_gradients: &[stack![
+                Matrix3::zeros();
+                Matrix1x3::zeros()
+            ]],
+        },
+    );
+}
+
+fn run(settings: Settings, input_data: InputData<'_>) -> Vec<Matrix4<f32>> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
+
+    let input = Input::new(context.device(), input_data);
+    let prepare_tmp = PrepareTmp::new(&context, settings);
+
+    let mut encoder = context.device().create_command_encoder(&Default::default());
+
+    let Output { particle_tmp } = prepare_tmp
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .unwrap();
+
+    let download = DownloadToHost::new(&context, particle_tmp);
+    download.copy(&mut encoder);
+
+    context.queue().submit([encoder.finish()]);
+
+    let download = download.prep();
+
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+
+    download.to_vec()
+}

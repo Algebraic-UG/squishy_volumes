@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic};
 
 @group(0) @binding(0)
 var<storage, read_write> hash_table: array<u32>;
@@ -42,16 +42,17 @@ fn main(
 ) {
 
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    if global_index >= arrayLength(&positions_and_collider_bits) {
+    if global_index >= arrayLength(&particle_positions_and_collider_bits) {
         return;
     }
 
-    let position_and_collider_bits = positions_and_collider_bits[global_index];
+    let position_and_collider_bits = particle_positions_and_collider_bits[global_index];
     let low_node_id = position_to_low_node(GRID_NODE_SIZE, position_and_collider_bits.position);
     let normalized_position = position_and_collider_bits.position / GRID_NODE_SIZE;
     let collider_bits = position_and_collider_bits.collider_bits;
 
-    var velocity = TIME_STEP * vec3f(0., 0., -9.8);
+    //var velocity = TIME_STEP * vec3f(0., 0., -9.8);
+    var velocity = vec3f(0.);
     var velocity_gradient = mat3x3f();
 
     // table length must be a power of two
@@ -95,7 +96,7 @@ fn main(
         );
     }
 
-    velocity_gradient *= 4. / grid_node_size / grid_node_size;
+    velocity_gradient *= 4. / GRID_NODE_SIZE / GRID_NODE_SIZE;
 
     particle_positions_and_collider_bits[global_index].position += velocity * TIME_STEP;
     particle_position_gradients[global_index] += velocity_gradient * particle_position_gradients[global_index] * TIME_STEP;
