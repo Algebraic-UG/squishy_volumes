@@ -298,6 +298,7 @@ impl PipelinePart for Step {
                 grid_node_size,
             },
         );
+        let meld_grid = MeldGrid::new(context, meld_grid::Settings {});
         let collect = Collect::new(
             context,
             collect::Settings {
@@ -312,10 +313,10 @@ impl PipelinePart for Step {
             animate_mesh,
             collide,
             prepare_grid,
-            register_contributors: todo!(),
-            prepare_tmp: todo!(),
+            register_contributors,
+            prepare_tmp,
             scatter,
-            meld_grid: todo!(),
+            meld_grid,
             collect,
         }
     }
@@ -412,7 +413,15 @@ impl PipelinePart for Step {
         let prepare_tmp::Output { particle_tmp } = self.prepare_tmp.record(
             context,
             encoder,
-            prepare_tmp::Input {},
+            prepare_tmp::Input {
+                particle_masses,
+                particle_initial_volumes,
+                particle_parameters,
+                particle_positions_and_collider_bits,
+                particle_position_gradients,
+                particle_velocities,
+                particle_velocity_gradients,
+            },
             prepare_tmp::Parameters,
         )?;
 
