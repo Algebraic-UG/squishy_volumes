@@ -31,7 +31,7 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     var global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    if global_index >= arrayLength(&positions_and_collider) {
+    if global_index >= arrayLength(&positions_and_collider_bits) {
         return;
     }
 
@@ -44,7 +44,7 @@ fn main(
 
     for (var node = 0u; node < 27; node++) {
         let node_id = low_node_id + node_offset(node);
-        let hash = murmur_of_node_id(node_id_and_collider_bits.node_id);
+        let hash = murmur_of_node_id(node_id);
 
         var slot = hash & table_mask;
         //  this must never be zero, or we're in big trouble
