@@ -6,9 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::num::NonZeroU32;
-
-use nalgebra::Vector4;
+use std::{num::NonZeroU32, sync::atomic::AtomicU32};
 
 #[cfg(test)]
 mod test;
@@ -19,13 +17,16 @@ pub struct RegisterContributors {
     count_contributors: CompiledModule,
     prefix_sum: PrefixSum,
     register_contributors: CompiledModule,
+
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
 }
 
 #[derive(Clone)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
-    pub cell_size: f32,
+    pub grid_node_size: f32,
 }
 
 pub struct Parameters;
@@ -48,16 +49,42 @@ impl Input {
         Settings {
             workgroup_size,
             dispatch_limit,
-            cell_size,
+            grid_node_size,
             ..
         }: Settings,
-        positions: &[Vector4<f32>],
+        node_ids_and_collider_bits: &[NodeIdAndColliderBits],
+        particle_positions_and_collider_bits: &[PositionAndColliderBits],
     ) -> Self {
+        let hash_table = hash_table_on_cpu(
+            grid_node_size,
+            node_ids_and_collider_bits,
+            particle_positions_and_collider_bits,
+        );
+
+        let indirect_nodes = Indirect::new(DispatchSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: node_ids_and_collider_bits.len() as u32,
+        });
+
+        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
+        let particle_positions_and_collider_bits = Allocation::new(
+            device,
+            "particle_positions_and_collider_bits",
+            particle_positions_and_collider_bits,
+        );
+        let hash_table = Allocation::new(device, "hash_table", &hash_table);
+        let node_ids_and_collider_bits = Allocation::new(
+            device,
+            "node_ids_and_collider_bits",
+            &node_ids_and_collider_bits,
+        );
+
         Self {
-            indirect_nodes: todo!(),
-            particle_positions_and_collider_bits: todo!(),
-            hash_table: todo!(),
-            node_ids_and_collider_bits: todo!(),
+            indirect_nodes,
+            particle_positions_and_collider_bits,
+            hash_table,
+            node_ids_and_collider_bits,
         }
     }
 }
@@ -73,13 +100,61 @@ impl PipelinePart for RegisterContributors {
         Settings {
             workgroup_size,
             dispatch_limit,
-            cell_size,
+            grid_node_size,
         }: Settings,
     ) -> Self {
+        let_compiled_module!(
+            count_contributors,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (PositionAndColliderBits::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
+                    (AtomicU32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("GRID_NODE_SIZE", grid_node_size as f64),
+                ]
+            }
+        );
+
+        let prefix_sum = PrefixSum::new(
+            context,
+            prefix_sum::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        );
+
+        let_compiled_module!(
+            register_contributors,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (PositionAndColliderBits::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
+                    (AtomicU32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("GRID_NODE_SIZE", grid_node_size as f64),
+                ]
+            }
+        );
+
         Self {
-            count_contributors: todo!(),
-            prefix_sum: todo!(),
-            register_contributors: todo!(),
+            count_contributors,
+            prefix_sum,
+            register_contributors,
+            workgroup_size,
+            dispatch_limit,
         }
     }
 
@@ -95,9 +170,93 @@ impl PipelinePart for RegisterContributors {
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
+        let num_particles = particle_positions_and_collider_bits.len::<PositionAndColliderBits>();
+        let num_grid_nodes = node_ids_and_collider_bits.len::<NodeIdAndColliderBits>();
+        let [x, y, z] = Indirect::new(DispatchSettings {
+            workgroup_size: self.workgroup_size,
+            dispatch_limit: self.dispatch_limit,
+            len: num_particles.get() as u32,
+        })
+        .direct();
+
+        let contributor_counts = context
+            .allocator()?
+            .allocate::<AtomicU32>("contributor_counts", num_grid_nodes)?;
+
+        encoder.clear_buffer(
+            contributor_counts.buffer(),
+            contributor_counts.offset(),
+            Some(contributor_counts.size().get()),
+        );
+
+        let mut compute_pass = encoder.begin_compute_pass(self.count_contributors.label);
+        compute_pass.set_pipeline(&self.count_contributors.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.count_contributors,
+                [
+                    particle_positions_and_collider_bits.binding(),
+                    hash_table.binding(),
+                    node_ids_and_collider_bits.binding(),
+                    contributor_counts.binding(),
+                ],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups(x, y, z);
+        drop(compute_pass);
+
+        let prefix_sum::Output {
+            prefix_sums: contributor_offsets,
+            total_sum,
+        } = self.prefix_sum.record(
+            context,
+            encoder,
+            prefix_sum::Input {
+                indirect: indirect_nodes,
+                numbers: contributor_counts.clone(),
+            },
+            prefix_sum::Parameters { total_sum: false },
+        )?;
+        assert!(total_sum.is_none());
+
+        let contributors = context.allocator()?.allocate::<u32>(
+            "contributors",
+            (num_particles.get() * 27).try_into().unwrap(),
+        )?;
+
+        encoder.clear_buffer(
+            contributor_counts.buffer(),
+            contributor_counts.offset(),
+            Some(contributor_counts.size().get()),
+        );
+
+        let mut compute_pass = encoder.begin_compute_pass(self.register_contributors.label);
+        compute_pass.set_pipeline(&self.register_contributors.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.register_contributors,
+                [
+                    particle_positions_and_collider_bits.binding(),
+                    hash_table.binding(),
+                    node_ids_and_collider_bits.binding(),
+                    contributor_counts.binding(),
+                    contributor_offsets.binding(),
+                    contributors.binding(),
+                ],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups(x, y, z);
+        drop(compute_pass);
+
         Ok(Output {
-            contributor_offsets: todo!(),
-            contributors: todo!(),
+            contributor_offsets,
+            contributors,
         })
     }
 }

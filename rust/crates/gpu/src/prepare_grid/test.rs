@@ -6,31 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::collections::HashSet;
-
 use nalgebra::Vector3;
 
 use super::*;
 
 fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBits]) {
-    let mut nodes: HashSet<NodeIdAndColliderBits> = Default::default();
-    for PositionAndColliderBits {
-        position,
-        collider_bits,
-    } in positions_and_collider_bits
-    {
-        let low_node = position_to_low_node(settings.grid_node_size, position);
-        for x in 0..3 {
-            for y in 0..3 {
-                for z in 0..3 {
-                    nodes.insert(NodeIdAndColliderBits {
-                        node_id: low_node + Vector3::new(x, y, z),
-                        collider_bits: *collider_bits,
-                    });
-                }
-            }
-        }
-    }
+    let nodes = get_node_set(settings.grid_node_size, positions_and_collider_bits);
 
     let (indirect_nodes, hash_table, node_ids_and_collider_bits) =
         run_prepare_grid(settings, positions_and_collider_bits);

@@ -176,8 +176,8 @@ pub fn counts_count(
     actual_workgroup_count * subgroups_per_workgroup * counter
 }
 
-pub fn position_to_low_node(node_size: f32, position: &Vector3<f32>) -> Vector3<i32> {
-    position.map(|c| (c / node_size).round() as i32 - 1)
+pub fn position_to_low_node(grid_node_size: f32, position: &Vector3<f32>) -> Vector3<i32> {
+    position.map(|c| (c / grid_node_size).round() as i32 - 1)
 }
 
 pub fn kernel_linear(x: f32) -> f32 {
@@ -250,4 +250,78 @@ impl Permutation for &[u32] {
             .map(|&index| to_permute[index as usize].clone())
             .collect()
     }
+}
+
+pub fn get_contributors(
+    grid_node_size: f32,
+    positions_and_collider_bits: &[PositionAndColliderBits],
+) -> HashMap<NodeIdAndColliderBits, Vec<u32>> {
+    let mut map: HashMap<NodeIdAndColliderBits, Vec<u32>> = Default::default();
+    for (
+        particle_index,
+        PositionAndColliderBits {
+            position,
+            collider_bits,
+        },
+    ) in positions_and_collider_bits.iter().enumerate()
+    {
+        let low_node = position_to_low_node(grid_node_size, position);
+        for x in 0..3 {
+            for y in 0..3 {
+                for z in 0..3 {
+                    map.entry(NodeIdAndColliderBits {
+                        node_id: low_node + Vector3::new(x, y, z),
+                        collider_bits: *collider_bits,
+                    })
+                    .or_default()
+                    .push(particle_index as u32);
+                }
+            }
+        }
+    }
+    map
+}
+
+pub fn get_node_set(
+    grid_node_size: f32,
+    positions_and_collider_bits: &[PositionAndColliderBits],
+) -> HashSet<NodeIdAndColliderBits> {
+    let mut nodes: HashSet<NodeIdAndColliderBits> = Default::default();
+    for PositionAndColliderBits {
+        position,
+        collider_bits,
+    } in positions_and_collider_bits
+    {
+        let low_node = position_to_low_node(grid_node_size, position);
+        for x in 0..3 {
+            for y in 0..3 {
+                for z in 0..3 {
+                    nodes.insert(NodeIdAndColliderBits {
+                        node_id: low_node + Vector3::new(x, y, z),
+                        collider_bits: *collider_bits,
+                    });
+                }
+            }
+        }
+    }
+    nodes
+}
+
+pub fn hash_table_on_cpu(
+    grid_node_size: f32,
+    node_ids_and_collider_bits: &[NodeIdAndColliderBits],
+    positions_and_collider_bits: &[PositionAndColliderBits],
+) -> Vec<u32> {
+    let mut hash_table = vec![0; (positions_and_collider_bits.len() * 27).next_power_of_two()];
+    let mask = hash_table.len() as u32 - 1;
+    for (index, node) in node_ids_and_collider_bits.iter().enumerate() {
+        let hash = node_id_to_murmur(&node.node_id);
+        let mut slot = hash & mask;
+        while hash_table[slot as usize] != 0 {
+            slot += 1;
+            slot &= mask;
+        }
+        hash_table[slot as usize] = index as u32 + 1;
+    }
+    hash_table
 }
