@@ -1,5 +1,5 @@
 [package]
-name = "squishy_volumes_gpu_cli"
+name = "squishy_volumes_gpu_with_blocks_cli"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
