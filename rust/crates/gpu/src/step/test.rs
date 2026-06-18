@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+/*
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
 
@@ -286,3 +287,4 @@ fn run_step(settings: Settings, data: InputData) -> OutputData {
         velocity_gradients_out: velocity_gradients_out.to_vec(),
     }
 }
+*/

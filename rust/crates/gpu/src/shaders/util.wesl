@@ -322,6 +322,6 @@ struct PositionAndColliderBits {
 }
 
 struct NodeIdAndColliderBits {
-    position: vec3f,
+    node_id: vec3i,
     collider_bits: u32,
 }

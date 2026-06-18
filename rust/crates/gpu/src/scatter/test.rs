@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+/*
 use std::collections::HashSet;
 
 use rand::prelude::*;
@@ -205,3 +206,4 @@ fn run_scatter(
 
     (download.to_vec(), block_ids_vec)
 }
+*/

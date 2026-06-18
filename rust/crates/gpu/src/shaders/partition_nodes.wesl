@@ -61,7 +61,7 @@ fn main(
 
             let old_index = (result.old_value & index_mask) - 1;
             let old_position_and_collider_bits = positions_and_collider_bits[old_index];
-            if old_position_and_collider_bits.collider_bits != positions_and_collider_bits.collider_bits {
+            if old_position_and_collider_bits.collider_bits != position_and_collider_bits.collider_bits {
                 continue;
             }
 

@@ -11,7 +11,7 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use nalgebra::Vector4;
+use nalgebra::{Vector3, Vector4};
 
 use super::*;
 
@@ -27,7 +27,7 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect: Allocation,
-    pub cells: Allocation,
+    pub node_ids: Allocation,
 }
 
 impl Input {
@@ -35,18 +35,19 @@ impl Input {
         device: &wgpu::Device,
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
-        cells: &[Vector4<i32>],
+        node_ids: &[Vector3<i32>],
     ) -> Self {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
-            len: cells.len() as u32,
+            len: node_ids.len() as u32,
         });
+        let node_ids = node_ids.iter().map(|p| p.push(0)).collect::<Vec<_>>();
 
-        let cells = Allocation::new(device, "cells", cells);
+        let node_ids = Allocation::new(device, "node_ids", &node_ids);
         let indirect = Allocation::new(device, "indirect", &[indirect]);
 
-        Self { indirect, cells }
+        Self { indirect, node_ids }
     }
 }
 
@@ -84,12 +85,12 @@ impl PipelinePart for NodeIdsToMurmur {
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input { indirect, cells }: Input,
+        Input { indirect, node_ids }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
         let hashes = context
             .allocator()?
-            .allocate::<u32>("hashes", cells.len::<Vector4<i32>>())?;
+            .allocate::<u32>("hashes", node_ids.len::<Vector4<i32>>())?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.node_ids_to_murmur.label);
         compute_pass.set_pipeline(&self.node_ids_to_murmur.compute_pipeline);
@@ -98,7 +99,7 @@ impl PipelinePart for NodeIdsToMurmur {
             &create_bind_group(
                 context.device(),
                 &self.node_ids_to_murmur,
-                [indirect.binding(), cells.binding(), hashes.binding()],
+                [indirect.binding(), node_ids.binding(), hashes.binding()],
             ),
             &[],
         );

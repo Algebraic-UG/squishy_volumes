@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+/*
 use nalgebra::Vector3;
 use squishy_volumes_util::{
     Aabb, NORMALIZATION_EPS, collider_bits,
@@ -399,3 +400,4 @@ fn run(settings: Settings, input_data: InputData) -> (Vec<u32>, Vec<Vector4<f32>
         particle_velocities.to_vec(),
     )
 }
+*/

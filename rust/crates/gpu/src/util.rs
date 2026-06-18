@@ -61,39 +61,12 @@ pub fn sort_on_cpu(indices: &[u32], keys: &[u32]) -> Vec<u32> {
     indices
 }
 
-pub fn sort_positions_into_cells_on_cpu(
-    indices: &[u32],
-    positions: &[Vector4<f32>],
-    cell_size: f32,
-) -> Vec<u32> {
-    let mut indices = indices.to_vec();
-    indices.sort_by(|a, b| {
-        let a = position_to_cell(cell_size, &positions[*a as usize]);
-        let b = position_to_cell(cell_size, &positions[*b as usize]);
-        a.x.cmp(&b.x).then(a.y.cmp(&b.y)).then(a.z.cmp(&b.z))
-    });
-    indices
-}
-
 pub fn i32_to_u32_offset(x: i32) -> u32 {
     (x as u32) ^ 0x8000_0000
 }
 
 pub fn u32_to_i32_offset(x: u32) -> i32 {
     (x as i32) ^ 0x8000_0000u32 as i32
-}
-
-pub fn positions_to_keys_on_cpu(
-    positions: &[Vector4<f32>],
-    cell_size: f32,
-    dimension: u32,
-) -> Vec<u32> {
-    positions
-        .iter()
-        .map(|position| {
-            i32_to_u32_offset(position_to_cell(cell_size, position)[dimension as usize])
-        })
-        .collect()
 }
 
 pub fn node_id_to_murmur(node_id: &Vector3<i32>) -> u32 {
@@ -103,48 +76,6 @@ pub fn node_id_to_murmur(node_id: &Vector3<i32>) -> u32 {
     bytes[4..8].copy_from_slice(&node_id.y.to_le_bytes());
     bytes[8..12].copy_from_slice(&node_id.z.to_le_bytes());
     murmur3_32(&mut Cursor::new(bytes), 0).unwrap()
-}
-
-pub fn find_cell_boundaries_on_cpu(positions: &[Vector4<f32>], cell_size: f32) -> Vec<u32> {
-    positions
-        .iter()
-        .zip(positions.iter().skip(1))
-        .map(|(position, next_position)| {
-            if position_to_cell(cell_size, position) != position_to_cell(cell_size, next_position) {
-                1
-            } else {
-                0
-            }
-        })
-        .chain(once(1))
-        .collect()
-}
-
-pub fn build_cells_on_cpu(
-    workgroup_size: NonZeroU32,
-    dispatch_limit: NonZeroU32,
-    cell_size: f32,
-    positions: &[Vector4<f32>],
-    prefixed_boundaries: &[u32],
-) -> (Vec<Vector4<i32>>, Vec<u32>, Indirect) {
-    let mut cell_ids: Vec<Vector4<i32>> = Default::default();
-    let mut index_ranges: Vec<u32> = Default::default();
-    for (index, position) in positions.iter().enumerate() {
-        if index + 1 != positions.len()
-            && prefixed_boundaries[index] == prefixed_boundaries[index + 1]
-        {
-            continue;
-        }
-        cell_ids.push(position_to_cell(cell_size, position));
-        index_ranges.push(index as u32 + 1);
-    }
-    let indirect = Indirect::new(DispatchSettings {
-        workgroup_size,
-        dispatch_limit,
-        len: cell_ids.len() as u32,
-    });
-
-    (cell_ids, index_ranges, indirect)
 }
 
 pub fn build_hash_table_on_cpu(node_ids_and_collider_bits: &[NodeIdAndColliderBits]) -> Vec<u32> {
@@ -218,24 +149,6 @@ pub fn gpu_grid_to_cpu_grid(block_ids: &[Vector4<i32>]) -> Vec<Vector4<i32>> {
         .collect()
 }
 
-pub fn grid_on_cpu(
-    cell_size: f32,
-    indices: &[u32],
-    positions: &[Vector4<f32>],
-) -> Vec<Vector4<i32>> {
-    let mut nodes: HashSet<Vector4<i32>> = Default::default();
-    for position in indices.iter().map(|index| positions[*index as usize]) {
-        let cell_id = position_to_cell(cell_size, &position);
-        for block in 0..8 {
-            let node_id = (cell_id + block_offset(block)) * 2 - Vector4::new(1, 1, 1, 0);
-            nodes.extend((0..2).flat_map(move |x| {
-                (0..2).flat_map(move |y| (0..2).map(move |z| node_id + Vector4::new(x, y, z, 0)))
-            }));
-        }
-    }
-    nodes.into_iter().collect()
-}
-
 pub struct CountsCountArgs {
     pub workgroup_size: u32,
     pub subgroup_size: u32,
@@ -263,11 +176,8 @@ pub fn counts_count(
     actual_workgroup_count * subgroups_per_workgroup * counter
 }
 
-pub fn position_to_cell(cell_size: f32, position: &Vector4<f32>) -> Vector4<i32> {
-    position
-        .xyz()
-        .map(|c| (c / cell_size + 0.25).floor() as i32)
-        .push(0)
+pub fn position_to_low_node(node_size: f32, position: &Vector3<f32>) -> Vector3<i32> {
+    position.map(|c| (c / node_size).round() as i32 - 1)
 }
 
 pub fn kernel_linear(x: f32) -> f32 {

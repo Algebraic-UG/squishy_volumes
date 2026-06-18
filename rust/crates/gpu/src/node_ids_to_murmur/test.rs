@@ -6,29 +6,31 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use nalgebra::Vector3;
+
 use super::*;
 
 #[test]
 fn test_simple() {
-    let cells = [
-        Vector4::new(-5, -5, -5, 0),
-        Vector4::new(-5, -5, 5, 0),
-        Vector4::new(-5, 5, -5, 0),
-        Vector4::new(-5, 5, 5, 0),
-        Vector4::new(5, -5, -5, 0),
-        Vector4::new(5, -5, 5, 0),
-        Vector4::new(5, 5, -5, 0),
-        Vector4::new(5, 5, 5, 0),
+    let node_ids = [
+        Vector3::new(-5, -5, -5),
+        Vector3::new(-5, -5, 5),
+        Vector3::new(-5, 5, -5),
+        Vector3::new(-5, 5, 5),
+        Vector3::new(5, -5, -5),
+        Vector3::new(5, -5, 5),
+        Vector3::new(5, 5, -5),
+        Vector3::new(5, 5, 5),
     ];
 
     assert_eq!(
-        cells_to_murmur_on_cpu(&cells),
-        run_cells_to_murmur(
+        node_ids.iter().map(node_id_to_murmur).collect::<Vec<_>>(),
+        run(
             Settings {
                 workgroup_size: 64.try_into().unwrap()
             },
             (u16::MAX as u32).try_into().unwrap(),
-            &cells
+            &node_ids
         ),
     );
 }
@@ -38,45 +40,41 @@ fn test_random() {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
-    let cells: Vec<i32> = ChaCha8Rng::seed_from_u64(42)
+    let node_ids: Vec<i32> = ChaCha8Rng::seed_from_u64(42)
         .random_iter::<i32>()
-        .take(1000 * 4)
+        .take(1000 * 3)
         .collect();
-    let cells: Vec<Vector4<i32>> = cells
-        .chunks_exact(4)
-        .map(Vector4::from_column_slice)
+    let node_ids: Vec<Vector3<i32>> = node_ids
+        .chunks_exact(3)
+        .map(Vector3::from_column_slice)
         .collect();
 
     assert_eq!(
-        cells_to_murmur_on_cpu(&cells),
-        run_cells_to_murmur(
+        node_ids.iter().map(node_id_to_murmur).collect::<Vec<_>>(),
+        run(
             Settings {
                 workgroup_size: 64.try_into().unwrap()
             },
             (u16::MAX as u32).try_into().unwrap(),
-            &cells
+            &node_ids
         ),
     );
 }
 
-fn run_cells_to_murmur(
-    settings: Settings,
-    dispatch_limit: NonZeroU32,
-    cells: &[Vector4<i32>],
-) -> Vec<u32> {
+fn run(settings: Settings, dispatch_limit: NonZeroU32, node_ids: &[Vector3<i32>]) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(
         context.device(),
         settings.workgroup_size,
         dispatch_limit,
-        cells,
+        node_ids,
     );
 
-    let cells_to_murmur = CellsToMurmur::new(&context, settings);
+    let node_ids_to_murmur = NodeIdsToMurmur::new(&context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { hashes } = cells_to_murmur
+    let Output { hashes } = node_ids_to_murmur
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 

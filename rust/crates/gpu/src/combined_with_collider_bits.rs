@@ -18,7 +18,7 @@ pub struct PositionAndColliderBits {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, PartialEq, Eq, Hash)]
 pub struct NodeIdAndColliderBits {
     pub node_id: Vector3<i32>,
     pub collider_bits: u32,

@@ -11,8 +11,6 @@ use std::{
     sync::atomic::AtomicU32,
 };
 
-use nalgebra::Vector3;
-
 #[cfg(test)]
 mod test;
 
@@ -58,32 +56,19 @@ impl Input {
             dispatch_limit,
             ..
         }: Settings,
-        positions: &[Vector3<f32>],
-        collider_bits: &[u32],
+        particle_positions_and_collider_bits: &[PositionAndColliderBits],
     ) -> Self {
-        assert_eq!(positions.len(), collider_bits.len());
-
         let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
-            len: positions.len() as u32,
+            len: particle_positions_and_collider_bits.len() as u32,
         });
-
-        let particle_positions_and_collider_bits = positions
-            .iter()
-            .zip(collider_bits)
-            .map(|(&position, &collider_bits)| PositionAndColliderBits {
-                position,
-                collider_bits,
-            })
-            .collect::<Vec<_>>();
-
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles]);
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
-            &particle_positions_and_collider_bits,
+            particle_positions_and_collider_bits,
         );
 
         Self {

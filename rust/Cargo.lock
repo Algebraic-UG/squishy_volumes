@@ -3710,6 +3710,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "squishy_volumes_gpu_with_blocks_cli"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "clap",
+ "convert_case 0.11.0",
+ "env_logger",
+ "nalgebra",
+ "pollster",
+ "rand 0.10.0",
+ "squishy_volumes_gpu",
+ "squishy_volumes_util",
+ "tracing",
+ "tracing-subscriber",
+ "wgpu",
+ "wgpu-profiler",
+ "winit",
+]
+
+[[package]]
 name = "squishy_volumes_hot"
 version = "0.1.0"
 dependencies = [
