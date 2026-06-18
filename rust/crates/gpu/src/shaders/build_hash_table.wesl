@@ -8,16 +8,16 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{Indirect, get_global_index, block_offset, murmur_of_cell};
+import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> block_ids: array<vec3<i32>>;
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
 @group(0) @binding(2)
-var<storage, read_write> block_table: array<atomic<u32>>;
+var<storage, read_write> hash_table: array<atomic<u32>>;
 
 override WORKGROUP_SIZE: u32;
 
@@ -31,14 +31,14 @@ fn main(
         return;
     }
 
-    let block_id = block_ids[global_index];
+    let node_id_and_collider_bits = node_ids_and_collider_bits[global_index];
 
     // table length must be a power of two
-    let table_mask = arrayLength(&block_table) - 1;
-    let hash = murmur_of_cell(block_id);
-
+    let table_mask = arrayLength(&hash_table) - 1;
+    let hash = murmur_of_node_id(node_id_and_collider_bits.node_id);
     var slot = hash & table_mask;
-    while !atomicCompareExchangeWeak(&block_table[slot], 0, global_index + 1).exchanged {
+
+    while !atomicCompareExchangeWeak(&hash_table[slot], 0, global_index + 1).exchanged {
         slot += 1;
         slot &= table_mask;
     }

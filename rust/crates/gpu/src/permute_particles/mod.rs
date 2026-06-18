@@ -80,7 +80,7 @@ impl Input {
         assert_eq!(permutation.len(), position_gradients.len());
         assert_eq!(permutation.len(), velocities.len());
         assert_eq!(permutation.len(), velocity_gradients.len());
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: permutation.len() as u32,

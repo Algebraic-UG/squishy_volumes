@@ -94,11 +94,11 @@ fn murmur3_x86_32_3u32(a: u32, b: u32, c: u32, seed: u32) -> u32 {
     return fmix32(h1);
 }
 
-fn murmur_of_cell(cell: vec3i) -> u32 {
+fn murmur_of_node_id(node_id: vec3i) -> u32 {
     return murmur3_x86_32_3u32(
-        i32_to_ordered_u32(cell.x),
-        i32_to_ordered_u32(cell.y),
-        i32_to_ordered_u32(cell.z),
+        i32_to_ordered_u32(node_id.x),
+        i32_to_ordered_u32(node_id.y),
+        i32_to_ordered_u32(node_id.z),
         0,
     );
 }
@@ -121,8 +121,40 @@ fn block_offset(block: u32) -> vec3i {
     return offset;
 }
 
-fn position_to_cell(cell_size: f32, position: vec3f) -> vec3i {
-    return vec3i(floor(position / cell_size + vec3f(0.25)));
+fn node_offset(node: u32) -> vec3i {
+    switch node {
+        case 0: { return vec3i(0, 0, 0); }
+        case 1: { return vec3i(0, 0, 1); }
+        case 2: { return vec3i(0, 0, 2); }
+        case 3: { return vec3i(0, 1, 0); }
+        case 4: { return vec3i(0, 1, 1); }
+        case 5: { return vec3i(0, 1, 2); }
+        case 6: { return vec3i(0, 2, 0); }
+        case 7: { return vec3i(0, 2, 1); }
+        case 8: { return vec3i(0, 2, 2); }
+        case 9: { return vec3i(1, 0, 0); }
+        case 10: { return vec3i(1, 0, 1); }
+        case 11: { return vec3i(1, 0, 2); }
+        case 12: { return vec3i(1, 1, 0); }
+        case 13: { return vec3i(1, 1, 1); }
+        case 14: { return vec3i(1, 1, 2); }
+        case 15: { return vec3i(1, 2, 0); }
+        case 16: { return vec3i(1, 2, 1); }
+        case 17: { return vec3i(1, 2, 2); }
+        case 18: { return vec3i(2, 0, 0); }
+        case 19: { return vec3i(2, 0, 1); }
+        case 20: { return vec3i(2, 0, 2); }
+        case 21: { return vec3i(2, 1, 0); }
+        case 22: { return vec3i(2, 1, 1); }
+        case 23: { return vec3i(2, 1, 2); }
+        case 24: { return vec3i(2, 2, 0); }
+        case 25: { return vec3i(2, 2, 1); }
+        default: { return vec3i(2, 2, 2); }
+    }
+}
+
+fn position_to_low_node(node_size: f32, position: vec3f) -> vec3i {
+    return vec3i(round(position / node_size)) - vec3i(1);
 }
 
 fn kernel_linear(signed_x: f32) -> f32 {
@@ -282,4 +314,14 @@ fn try_normalize(n: vec3f, alternative: vec3f) -> vec3f {
 
 fn sign(v: f32) -> f32 {
     return select(-1., 1., v >= 0.);
+}
+
+struct PositionAndColliderBits {
+    position: vec3f,
+    collider_bits: u32,
+}
+
+struct NodeIdAndColliderBits {
+    position: vec3f,
+    collider_bits: u32,
 }

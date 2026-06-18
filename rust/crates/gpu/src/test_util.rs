@@ -8,7 +8,7 @@
 
 use std::{num::NonZeroU32, sync::Mutex};
 
-use crate::{GpuContext, Indirect, IndirectSettings, particle_parameters};
+use crate::{DispatchSettings, GpuContext, Indirect, particle_parameters};
 
 use approx::assert_relative_eq;
 // Maybe we can avoid this once this is fixed?
@@ -50,7 +50,7 @@ pub fn count_subkeys_on_cpu(
 
     // this part calculates how many counters there will be
     let subgroups_per_workgroup = workgroup_size / subgroup_size;
-    let actual_workgroup_count = Indirect::new(IndirectSettings {
+    let actual_workgroup_count = Indirect::new(DispatchSettings {
         workgroup_size: workgroup_size.try_into().unwrap(),
         dispatch_limit: dispatch_limit.try_into().unwrap(),
         len: keys.len() as u32,

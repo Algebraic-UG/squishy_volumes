@@ -17,7 +17,7 @@ pub struct Indirect {
     pub len: u32,
 }
 
-pub struct IndirectSettings {
+pub struct DispatchSettings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
     pub len: u32,
@@ -25,11 +25,11 @@ pub struct IndirectSettings {
 
 impl Indirect {
     pub fn new(
-        IndirectSettings {
+        DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len,
-        }: IndirectSettings,
+        }: DispatchSettings,
     ) -> Self {
         let workgroup_size = workgroup_size.get();
         let dispatch_limit = dispatch_limit.get();
@@ -47,5 +47,9 @@ impl Indirect {
 
     pub fn workgroup_count(&self) -> u32 {
         self.x * self.y * self.z
+    }
+
+    pub fn direct(&self) -> [u32; 3] {
+        [self.x, self.y, self.z]
     }
 }

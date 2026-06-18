@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::{Matrix4x3, Vector4};
+use nalgebra::{Matrix4, Matrix4x3, Vector4};
 use squishy_volumes_util::triangle::{Opposites, Triangle};
 use std::num::NonZeroU64;
 use std::sync::atomic::AtomicU32;
@@ -25,6 +25,9 @@ impl AllowedInBinding for Vector4<f32> {}
 impl AllowedInBinding for Vector4<i32> {}
 impl AllowedInBinding for Vector4<u32> {}
 impl AllowedInBinding for Matrix4x3<f32> {
+    const ALIGNMENT: NonZeroU64 = Vector4::<f32>::ALIGNMENT;
+}
+impl AllowedInBinding for Matrix4<f32> {
     const ALIGNMENT: NonZeroU64 = Vector4::<f32>::ALIGNMENT;
 }
 impl AllowedInBinding for Block {

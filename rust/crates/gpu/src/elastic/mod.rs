@@ -40,7 +40,7 @@ impl Input {
         particle_parameters: &[particle_parameters::Device],
     ) -> Self {
         assert_eq!(position_gradients.len(), particle_parameters.len());
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: position_gradients.len() as u32,

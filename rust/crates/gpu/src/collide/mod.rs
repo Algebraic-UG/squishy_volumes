@@ -39,8 +39,7 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
-    pub particle_positions: Allocation,
-    pub particle_collider_bits: Allocation,
+    pub particle_positions_and_collider_bits: Allocation,
     pub particle_velocities: Allocation,
     pub vertex_positions: Allocation,
     pub vertex_normals: Allocation,
@@ -107,15 +106,27 @@ impl Input {
                 .all(|&index| (index as usize) < triangle_indices.len())
         }));
 
+        let particle_positions_and_collider_bits = particle_positions
+            .iter()
+            .map(Vector4::xyz)
+            .zip(particle_collider_bits)
+            .map(|(position, &collider_bits)| PositionAndColliderBits {
+                position,
+                collider_bits,
+            })
+            .collect::<Vec<_>>();
+
         let vertices_3d: Vec<_> = vertex_positions.iter().map(Vector4::xyz).collect();
         let aabbs =
             triangles_to_leaf_aabbs(leaf_size, *forget_distance, &vertices_3d, triangle_indices);
 
         let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
 
-        let particle_positions = Allocation::new(device, "particle_positions", particle_positions);
-        let particle_collider_bits =
-            Allocation::new(device, "particle_collider_bits", particle_collider_bits);
+        let particle_positions_and_collider_bits = Allocation::new(
+            device,
+            "particle_positions_and_collider_bits",
+            &particle_positions_and_collider_bits,
+        );
         let particle_velocities =
             Allocation::new(device, "particle_velocities", particle_velocities);
 
@@ -131,8 +142,7 @@ impl Input {
         let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh);
 
         Self {
-            particle_positions,
-            particle_collider_bits,
+            particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
             vertex_normals,
@@ -205,8 +215,7 @@ impl PipelinePart for Collide {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            particle_positions,
-            particle_collider_bits,
+            particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
             vertex_normals,
@@ -219,6 +228,15 @@ impl PipelinePart for Collide {
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
+        let [x, y, z] = Indirect::new(DispatchSettings {
+            workgroup_size: self.workgroup_size,
+            dispatch_limit: self.dispatch_limit,
+            len: particle_positions_and_collider_bits
+                .len::<PositionAndColliderBits>()
+                .get() as u32,
+        })
+        .direct();
+
         let mut compute_pass = encoder.begin_compute_pass(self.collide.label);
         compute_pass.set_pipeline(&self.collide.compute_pipeline);
         compute_pass.set_bind_group(
@@ -227,8 +245,7 @@ impl PipelinePart for Collide {
                 context.device(),
                 &self.collide,
                 [
-                    particle_positions.binding(),
-                    particle_collider_bits.binding(),
+                    particle_positions_and_collider_bits.binding(),
                     particle_velocities.binding(),
                     vertex_positions.binding(),
                     vertex_normals.binding(),
@@ -244,12 +261,7 @@ impl PipelinePart for Collide {
             ),
             &[],
         );
-        let indirect = Indirect::new(IndirectSettings {
-            workgroup_size: self.workgroup_size,
-            dispatch_limit: self.dispatch_limit,
-            len: particle_positions.len::<Vector4<f32>>().get() as u32,
-        });
-        compute_pass.dispatch_workgroups(indirect.x, indirect.y, indirect.z);
+        compute_pass.dispatch_workgroups(x, y, z);
 
         Ok(Output)
     }

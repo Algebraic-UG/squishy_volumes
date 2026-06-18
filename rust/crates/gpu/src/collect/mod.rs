@@ -9,7 +9,7 @@
 #[cfg(test)]
 mod test;
 
-use std::{array::from_fn, num::NonZeroU32};
+use std::num::NonZeroU32;
 
 use nalgebra::{Matrix4x3, Vector4};
 
@@ -17,157 +17,109 @@ use super::*;
 
 pub struct Collect {
     collect: CompiledModule,
+
+    workgroup_size: NonZeroU32,
+    dispatch_limit: NonZeroU32,
 }
 
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
-    pub cell_size: f32,
+    pub dispatch_limit: NonZeroU32,
+    pub grid_node_size: f32,
     pub time_step: f32,
 }
 
 pub struct Parameters;
 
 pub struct Input {
-    pub indirect_cells_batch: Allocation,
+    pub hash_table: Allocation,
 
-    pub cell_index_ranges: Allocation,
-    pub cell_ids: Allocation,
+    pub node_ids_and_collider_bits: Allocation,
+    pub node_momentums: Allocation,
 
-    pub block_ids: Allocation,
-    pub block_table: Allocation,
-
-    pub positions: Allocation,
-    pub position_gradients: Allocation,
-    pub velocities: Allocation,
-    pub velocity_gradients: Allocation,
-
-    pub blocks: Allocation,
+    pub particle_positions_and_collider_bits: Allocation,
+    pub particle_position_gradients: Allocation,
+    pub particle_velocities: Allocation,
+    pub particle_velocity_gradients: Allocation,
 }
 
-#[derive(Debug)]
-pub struct InputAddendum {
-    pub indirect_colors_batch: Vec<Indirect>,
-    pub cell_ids: Vec<Vector4<i32>>,
-    pub cell_owns: Vec<u32>,
+pub struct InputData<'a> {
+    pub node_ids_and_collider_bits: &'a [NodeIdAndColliderBits],
+    pub node_momentums: &'a [Vector4<f32>],
+
+    pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
+    pub particle_position_gradients: &'a [Matrix4x3<f32>],
+    pub particle_velocities: &'a [Vector4<f32>],
+    pub particle_velocity_gradients: &'a [Matrix4x3<f32>],
 }
 
 impl Input {
     pub fn new(
         device: &wgpu::Device,
-        Settings {
-            workgroup_size,
-            cell_size,
-            time_step,
-        }: Settings,
-        dispatch_limit: NonZeroU32,
-        subgroup_size: NonZeroU32,
-        input_data @ scatter::InputData {
-            masses,
-            initial_volumes,
-            particle_parameters,
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-        }: scatter::InputData,
+        InputData {
+            node_ids_and_collider_bits,
+            node_momentums,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
+        }: InputData,
     ) -> Self {
-        assert_eq!(masses.len(), initial_volumes.len());
-        assert_eq!(masses.len(), particle_parameters.len());
-        assert_eq!(masses.len(), positions.len());
-        assert_eq!(masses.len(), position_gradients.len());
-        assert_eq!(masses.len(), velocities.len());
-        assert_eq!(masses.len(), velocity_gradients.len());
-
-        let grid_cpu = scatter_on_cpu(cell_size, time_step, input_data);
-
-        let indices = sort_positions_into_cells_on_cpu(
-            &(0..positions.len() as u32).collect::<Vec<_>>(),
-            positions,
-            cell_size,
+        assert_eq!(node_ids_and_collider_bits.len(), node_momentums.len());
+        assert_eq!(
+            particle_positions_and_collider_bits.len(),
+            particle_position_gradients.len()
+        );
+        assert_eq!(
+            particle_positions_and_collider_bits.len(),
+            particle_velocities.len()
+        );
+        assert_eq!(
+            particle_positions_and_collider_bits.len(),
+            particle_velocity_gradients.len()
         );
 
-        fn permute<T: Clone>(indices: &[u32], to_permute: &[T]) -> Vec<T> {
-            indices
-                .iter()
-                .map(|&index| to_permute[index as usize].clone())
-                .collect()
-        }
+        let hash_table = build_hash_table_on_cpu(node_ids_and_collider_bits);
 
-        let positions = permute(&indices, positions);
-        let position_gradients = permute(&indices, position_gradients);
-        let velocities = permute(&indices, velocities);
-        let velocity_gradients = permute(&indices, velocity_gradients);
-
-        let boundaries = find_cell_boundaries_on_cpu(&positions, cell_size);
-        let prefixed_boundaries = prefix_sum_on_cpu(&boundaries);
-        let (cell_ids, index_ranges, indirect_cells) = build_cells_on_cpu(
-            workgroup_size,
-            dispatch_limit,
-            cell_size,
-            &positions,
-            &prefixed_boundaries,
+        let hash_table = Allocation::new(device, "hash_table", &hash_table);
+        let node_ids_and_collider_bits = Allocation::new(
+            device,
+            "node_ids_and_collider_bits",
+            node_ids_and_collider_bits,
         );
-        let mut indirect_cells_batch = Indirect::new(IndirectSettings {
-            workgroup_size,
-            dispatch_limit,
-            len: indirect_cells.len * subgroup_size.get(),
-        });
-        indirect_cells_batch.len = indirect_cells.len;
-
-        let (block_ids, block_table) = build_hash_table_on_cpu_simple(&cell_ids);
-
-        let blocks: Vec<Block> = block_ids
-            .iter()
-            .map(|block_id| {
-                let low_node = block_id * 2 - Vector4::repeat(1);
-                Block {
-                    nodes: from_fn(|node| {
-                        let node_id = low_node + block_offset(node as u32);
-                        *grid_cpu.get(&node_id.xyz()).unwrap_or(&Vector4::zeros())
-                    }),
-                }
-            })
-            .collect();
-
-        println!("blocks: {blocks:?}");
-
-        let indirect_cells_batch =
-            Allocation::new(device, "indirect_cells_batch", &[indirect_cells_batch]);
-
-        let cell_index_ranges = Allocation::new(device, "cell_index_ranges", &index_ranges);
-        let cell_ids = Allocation::new(device, "cell_ids", &cell_ids);
-        let block_ids = Allocation::new(device, "block_ids", &block_ids);
-        let block_table = Allocation::new(device, "block_table", &block_table);
-
-        let positions = Allocation::new(device, "positions", &positions);
-        let position_gradients = Allocation::new(device, "position_gradients", &position_gradients);
-        let velocities = Allocation::new(device, "velocities", &velocities);
-        let velocity_gradients = Allocation::new(device, "velocity_gradients", &velocity_gradients);
-
-        let blocks = Allocation::new(device, "blocks", &blocks);
+        let node_momentums = Allocation::new(device, "node_momentums", node_momentums);
+        let particle_positions_and_collider_bits = Allocation::new(
+            device,
+            "particle_positions_and_collider_bits",
+            particle_positions_and_collider_bits,
+        );
+        let particle_position_gradients = Allocation::new(
+            device,
+            "particle_position_gradients",
+            particle_position_gradients,
+        );
+        let particle_velocities =
+            Allocation::new(device, "particle_velocities", particle_velocities);
+        let particle_velocity_gradients = Allocation::new(
+            device,
+            "particle_velocity_gradients",
+            particle_velocity_gradients,
+        );
 
         Self {
-            indirect_cells_batch,
-            cell_index_ranges,
-            cell_ids,
-            block_ids,
-            block_table,
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-            blocks,
+            hash_table,
+            node_ids_and_collider_bits,
+            node_momentums,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
         }
     }
 }
 
-pub struct Output {
-    pub positions: Allocation,
-    pub position_gradients: Allocation,
-    pub velocities: Allocation,
-    pub velocity_gradients: Allocation,
-}
+pub struct Output;
 
 impl PipelinePart for Collect {
     type Settings = Settings;
@@ -179,7 +131,8 @@ impl PipelinePart for Collect {
         context: &GpuContext,
         Settings {
             workgroup_size,
-            cell_size,
+            dispatch_limit,
+            grid_node_size,
             time_step,
         }: Settings,
     ) -> Self {
@@ -188,27 +141,28 @@ impl PipelinePart for Collect {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Indirect::MIN_BINDING_SIZE, true),        // indirect_cells_batch
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // cell_ids
-                    (u32::MIN_BINDING_SIZE, false),            // index_ranges
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false), // block_ids
-                    (u32::MIN_BINDING_SIZE, false),            // block_table
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // positions
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // position_gradients
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // velocities
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // velocity_gradients
-                    (Block::MIN_BINDING_SIZE, false),          // blocks
+                    (u32::MIN_BINDING_SIZE, true),                      // hash_table
+                    (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits
+                    (Vector4::<i32>::MIN_BINDING_SIZE, false),        // node_momentums
+                    (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // particle_position_gradients
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),   // particle_velocities
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // particle_velocity_gradients
                 ],
                 immediate_size: 0,
                 constants: [
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
-                    ("CELL_SIZE", cell_size as f64),
+                    ("GRID_NODE_SIZE", grid_node_size as f64),
                     ("TIME_STEP", time_step as f64),
                 ]
             }
         );
 
-        Self { collect }
+        Self {
+            collect,
+            workgroup_size,
+            dispatch_limit,
+        }
     }
 
     fn record(
@@ -216,19 +170,25 @@ impl PipelinePart for Collect {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            indirect_cells_batch,
-            cell_index_ranges,
-            cell_ids,
-            block_ids,
-            block_table,
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-            blocks,
+            hash_table,
+            node_ids_and_collider_bits,
+            node_momentums,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
+        let [x, y, z] = Indirect::new(DispatchSettings {
+            workgroup_size: self.workgroup_size,
+            dispatch_limit: self.dispatch_limit,
+            len: particle_positions_and_collider_bits
+                .len::<PositionAndColliderBits>()
+                .get() as u32,
+        })
+        .direct();
+
         let mut compute_pass = encoder.begin_compute_pass(self.collect.label);
         compute_pass.set_pipeline(&self.collect.compute_pipeline);
         compute_pass.set_bind_group(
@@ -237,30 +197,19 @@ impl PipelinePart for Collect {
                 context.device(),
                 &self.collect,
                 [
-                    indirect_cells_batch.binding(),
-                    cell_ids.binding(),
-                    cell_index_ranges.binding(),
-                    block_ids.binding(),
-                    block_table.binding(),
-                    positions.binding(),
-                    position_gradients.binding(),
-                    velocities.binding(),
-                    velocity_gradients.binding(),
-                    blocks.binding(),
+                    hash_table.binding(),
+                    node_ids_and_collider_bits.binding(),
+                    node_momentums.binding(),
+                    particle_positions_and_collider_bits.binding(),
+                    particle_position_gradients.binding(),
+                    particle_velocities.binding(),
+                    particle_velocity_gradients.binding(),
                 ],
             ),
             &[],
         );
-        compute_pass.dispatch_workgroups_indirect(
-            indirect_cells_batch.buffer(),
-            indirect_cells_batch.offset(),
-        );
+        compute_pass.dispatch_workgroups(x, y, z);
 
-        Ok(Output {
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-        })
+        Ok(Output)
     }
 }

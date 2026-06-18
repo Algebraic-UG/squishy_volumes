@@ -45,7 +45,7 @@ impl Input {
         }: Settings,
         numbers: &[u32],
     ) -> Self {
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: numbers.len() as u32,

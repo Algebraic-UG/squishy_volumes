@@ -57,7 +57,7 @@ impl Input {
             assert_eq!(indices.len(), keys.len());
         }
 
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: keys.len() as u32,

@@ -38,7 +38,6 @@ impl Input {
 
 pub struct Output {
     pub new_indirect: Allocation,
-    pub new_indirect_batch: Allocation,
 }
 
 impl PipelinePart for LenToIndirect {
@@ -62,7 +61,6 @@ impl PipelinePart for LenToIndirect {
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, true),
                     (Indirect::MIN_BINDING_SIZE, false),
-                    (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
                 constants: [
@@ -85,9 +83,6 @@ impl PipelinePart for LenToIndirect {
         let new_indirect = context
             .indirect_allocator()?
             .allocate::<Indirect>("new_indirect", 1.try_into().unwrap())?;
-        let new_indirect_batch = context
-            .indirect_allocator()?
-            .allocate::<Indirect>("new_indirect_batch", 1.try_into().unwrap())?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.len_to_indirect.label);
         compute_pass.set_pipeline(&self.len_to_indirect.compute_pipeline);
@@ -96,20 +91,13 @@ impl PipelinePart for LenToIndirect {
             &create_bind_group(
                 context.device(),
                 &self.len_to_indirect,
-                [
-                    len.binding(),
-                    new_indirect.binding(),
-                    new_indirect_batch.binding(),
-                ],
+                [len.binding(), new_indirect.binding()],
             ),
             &[],
         );
 
         compute_pass.dispatch_workgroups(1, 1, 1);
 
-        Ok(Output {
-            new_indirect,
-            new_indirect_batch,
-        })
+        Ok(Output { new_indirect })
     }
 }

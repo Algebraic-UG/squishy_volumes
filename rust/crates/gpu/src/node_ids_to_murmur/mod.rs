@@ -15,9 +15,10 @@ use nalgebra::Vector4;
 
 use super::*;
 
-pub struct CellsToColorkeys {
-    cells_to_colorkeys: CompiledModule,
+pub struct NodeIdsToMurmur {
+    node_ids_to_murmur: CompiledModule,
 }
+
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
 }
@@ -26,7 +27,7 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect: Allocation,
-    pub cell_ids: Allocation,
+    pub cells: Allocation,
 }
 
 impl Input {
@@ -34,26 +35,26 @@ impl Input {
         device: &wgpu::Device,
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
-        cell_ids: &[Vector4<i32>],
+        cells: &[Vector4<i32>],
     ) -> Self {
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
-            len: cell_ids.len() as u32,
+            len: cells.len() as u32,
         });
 
-        let cell_ids = Allocation::new(device, "cell_ids", cell_ids);
+        let cells = Allocation::new(device, "cells", cells);
         let indirect = Allocation::new(device, "indirect", &[indirect]);
 
-        Self { indirect, cell_ids }
+        Self { indirect, cells }
     }
 }
 
 pub struct Output {
-    pub keys: Allocation,
+    pub hashes: Allocation,
 }
 
-impl PipelinePart for CellsToColorkeys {
+impl PipelinePart for NodeIdsToMurmur {
     type Settings = Settings;
     type Parameters = Parameters;
     type Input = Input;
@@ -63,7 +64,7 @@ impl PipelinePart for CellsToColorkeys {
         let device = context.device();
 
         let_compiled_module!(
-            cells_to_colorkeys,
+            node_ids_to_murmur,
             CompiledModuleSettings {
                 device,
                 bind_group_entries: [
@@ -75,33 +76,33 @@ impl PipelinePart for CellsToColorkeys {
                 constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
             }
         );
-        Self { cells_to_colorkeys }
+
+        Self { node_ids_to_murmur }
     }
 
     fn record(
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input { indirect, cell_ids }: Input,
+        Input { indirect, cells }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        let keys = context
+        let hashes = context
             .allocator()?
-            .allocate::<u32>("keys", cell_ids.len::<Vector4<i32>>())?;
+            .allocate::<u32>("hashes", cells.len::<Vector4<i32>>())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.cells_to_colorkeys.label);
-        compute_pass.set_pipeline(&self.cells_to_colorkeys.compute_pipeline);
+        let mut compute_pass = encoder.begin_compute_pass(self.node_ids_to_murmur.label);
+        compute_pass.set_pipeline(&self.node_ids_to_murmur.compute_pipeline);
         compute_pass.set_bind_group(
             0,
             &create_bind_group(
                 context.device(),
-                &self.cells_to_colorkeys,
-                [indirect.binding(), cell_ids.binding(), keys.binding()],
+                &self.node_ids_to_murmur,
+                [indirect.binding(), cells.binding(), hashes.binding()],
             ),
             &[],
         );
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
-
-        Ok(Output { keys })
+        Ok(Output { hashes })
     }
 }

@@ -106,7 +106,7 @@ impl PipelinePart for Kernels {
             ),
             &[],
         );
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             len: values.len::<f32>().get() as u32,

@@ -216,7 +216,7 @@ impl PipelinePart for AnimateMesh {
                 ),
                 &[],
             );
-            let Indirect { x, y, z, .. } = Indirect::new(IndirectSettings {
+            let Indirect { x, y, z, .. } = Indirect::new(DispatchSettings {
                 workgroup_size: self.workgroup_size,
                 dispatch_limit: self.dispatch_limit,
                 len: num_vertices.get() as u32,
@@ -241,7 +241,7 @@ impl PipelinePart for AnimateMesh {
                 ),
                 &[],
             );
-            let Indirect { x, y, z, .. } = Indirect::new(IndirectSettings {
+            let Indirect { x, y, z, .. } = Indirect::new(DispatchSettings {
                 workgroup_size: self.workgroup_size,
                 dispatch_limit: self.dispatch_limit,
                 len: num_triangles.get() as u32,
@@ -266,7 +266,7 @@ impl PipelinePart for AnimateMesh {
                 ),
                 &[],
             );
-            let Indirect { x, y, z, .. } = Indirect::new(IndirectSettings {
+            let Indirect { x, y, z, .. } = Indirect::new(DispatchSettings {
                 workgroup_size: self.workgroup_size,
                 dispatch_limit: self.dispatch_limit,
                 len: num_vertices.get() as u32,

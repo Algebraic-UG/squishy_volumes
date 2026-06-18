@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign};
+import super::util::{PositionAndColliderBits, get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign};
 
 struct Opposite {
     ab: u32,
@@ -25,48 +25,45 @@ struct BvhMeta {
 // indexed by particle
 
 @group(0) @binding(0)
-var<storage, read_write> particle_positions: array<vec3f>;
+var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
 @group(0) @binding(1)
-var<storage, read_write> particle_collider_bits: array<u32>;
-
-@group(0) @binding(2)
 var<storage, read_write> particle_velocities: array<vec3f>;
 
 // indexed by vertex
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> vertex_positions: array<vec3f>;
 
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> vertex_normals: array<vec3f>;
 
 // indexed by triangle 
 
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read_write> triangle_indices: array<Triangle>;
 
-@group(0) @binding(6)
+@group(0) @binding(5)
 var<storage, read_write> triangle_collider: array<u32>;
 
-@group(0) @binding(7)
+@group(0) @binding(6)
 var<storage, read_write> triangle_normals: array<vec3f>;
 
-@group(0) @binding(8)
+@group(0) @binding(7)
 var<storage, read_write> triangle_opposites: array<Opposite>;
 
-@group(0) @binding(9)
+@group(0) @binding(8)
 var<storage, read_write> triangle_frictions: array<f32>;
 
 // acceleration sturcture
 
-@group(0) @binding(10)
+@group(0) @binding(9)
 var<storage, read_write> bvh_meta: BvhMeta;
 
-@group(0) @binding(11)
+@group(0) @binding(10)
 var<storage, read_write> bvh_nodes: array<u32>;
 
-@group(0) @binding(12)
+@group(0) @binding(11)
 var<storage, read_write> bvh_indices: array<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -80,23 +77,23 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    if global_index >= arrayLength(&particle_positions) {
+    if global_index >= arrayLength(&particle_positions_and_collider_bits) {
         return;
     }
 
-    let p = particle_positions[global_index];
+    let p = particle_positions_and_collider_bits[global_index].position;
 
     let triangle_indices_start_end = find_relevant_triangle_indices(p);
 
     if triangle_indices_start_end.x == triangle_indices_start_end.y {
-        particle_collider_bits[global_index] = 0;
+        particle_positions_and_collider_bits[global_index].collider_bits = 0;
         return;
     }
 
     let closest_triangle_per_collider = find_closest_triangle_per_collider(p, triangle_indices_start_end);
 
     var velocity = particle_velocities[global_index];
-    var collider_bits = particle_collider_bits[global_index];
+    var collider_bits = particle_positions_and_collider_bits[global_index].collider_bits;
     var collider = 0u;
     loop {
         if !(collider < 16) {
@@ -199,7 +196,7 @@ fn main(
         }
     }
 
-    particle_collider_bits[global_index] = collider_bits;
+    particle_positions_and_collider_bits[global_index].collider_bits = collider_bits;
     particle_velocities[global_index] = velocity;
 }
 

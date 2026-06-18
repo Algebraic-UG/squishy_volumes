@@ -28,7 +28,7 @@ fn check(len: u32) {
         len,
     });
 
-    let indirect = Indirect::new(IndirectSettings {
+    let indirect = Indirect::new(DispatchSettings {
         workgroup_size,
         dispatch_limit,
         len: count_len,

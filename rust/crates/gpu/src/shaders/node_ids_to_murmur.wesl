@@ -6,13 +6,13 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, murmur_of_cell};
+import super::util::{Indirect, get_global_index, murmur_of_node_id};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> cells: array<vec3<i32>>;
+var<storage, read_write> node_ids: array<vec3<i32>>;
 
 @group(0) @binding(2)
 var<storage, read_write> hashes: array<u32>;
@@ -29,6 +29,6 @@ fn main(
         return;
     }
 
-    let cell = cells[global_index];
-    hashes[global_index] = murmur_of_cell(cell);
+    let node_id = node_ids[global_index];
+    hashes[global_index] = murmur_of_node_id(node_id);
 }

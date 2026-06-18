@@ -36,7 +36,7 @@ impl Input {
         dispatch_limit: NonZeroU32,
         bits: &[u32],
     ) -> Self {
-        let indirect = Indirect::new(IndirectSettings {
+        let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: bits.len() as u32,
