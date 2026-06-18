@@ -88,23 +88,15 @@ impl State {
         profile!("to_gpu_state");
         let time_step = phase_input.time_step;
         let grid_node_size = phase_input.consts.scaled_grid_node_size();
-        let cell_size = grid_node_size * 2.;
         let settings = squishy_volumes_gpu::step::Settings {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
-            cell_size,
-            forget_distance: cell_size * 1.1,
-            accept_distance: cell_size,
-            bit_count: 2.try_into().unwrap(),
+            grid_node_size,
+            forget_distance: grid_node_size * 2.2,
+            accept_distance: grid_node_size * 2.,
             time_step,
         };
 
-        let indices = self
-            .particles
-            .sort_map
-            .iter()
-            .map(|index| *index as u32)
-            .collect::<Vec<_>>();
         let parameters: Vec<squishy_volumes_gpu::particle_parameters::Device> = self
             .particles
             .parameters
@@ -180,7 +172,6 @@ impl State {
             phase_input.consts.leaf_threshold,
             settings.clone(),
             squishy_volumes_gpu::step::InputData {
-                indices: &indices,
                 collider_bits: &self.particles.collider_bits,
                 masses: &self.particles.masses,
                 initial_volumes: &self.particles.initial_volumes,

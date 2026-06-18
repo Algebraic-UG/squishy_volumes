@@ -125,14 +125,14 @@ impl PipelinePart for PrepareTmp {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (f32::MIN_BINDING_SIZE, false),
-                    (f32::MIN_BINDING_SIZE, false),
-                    (particle_parameters::Device::MIN_BINDING_SIZE, false),
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
-                    (PositionAndColliderBits::MIN_BINDING_SIZE, false),
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
-                    (Matrix4::<f32>::MIN_BINDING_SIZE, false),
+                    (f32::MIN_BINDING_SIZE, false),                         // masses
+                    (f32::MIN_BINDING_SIZE, false),                         // initial_volumes
+                    (particle_parameters::Device::MIN_BINDING_SIZE, false), // paramters
+                    (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),        // position_gradients
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          // velocities
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),        // velocity_gradients
+                    (Matrix4::<f32>::MIN_BINDING_SIZE, false),          // tmp
                 ],
                 immediate_size: 0,
                 constants: [

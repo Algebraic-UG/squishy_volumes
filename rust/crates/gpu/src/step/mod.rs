@@ -46,6 +46,7 @@ pub struct Parameters {
     pub factor: f32,
 }
 
+#[derive(Clone)]
 pub struct Input {
     pub indirect_particles: Allocation,
     pub particle_masses: Allocation,

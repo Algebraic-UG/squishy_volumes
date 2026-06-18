@@ -179,19 +179,18 @@ impl PipelinePart for Collide {
             CompiledModuleSettings {
                 device: context.device(),
                 bind_group_entries: [
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), //particle_positions
-                    (u32::MIN_BINDING_SIZE, false),            //particle_collider_bits
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), //particle_velocities
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), //vertex_positions
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), //vertex_normals
-                    (Triangle::MIN_BINDING_SIZE, false),       //triangle_indices
-                    (u32::MIN_BINDING_SIZE, false),            //triangle_collider
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), //triangle_normals
-                    (Opposites::MIN_BINDING_SIZE, false),      //triangle_opposites
-                    (f32::MIN_BINDING_SIZE, false),            //triangle_frictions
+                    (PositionAndColliderBits::MIN_BINDING_SIZE, false), //particle_positions_and_collider_bits
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          //particle_velocities
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_positions
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_normals
+                    (Triangle::MIN_BINDING_SIZE, false),                //triangle_indices
+                    (u32::MIN_BINDING_SIZE, false),                     //triangle_collider
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          //triangle_normals
+                    (Opposites::MIN_BINDING_SIZE, false),               //triangle_opposites
+                    (f32::MIN_BINDING_SIZE, false),                     //triangle_frictions
                     (BoundingVolumeHierarchyMeta::MIN_BINDING_SIZE, false), // bvh_meta
-                    (u32::MIN_BINDING_SIZE, false),            //bvh_nodes
-                    (u32::MIN_BINDING_SIZE, false),            //bvh_indices
+                    (u32::MIN_BINDING_SIZE, false),                     //bvh_nodes
+                    (u32::MIN_BINDING_SIZE, false),                     //bvh_indices
                 ],
                 immediate_size: 0,
                 constants: [

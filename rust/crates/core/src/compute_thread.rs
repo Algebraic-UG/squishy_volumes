@@ -20,7 +20,7 @@ use std::{
 use anyhow::{Context, Result};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
-use squishy_volumes_gpu::{PipelinePart as _, wgpu};
+use squishy_volumes_gpu::{PipelinePart as _, PositionAndColliderBits, wgpu};
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -159,20 +159,6 @@ impl ComputeThread {
                         mut next_input,
                     }) = gpu_state
                     {
-                        let indirect_particles = next_input.indirect_particles.clone();
-
-                        let vertex_positions_start = next_input.vertex_positions_start.clone();
-                        let vertex_positions_end = next_input.vertex_positions_end.clone();
-                        let vertex_triangle_offsets = next_input.vertex_triangle_offsets.clone();
-                        let vertex_triangle_lists = next_input.vertex_triangle_lists.clone();
-
-                        let triangle_indices = next_input.triangle_indices.clone();
-                        let triangle_collider = next_input.triangle_collider.clone();
-                        let triangle_opposites = next_input.triangle_opposites.clone();
-                        let triangle_frictions = next_input.triangle_frictions.clone();
-
-                        let bvh = next_input.bvh.clone();
-
                         let mut encoder = gpu_context
                             .device()
                             .create_command_encoder(&Default::default());
@@ -184,48 +170,19 @@ impl ComputeThread {
                             }
 
                             let squishy_volumes_gpu::step::Output {
-                                indices_out,
-                                collider_bits_out,
-                                masses_out,
-                                initial_volumes_out,
-                                parameters_out,
-                                positions_out,
-                                position_gradients_out,
-                                velocities_out,
-                                velocity_gradients_out,
+                                indirect_nodes,
+                                node_ids_and_collider_bits,
+                                node_momentums,
                             } = pipeline_part.record(
                                 &mut gpu_context,
                                 &mut (&mut encoder).into(),
-                                next_input,
+                                next_input.clone(),
                                 squishy_volumes_gpu::step::Parameters {
                                     factor: ((current_state.time()
                                         * phase_input.consts.frames_per_second as f64)
                                         % 1.) as f32,
                                 },
                             )?;
-                            next_input = squishy_volumes_gpu::step::Input {
-                                indirect_particles: indirect_particles.clone(),
-                                indices_in: indices_out.clone(),
-                                collider_bits_in: collider_bits_out.clone(),
-                                masses_in: masses_out,
-                                initial_volumes_in: initial_volumes_out,
-                                parameters_in: parameters_out,
-                                positions_in: positions_out.clone(),
-                                position_gradients_in: position_gradients_out.clone(),
-                                velocities_in: velocities_out.clone(),
-                                velocity_gradients_in: velocity_gradients_out.clone(),
-
-                                vertex_positions_start: vertex_positions_start.clone(),
-                                vertex_positions_end: vertex_positions_end.clone(),
-                                vertex_triangle_offsets: vertex_triangle_offsets.clone(),
-                                vertex_triangle_lists: vertex_triangle_lists.clone(),
-
-                                triangle_indices: triangle_indices.clone(),
-                                triangle_collider: triangle_collider.clone(),
-                                triangle_opposites: triangle_opposites.clone(),
-                                triangle_frictions: triangle_frictions.clone(),
-                                bvh: bvh.clone(),
-                            };
                             current_state.time += time_step as f64;
 
                             recorded_steps += 1;
@@ -242,11 +199,9 @@ impl ComputeThread {
                         let downloads = squishy_volumes_gpu::DownloadsToHost::new(
                             &gpu_context,
                             [
-                                next_input.indices_in.clone(),
-                                next_input.collider_bits_in.clone(),
-                                next_input.positions_in.clone(),
-                                next_input.position_gradients_in.clone(),
-                                next_input.velocities_in.clone(),
+                                next_input.particle_positions_and_collider_bits.clone(),
+                                next_input.particle_position_gradients.clone(),
+                                next_input.particle_velocities.clone(),
                             ],
                         );
                         downloads.copy(&mut encoder);
@@ -264,45 +219,33 @@ impl ComputeThread {
 
                         info!("download");
                         let [
-                            indices_out,
-                            collider_bits_out,
-                            positions_out,
-                            position_gradients_out,
-                            velocities_out,
+                            particle_positions_and_collider_bits,
+                            particle_position_gradients,
+                            particle_velocities,
                         ] = downloads.try_into().unwrap();
 
-                        current_state.particles.sort_map = indices_out
-                            .to_vec::<u32>()
+                        let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
+                            particle_positions_and_collider_bits.to_vec();
+
+                        current_state.particles.collider_bits =
+                            particle_positions_and_collider_bits
+                                .iter()
+                                .map(|position_and_bits| position_and_bits.collider_bits)
+                                .collect();
+                        current_state.particles.positions = particle_positions_and_collider_bits
                             .into_iter()
-                            .map(|i| i as usize)
+                            .map(|position_and_bits| position_and_bits.position)
                             .collect();
-                        current_state.particles.collider_bits = collider_bits_out.to_vec();
-                        current_state.particles.positions = positions_out
-                            .to_vec::<Vector4<f32>>()
-                            .iter()
-                            .map(Vector4::xyz)
-                            .collect();
-                        current_state.particles.position_gradients = position_gradients_out
+                        current_state.particles.position_gradients = particle_position_gradients
                             .to_vec::<Matrix4x3<f32>>()
                             .into_iter()
                             .map(|m| m.fixed_view::<3, 3>(0, 0).into())
                             .collect();
-                        current_state.particles.velocities = velocities_out
+                        current_state.particles.velocities = particle_velocities
                             .to_vec::<Vector4<f32>>()
                             .iter()
                             .map(Vector4::xyz)
                             .collect();
-
-                        info!("reverse");
-                        current_state
-                            .particles
-                            .reverse_sort_map
-                            .resize(current_state.particles.sort_map.len(), 0);
-                        for (current, original) in
-                            current_state.particles.sort_map.iter().enumerate()
-                        {
-                            current_state.particles.reverse_sort_map[*original] = current;
-                        }
 
                         gpu_state = Some(GpuState {
                             gpu_context,
