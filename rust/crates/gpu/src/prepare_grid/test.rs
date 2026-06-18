@@ -8,7 +8,7 @@
 
 use std::collections::HashSet;
 
-use nalgebra::{Vector3, Vector4};
+use nalgebra::Vector3;
 
 use super::*;
 
@@ -36,6 +36,11 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         run_prepare_grid(settings, positions_and_collider_bits);
     let num_nodes = indirect_nodes[0].len as usize;
     println!("num_nodes: {num_nodes}");
+
+    assert_eq!(
+        hash_table.iter().filter(|entry| **entry != 0).count(),
+        num_nodes
+    );
 
     assert!(hash_table.len().is_power_of_two());
     let mask = hash_table.len() as u32 - 1;
