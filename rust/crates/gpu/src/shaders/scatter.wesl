@@ -39,5 +39,29 @@ fn main(
         return;
     }
 
-    // TODO
+    let contributors_start = contributor_offsets[global_index];
+    var contributors_end = arrayLength(&contributors);
+    if global_index + 1 < indirect.len {
+        contributors_end = contributor_offsets[global_index + 1];
+    }
+
+    let normalized_node_position = vec3f(node_ids_and_collider_bits[global_index].node_id);
+
+    var node_momentum = vec4f(0.);
+    for (var contributor = contributors_start; contributor < contributors_end; contributor++) {
+        let tmp = particle_tmp[contributors[contributor]];
+        let matrix_part = mat3x3f(tmp[0].xyz, tmp[1].xyz, tmp[2].xyz);
+        let vector_part = tmp[3].xyz;
+        let mass = tmp[3].w;
+        let normalized_particle_position = vec3f(tmp[0].w, tmp[1].w, tmp[2].w);
+
+        let to_node_normalized = normalized_node_position - normalized_particle_position;
+        let weight: f32 = //
+              kernel_quadratic(to_node_normalized.x)
+            * kernel_quadratic(to_node_normalized.y)
+            * kernel_quadratic(to_node_normalized.z);
+
+        node_momentum += vec4f(vector_part + matrix_part * to_node_normalized * GRID_NODE_SIZE, mass) * weight;
+    }
+    node_momentums[global_index] = node_momentum;
 }
