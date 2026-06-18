@@ -291,6 +291,23 @@ impl PipelinePart for Step {
                 grid_node_size,
             },
         );
+        let register_contributors = RegisterContributors::new(
+            context,
+            register_contributors::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+            },
+        );
+        let prepare_tmp = PrepareTmp::new(
+            context,
+            prepare_tmp::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+                time_step,
+            },
+        );
         let scatter = Scatter::new(
             context,
             scatter::Settings {
@@ -417,10 +434,10 @@ impl PipelinePart for Step {
                 particle_masses,
                 particle_initial_volumes,
                 particle_parameters,
-                particle_positions_and_collider_bits,
-                particle_position_gradients,
-                particle_velocities,
-                particle_velocity_gradients,
+                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
+                particle_position_gradients: particle_position_gradients.clone(),
+                particle_velocities: particle_velocities.clone(),
+                particle_velocity_gradients: particle_velocity_gradients.clone(),
             },
             prepare_tmp::Parameters,
         )?;

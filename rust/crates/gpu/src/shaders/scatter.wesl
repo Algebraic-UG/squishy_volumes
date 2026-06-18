@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, NodeIdsAndColliderBits, get_global_index, div_ceil, murmur_of_cell, block_offset, kernel_quadratic, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters};
+import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, div_ceil, murmur_of_cell, block_offset, kernel_quadratic, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters};
 
 @group(0) @binding(0)
 var<storage, read> indirect: array<Indirect>;
@@ -18,7 +18,7 @@ var<storage, read_write> contributor_offsets: array<u32>;
 var<storage, read_write> contributors: array<u32>;
 
 @group(0) @binding(3)
-var<storage, read_write> node_ids_and_collider_bits: array<NodeIdsAndColliderBits>;
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
 @group(0) @binding(4)
 var<storage, read_write> particle_tmp: array<mat4x4f>;

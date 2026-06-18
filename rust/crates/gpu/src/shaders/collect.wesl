@@ -6,13 +6,13 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdsAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node};
 
 @group(0) @binding(0)
 var<storage, read_write> hash_table: array<u32>;
 
 @group(0) @binding(1)
-var<storage, read_write> node_ids_and_collider_bits: array<NodeIdsAndColliderBits>;
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
 @group(0) @binding(2)
 var<storage, read_write> node_momentums: array<vec4f>;
