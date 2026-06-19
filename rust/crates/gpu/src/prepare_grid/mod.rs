@@ -192,7 +192,10 @@ impl PipelinePart for PrepareGrid {
             .allocate::<u32>("owns", num_particles)?;
         let hash_table = context.allocator()?.allocate::<AtomicU32>(
             "hash_table",
-            max_num_nodes.checked_next_power_of_two().unwrap(),
+            (max_num_nodes.get() * 2)
+                .next_power_of_two()
+                .try_into()
+                .unwrap(),
         )?;
 
         encoder.clear_buffer(
