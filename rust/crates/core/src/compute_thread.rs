@@ -20,7 +20,10 @@ use std::{
 use anyhow::{Context, Result};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
-use squishy_volumes_gpu::{PipelinePart as _, PositionAndColliderBits, wgpu};
+use squishy_volumes_gpu::{
+    PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, profiler_output, wgpu,
+    wgpu_profiler,
+};
 use strum::IntoEnumIterator;
 use tracing::info;
 
@@ -142,6 +145,8 @@ impl ComputeThread {
                     None
                 };
 
+                let mut profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
+
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
                     profile!("frame");
@@ -162,20 +167,21 @@ impl ComputeThread {
                         let mut encoder = gpu_context
                             .device()
                             .create_command_encoder(&Default::default());
+                        let mut profiler = wgpu_profiler::GpuProfiler::new(
+                            gpu_context.device(),
+                            Default::default(),
+                        )
+                        .unwrap();
 
                         let mut recorded_steps = 0;
                         while current_state.time() < next_stored_frame_time {
                             if !run.load(Ordering::Relaxed) {
                                 return Ok(());
                             }
-
-                            let squishy_volumes_gpu::step::Output {
-                                indirect_nodes,
-                                node_ids_and_collider_bits,
-                                node_momentums,
-                            } = pipeline_part.record(
+                            let scope = profiler.scope("run_step", &mut encoder);
+                            let squishy_volumes_gpu::step::Output { .. } = pipeline_part.record(
                                 &mut gpu_context,
-                                &mut (&mut encoder).into(),
+                                &mut scope.into(),
                                 next_input.clone(),
                                 squishy_volumes_gpu::step::Parameters {
                                     factor: ((current_state.time()
@@ -206,16 +212,26 @@ impl ComputeThread {
                         );
                         downloads.copy(&mut encoder);
 
+                        profiler.resolve_queries(&mut encoder);
+
                         info!("submit");
                         gpu_context.queue().submit([encoder.finish()]);
 
                         let downloads = downloads.prep();
+                        profiler.end_frame().unwrap();
 
                         info!("wait");
                         gpu_context
                             .device()
                             .poll(wgpu::PollType::wait_indefinitely())
                             .unwrap();
+
+                        //profiler_output(&gpu_context, &mut profiler)?;
+                        profile_data_csv_writer.write_frame(
+                            &gpu_context,
+                            &mut profiler,
+                            next_frame,
+                        )?;
 
                         info!("download");
                         let [

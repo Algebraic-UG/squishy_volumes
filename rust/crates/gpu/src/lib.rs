@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 pub use wgpu;
+pub use wgpu_profiler;
 
 mod allocator;
 mod allowed_in_binding;
@@ -18,6 +19,7 @@ mod download;
 mod error;
 mod indirect;
 mod pipeline_part;
+mod profiler_output;
 mod util;
 
 pub use allocator::*;
@@ -30,6 +32,7 @@ pub use download::*;
 pub use error::*;
 pub use indirect::*;
 pub use pipeline_part::*;
+pub use profiler_output::*;
 pub use util::*;
 
 pub mod animate_mesh;
