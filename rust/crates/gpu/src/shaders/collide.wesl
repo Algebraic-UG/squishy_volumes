@@ -191,7 +191,7 @@ fn main(
 
         continuing {
             collider_bits &= ~(0x00010001u << collider);
-            collider_bits |= bits << collider;
+            collider_bits |= bits;
             collider++;
         }
     }

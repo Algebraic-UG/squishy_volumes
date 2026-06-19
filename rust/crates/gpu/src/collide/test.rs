@@ -6,7 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-/*
 use nalgebra::Vector3;
 use squishy_volumes_util::{
     Aabb, NORMALIZATION_EPS, collider_bits,
@@ -203,6 +202,7 @@ fn check(
         .enumerate()
     {
         println!("{particle_index} {:?}", particle_positions[particle_index]);
+        let gpu = gpu.collider_bits;
 
         assert_eq!(
             cpu & 0xFFFF_0000,
@@ -368,13 +368,16 @@ fn torus() {
     );
 }
 
-fn run(settings: Settings, input_data: InputData) -> (Vec<u32>, Vec<Vector4<f32>>) {
+fn run(
+    settings: Settings,
+    input_data: InputData,
+) -> (Vec<PositionAndColliderBits>, Vec<Vector4<f32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), &settings, input_data);
     let step = Collide::new(&context, settings);
 
-    let particle_collider_bits = input.particle_collider_bits.clone();
+    let particle_positions_and_collider_bits = input.particle_positions_and_collider_bits.clone();
     let particle_velocities = input.particle_velocities.clone();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
@@ -383,7 +386,10 @@ fn run(settings: Settings, input_data: InputData) -> (Vec<u32>, Vec<Vector4<f32>
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(&context, [particle_collider_bits, particle_velocities]);
+    let downloads = DownloadsToHost::new(
+        &context,
+        [particle_positions_and_collider_bits, particle_velocities],
+    );
     downloads.copy(&mut encoder);
     context.queue().submit([encoder.finish()]);
 
@@ -393,11 +399,10 @@ fn run(settings: Settings, input_data: InputData) -> (Vec<u32>, Vec<Vector4<f32>
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let [particle_collider_bits, particle_velocities] = downloads.try_into().unwrap();
+    let [particle_positions_and_collider_bits, particle_velocities] = downloads.try_into().unwrap();
 
     (
-        particle_collider_bits.to_vec(),
+        particle_positions_and_collider_bits.to_vec(),
         particle_velocities.to_vec(),
     )
 }
-*/
