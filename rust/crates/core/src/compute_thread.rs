@@ -133,7 +133,7 @@ impl ComputeThread {
                 let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
                     info!("setting up GPU allocators");
                     gpu_context.setup_allocator(
-                        current_state.particles.sort_map.len().max(1000) as u64 * 2048,
+                        current_state.particles.sort_map.len().max(1000) as u64 * 4096,
                         "main allocator",
                         true,
                     )?;

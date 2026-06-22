@@ -11,7 +11,8 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use nalgebra::Vector4;
+use nalgebra::{Vector3, Vector4};
+use rustc_hash::FxHashMap;
 
 use super::*;
 
@@ -28,8 +29,10 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect_nodes: Allocation,
-    pub hash_table: Allocation,
     pub node_ids_and_collider_bits: Allocation,
+    pub hash_table_multi: Allocation,
+    pub multi_offsets: Allocation,
+    pub multi: Allocation,
     pub node_momentums_in: Allocation,
 }
 
@@ -57,20 +60,47 @@ impl Input {
             len: node_ids_and_collider_bits.len() as u32,
         });
 
+        let hash_table_multi = build_hash_table_multi_on_cpu(node_ids_and_collider_bits);
+        let mut multi: FxHashMap<Vector3<i32>, Vec<u32>> = Default::default();
+        for (node_index, node_ids_and_collider_bits) in
+            node_ids_and_collider_bits.iter().enumerate()
+        {
+            multi
+                .entry(node_ids_and_collider_bits.node_id)
+                .or_default()
+                .push(node_index as u32);
+        }
+        let mut multi_counts: Vec<u32> = Vec::with_capacity(node_ids_and_collider_bits.len());
+        let multi: Vec<u32> = node_ids_and_collider_bits
+            .iter()
+            .flat_map(|node_id_and_collider_bits| {
+                let multi: &[u32] = &multi[&node_id_and_collider_bits.node_id];
+                multi_counts.push(multi.len() as u32);
+                multi.iter().cloned()
+            })
+            .collect();
+
+        let multi_offsets = prefix_sum_on_cpu(&multi_counts);
+
+        assert!(multi.len() == node_ids_and_collider_bits.len());
+
         let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
-        let hash_table = build_hash_table_on_cpu(node_ids_and_collider_bits);
-        let hash_table = Allocation::new(device, "hash_table", &hash_table);
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
             node_ids_and_collider_bits,
         );
+        let hash_table_multi = Allocation::new(device, "hash_table_multi", &hash_table_multi);
+        let multi_offsets = Allocation::new(device, "multi_offsets", &multi_offsets);
+        let multi = Allocation::new(device, "multi", &multi);
         let node_momentums_in = Allocation::new(device, "node_momentums_in", node_momentums_in);
 
         Self {
             indirect_nodes,
-            hash_table,
             node_ids_and_collider_bits,
+            hash_table_multi,
+            multi_offsets,
+            multi,
             node_momentums_in,
         }
     }
@@ -93,8 +123,10 @@ impl PipelinePart for MeldGrid {
                 device: context.device(),
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
-                    (u32::MIN_BINDING_SIZE, false),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),
                 ],
@@ -111,8 +143,10 @@ impl PipelinePart for MeldGrid {
         encoder: &mut CommandEncoder,
         Input {
             indirect_nodes,
-            hash_table,
             node_ids_and_collider_bits,
+            hash_table_multi,
+            multi_offsets,
+            multi,
             node_momentums_in,
         }: Input,
         Parameters {}: Parameters,
@@ -136,8 +170,10 @@ impl PipelinePart for MeldGrid {
                 &self.meld_grid,
                 [
                     indirect_nodes.binding(),
-                    hash_table.binding(),
                     node_ids_and_collider_bits.binding(),
+                    hash_table_multi.binding(),
+                    multi_offsets.binding(),
+                    multi.binding(),
                     node_momentums_in.binding(),
                     node_momentums_out.binding(),
                 ],

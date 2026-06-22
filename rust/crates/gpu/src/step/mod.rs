@@ -466,8 +466,10 @@ impl PipelinePart for Step {
             encoder,
             meld_grid::Input {
                 indirect_nodes: indirect_nodes.clone(),
-                hash_table: hash_table.clone(),
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
+                hash_table_multi,
+                multi_offsets,
+                multi,
                 node_momentums_in: node_momentums,
             },
             meld_grid::Parameters,

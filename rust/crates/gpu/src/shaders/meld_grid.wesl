@@ -12,15 +12,21 @@ import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_o
 var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> hash_table: array<u32>;
-
-@group(0) @binding(2)
 var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
+@group(0) @binding(2)
+var<storage, read_write> hash_table_multi: array<u32>;
+
 @group(0) @binding(3)
-var<storage, read_write> node_momentums_in: array<vec4f>;
+var<storage, read_write> multi_offsets: array<u32>;
 
 @group(0) @binding(4)
+var<storage, read_write> multi: array<u32>;
+
+@group(0) @binding(5)
+var<storage, read_write> node_momentums_in: array<vec4f>;
+
+@group(0) @binding(6)
 var<storage, read_write> node_momentums_out: array<vec4f>;
 
 override WORKGROUP_SIZE: u32;
@@ -36,38 +42,50 @@ fn main(
         return;
     }
     // table length must be a power of two
-    let table_mask = arrayLength(&hash_table) - 1;
+    let table_mask = arrayLength(&hash_table_multi) - 1;
 
     let node_id_and_collider_bits = node_ids_and_collider_bits[global_index];
-    let hash = murmur_of_node_id(node_id_and_collider_bits.node_id, 0);
+    let node_id = node_id_and_collider_bits.node_id;
+    let collider_bits = node_id_and_collider_bits.collider_bits;
 
-    var node_momentum = vec4f(0.);
-
+    let hash = murmur_of_node_id(node_id, 0);
     var slot = hash & table_mask;
+    var node_index = hash_table_multi[slot] - 1;
     loop {
-        var node_index = hash_table[slot];
-        if node_index == 0 {
+        if all(node_id == node_ids_and_collider_bits[node_index].node_id) {
             break;
         }
-        node_index -= 1;
-
-        let other_node_id_and_collider_bits = node_ids_and_collider_bits[node_index];
-
-        let comapatible = compatible(
-            node_id_and_collider_bits.collider_bits,
-            other_node_id_and_collider_bits.collider_bits,
-        );
-        let same_position = all(
-            node_id_and_collider_bits.node_id ==
-            other_node_id_and_collider_bits.node_id
-        );
-
-        if comapatible && same_position {
-            node_momentum += node_momentums_in[node_index];
-        }
-
         slot += 1;
         slot &= table_mask;
+
+        node_index = hash_table_multi[slot] - 1;
+    }
+
+    let multi_start = multi_offsets[node_index];
+    var multi_end = indirect.len;
+    if node_index + 1 < indirect.len {
+        multi_end = multi_offsets[node_index + 1];
+    }
+
+    if multi_start + 1 == multi_end {
+        return;
+    }
+
+    var node_momentum = vec4f(0.);
+    for (var multi_index = multi_start; multi_index < multi_end; multi_index++) {
+        let other_index = multi[multi_index];
+        if global_index == other_index {
+            continue;
+        }
+
+        if !compatible(
+            collider_bits,
+            node_ids_and_collider_bits[other_index].collider_bits,
+        ) {
+            continue;
+        }
+
+        node_momentum += node_momentums_in[other_index];
     }
 
     node_momentums_out[global_index] = node_momentum;

@@ -95,12 +95,34 @@ pub fn build_hash_table_on_cpu(node_ids_and_collider_bits: &[NodeIdAndColliderBi
         vec![0; (node_ids_and_collider_bits.len() * 2).next_power_of_two()];
 
     let table_mask = hash_table.len() as u32 - 1;
+    for (node_index, node_id_and_collider_bits) in node_ids_and_collider_bits.iter().enumerate() {
+        let hash = node_id_and_collider_bits_to_murmur(node_id_and_collider_bits);
+        let mut slot = hash & table_mask;
+        while hash_table[slot as usize] != 0 {
+            slot += 1;
+            slot &= table_mask;
+        }
+        hash_table[slot as usize] = node_index as u32 + 1;
+    }
+    hash_table
+}
+
+pub fn build_hash_table_multi_on_cpu(
+    node_ids_and_collider_bits: &[NodeIdAndColliderBits],
+) -> Vec<u32> {
+    let mut hash_table: Vec<u32> =
+        vec![0; (node_ids_and_collider_bits.len() * 2).next_power_of_two()];
+
+    let table_mask = hash_table.len() as u32 - 1;
     for (node_index, NodeIdAndColliderBits { node_id, .. }) in
         node_ids_and_collider_bits.iter().enumerate()
     {
         let hash = node_id_to_murmur(node_id);
         let mut slot = hash & table_mask;
-        while hash_table[slot as usize] != 0 {
+        while hash_table[slot as usize] != 0
+            && node_ids_and_collider_bits[(hash_table[slot as usize] - 1) as usize].node_id
+                != *node_id
+        {
             slot += 1;
             slot &= table_mask;
         }

@@ -282,7 +282,7 @@ mod test {
         let leaf_size = 1.;
         let margin = 1.;
         let leaf_aabbs = triangles_to_leaf_aabbs(leaf_size, margin, &vertices, &triangles);
-        let bvh = BoundingVolumeHierarchy::new(leaf_aabbs.clone(), 4).unwrap();
+        let bvh = BoundingVolumeHierarchy::new(leaf_aabbs.clone(), 4);
         let aabbs: Vec<_> = leaf_aabbs
             .iter()
             .map(|Aabb { min, max }| Aabb {
