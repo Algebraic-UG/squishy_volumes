@@ -92,7 +92,7 @@ pub fn build_hash_table_on_cpu(node_ids_and_collider_bits: &[NodeIdAndColliderBi
             slot += 1;
             slot &= table_mask;
         }
-        hash_table[slot as usize] = node_index as u32;
+        hash_table[slot as usize] = node_index as u32 + 1;
     }
     hash_table
 }
