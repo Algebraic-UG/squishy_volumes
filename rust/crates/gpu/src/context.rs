@@ -27,6 +27,7 @@ fn requirements() -> (wgpu::Features, wgpu::Limits) {
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
     features |= wgpu::Features::TIMESTAMP_QUERY;
+    features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
 
     let mut limits = wgpu::Limits::downlevel_defaults();
     limits.max_immediate_size = 4;

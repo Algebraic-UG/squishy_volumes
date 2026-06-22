@@ -34,6 +34,15 @@ impl CommandEncoder<'_> {
             }
         }
     }
+
+    pub fn scope<'a>(&'a mut self, label: Option<&'static str>) -> CommandEncoder<'a> {
+        match self {
+            CommandEncoder::Encoder(command_encoder) => CommandEncoder::Encoder(command_encoder),
+            CommandEncoder::Scoped(scope) => {
+                CommandEncoder::Scoped(scope.scope(label.unwrap_or("unlabled")))
+            }
+        }
+    }
 }
 
 impl<'a> Deref for CommandEncoder<'a> {

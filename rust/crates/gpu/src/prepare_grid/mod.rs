@@ -198,7 +198,7 @@ impl PipelinePart for PrepareGrid {
                 .unwrap(),
         )?;
 
-        encoder.clear_buffer(
+        encoder.scope(Some("clear_hash_table")).clear_buffer(
             hash_table.buffer(),
             hash_table.offset(),
             Some(hash_table.size().get()),
@@ -283,7 +283,7 @@ impl PipelinePart for PrepareGrid {
         drop(owns);
         drop(offsets);
 
-        encoder.clear_buffer(
+        encoder.scope(Some("clear_hash_table_again")).clear_buffer(
             hash_table.buffer(),
             hash_table.offset(),
             Some(hash_table.size().get()),

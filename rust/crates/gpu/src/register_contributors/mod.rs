@@ -183,11 +183,13 @@ impl PipelinePart for RegisterContributors {
             .allocator()?
             .allocate::<AtomicU32>("contributor_counts", num_grid_nodes)?;
 
-        encoder.clear_buffer(
-            contributor_counts.buffer(),
-            contributor_counts.offset(),
-            Some(contributor_counts.size().get()),
-        );
+        encoder
+            .scope(Some("clear_contributor_counts"))
+            .clear_buffer(
+                contributor_counts.buffer(),
+                contributor_counts.offset(),
+                Some(contributor_counts.size().get()),
+            );
 
         let mut compute_pass = encoder.begin_compute_pass(self.count_contributors.label);
         compute_pass.set_pipeline(&self.count_contributors.compute_pipeline);
@@ -227,11 +229,13 @@ impl PipelinePart for RegisterContributors {
             (num_particles.get() * 27).try_into().unwrap(),
         )?;
 
-        encoder.clear_buffer(
-            contributor_counts.buffer(),
-            contributor_counts.offset(),
-            Some(contributor_counts.size().get()),
-        );
+        encoder
+            .scope(Some("clear_contributor_counts_again"))
+            .clear_buffer(
+                contributor_counts.buffer(),
+                contributor_counts.offset(),
+                Some(contributor_counts.size().get()),
+            );
 
         let mut compute_pass = encoder.begin_compute_pass(self.register_contributors.label);
         compute_pass.set_pipeline(&self.register_contributors.compute_pipeline);
