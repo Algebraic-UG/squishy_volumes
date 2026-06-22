@@ -35,7 +35,7 @@ fn main(
 
     // table length must be a power of two
     let table_mask = arrayLength(&hash_table) - 1;
-    let hash = murmur_of_node_id(node_id_and_collider_bits.node_id);
+    let hash = murmur_of_node_id(node_id_and_collider_bits.node_id, node_id_and_collider_bits.collider_bits);
     var slot = hash & table_mask;
 
     while !atomicCompareExchangeWeak(&hash_table[slot], 0, global_index + 1).exchanged {

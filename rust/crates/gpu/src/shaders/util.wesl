@@ -94,21 +94,12 @@ fn murmur3_x86_32_3u32(a: u32, b: u32, c: u32, seed: u32) -> u32 {
     return fmix32(h1);
 }
 
-fn murmur_of_node_id(node_id: vec3i) -> u32 {
+fn murmur_of_node_id(node_id: vec3i, collider_bits: u32) -> u32 {
     return murmur3_x86_32_3u32(
         i32_to_ordered_u32(node_id.x),
         i32_to_ordered_u32(node_id.y),
         i32_to_ordered_u32(node_id.z),
-        0,
-    );
-}
-
-fn murmur_of_node_id_and_collider_bits(node_id_and_collider_bits: NodeIdAndColliderBits) -> u32 {
-    return murmur3_x86_32_3u32(
-        i32_to_ordered_u32(node_id_and_collider_bits.node_id.x),
-        i32_to_ordered_u32(node_id_and_collider_bits.node_id.y),
-        i32_to_ordered_u32(node_id_and_collider_bits.node_id.z),
-        node_id_and_collider_bits.collider_bits,
+        collider_bits,
     );
 }
 

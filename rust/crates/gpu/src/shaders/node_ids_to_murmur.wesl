@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, murmur_of_node_id_and_collider_bits, murmur_of_node_id, NodeIdAndColliderBits};
+import super::util::{Indirect, get_global_index, murmur_of_node_id, NodeIdAndColliderBits};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
@@ -33,6 +33,9 @@ fn main(
     }
 
     let node_id_and_collider_bits = node_ids_and_collider_bits[global_index];
-    hashes_node_ids[global_index] = murmur_of_node_id(node_id_and_collider_bits.node_id);
-    hashes_node_ids_and_collider_bits[global_index] = murmur_of_node_id_and_collider_bits(node_id_and_collider_bits);
+    hashes_node_ids[global_index] = murmur_of_node_id(node_id_and_collider_bits.node_id, 0);
+    hashes_node_ids_and_collider_bits[global_index] = murmur_of_node_id(
+        node_id_and_collider_bits.node_id,
+        node_id_and_collider_bits.collider_bits,
+    );
 }

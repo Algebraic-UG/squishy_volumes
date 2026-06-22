@@ -44,7 +44,7 @@ fn main(
 
     for (var node = 0u; node < 27; node++) {
         let node_id = low_node_id + node_offset(node);
-        let hash = murmur_of_node_id(node_id);
+        let hash = murmur_of_node_id(node_id, collider_bits);
 
         var slot = hash & table_mask;
         //  this must never be zero, or we're in big trouble

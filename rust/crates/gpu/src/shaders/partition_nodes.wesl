@@ -33,6 +33,7 @@ fn main(
     }
 
     let position_and_collider_bits = positions_and_collider_bits[global_index];
+    let collider_bits = position_and_collider_bits.collider_bits;
     let low_node_id = position_to_low_node(GRID_NODE_SIZE, position_and_collider_bits.position);
 
     // table length must be a power of two
@@ -43,7 +44,7 @@ fn main(
         let node_id = low_node_id + node_offset(node);
         let node_and_index = (node << 27) | (global_index + 1);
 
-        let hash = murmur_of_node_id(node_id);
+        let hash = murmur_of_node_id(node_id, collider_bits);
 
         var slot = hash & table_mask;
         loop {

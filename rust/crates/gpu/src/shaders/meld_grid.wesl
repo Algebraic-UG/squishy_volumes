@@ -39,7 +39,7 @@ fn main(
     let table_mask = arrayLength(&hash_table) - 1;
 
     let node_id_and_collider_bits = node_ids_and_collider_bits[global_index];
-    let hash = murmur_of_node_id(node_id_and_collider_bits.node_id);
+    let hash = murmur_of_node_id(node_id_and_collider_bits.node_id, 0);
 
     var node_momentum = vec4f(0.);
 
