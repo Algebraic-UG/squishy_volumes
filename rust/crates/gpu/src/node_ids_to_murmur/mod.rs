@@ -27,7 +27,7 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect: Allocation,
-    pub node_ids: Allocation,
+    pub node_ids_and_collider_bits: Allocation,
 }
 
 impl Input {
@@ -35,24 +35,31 @@ impl Input {
         device: &wgpu::Device,
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
-        node_ids: &[Vector3<i32>],
+        node_ids_and_collider_bits: &[NodeIdAndColliderBits],
     ) -> Self {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
-            len: node_ids.len() as u32,
+            len: node_ids_and_collider_bits.len() as u32,
         });
-        let node_ids = node_ids.iter().map(|p| p.push(0)).collect::<Vec<_>>();
 
-        let node_ids = Allocation::new(device, "node_ids", &node_ids);
+        let node_ids_and_collider_bits = Allocation::new(
+            device,
+            "node_ids_and_collider_bits",
+            &node_ids_and_collider_bits,
+        );
         let indirect = Allocation::new(device, "indirect", &[indirect]);
 
-        Self { indirect, node_ids }
+        Self {
+            indirect,
+            node_ids_and_collider_bits,
+        }
     }
 }
 
 pub struct Output {
-    pub hashes: Allocation,
+    pub hashes_node_ids: Allocation,
+    pub hashes_node_ids_and_collider_bits: Allocation,
 }
 
 impl PipelinePart for NodeIdsToMurmur {
@@ -70,7 +77,8 @@ impl PipelinePart for NodeIdsToMurmur {
                 device,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
-                    (Vector4::<i32>::MIN_BINDING_SIZE, false),
+                    (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
@@ -85,12 +93,20 @@ impl PipelinePart for NodeIdsToMurmur {
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input { indirect, node_ids }: Input,
+        Input {
+            indirect,
+            node_ids_and_collider_bits,
+        }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        let hashes = context
-            .allocator()?
-            .allocate::<u32>("hashes", node_ids.len::<Vector4<i32>>())?;
+        let hashes_node_ids = context.allocator()?.allocate::<u32>(
+            "hashes_node_ids",
+            node_ids_and_collider_bits.len::<NodeIdAndColliderBits>(),
+        )?;
+        let hashes_node_ids_and_collider_bits = context.allocator()?.allocate::<u32>(
+            "hashes_node_ids_and_collider_bits",
+            node_ids_and_collider_bits.len::<NodeIdAndColliderBits>(),
+        )?;
 
         let mut compute_pass = encoder.begin_compute_pass(self.node_ids_to_murmur.label);
         compute_pass.set_pipeline(&self.node_ids_to_murmur.compute_pipeline);
@@ -99,11 +115,19 @@ impl PipelinePart for NodeIdsToMurmur {
             &create_bind_group(
                 context.device(),
                 &self.node_ids_to_murmur,
-                [indirect.binding(), node_ids.binding(), hashes.binding()],
+                [
+                    indirect.binding(),
+                    node_ids_and_collider_bits.binding(),
+                    hashes_node_ids.binding(),
+                    hashes_node_ids_and_collider_bits.binding(),
+                ],
             ),
             &[],
         );
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
-        Ok(Output { hashes })
+        Ok(Output {
+            hashes_node_ids,
+            hashes_node_ids_and_collider_bits,
+        })
     }
 }

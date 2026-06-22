@@ -10,6 +10,34 @@ use nalgebra::Vector3;
 
 use super::*;
 
+fn check(node_ids_and_collider_bits: &[NodeIdAndColliderBits]) {
+    let (hashes_node_ids, hashes_node_ids_and_collider_bits) = run(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+        },
+        (u16::MAX as u32).try_into().unwrap(),
+        node_ids_and_collider_bits,
+    );
+
+    println!("hashes_node_ids");
+    assert_eq!(
+        node_ids_and_collider_bits
+            .iter()
+            .map(|NodeIdAndColliderBits { node_id, .. }| node_id)
+            .map(node_id_to_murmur)
+            .collect::<Vec<_>>(),
+        hashes_node_ids
+    );
+    println!("hashes_node_ids_and_collider_bits");
+    assert_eq!(
+        node_ids_and_collider_bits
+            .iter()
+            .map(node_id_and_collider_bits_to_murmur)
+            .collect::<Vec<_>>(),
+        hashes_node_ids_and_collider_bits
+    );
+}
+
 #[test]
 fn test_simple() {
     let node_ids = [
@@ -23,16 +51,19 @@ fn test_simple() {
         Vector3::new(5, 5, 5),
     ];
 
-    assert_eq!(
-        node_ids.iter().map(node_id_to_murmur).collect::<Vec<_>>(),
-        run(
-            Settings {
-                workgroup_size: 64.try_into().unwrap()
-            },
-            (u16::MAX as u32).try_into().unwrap(),
-            &node_ids
-        ),
-    );
+    let collider_bits = [
+        0x0_0000, 0x1_0000, 0x2_0000, 0x3_0000, 0x4_0000, 0x5_0000, 0x6_0000, 0x7_0000,
+    ];
+
+    let node_ids_and_collider_bits: Vec<_> = node_ids
+        .into_iter()
+        .zip(collider_bits)
+        .map(|(node_id, collider_bits)| NodeIdAndColliderBits {
+            node_id,
+            collider_bits,
+        })
+        .collect();
+    check(&node_ids_and_collider_bits);
 }
 
 #[test]
@@ -40,53 +71,67 @@ fn test_random() {
     use rand::prelude::*;
     use rand::rngs::ChaCha8Rng;
 
+    let n = 1000;
     let node_ids: Vec<i32> = ChaCha8Rng::seed_from_u64(42)
         .random_iter::<i32>()
-        .take(1000 * 3)
+        .take(n * 3)
         .collect();
     let node_ids: Vec<Vector3<i32>> = node_ids
         .chunks_exact(3)
         .map(Vector3::from_column_slice)
         .collect();
-
-    assert_eq!(
-        node_ids.iter().map(node_id_to_murmur).collect::<Vec<_>>(),
-        run(
-            Settings {
-                workgroup_size: 64.try_into().unwrap()
-            },
-            (u16::MAX as u32).try_into().unwrap(),
-            &node_ids
-        ),
-    );
+    let collider_bits = ChaCha8Rng::seed_from_u64(42).random_iter::<u32>();
+    let node_ids_and_collider_bits: Vec<_> = node_ids
+        .into_iter()
+        .zip(collider_bits)
+        .map(|(node_id, collider_bits)| NodeIdAndColliderBits {
+            node_id,
+            collider_bits,
+        })
+        .collect();
+    check(&node_ids_and_collider_bits);
 }
 
-fn run(settings: Settings, dispatch_limit: NonZeroU32, node_ids: &[Vector3<i32>]) -> Vec<u32> {
+fn run(
+    settings: Settings,
+    dispatch_limit: NonZeroU32,
+    node_ids_and_collider_bits: &[NodeIdAndColliderBits],
+) -> (Vec<u32>, Vec<u32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(
         context.device(),
         settings.workgroup_size,
         dispatch_limit,
-        node_ids,
+        node_ids_and_collider_bits,
     );
 
     let node_ids_to_murmur = NodeIdsToMurmur::new(&context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output { hashes } = node_ids_to_murmur
+    let Output {
+        hashes_node_ids,
+        hashes_node_ids_and_collider_bits,
+    } = node_ids_to_murmur
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let download = DownloadToHost::new(&context, hashes);
-    download.copy(&mut encoder);
+    let downloads = DownloadsToHost::new(
+        &context,
+        [hashes_node_ids, hashes_node_ids_and_collider_bits],
+    );
+    downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
-    let download = download.prep();
+    let downloads = downloads.prep();
     context
         .device()
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    let [hashes_node_ids, hashes_node_ids_and_collider_bits] = downloads.try_into().unwrap();
+    (
+        hashes_node_ids.to_vec(),
+        hashes_node_ids_and_collider_bits.to_vec(),
+    )
 }

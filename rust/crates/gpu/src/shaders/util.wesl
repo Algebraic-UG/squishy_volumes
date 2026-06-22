@@ -103,6 +103,15 @@ fn murmur_of_node_id(node_id: vec3i) -> u32 {
     );
 }
 
+fn murmur_of_node_id_and_collider_bits(node_id_and_collider_bits: NodeIdAndColliderBits) -> u32 {
+    return murmur3_x86_32_3u32(
+        i32_to_ordered_u32(node_id_and_collider_bits.node_id.x),
+        i32_to_ordered_u32(node_id_and_collider_bits.node_id.y),
+        i32_to_ordered_u32(node_id_and_collider_bits.node_id.z),
+        node_id_and_collider_bits.collider_bits,
+    );
+}
+
 fn i32_to_ordered_u32(x: i32) -> u32 {
     return bitcast<u32>(x) ^ 0x80000000u;
 }

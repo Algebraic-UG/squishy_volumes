@@ -6,16 +6,19 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, murmur_of_node_id};
+import super::util::{Indirect, get_global_index, murmur_of_node_id_and_collider_bits, murmur_of_node_id, NodeIdAndColliderBits};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> node_ids: array<vec3<i32>>;
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
 @group(0) @binding(2)
-var<storage, read_write> hashes: array<u32>;
+var<storage, read_write> hashes_node_ids: array<u32>;
+
+@group(0) @binding(3)
+var<storage, read_write> hashes_node_ids_and_collider_bits: array<u32>;
 
 override WORKGROUP_SIZE: u32;
 
@@ -29,6 +32,7 @@ fn main(
         return;
     }
 
-    let node_id = node_ids[global_index];
-    hashes[global_index] = murmur_of_node_id(node_id);
+    let node_id_and_collider_bits = node_ids_and_collider_bits[global_index];
+    hashes_node_ids[global_index] = murmur_of_node_id(node_id_and_collider_bits.node_id);
+    hashes_node_ids_and_collider_bits[global_index] = murmur_of_node_id_and_collider_bits(node_id_and_collider_bits);
 }

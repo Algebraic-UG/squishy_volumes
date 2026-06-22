@@ -12,8 +12,6 @@ use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
-use std::iter::once;
-use std::num::NonZeroU32;
 
 use nalgebra::{Matrix3, Vector3, Vector4};
 
@@ -76,6 +74,20 @@ pub fn node_id_to_murmur(node_id: &Vector3<i32>) -> u32 {
     bytes[4..8].copy_from_slice(&node_id.y.to_le_bytes());
     bytes[8..12].copy_from_slice(&node_id.z.to_le_bytes());
     murmur3_32(&mut Cursor::new(bytes), 0).unwrap()
+}
+
+pub fn node_id_and_collider_bits_to_murmur(
+    NodeIdAndColliderBits {
+        node_id,
+        collider_bits,
+    }: &NodeIdAndColliderBits,
+) -> u32 {
+    let node_id = node_id.map(i32_to_u32_offset);
+    let mut bytes = [0u8; 12];
+    bytes[0..4].copy_from_slice(&node_id.x.to_le_bytes());
+    bytes[4..8].copy_from_slice(&node_id.y.to_le_bytes());
+    bytes[8..12].copy_from_slice(&node_id.z.to_le_bytes());
+    murmur3_32(&mut Cursor::new(bytes), *collider_bits).unwrap()
 }
 
 pub fn build_hash_table_on_cpu(node_ids_and_collider_bits: &[NodeIdAndColliderBits]) -> Vec<u32> {

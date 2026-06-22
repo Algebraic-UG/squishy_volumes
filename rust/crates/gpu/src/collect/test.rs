@@ -6,15 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use rand::prelude::*;
-use rand::rngs::ChaCha8Rng;
-
-use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
-use squishy_volumes_util::{lambda, mu};
-
-use crate::particle_parameters::{Host, Solid};
-
 use super::*;
+use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 
 fn check(settings: Settings, input_data: InputData) {
     let _ = run(settings, input_data);
