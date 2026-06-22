@@ -144,6 +144,9 @@ fn run_prepare_grid(
         indirect_nodes,
         hash_table,
         node_ids_and_collider_bits,
+        hash_table_multi,
+        multi_offsets,
+        multi,
     } = prepare_grid
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();

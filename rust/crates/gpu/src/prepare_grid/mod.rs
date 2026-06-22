@@ -23,6 +23,7 @@ pub struct PrepareGrid {
     len_to_indirect: LenToIndirect,
     build_nodes: CompiledModule,
     build_hash_table: CompiledModule,
+    fill_multi_map: CompiledModule,
 
     workgroup_size: NonZeroU32,
     dispatch_limit: NonZeroU32,
@@ -46,6 +47,9 @@ pub struct Output {
     pub indirect_nodes: Allocation,
     pub hash_table: Allocation,
     pub node_ids_and_collider_bits: Allocation,
+    pub hash_table_multi: Allocation,
+    pub multi_offsets: Allocation,
+    pub multi: Allocation,
 }
 
 impl Input {
@@ -149,6 +153,25 @@ impl PipelinePart for PrepareGrid {
                     (Indirect::MIN_BINDING_SIZE, true),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
                     (AtomicU32::MIN_BINDING_SIZE, false),
+                    (AtomicU32::MIN_BINDING_SIZE, false),
+                    (AtomicU32::MIN_BINDING_SIZE, false),
+                ],
+                immediate_size: 0,
+                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
+            }
+        );
+
+        let_compiled_module!(
+            fill_multi_map,
+            CompiledModuleSettings {
+                device: context.device(),
+                bind_group_entries: [
+                    (Indirect::MIN_BINDING_SIZE, true),
+                    (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (AtomicU32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
                 constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
@@ -162,6 +185,7 @@ impl PipelinePart for PrepareGrid {
             len_to_indirect,
             build_nodes,
             build_hash_table,
+            fill_multi_map,
 
             workgroup_size,
             dispatch_limit,
@@ -289,6 +313,30 @@ impl PipelinePart for PrepareGrid {
             Some(hash_table.size().get()),
         );
 
+        let hash_table_multi = context.allocator()?.allocate::<AtomicU32>(
+            "hash_table_multi",
+            (max_num_nodes.get() * 2)
+                .next_power_of_two()
+                .try_into()
+                .unwrap(),
+        )?;
+
+        encoder.scope(Some("clear_hash_table_multi")).clear_buffer(
+            hash_table_multi.buffer(),
+            hash_table_multi.offset(),
+            Some(hash_table_multi.size().get()),
+        );
+
+        let multi_counts = context
+            .allocator()?
+            .allocate::<AtomicU32>("multi_counts", max_num_nodes)?;
+
+        encoder.scope(Some("clear_multi_counts")).clear_buffer(
+            multi_counts.buffer(),
+            multi_counts.offset(),
+            Some(multi_counts.size().get()),
+        );
+
         let mut compute_pass = encoder.begin_compute_pass(self.build_hash_table.label);
         compute_pass.set_pipeline(&self.build_hash_table.compute_pipeline);
         compute_pass.set_bind_group(
@@ -300,6 +348,57 @@ impl PipelinePart for PrepareGrid {
                     indirect_nodes.binding(),
                     node_ids_and_collider_bits.binding(),
                     hash_table.binding(),
+                    hash_table_multi.binding(),
+                    multi_counts.binding(),
+                ],
+            ),
+            &[],
+        );
+        compute_pass.dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
+        drop(compute_pass);
+
+        let prefix_sum::Output {
+            prefix_sums: multi_offsets,
+            total_sum: None,
+        } = self.prefix_sum.record(
+            context,
+            encoder,
+            prefix_sum::Input {
+                indirect: indirect_nodes.clone(),
+                numbers: multi_counts.clone(),
+            },
+            prefix_sum::Parameters { total_sum: false },
+        )?
+        else {
+            unreachable!("we didn't asked prefix sum for the total sum");
+        };
+
+        encoder
+            .scope(Some("clear_multi_counts_again"))
+            .clear_buffer(
+                multi_counts.buffer(),
+                multi_counts.offset(),
+                Some(multi_counts.size().get()),
+            );
+
+        let multi = context
+            .allocator()?
+            .allocate::<u32>("multi", max_num_nodes)?;
+
+        let mut compute_pass = encoder.begin_compute_pass(self.fill_multi_map.label);
+        compute_pass.set_pipeline(&self.fill_multi_map.compute_pipeline);
+        compute_pass.set_bind_group(
+            0,
+            &create_bind_group(
+                context.device(),
+                &self.fill_multi_map,
+                [
+                    indirect_nodes.binding(),
+                    node_ids_and_collider_bits.binding(),
+                    hash_table_multi.binding(),
+                    multi_counts.binding(),
+                    multi_offsets.binding(),
+                    multi.binding(),
                 ],
             ),
             &[],
@@ -310,6 +409,9 @@ impl PipelinePart for PrepareGrid {
             indirect_nodes,
             hash_table,
             node_ids_and_collider_bits,
+            hash_table_multi,
+            multi_offsets,
+            multi,
         })
     }
 }

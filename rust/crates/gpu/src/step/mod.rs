@@ -403,6 +403,9 @@ impl PipelinePart for Step {
             indirect_nodes,
             hash_table,
             node_ids_and_collider_bits,
+            hash_table_multi,
+            multi_offsets,
+            multi,
         } = self.prepare_grid.record(
             context,
             encoder,
