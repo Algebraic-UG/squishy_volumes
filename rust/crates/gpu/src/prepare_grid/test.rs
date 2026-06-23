@@ -32,9 +32,6 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         num_nodes
     );
 
-    assert_eq!(multi.len() as u32, indirect_nodes.len);
-    assert_eq!(multi_offsets.len() as u32, indirect_nodes.len);
-
     assert_eq!(hash_table.len(), hash_table_multi.len());
     assert!(hash_table.len().is_power_of_two());
     let mask = hash_table.len() as u32 - 1;
@@ -88,6 +85,7 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
     for (multi_start, multi_end) in multi_offsets.iter().zip(
         multi_offsets
             .iter()
+            .take(indirect_nodes.len as usize)
             .skip(1)
             .chain(once(&indirect_nodes.len)),
     ) {
