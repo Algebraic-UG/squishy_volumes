@@ -6,42 +6,20 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::Vector3;
+use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
+use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 
 use super::*;
 
 fn check(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) {
+    let cpu_node_momentums = scatter_on_cpu(settings.grid_node_size, input_data.clone());
     let gpu_node_momentums = run(settings, dispatch_limit, input_data);
-    println!("{gpu_node_momentums:?}");
-    todo!();
 
-    /*
-    let grid_cpu = scatter_on_cpu(cell_size, time_step, input_data.clone());
+    assert_eq!(cpu_node_momentums.len(), gpu_node_momentums.len());
 
-    println!("{:?}", grid_cpu);
-    println!("{:?}", grid_cpu.values().collect::<Vec<_>>());
-
-    let (blocks, block_ids) = run_scatter(settings, dispatch_limit, input_data);
-
-    for (block_index, (block, block_id)) in blocks.iter().zip(&block_ids).enumerate() {
-        println!("block {block_index}, {block_id:?}");
-        let low_node = block_id * 2 - Vector4::repeat(1);
-        for node in 0..8 {
-            let node_id = low_node + block_offset(node as u32);
-            if let Some(cpu) = grid_cpu.get(&node_id.xyz()) {
-                println!("both have {:?}", node_id.xyz());
-                check_iters(cpu.iter(), block.nodes[node].iter());
-            } else {
-                assert_eq!(block.nodes[node], Vector4::zeros());
-            }
-        }
+    for (cpu, gpu) in cpu_node_momentums.into_iter().zip(gpu_node_momentums) {
+        check_iters(cpu.iter(), gpu.iter());
     }
-
-    let super_set: HashSet<_> = gpu_grid_to_cpu_grid(&block_ids).into_iter().collect();
-    for node in grid_cpu.keys() {
-        assert!(super_set.contains(&node.push(0)));
-    }
-    */
 }
 
 #[test]
@@ -95,6 +73,113 @@ fn test_single_undeformed() {
     let particle_tmp = [Matrix4::new(
         0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 1., 1., 1.,
     )];
+
+    check(
+        settings,
+        dispatch_limit,
+        InputData {
+            contributor_offsets: &contributor_offsets,
+            contributors: &contributors,
+            node_ids_and_collider_bits: &node_ids_and_collider_bits,
+            particle_tmp: &particle_tmp,
+        },
+    );
+}
+
+#[test]
+fn test_many_random_props() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let grid_node_size = 0.5;
+    let time_step = 0.001;
+    let settings = Settings {
+        workgroup_size,
+        grid_node_size,
+    };
+
+    let positions = many_positions();
+    let n = positions.len();
+    let positions_and_collider_bits = positions
+        .into_iter()
+        .map(|position| PositionAndColliderBits {
+            position: position.xyz(),
+            collider_bits: 0,
+        })
+        .collect::<Vec<_>>();
+
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    let masses = (0..n)
+        .map(|_| rng.random_range(0.01..0.05))
+        .collect::<Vec<_>>();
+    let initial_volumes = (0..n)
+        .map(|_| rng.random_range(0.01..0.05))
+        .collect::<Vec<_>>();
+
+    let particle_parameters = test_lame_parameters()
+        .chain(test_lame_parameters())
+        .cycle()
+        .take(n)
+        .map(Into::into)
+        .collect::<Vec<_>>();
+    let position_gradients = test_position_gradients_random(n)
+        .into_iter()
+        .map(|m| stack![m; Matrix1x3::zeros()])
+        .collect::<Vec<_>>();
+    let velocities = (0..n)
+        .map(|_| {
+            Vector4::new(
+                rng.random_range(-1.0..1.),
+                rng.random_range(-1.0..1.),
+                rng.random_range(-1.0..1.),
+                0.,
+            )
+        })
+        .collect::<Vec<_>>();
+    let velocity_gradients = (0..n)
+        .map(|_| {
+            stack![
+                Matrix3::new(
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                );
+                Matrix1x3::zeros()
+            ]
+        })
+        .collect::<Vec<_>>();
+
+    let mut node_ids_and_collider_bits = Vec::new();
+    let mut contributor_offsets = Vec::new();
+    let mut contributors = Vec::new();
+    let mut offset = 0;
+    for (node, mut node_contributors) in
+        get_contributors(settings.grid_node_size, &positions_and_collider_bits).into_iter()
+    {
+        contributor_offsets.push(offset);
+        node_ids_and_collider_bits.push(node);
+        offset += node_contributors.len() as u32;
+        contributors.append(&mut node_contributors);
+    }
+
+    let particle_tmp = prepare_tmp_on_cpu(
+        grid_node_size,
+        time_step,
+        prepare_tmp::InputData {
+            particle_masses: &masses,
+            particle_initial_volumes: &initial_volumes,
+            particle_parameters: &particle_parameters,
+            particle_positions_and_collider_bits: &positions_and_collider_bits,
+            particle_position_gradients: &position_gradients,
+            particle_velocities: &velocities,
+            particle_velocity_gradients: &velocity_gradients,
+        },
+    );
 
     check(
         settings,

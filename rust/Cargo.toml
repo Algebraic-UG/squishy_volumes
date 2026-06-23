@@ -30,6 +30,7 @@ iter_enumeration = "0.1.0"
 rayon = "1.10.0"
 rustc-hash = "2.1.1"
 smallvec = { version = "1.15.2", features = ["serde"] }
+itertools = "0.14.0"
 
 # TODO: use crate.io's version once the changes from this PR are released
 # https://github.com/wgsl-tooling-wg/wesl-rs/pull/182

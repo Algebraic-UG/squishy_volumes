@@ -8,12 +8,15 @@
 
 use super::*;
 
+use itertools::izip;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
+use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
+use std::iter::once;
 
-use nalgebra::{Matrix3, Vector3, Vector4};
+use nalgebra::{Matrix1, Matrix1x3, Matrix3, Matrix4, Vector3, Vector4, stack};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
@@ -214,6 +217,73 @@ pub fn position_to_low_node(grid_node_size: f32, position: &Vector3<f32>) -> Vec
     position.map(|c| (c / grid_node_size).round() as i32 - 1)
 }
 
+pub fn prepare_tmp_on_cpu(
+    grid_node_size: f32,
+    time_step: f32,
+    prepare_tmp::InputData {
+        particle_masses,
+        particle_initial_volumes,
+        particle_parameters,
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+    }: prepare_tmp::InputData,
+) -> Vec<Matrix4<f32>> {
+    use particle_parameters::{Fluid, Host, Solid};
+    let scaling = time_step * 4. / (grid_node_size * grid_node_size);
+
+    izip!(
+        particle_masses,
+        particle_initial_volumes,
+        particle_parameters,
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+    )
+    .map(
+        |(
+            mass,
+            initial_volume,
+            paramters,
+            position_and_collider_bits,
+            position_gradient,
+            velocity,
+            velocity_gradient,
+        )|
+         -> Matrix4<f32> {
+            let position_gradient: Matrix3<f32> = position_gradient.fixed_view::<3, 3>(0, 0).into();
+            let stress = match Host::from(*paramters) {
+                Host::Solid(Solid {
+                    mu,
+                    lambda,
+                    viscosity,
+                    sand_alpha,
+                }) => first_piola_stress_neo_hookean(mu, lambda, &position_gradient),
+                Host::Fluid(Fluid {
+                    exponent,
+                    bulk_modulus,
+                    viscosity,
+                }) => first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
+            };
+
+            let matrix_part = velocity_gradient.fixed_view::<3, 3>(0, 0) * *mass
+                - stress * position_gradient.transpose() * scaling * *initial_volume;
+            let vector_part = velocity.xyz() * *mass;
+            let position_part = position_and_collider_bits.position / grid_node_size;
+
+            Matrix4::from_columns(&[
+                matrix_part.column(0).push(position_part.x),
+                matrix_part.column(1).push(position_part.y),
+                matrix_part.column(2).push(position_part.z),
+                vector_part.push(*mass),
+            ])
+        },
+    )
+    .collect()
+}
+
 pub fn kernel_linear(x: f32) -> f32 {
     let x = x.abs();
     if x < 1. { 1. - x } else { 0. }
@@ -242,16 +312,50 @@ pub fn kernel_cubic(x: f32) -> f32 {
 }
 
 pub fn scatter_on_cpu(
-    cell_size: f32,
-    time_step: f32,
+    grid_node_size: f32,
     scatter::InputData {
         contributor_offsets,
         contributors,
         node_ids_and_collider_bits,
         particle_tmp,
     }: scatter::InputData,
-) -> HashMap<Vector3<i32>, Vector4<f32>> {
-    todo!()
+) -> Vec<Vector4<f32>> {
+    node_ids_and_collider_bits
+        .iter()
+        .zip(
+            contributor_offsets.iter().zip(
+                contributor_offsets
+                    .iter()
+                    .skip(1)
+                    .chain(once(&(contributors.len() as u32))),
+            ),
+        )
+        .map(
+            |(NodeIdAndColliderBits { node_id, .. }, contributor_range)| {
+                let normalized_node_position = node_id.map(|c| c as f32);
+                println!("{contributor_range:?}");
+                (*contributor_range.0 as usize..*contributor_range.1 as usize)
+                    .map(|contributor_index| {
+                        let tmp: &Matrix4<f32> =
+                            &particle_tmp[contributors[contributor_index] as usize];
+                        let matrix_part = tmp.fixed_view::<3, 3>(0, 0);
+                        let vector_part = tmp.fixed_view::<3, 1>(0, 3);
+                        let normalized_particle_position = tmp.fixed_view::<1, 3>(3, 0).transpose();
+                        let mass = tmp[(3, 3)];
+
+                        let to_node_normalized =
+                            normalized_node_position - normalized_particle_position;
+                        let weight: f32 = kernel_quadratic(to_node_normalized.x)
+                            * kernel_quadratic(to_node_normalized.y)
+                            * kernel_quadratic(to_node_normalized.z);
+
+                        (vector_part + matrix_part * to_node_normalized * grid_node_size).push(mass)
+                            * weight
+                    })
+                    .sum()
+            },
+        )
+        .collect()
 }
 
 pub fn collect_on_cpu(

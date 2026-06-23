@@ -11,8 +11,6 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use nalgebra::{Vector3, Vector4};
-
 use super::*;
 
 pub struct NodeIdsToMurmur {

@@ -3673,6 +3673,7 @@ dependencies = [
  "bytemuck",
  "env_logger",
  "iter_enumeration",
+ "itertools",
  "lazy_static",
  "murmur3",
  "nalgebra",

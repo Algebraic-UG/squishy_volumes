@@ -32,10 +32,10 @@ bitflags.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
 smallvec.workspace = true
+itertools.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
-itertools = "0.14.0"
 roots = "0.0.8"
 
 squishy_volumes_util.path = "../util"
