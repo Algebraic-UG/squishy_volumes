@@ -14,6 +14,10 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
     let nodes = get_node_set(settings.grid_node_size, positions_and_collider_bits);
     let owns = run(settings, positions_and_collider_bits);
 
+    for own in &owns {
+        println!("{own:032b}");
+    }
+
     let total = owns.into_iter().map(|own| own.count_ones()).sum::<u32>();
     assert_eq!(total as usize, nodes.len());
 }

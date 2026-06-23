@@ -56,9 +56,6 @@ fn main(
             }
 
             let old_node: u32 = result.old_value >> 27;
-            if node == old_node {
-                continue;
-            }
 
             let old_index = (result.old_value & index_mask) - 1;
             let old_position_and_collider_bits = positions_and_collider_bits[old_index];
