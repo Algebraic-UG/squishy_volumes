@@ -342,7 +342,6 @@ pub fn get_node_set(
 }
 
 pub fn hash_table_on_cpu(
-    grid_node_size: f32,
     node_ids_and_collider_bits: &[NodeIdAndColliderBits],
     positions_and_collider_bits: &[PositionAndColliderBits],
 ) -> Vec<u32> {

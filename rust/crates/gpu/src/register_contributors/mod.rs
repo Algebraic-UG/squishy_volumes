@@ -49,14 +49,12 @@ impl Input {
         Settings {
             workgroup_size,
             dispatch_limit,
-            grid_node_size,
             ..
         }: Settings,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
     ) -> Self {
         let hash_table = hash_table_on_cpu(
-            grid_node_size,
             node_ids_and_collider_bits,
             particle_positions_and_collider_bits,
         );
@@ -77,7 +75,7 @@ impl Input {
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
-            &node_ids_and_collider_bits,
+            node_ids_and_collider_bits,
         );
 
         Self {
