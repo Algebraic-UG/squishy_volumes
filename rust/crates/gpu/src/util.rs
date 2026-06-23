@@ -123,14 +123,21 @@ pub fn build_hash_table_multi_on_cpu(
     {
         let hash = node_id_to_murmur(node_id);
         let mut slot = hash & table_mask;
-        while hash_table[slot as usize] != 0
-            && node_ids_and_collider_bits[(hash_table[slot as usize] - 1) as usize].node_id
-                != *node_id
-        {
+        loop {
+            if hash_table[slot as usize] == 0 {
+                hash_table[slot as usize] = node_index as u32 + 1;
+                break;
+            }
+
+            if node_ids_and_collider_bits[(hash_table[slot as usize] - 1) as usize].node_id
+                == *node_id
+            {
+                break;
+            }
+
             slot += 1;
             slot &= table_mask;
         }
-        hash_table[slot as usize] = node_index as u32 + 1;
     }
     hash_table
 }
