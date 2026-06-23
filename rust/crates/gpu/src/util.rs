@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::iter::once;
 
-use nalgebra::{Matrix3, Matrix4, Matrix4x3, Vector3, Vector4};
+use nalgebra::{Matrix3, Matrix4, Vector3, Vector4};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]

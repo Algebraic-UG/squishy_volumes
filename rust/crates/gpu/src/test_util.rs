@@ -15,8 +15,7 @@ use approx::assert_relative_eq;
 // https://github.com/gfx-rs/wgpu/issues/5270
 // https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
 use lazy_static::lazy_static;
-use nalgebra::{Matrix3, Scalar, Vector3, Vector4};
-use rand::RngExt as _;
+use nalgebra::{Matrix3, Vector3, Vector4};
 use squishy_volumes_util::{lambda, mu};
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
@@ -739,17 +738,4 @@ pub fn check_iters<'a>(a: impl IntoIterator<Item = &'a f32>, b: impl IntoIterato
         println!("{a} vs {b}");
         assert_relative_eq!(a, b, epsilon = 0.000001, max_relative = 0.01);
     }
-}
-
-pub fn random_vecs<T: std::clone::Clone + Scalar>(
-    rng: &mut impl rand::Rng,
-    n: usize,
-) -> Vec<Vector4<T>>
-where
-    rand::distr::StandardUniform: rand::distr::Distribution<T>,
-{
-    let tmp: Vec<T> = rng.random_iter().take(n * 4).collect();
-    tmp.chunks_exact(4)
-        .map(Vector4::from_column_slice)
-        .collect()
 }
