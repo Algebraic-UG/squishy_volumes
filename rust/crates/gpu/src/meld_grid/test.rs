@@ -132,7 +132,7 @@ fn test_random() {
         })
         .collect();
     let node_ids_and_collider_bits: Vec<_> = node_ids_and_collider_bits.into_iter().collect();
-    let node_momentums_in: Vec<_> = (0..n)
+    let node_momentums_in: Vec<_> = (0..node_ids_and_collider_bits.len())
         .map(|_| {
             Vector4::new(
                 rng.random_range(-1.0..1.),
