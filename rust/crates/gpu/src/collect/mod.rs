@@ -44,6 +44,7 @@ pub struct Input {
     pub particle_velocity_gradients: Allocation,
 }
 
+#[derive(Clone)]
 pub struct InputData<'a> {
     pub node_ids_and_collider_bits: &'a [NodeIdAndColliderBits],
     pub node_momentums: &'a [Vector4<f32>],
@@ -120,6 +121,14 @@ impl Input {
 }
 
 pub struct Output;
+
+// this is actually still the input, but modified.. w/e
+pub struct OutputData {
+    pub particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
+    pub particle_position_gradients: Vec<Matrix4x3<f32>>,
+    pub particle_velocities: Vec<Vector4<f32>>,
+    pub particle_velocity_gradients: Vec<Matrix4x3<f32>>,
+}
 
 impl PipelinePart for Collect {
     type Settings = Settings;

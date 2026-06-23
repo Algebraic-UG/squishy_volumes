@@ -121,6 +121,7 @@ fn test_many_random_props() {
         .take(n)
         .map(Into::into)
         .collect::<Vec<_>>();
+    #[allow(clippy::toplevel_ref_arg)]
     let position_gradients = test_position_gradients_random(n)
         .into_iter()
         .map(|m| stack![m; Matrix1x3::zeros()])
@@ -135,6 +136,7 @@ fn test_many_random_props() {
             )
         })
         .collect::<Vec<_>>();
+    #[allow(clippy::toplevel_ref_arg)]
     let velocity_gradients = (0..n)
         .map(|_| {
             stack![

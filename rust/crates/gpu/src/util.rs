@@ -11,12 +11,13 @@ use super::*;
 use itertools::izip;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
+use rustc_hash::FxHashMap;
 use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::iter::once;
 
-use nalgebra::{Matrix1, Matrix1x3, Matrix3, Matrix4, Vector3, Vector4, stack};
+use nalgebra::{Matrix3, Matrix4, Matrix4x3, Vector3, Vector4};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
@@ -258,13 +259,13 @@ pub fn prepare_tmp_on_cpu(
                 Host::Solid(Solid {
                     mu,
                     lambda,
-                    viscosity,
-                    sand_alpha,
+                    viscosity: _,  // TODO
+                    sand_alpha: _, // TODO
                 }) => first_piola_stress_neo_hookean(mu, lambda, &position_gradient),
                 Host::Fluid(Fluid {
                     exponent,
                     bulk_modulus,
-                    viscosity,
+                    viscosity: _, // TODO
                 }) => first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
             };
 
@@ -359,22 +360,93 @@ pub fn scatter_on_cpu(
 }
 
 pub fn collect_on_cpu(
-    cell_size: f32,
+    grid_node_size: f32,
     time_step: f32,
-    scatter::InputData {
-        contributor_offsets,
-        contributors,
+    collect::InputData {
         node_ids_and_collider_bits,
-        particle_tmp,
-    }: scatter::InputData,
-    grid: HashMap<Vector3<i32>, Vector4<f32>>,
-) -> (
-    Vec<Vector3<f32>>,
-    Vec<Matrix3<f32>>,
-    Vec<Vector3<f32>>,
-    Vec<Matrix3<f32>>,
-) {
-    todo!()
+        node_momentums,
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+    }: collect::InputData,
+) -> collect::OutputData {
+    let map: FxHashMap<NodeIdAndColliderBits, Vector4<f32>> = node_ids_and_collider_bits
+        .iter()
+        .cloned()
+        .zip(node_momentums.iter().cloned())
+        .collect();
+
+    let mut particle_positions_and_collider_bits = particle_positions_and_collider_bits.to_vec();
+    let mut particle_position_gradients = particle_position_gradients.to_vec();
+    let mut particle_velocities = particle_velocities.to_vec();
+    let mut particle_velocity_gradients = particle_velocity_gradients.to_vec();
+    izip!(
+        &mut particle_positions_and_collider_bits,
+        &mut particle_position_gradients,
+        &mut particle_velocities,
+        &mut particle_velocity_gradients,
+    )
+    .for_each(
+        |(
+            PositionAndColliderBits {
+                position,
+                collider_bits,
+            },
+            position_gradient,
+            velocity,
+            velocity_gradient,
+        )| {
+            let mut velocity = velocity.fixed_view_mut::<3, 1>(0, 0);
+            let mut velocity_gradient = velocity_gradient.fixed_view_mut::<3, 3>(0, 0);
+
+            let normalized_position = *position / grid_node_size;
+            let low_node = normalized_position.map(|c| c.round() as i32 - 1);
+
+            velocity.fill(0.);
+            velocity_gradient.fill(0.);
+            for x in 0..3 {
+                for y in 0..3 {
+                    for z in 0..3 {
+                        let node_id = low_node + Vector3::new(x, y, z);
+                        let node_momentum = map[&NodeIdAndColliderBits {
+                            node_id,
+                            collider_bits: *collider_bits,
+                        }];
+
+                        if node_momentum.w == 0. {
+                            continue;
+                        }
+                        let to_node_normalized = node_id.map(|c| c as f32) - normalized_position;
+                        let weight: f32 = kernel_quadratic(to_node_normalized.x)
+                            * kernel_quadratic(to_node_normalized.y)
+                            * kernel_quadratic(to_node_normalized.z);
+                        let tmp = node_momentum.xyz() * (weight / node_momentum.w);
+
+                        velocity += tmp;
+                        velocity_gradient += Matrix3::from_columns(&[
+                            tmp * to_node_normalized.x,
+                            tmp * to_node_normalized.y,
+                            tmp * to_node_normalized.z,
+                        ]) * grid_node_size;
+                    }
+                }
+            }
+            velocity_gradient *= 4. / (grid_node_size * grid_node_size);
+
+            *position += velocity * time_step;
+            let mut position_gradient = position_gradient.fixed_view_mut::<3, 3>(0, 0);
+            position_gradient +=
+                velocity_gradient * position_gradient.fixed_view::<3, 3>(0, 0) * time_step;
+        },
+    );
+
+    collect::OutputData {
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+    }
 }
 
 pub trait Permutation {

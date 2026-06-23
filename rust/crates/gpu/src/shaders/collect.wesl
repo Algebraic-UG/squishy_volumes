@@ -51,8 +51,8 @@ fn main(
     let normalized_position = position_and_collider_bits.position / GRID_NODE_SIZE;
     let collider_bits = position_and_collider_bits.collider_bits;
 
-    var velocity = TIME_STEP * vec3f(0., 0., -9.8);
-    //var velocity = vec3f(0.);
+    //var velocity = TIME_STEP * vec3f(0., 0., -9.8);
+    var velocity = vec3f(0.);
     var velocity_gradient = mat3x3f();
 
     // table length must be a power of two
