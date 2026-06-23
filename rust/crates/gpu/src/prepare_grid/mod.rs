@@ -270,7 +270,7 @@ impl PipelinePart for PrepareGrid {
             prefix_sum::Parameters { total_sum: true },
         )?
         else {
-            unreachable!("we asked prefix sum for the total sum");
+            unreachable!("we asked for the total sum");
         };
 
         let len_to_indirect::Output {
@@ -335,7 +335,7 @@ impl PipelinePart for PrepareGrid {
             prefix_sum::Parameters { total_sum: false },
         )?
         else {
-            unreachable!("we didn't asked prefix sum for the total sum");
+            unreachable!("we didn't ask for the total sum");
         };
 
         encoder

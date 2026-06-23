@@ -24,6 +24,7 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         multi,
     } = run_prepare_grid(settings, positions_and_collider_bits);
     let num_nodes = indirect_nodes.len as usize;
+    assert_eq!(nodes.len(), num_nodes);
     println!("num_nodes: {num_nodes}");
 
     assert_eq!(

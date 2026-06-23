@@ -103,6 +103,37 @@ fn test_single() {
     );
 }
 
+#[test]
+fn test_simple() {
+    let positions = [
+        Vector3::new(-0.5, -0.5, -0.5),
+        Vector3::new(-0.5, -0.5, 0.5),
+        Vector3::new(-0.5, 0.5, -0.5),
+        Vector3::new(-0.5, 0.5, 0.5),
+        Vector3::new(0.5, -0.5, -0.5),
+        Vector3::new(0.5, -0.5, 0.5),
+        Vector3::new(0.5, 0.5, -0.5),
+        Vector3::new(0.5, 0.5, 0.5),
+    ];
+    let positions_and_collider_bits = positions
+        .into_iter()
+        .map(|position| PositionAndColliderBits {
+            position,
+            collider_bits: 0,
+        })
+        .collect::<Vec<_>>();
+    let node_ids_and_collider_bits: Vec<_> = get_node_set(1.1, &positions_and_collider_bits)
+        .into_iter()
+        .collect();
+
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+        },
+        &node_ids_and_collider_bits,
+    );
+}
+
 fn run(settings: Settings, node_id_and_collider_bits: &[NodeIdAndColliderBits]) -> OutputData {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
