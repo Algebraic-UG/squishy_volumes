@@ -37,6 +37,7 @@ pub use util::*;
 
 pub mod animate_mesh;
 pub mod bits_to_pops;
+pub mod build_hash_tables;
 pub mod collect;
 pub mod collide;
 pub mod count_subkeys;
@@ -58,6 +59,7 @@ pub mod step;
 
 pub use animate_mesh::AnimateMesh;
 pub use bits_to_pops::BitsToPops;
+pub use build_hash_tables::BuildHashTables;
 pub use collect::Collect;
 pub use collide::Collide;
 pub use count_subkeys::CountSubkeys;

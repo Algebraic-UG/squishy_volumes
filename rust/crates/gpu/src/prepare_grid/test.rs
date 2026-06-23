@@ -82,12 +82,15 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         assert!(found);
     }
 
+    println!("multi_offsets: {multi_offsets:?}");
+    println!("multi: {multi:?}");
     for (multi_start, multi_end) in multi_offsets.iter().zip(
         multi_offsets
             .iter()
             .skip(1)
             .chain(once(&indirect_nodes.len)),
     ) {
+        println!("from {multi_start} to {multi_end}");
         let node_id = node_ids_and_collider_bits[*multi_start as usize].node_id;
         for multi_index in *multi_start as usize..*multi_end as usize {
             assert_eq!(
