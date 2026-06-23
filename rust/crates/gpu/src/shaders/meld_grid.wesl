@@ -67,11 +67,7 @@ fn main(
         multi_end = multi_offsets[node_index + 1];
     }
 
-    if multi_start + 1 == multi_end {
-        return;
-    }
-
-    var node_momentum = vec4f(0.);
+    var node_momentum = node_momentums_out[global_index];
     for (var multi_index = multi_start; multi_index < multi_end; multi_index++) {
         let other_index = multi[multi_index];
         if global_index == other_index {
