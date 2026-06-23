@@ -9,8 +9,9 @@
 #[cfg(test)]
 mod test;
 
-use std::num::NonZeroU32;
+use std::{iter::empty, num::NonZeroU32};
 
+use iter_enumeration::IntoIterEnum2;
 use nalgebra::{Vector3, Vector4};
 use rustc_hash::FxHashMap;
 
@@ -74,15 +75,19 @@ impl Input {
         let multi: Vec<u32> = node_ids_and_collider_bits
             .iter()
             .flat_map(|node_id_and_collider_bits| {
-                let multi: &[u32] = &multi[&node_id_and_collider_bits.node_id];
-                multi_counts.push(multi.len() as u32);
-                multi.iter().cloned()
+                if let Some(multi) = multi.remove(&node_id_and_collider_bits.node_id) {
+                    multi_counts.push(multi.len() as u32);
+                    multi.into_iter().iter_enum_2a()
+                } else {
+                    multi_counts.push(0);
+                    empty().iter_enum_2b()
+                }
             })
             .collect();
 
         let multi_offsets = prefix_sum_on_cpu(&multi_counts);
 
-        assert!(multi.len() == node_ids_and_collider_bits.len());
+        assert_eq!(multi.len(), node_ids_and_collider_bits.len());
 
         let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
         let node_ids_and_collider_bits = Allocation::new(

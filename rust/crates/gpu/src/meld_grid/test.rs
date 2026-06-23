@@ -7,45 +7,59 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector3;
+use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
+use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
+use squishy_volumes_util::collider_bits;
 
 use super::*;
 
 fn check(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) {
-    let gpu_node_momentums = run(settings, dispatch_limit, input_data);
-    println!("{gpu_node_momentums:?}");
-    todo!();
-
-    /*
-    let grid_cpu = scatter_on_cpu(cell_size, time_step, input_data.clone());
-
-    println!("{:?}", grid_cpu);
-    println!("{:?}", grid_cpu.values().collect::<Vec<_>>());
-
-    let (blocks, block_ids) = run_scatter(settings, dispatch_limit, input_data);
-
-    for (block_index, (block, block_id)) in blocks.iter().zip(&block_ids).enumerate() {
-        println!("block {block_index}, {block_id:?}");
-        let low_node = block_id * 2 - Vector4::repeat(1);
-        for node in 0..8 {
-            let node_id = low_node + block_offset(node as u32);
-            if let Some(cpu) = grid_cpu.get(&node_id.xyz()) {
-                println!("both have {:?}", node_id.xyz());
-                check_iters(cpu.iter(), block.nodes[node].iter());
-            } else {
-                assert_eq!(block.nodes[node], Vector4::zeros());
-            }
-        }
+    let mut multi_map: FxHashMap<Vector3<i32>, SmallVec<[u32; 3]>> = Default::default();
+    for (index, NodeIdAndColliderBits { node_id, .. }) in
+        input_data.node_ids_and_collider_bits.iter().enumerate()
+    {
+        multi_map.entry(*node_id).or_default().push(index as u32);
     }
 
-    let super_set: HashSet<_> = gpu_grid_to_cpu_grid(&block_ids).into_iter().collect();
-    for node in grid_cpu.keys() {
-        assert!(super_set.contains(&node.push(0)));
+    let cpu_node_momentums: Vec<_> = input_data
+        .node_ids_and_collider_bits
+        .iter()
+        .map(
+            |NodeIdAndColliderBits {
+                 node_id,
+                 collider_bits,
+             }| {
+                multi_map[node_id]
+                    .iter()
+                    .filter(|node_index| {
+                        collider_bits::compatible(
+                            collider_bits,
+                            &input_data.node_ids_and_collider_bits[**node_index as usize]
+                                .collider_bits,
+                        )
+                    })
+                    .map(|node_index| input_data.node_momentums_in[*node_index as usize])
+                    .sum::<Vector4<f32>>()
+            },
+        )
+        .collect();
+
+    let gpu_node_momentums = run(settings, dispatch_limit, input_data.clone());
+
+    for ((node_id_and_collider_bits, cpu), gpu) in input_data
+        .node_ids_and_collider_bits
+        .iter()
+        .zip(cpu_node_momentums)
+        .zip(gpu_node_momentums)
+    {
+        println!("{node_id_and_collider_bits:?}");
+        check_iters(cpu.iter(), gpu.iter());
     }
-    */
 }
 
 #[test]
-fn test_single_undeformed() {
+fn test_all_zero() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let settings = Settings { workgroup_size };
@@ -87,6 +101,47 @@ fn test_single_undeformed() {
         })
         .collect::<Vec<_>>();
     let node_momentums_in = vec![Vector4::zeros(); node_ids_and_collider_bits.len()];
+
+    check(
+        settings,
+        dispatch_limit,
+        InputData {
+            node_ids_and_collider_bits: &node_ids_and_collider_bits,
+            node_momentums_in: &node_momentums_in,
+        },
+    );
+}
+
+#[test]
+fn test_random() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let settings = Settings { workgroup_size };
+
+    let mut rng = ChaCha8Rng::seed_from_u64(234);
+    let n = 1000;
+
+    let node_ids_and_collider_bits: FxHashSet<NodeIdAndColliderBits> = (0..n)
+        .map(|_| NodeIdAndColliderBits {
+            node_id: Vector3::new(
+                rng.random_range(-10..10),
+                rng.random_range(-10..10),
+                rng.random_range(-10..10),
+            ),
+            collider_bits: rng.random(),
+        })
+        .collect();
+    let node_ids_and_collider_bits: Vec<_> = node_ids_and_collider_bits.into_iter().collect();
+    let node_momentums_in: Vec<_> = (0..n)
+        .map(|_| {
+            Vector4::new(
+                rng.random_range(-1.0..1.),
+                rng.random_range(-1.0..1.),
+                rng.random_range(-1.0..1.),
+                rng.random_range(0.1..10.),
+            )
+        })
+        .collect();
 
     check(
         settings,
