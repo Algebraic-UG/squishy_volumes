@@ -58,11 +58,12 @@ fn main(
     let table_mask = arrayLength(&hash_table_multi) - 1;
 
     let hash = murmur_of_node_id(node_id, 0);
-    var node_index = global_index;
+    var node_index = 0u;
     var slot = hash & table_mask;
     loop {
         let result = atomicCompareExchangeWeak(&hash_table_multi[slot], 0, global_index + 1);
         if result.exchanged {
+            node_index = global_index;
             break;
         }
 
