@@ -80,22 +80,26 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         assert!(found);
     }
 
-    println!("multi_offsets: {multi_offsets:?}");
-    println!("multi: {multi:?}");
-    for (multi_start, multi_end) in multi_offsets.iter().zip(
-        multi_offsets
-            .iter()
-            .take(indirect_nodes.len as usize)
-            .skip(1)
-            .chain(once(&indirect_nodes.len)),
-    ) {
-        println!("from {multi_start} to {multi_end}");
-        let node_id = node_ids_and_collider_bits[*multi_start as usize].node_id;
-        for multi_index in *multi_start as usize..*multi_end as usize {
-            assert_eq!(
-                node_id,
-                node_ids_and_collider_bits[multi[multi_index] as usize].node_id
-            );
+    println!("multi_offsets: {:?}", &multi_offsets[0..num_nodes]);
+    println!("multi: {:?}", &multi[0..num_nodes]);
+    for multi_range in multi_offsets
+        .iter()
+        .zip(
+            multi_offsets
+                .iter()
+                .take(indirect_nodes.len as usize)
+                .skip(1)
+                .chain(once(&indirect_nodes.len)),
+        )
+        .map(|(s, e)| *s as usize..*e as usize)
+        .filter(|range| !range.is_empty())
+    {
+        println!("range: {multi_range:?}");
+        let node_id = node_ids_and_collider_bits[multi[multi_range.start] as usize].node_id;
+        for multi_index in multi_range {
+            let node_index = multi[multi_index] as usize;
+            println!("{node_index}");
+            assert_eq!(node_id, node_ids_and_collider_bits[node_index].node_id);
         }
     }
 }
