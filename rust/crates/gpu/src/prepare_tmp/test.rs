@@ -13,10 +13,17 @@ use crate::particle_parameters::{Host, Solid};
 
 use super::*;
 
-fn check(settings: Settings, input_data: InputData<'_>) {
-    let particle_tmp = run(settings, input_data);
-    println!("{particle_tmp:?}");
-    todo!()
+fn check(settings: Settings, input_data: InputData) {
+    let cpu_particle_tmp = prepare_tmp_on_cpu(
+        settings.grid_node_size,
+        settings.time_step,
+        input_data.clone(),
+    );
+    let gpu_particle_tmp = run(settings, input_data);
+
+    for (cpu, gpu) in cpu_particle_tmp.into_iter().zip(gpu_particle_tmp) {
+        check_iters(cpu.iter(), gpu.iter());
+    }
 }
 
 #[test]
