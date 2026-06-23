@@ -52,6 +52,15 @@ pub struct Output {
     pub multi: Allocation,
 }
 
+pub struct OutputData {
+    pub indirect_nodes: Indirect,
+    pub hash_table: Vec<u32>,
+    pub node_ids_and_collider_bits: Vec<NodeIdAndColliderBits>,
+    pub hash_table_multi: Vec<u32>,
+    pub multi_offsets: Vec<u32>,
+    pub multi: Vec<u32>,
+}
+
 impl Input {
     pub fn new(
         device: &wgpu::Device,

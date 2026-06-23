@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::once;
+
 use nalgebra::Vector3;
 
 use super::*;
@@ -13,9 +15,15 @@ use super::*;
 fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBits]) {
     let nodes = get_node_set(settings.grid_node_size, positions_and_collider_bits);
 
-    let (indirect_nodes, hash_table, node_ids_and_collider_bits) =
-        run_prepare_grid(settings, positions_and_collider_bits);
-    let num_nodes = indirect_nodes[0].len as usize;
+    let OutputData {
+        indirect_nodes,
+        hash_table,
+        node_ids_and_collider_bits,
+        hash_table_multi,
+        multi_offsets,
+        multi,
+    } = run_prepare_grid(settings, positions_and_collider_bits);
+    let num_nodes = indirect_nodes.len as usize;
     println!("num_nodes: {num_nodes}");
 
     assert_eq!(
@@ -23,11 +31,16 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
         num_nodes
     );
 
+    assert_eq!(multi.len() as u32, indirect_nodes.len);
+    assert_eq!(multi_offsets.len() as u32, indirect_nodes.len);
+
+    assert_eq!(hash_table.len(), hash_table_multi.len());
     assert!(hash_table.len().is_power_of_two());
     let mask = hash_table.len() as u32 - 1;
 
-    for query @ NodeIdAndColliderBits { node_id, .. } in nodes {
-        let hash = node_id_to_murmur(&node_id);
+    println!("checking hash table");
+    for query in &nodes {
+        let hash = node_id_and_collider_bits_to_murmur(query);
         let mut slot = hash & mask;
 
         let mut found = false;
@@ -37,7 +50,7 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
                 panic!("didn't find {query:?}");
             }
             let index = index - 1;
-            if node_ids_and_collider_bits[index] == query {
+            if node_ids_and_collider_bits[index] == *query {
                 found = true;
                 break;
             }
@@ -45,6 +58,43 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
             slot &= mask;
         }
         assert!(found);
+    }
+
+    println!("checking hash table multi");
+    for query in &nodes {
+        let hash = node_id_to_murmur(&query.node_id);
+        let mut slot = hash & mask;
+
+        let mut found = false;
+        for _ in 0..hash_table_multi.len() {
+            let index = hash_table_multi[slot as usize] as usize;
+            if index == 0 {
+                panic!("didn't find {query:?}");
+            }
+            let index = index - 1;
+            if node_ids_and_collider_bits[index].node_id == query.node_id {
+                found = true;
+                break;
+            }
+            slot += 1;
+            slot &= mask;
+        }
+        assert!(found);
+    }
+
+    for (multi_start, multi_end) in multi_offsets.iter().zip(
+        multi_offsets
+            .iter()
+            .skip(1)
+            .chain(once(&indirect_nodes.len)),
+    ) {
+        let node_id = node_ids_and_collider_bits[*multi_start as usize].node_id;
+        for multi_index in *multi_start as usize..*multi_end as usize {
+            assert_eq!(
+                node_id,
+                node_ids_and_collider_bits[multi[multi_index] as usize].node_id
+            );
+        }
     }
 }
 
@@ -128,7 +178,7 @@ fn test_random() {
 fn run_prepare_grid(
     settings: Settings,
     positions_and_collider_bits: &[PositionAndColliderBits],
-) -> (Vec<Indirect>, Vec<u32>, Vec<NodeIdAndColliderBits>) {
+) -> OutputData {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(
@@ -153,7 +203,14 @@ fn run_prepare_grid(
 
     let downloads = DownloadsToHost::new(
         &context,
-        [indirect_nodes, hash_table, node_ids_and_collider_bits],
+        [
+            indirect_nodes,
+            hash_table,
+            node_ids_and_collider_bits,
+            hash_table_multi,
+            multi_offsets,
+            multi,
+        ],
     );
     downloads.copy(&mut encoder);
 
@@ -166,11 +223,21 @@ fn run_prepare_grid(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let [indirect_nodes, hash_table, node_ids_and_collider_bits] = downloads.try_into().unwrap();
+    let [
+        indirect_nodes,
+        hash_table,
+        node_ids_and_collider_bits,
+        hash_table_multi,
+        multi_offsets,
+        multi,
+    ] = downloads.try_into().unwrap();
 
-    (
-        indirect_nodes.to_vec(),
-        hash_table.to_vec(),
-        node_ids_and_collider_bits.to_vec(),
-    )
+    OutputData {
+        indirect_nodes: indirect_nodes.to_vec()[0],
+        hash_table: hash_table.to_vec(),
+        node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec(),
+        hash_table_multi: hash_table_multi.to_vec(),
+        multi_offsets: multi_offsets.to_vec(),
+        multi: multi.to_vec(),
+    }
 }
