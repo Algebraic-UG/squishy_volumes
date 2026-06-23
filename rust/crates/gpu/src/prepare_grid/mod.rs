@@ -17,7 +17,7 @@ mod test;
 use super::*;
 
 pub struct PrepareGrid {
-    partition_nodes: CompiledModule,
+    partition_nodes: PartitionNodes,
     bits_to_pops: BitsToPops,
     prefix_sum: PrefixSum,
     len_to_indirect: LenToIndirect,
@@ -105,21 +105,13 @@ impl PipelinePart for PrepareGrid {
             grid_node_size,
         }: Settings,
     ) -> Self {
-        let_compiled_module!(
-            partition_nodes,
-            CompiledModuleSettings {
-                device: context.device(),
-                bind_group_entries: [
-                    (PositionAndColliderBits::MIN_BINDING_SIZE, false),
-                    (u32::MIN_BINDING_SIZE, false),
-                    (AtomicU32::MIN_BINDING_SIZE, false),
-                ],
-                immediate_size: 0,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
-                    ("GRID_NODE_SIZE", grid_node_size as f64),
-                ]
-            }
+        let partition_nodes = PartitionNodes::new(
+            context,
+            partition_nodes::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+            },
         );
 
         let bits_to_pops = BitsToPops::new(context, bits_to_pops::Settings { workgroup_size });
@@ -208,44 +200,14 @@ impl PipelinePart for PrepareGrid {
         })
         .direct();
 
-        let owns = context
-            .allocator()?
-            .allocate::<u32>("owns", num_particles)?;
-        let hash_table = context.allocator()?.allocate::<AtomicU32>(
-            "hash_table",
-            (max_num_nodes.get() * 2)
-                .next_power_of_two()
-                .try_into()
-                .unwrap(),
+        let partition_nodes::Output { owns } = self.partition_nodes.record(
+            context,
+            encoder,
+            partition_nodes::Input {
+                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
+            },
+            partition_nodes::Parameters,
         )?;
-
-        encoder
-            .scope(Some("clear_hash_table_particles"))
-            .clear_buffer(
-                hash_table.buffer(),
-                hash_table.offset(),
-                Some(hash_table.size().get()),
-            );
-
-        let mut compute_pass = encoder.begin_compute_pass(self.partition_nodes.label);
-        compute_pass.set_pipeline(&self.partition_nodes.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
-                &self.partition_nodes,
-                [
-                    particle_positions_and_collider_bits.binding(),
-                    owns.binding(),
-                    hash_table.binding(),
-                ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
-        drop(compute_pass);
-
-        drop(hash_table);
 
         let bits_to_pops::Output { pops } = self.bits_to_pops.record(
             context,
