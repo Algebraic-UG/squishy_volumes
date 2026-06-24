@@ -531,7 +531,7 @@ pub fn hash_table_on_cpu(
     let mut hash_table = vec![0; (positions_and_collider_bits.len() * 27).next_power_of_two()];
     let mask = hash_table.len() as u32 - 1;
     for (index, node) in node_ids_and_collider_bits.iter().enumerate() {
-        let hash = node_id_to_murmur(&node.node_id);
+        let hash = node_id_and_collider_bits_to_murmur(node);
         let mut slot = hash & mask;
         while hash_table[slot as usize] != 0 {
             slot += 1;
