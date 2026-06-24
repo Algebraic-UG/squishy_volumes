@@ -12,15 +12,24 @@ fn div_ceil(left: u32, right: u32) -> u32 {
 }
 
 fn int_log(value: u32, base: u32) -> u32 {
-    if base < 2 {
-        return 0;
+    if base < 2u || value <= 1u {
+        return 0u;
     }
-    var result = 1u;
+
+    var result = 0u;
     var power = 1u;
+
     while power < value {
-        result += 1;
+        result += 1u;
+
+        // The next power would be >= value, without actually multiplying.
+        if power > (value - 1u) / base {
+            break;
+        }
+
         power *= base;
     }
+
     return result;
 }
 
