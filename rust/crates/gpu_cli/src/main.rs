@@ -4,7 +4,7 @@ use gpu::{GpuContext, PipelinePart, profiler_output};
 use nalgebra::Vector3;
 use rand::{RngExt, SeedableRng, rngs::ChaCha8Rng};
 use squishy_volumes_gpu::{
-    self as gpu,
+    self as gpu, get_node_set,
     test_data::{ParticleSampling, TestMesh, TestParticles},
 };
 use squishy_volumes_util::Aabb;
@@ -231,7 +231,44 @@ fn main() {
                 gpu::prepare_grid::Parameters,
             );
         }
-        Task::RegisterContributors => todo!(),
+        Task::RegisterContributors => {
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-1000.),
+                    max: Vector3::repeat(1000.),
+                },
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            tracing::info!("creating nodes");
+            let node_ids_and_collider_bits: Vec<_> = get_node_set(
+                grid_node_size,
+                &test_particles.particle_positions_and_collider_bits,
+            )
+            .into_iter()
+            .collect();
+            let settings = gpu::register_contributors::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+            };
+            let pipeline_part = gpu::RegisterContributors::new(&context, settings.clone());
+            tracing::info!("creating input");
+            let input = gpu::register_contributors::Input::new(
+                context.device(),
+                settings,
+                &node_ids_and_collider_bits,
+                &test_particles.particle_positions_and_collider_bits,
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 2048,
+                tool,
+                pipeline_part,
+                input,
+                gpu::register_contributors::Parameters,
+            );
+        }
         Task::PrepareTmp => todo!(),
         Task::Scatter => todo!(),
         Task::MeldGrid => todo!(),
