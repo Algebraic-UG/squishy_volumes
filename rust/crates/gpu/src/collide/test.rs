@@ -22,8 +22,7 @@ fn check(
     accept_distance: f32,
     time_step: f32,
     mut input_data @ InputData {
-        particle_positions,
-        particle_collider_bits,
+        particle_positions_and_collider_bits,
         particle_velocities,
         vertex_positions,
         triangle_indices,
@@ -77,16 +76,22 @@ fn check(
         input_data,
     );
 
-    let mut cpu_particle_collider_bits: Vec<u32> = particle_collider_bits.to_vec();
+    let mut cpu_particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
+        particle_positions_and_collider_bits.to_vec();
     let mut cpu_particle_velocites: Vec<Vector3<f32>> =
         particle_velocities.iter().map(Vector4::xyz).collect();
 
-    for ((p, bits), velocity) in particle_positions
-        .iter()
-        .map(Vector4::xyz)
-        .zip(&mut cpu_particle_collider_bits)
+    for (
+        PositionAndColliderBits {
+            position,
+            collider_bits: bits,
+        },
+        velocity,
+    ) in cpu_particle_positions_and_collider_bits
+        .iter_mut()
         .zip(&mut cpu_particle_velocites)
     {
+        let p = *position;
         let mut closest_triangle_per_collider: [u32; 16] = [u32::MAX; 16];
         let mut min_distance_per_collider: [f32; 16] = [f32::MAX; 16];
         for (triangle_index, ((Triangle { a, b, c }, n), collider)) in triangle_indices
@@ -196,12 +201,13 @@ fn check(
     }
 
     println!("collider bits");
-    for (particle_index, (cpu, gpu)) in cpu_particle_collider_bits
+    for (particle_index, (cpu, gpu)) in cpu_particle_positions_and_collider_bits
         .iter()
         .zip(gpu_particle_collider_bits)
         .enumerate()
     {
-        println!("{particle_index} {:?}", particle_positions[particle_index]);
+        println!("{particle_index} {:?}", cpu.position);
+        let cpu = cpu.collider_bits;
         let gpu = gpu.collider_bits;
 
         assert_eq!(
@@ -226,7 +232,8 @@ fn check(
     {
         println!(
             "{particle_index} {:?} {:032b}",
-            particle_positions[particle_index], cpu_particle_collider_bits[particle_index],
+            cpu_particle_positions_and_collider_bits[particle_index].position,
+            cpu_particle_positions_and_collider_bits[particle_index].collider_bits,
         );
         check_iters(cpu.iter(), gpu.iter());
     }
@@ -234,8 +241,10 @@ fn check(
 
 #[test]
 fn simple() {
-    let particle_positions = vec![Vector4::new(0.5, 0.5, 0.5, 0.)];
-    let particle_collider_bits = vec![0x0001_0000];
+    let particle_positions_and_collider_bits = [PositionAndColliderBits {
+        position: Vector3::new(0.5, 0.5, 0.5),
+        collider_bits: 0x0001_0000,
+    }];
     let particle_velocities = vec![Vector4::zeros()];
     let vertex_positions = vec![
         Vector4::new(1., 1., 1., 0.),
@@ -259,8 +268,7 @@ fn simple() {
         InputData {
             leaf_size,
             leaf_threshold,
-            particle_positions: &particle_positions,
-            particle_collider_bits: &particle_collider_bits,
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
             vertex_positions: &vertex_positions,
             triangle_indices: &triangle_indices,
@@ -277,13 +285,21 @@ fn simple() {
 
 #[test]
 fn simple2() {
-    let particle_positions = vec![
-        Vector4::new(0.5, 0.5, 0.5, 0.),
-        Vector4::new(1., 0., 0.5, 0.),
-        Vector4::new(1., 1., 1.5, 0.),
+    let particle_positions_and_collider_bits = [
+        PositionAndColliderBits {
+            position: Vector3::new(0.5, 0.5, 0.5),
+            collider_bits: 0x0001_0000,
+        },
+        PositionAndColliderBits {
+            position: Vector3::new(1., 0., 0.5),
+            collider_bits: 0x0001_0000,
+        },
+        PositionAndColliderBits {
+            position: Vector3::new(1., 1., 1.5),
+            collider_bits: 0x0001_0000,
+        },
     ];
-    let particle_collider_bits = vec![0x0001_0000; particle_positions.len()];
-    let particle_velocities = vec![Vector4::zeros(); particle_positions.len()];
+    let particle_velocities = vec![Vector4::zeros(); particle_positions_and_collider_bits.len()];
     let vertex_positions = vec![
         Vector4::new(1., 1., 1., 0.),
         Vector4::new(0., 1., 0., 0.),
@@ -311,8 +327,7 @@ fn simple2() {
         InputData {
             leaf_size,
             leaf_threshold,
-            particle_positions: &particle_positions,
-            particle_collider_bits: &particle_collider_bits,
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
             vertex_positions: &vertex_positions,
             triangle_indices: &triangle_indices,
@@ -333,9 +348,15 @@ fn torus() {
     let triangle_indices = torus::triangles();
 
     let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));
-    let particle_positions: Vec<_> = aabb.lattice(0.2).1.map(|v| v.push(0.)).collect();
-    let particle_collider_bits: Vec<u32> = vec![0; particle_positions.len()];
-    let particle_velocities = vec![Vector4::zeros(); particle_positions.len()];
+    let particle_positions_and_collider_bits: Vec<_> = aabb
+        .lattice(0.2)
+        .1
+        .map(|position| PositionAndColliderBits {
+            position,
+            collider_bits: 0,
+        })
+        .collect();
+    let particle_velocities = vec![Vector4::zeros(); particle_positions_and_collider_bits.len()];
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
 
@@ -352,8 +373,7 @@ fn torus() {
         InputData {
             leaf_size,
             leaf_threshold,
-            particle_positions: &particle_positions,
-            particle_collider_bits: &particle_collider_bits,
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
             vertex_positions: &vertex_positions,
             triangle_indices: &triangle_indices,

@@ -15,7 +15,10 @@ use squishy_volumes_util::{
     try_elastic_energy_neo_hookean,
 };
 
-use crate::particle_parameters::{Fluid, Host, Solid};
+use crate::{
+    particle_parameters::{Fluid, Host, Solid},
+    test_data::{test_inviscid_parameters, test_lame_parameters, test_position_gradients_random},
+};
 
 use super::*;
 

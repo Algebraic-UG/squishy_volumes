@@ -54,8 +54,7 @@ pub struct Input {
 pub struct InputData<'a> {
     pub leaf_size: f32,
     pub leaf_threshold: u32,
-    pub particle_positions: &'a [Vector4<f32>],
-    pub particle_collider_bits: &'a [u32],
+    pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_velocities: &'a [Vector4<f32>],
     pub vertex_positions: &'a [Vector4<f32>],
     pub vertex_normals: &'a [Vector4<f32>],
@@ -75,8 +74,7 @@ impl Input {
         InputData {
             leaf_size,
             leaf_threshold,
-            particle_positions,
-            particle_collider_bits,
+            particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
             vertex_normals,
@@ -87,8 +85,10 @@ impl Input {
             triangle_frictions,
         }: InputData,
     ) -> Self {
-        assert_eq!(particle_positions.len(), particle_collider_bits.len());
-        assert_eq!(particle_positions.len(), particle_velocities.len());
+        assert_eq!(
+            particle_positions_and_collider_bits.len(),
+            particle_velocities.len()
+        );
         assert_eq!(vertex_positions.len(), vertex_normals.len());
         assert_eq!(triangle_indices.len(), triangle_collider.len());
         assert_eq!(triangle_indices.len(), triangle_normals.len());
@@ -106,16 +106,6 @@ impl Input {
                 .all(|&index| (index as usize) < triangle_indices.len())
         }));
 
-        let particle_positions_and_collider_bits = particle_positions
-            .iter()
-            .map(Vector4::xyz)
-            .zip(particle_collider_bits)
-            .map(|(position, &collider_bits)| PositionAndColliderBits {
-                position,
-                collider_bits,
-            })
-            .collect::<Vec<_>>();
-
         let vertices_3d: Vec<_> = vertex_positions.iter().map(Vector4::xyz).collect();
         let aabbs =
             triangles_to_leaf_aabbs(leaf_size, *forget_distance, &vertices_3d, triangle_indices);
@@ -125,7 +115,7 @@ impl Input {
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
-            &particle_positions_and_collider_bits,
+            particle_positions_and_collider_bits,
         );
         let particle_velocities =
             Allocation::new(device, "particle_velocities", particle_velocities);

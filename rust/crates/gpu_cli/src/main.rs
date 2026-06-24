@@ -1,51 +1,21 @@
-use std::{
-    fs::{File, read},
-    io::Write,
-    num::NonZeroU32,
-    path::PathBuf,
-};
+use std::num::NonZeroU32;
 
-use convert_case::{Case, Casing};
-use nalgebra::Vector4;
-use rand::{random_iter, rng, seq::SliceRandom};
+use gpu::{GpuContext, PipelinePart, profiler_output};
+use nalgebra::Vector3;
+use rand::{RngExt, SeedableRng, rngs::ChaCha8Rng};
 use squishy_volumes_gpu::{
-    grid_on_cpu, i32_to_u32_offset, positions_to_keys_on_cpu, prefix_sum_on_cpu, shuffle,
-    sort_on_cpu, sort_positions_into_cells_on_cpu,
+    self as gpu,
+    test_data::{ParticleSampling, TestMesh, TestParticles},
 };
-use tracing::{dispatcher::set_global_default, info};
+use squishy_volumes_util::Aabb;
+use tracing::dispatcher::set_global_default;
 use tracing_subscriber::FmtSubscriber;
 
 use clap::{Parser, ValueEnum};
 
-use squishy_volumes_gpu as gpu;
+use crate::window::run_with_window;
 
-use crate::{
-    build_hash_table_from_cells::build_hash_table_on_gpu, collect::collect_on_gpu,
-    detect_colliders::detect_colliders_on_gpu, positions_to_keys::positions_to_keys_on_gpu,
-    prefix_sum::prefix_sum_on_gpu, prepare_grid::prepare_grid_on_gpu,
-    radix_sort::radix_sort_on_gpu, scatter::scatter_on_gpu,
-    sort_positions_into_cells::sort_positions_into_cells_on_gpu, step::step_on_gpu,
-};
-
-mod build_hash_table_from_cells;
-mod collect;
-mod detect_colliders;
-mod positions_to_keys;
-mod prefix_sum;
-mod prepare_grid;
-mod radix_sort;
-mod scatter;
-mod sort_positions_into_cells;
-mod step;
 mod window;
-
-mod profiler_output;
-
-#[derive(Debug, ValueEnum, Clone)]
-enum Mode {
-    Cpu,
-    Gpu,
-}
 
 #[derive(ValueEnum, Clone, Copy, Default, Debug)]
 enum Tool {
@@ -57,42 +27,23 @@ enum Tool {
 #[derive(Debug, ValueEnum, Clone)]
 enum Task {
     Sum,
-    Sort,
-    PositionsToKeys,
-    SortIntoCells,
-    BuildHashTable,
+    AnimateMesh,
+    Collide,
     PrepareGrid,
+    RegisterContributors,
+    PrepareTmp,
     Scatter,
+    MeldGrid,
     Collect,
-    Step,
-    DetectColliders,
 }
 
 #[derive(Parser)]
 struct Cli {
     #[arg(value_enum)]
-    mode: Mode,
-
-    #[arg(value_enum)]
     task: Task,
 
-    #[arg(
-        long,
-        value_name = "input file containing the numbers, defaults to test_data/<task>-in.bin"
-    )]
-    input_file: Option<PathBuf>,
-
-    #[arg(
-        long,
-        value_name = "output file for the prefix sums, defaults to test_data/<mode>-<task>-out.bin"
-    )]
-    output_file: Option<PathBuf>,
-
-    #[arg(
-        long,
-        value_name = "generate given amount of input and overwrite input file"
-    )]
-    generate: Option<u32>,
+    #[arg(long, value_name = "generate given amount of input")]
+    generate: u32,
 
     #[arg(long, value_enum)]
     tool: Option<Tool>,
@@ -103,264 +54,211 @@ struct Cli {
     #[arg(long, default_value_t = NonZeroU32::new(u16::MAX as u32).unwrap())]
     dispatch_limit: NonZeroU32,
 
-    #[arg(long, default_value_t = NonZeroU32::new(2).unwrap())]
-    bit_count: NonZeroU32,
+    #[arg(long, default_value_t = 1234)]
+    seed: u64,
 }
 
 fn main() {
     set_global_default(FmtSubscriber::default().into()).unwrap();
 
     let Cli {
-        mode,
         task,
-        input_file,
-        output_file,
         generate,
         tool,
         workgroup_size,
         dispatch_limit,
-        bit_count,
+        seed,
     } = Cli::parse();
 
-    let test_data = PathBuf::from("test_data");
-    let input_file =
-        input_file.unwrap_or(test_data.join(format!("{task:?}-in.bin").to_case(Case::Kebab)));
-    let output_file = output_file
-        .unwrap_or(test_data.join(format!("{mode:?}-{task:?}-out.bin").to_case(Case::Kebab)));
-
-    let cell_size = 1.;
+    let grid_node_size = 1.;
     let time_step = 0.001;
-    let forget_distance = cell_size * 1.1;
-    let accept_distance = cell_size;
-    if let Some(generate) = generate {
-        let mut out = File::create(&input_file).unwrap();
-        match task {
-            Task::Sum => {
-                // trying not to overflow
-                let mut input: Vec<_> = (0..generate).collect();
-                input.shuffle(&mut rng());
-                out.write_all(bytemuck::cast_slice(&input)).unwrap();
-            }
-            Task::Sort => {
-                // for sorting we can go arbitrary large
-                let keys: Vec<u32> = random_iter().take(generate as usize).collect();
-                out.write_all(bytemuck::cast_slice(&keys)).unwrap();
-            }
-            Task::PositionsToKeys | Task::SortIntoCells => {
-                let positions: Vec<Vector4<f32>> = (0..generate)
-                    .map(|_| Vector4::new_random())
-                    .take(generate as usize)
-                    .collect();
-                out.write_all(bytemuck::cast_slice(&positions)).unwrap();
-            }
-            Task::Scatter | Task::Collect | Task::Step => {
-                let per_dim = (generate as f64).powf(1. / 3.).ceil() as usize;
-                let input: Vec<_> = (0..per_dim)
-                    .flat_map(move |x| {
-                        (0..per_dim).flat_map(move |y| {
-                            (0..per_dim).map(move |z| {
-                                Vector4::new(x as f32, y as f32, z as f32, 0.)
-                                    .scale(1. / cell_size / 4.)
-                            })
-                        })
-                    })
-                    .collect();
-                assert!(input.len() >= generate as usize);
-                out.write_all(bytemuck::cast_slice(&input)).unwrap();
-            }
-            Task::BuildHashTable => {
-                let cells: Vec<Vector4<i32>> = (0..generate)
-                    .map(|_| Vector4::new_random())
-                    .take(generate as usize)
-                    .collect();
-                out.write_all(bytemuck::cast_slice(&cells)).unwrap();
-            }
-            Task::PrepareGrid => {
-                let positions: Vec<Vector4<f32>> = (0..generate)
-                    .map(|_| Vector4::new_random())
-                    .take(generate as usize)
-                    .collect();
-                out.write_all(bytemuck::cast_slice(&positions)).unwrap();
-            }
-            Task::DetectColliders => {
-                // TODO
-            }
-        }
+    let forget_distance = grid_node_size * 2.2;
+    let accept_distance = grid_node_size * 2.;
+    let leaf_size = accept_distance;
+    let leaf_threshold = 16;
 
-        info!("Generation done.");
-    };
-
-    let input_bytes = read(input_file).unwrap();
-
-    let prefix_sum = gpu::prefix_sum::Settings {
-        workgroup_size,
-        dispatch_limit,
-    };
-    let radix_sort = gpu::radix_sort::Settings {
-        workgroup_size,
-        dispatch_limit,
-        bit_count,
-    };
-    let mut out = File::create(output_file).unwrap();
+    let context = GpuContext::new().unwrap();
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
     match task {
-        Task::Sum | Task::Sort => {
-            let input: &[u32] = bytemuck::cast_slice(&input_bytes);
-            let output = match task {
-                Task::Sum => match mode {
-                    Mode::Cpu => prefix_sum_on_cpu(input),
-                    Mode::Gpu => prefix_sum_on_gpu(tool, prefix_sum, input),
+        Task::Sum => {
+            let numbers: Vec<u32> = (0..generate).map(|_| rng.random_range(0..100)).collect();
+            let settings = gpu::prefix_sum::Settings {
+                workgroup_size,
+                dispatch_limit,
+            };
+            let pipeline_part = gpu::PrefixSum::new(&context, settings);
+            let input = gpu::prefix_sum::Input::new(context.device(), settings, &numbers);
+            run_pipeline_part(
+                context,
+                generate as u64 * 16,
+                tool,
+                pipeline_part,
+                input,
+                gpu::prefix_sum::Parameters { total_sum: true },
+            );
+        }
+        Task::AnimateMesh => {
+            let test_mesh = TestMesh::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-10.),
+                    max: Vector3::repeat(10.),
                 },
-                Task::Sort => {
-                    let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-                    shuffle(&mut indices, 42);
-
-                    match mode {
-                        Mode::Cpu => sort_on_cpu(&indices, input),
-                        Mode::Gpu => radix_sort_on_gpu(tool, radix_sort, &indices, input),
-                    }
-                }
-                _ => unreachable!(),
+            );
+            let settings = gpu::animate_mesh::Settings {
+                workgroup_size,
+                dispatch_limit,
             };
-            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+            let pipeline_part = gpu::AnimateMesh::new(&context, settings);
+            let input = gpu::animate_mesh::Input::new(
+                context.device(),
+                gpu::animate_mesh::InputData {
+                    vertex_positions_start: &test_mesh.vertex_positions_a,
+                    vertex_positions_end: &test_mesh.vertex_positions_b,
+                    triangle_indices: &test_mesh.triangle_indices,
+                },
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 1024,
+                tool,
+                pipeline_part,
+                input,
+                gpu::animate_mesh::Parameters { factor: 0.5 },
+            );
         }
-        Task::PositionsToKeys | Task::SortIntoCells => {
-            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-
-            let output = match task {
-                Task::PositionsToKeys => {
-                    let dimension = 1;
-                    match mode {
-                        Mode::Cpu => positions_to_keys_on_cpu(input, cell_size, dimension),
-                        Mode::Gpu => positions_to_keys_on_gpu(
-                            tool,
-                            gpu::positions_to_keys::Settings {
-                                workgroup_size,
-                                cell_size,
-                            },
-                            gpu::positions_to_keys::Parameters { dimension },
-                            input,
-                        ),
-                    }
-                }
-                Task::SortIntoCells => {
-                    let mut indices: Vec<u32> = (0..input.len() as u32).collect();
-                    shuffle(&mut indices, 42);
-
-                    match mode {
-                        Mode::Cpu => sort_positions_into_cells_on_cpu(&indices, input, cell_size),
-                        Mode::Gpu => sort_positions_into_cells_on_gpu(
-                            tool,
-                            gpu::sort_positions_into_cells::Settings {
-                                workgroup_size,
-                                dispatch_limit,
-                                cell_size,
-                                bit_count,
-                            },
-                            input,
-                        ),
-                    }
-                }
-                _ => unreachable!(),
+        Task::Collide => {
+            let aabb = Aabb {
+                min: Vector3::repeat(-10.),
+                max: Vector3::repeat(10.),
             };
-            out.write_all(bytemuck::cast_slice(&output)).unwrap();
-        }
-        Task::Scatter | Task::Collect | Task::Step => {
-            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            match task {
-                Task::Scatter => {
-                    let _output = match mode {
-                        Mode::Cpu => todo!(),
-                        Mode::Gpu => scatter_on_gpu(
-                            tool,
-                            gpu::scatter::Settings {
-                                workgroup_size,
-                                cell_size,
-                                time_step,
-                            },
-                            input,
-                        ),
-                    };
-                }
-                Task::Collect => {
-                    let _output = match mode {
-                        Mode::Cpu => todo!(),
-                        Mode::Gpu => collect_on_gpu(
-                            tool,
-                            gpu::collect::Settings {
-                                workgroup_size,
-                                cell_size,
-                                time_step,
-                            },
-                            input,
-                        ),
-                    };
-                }
-                Task::Step => {
-                    let _output = match mode {
-                        Mode::Cpu => todo!(),
-                        Mode::Gpu => step_on_gpu(
-                            tool,
-                            gpu::step::Settings {
-                                workgroup_size,
-                                dispatch_limit,
-                                bit_count,
-                                cell_size,
-                                forget_distance,
-                                accept_distance,
-                                time_step,
-                            },
-                            input,
-                        ),
-                    };
-                }
-                _ => unreachable!(),
-            }
-        }
-        Task::BuildHashTable => {
-            let input: &[Vector4<i32>] = bytemuck::cast_slice(&input_bytes);
-            let output = match mode {
-                Mode::Cpu => todo!(),
-                Mode::Gpu => build_hash_table_on_gpu(
-                    tool,
-                    gpu::build_hash_table_from_cells::Settings { workgroup_size },
-                    input,
-                ),
+            let test_particles = TestParticles::new(
+                generate as usize,
+                aabb,
+                ParticleSampling::Neat(grid_node_size / 10.),
+            );
+            let test_mesh = TestMesh::new(10000, aabb);
+            let settings = gpu::collide::Settings {
+                workgroup_size,
+                dispatch_limit,
+                forget_distance,
+                accept_distance,
+                time_step,
             };
-            out.write_all(bytemuck::cast_slice(&output)).unwrap();
+            let pipeline_part = gpu::Collide::new(&context, settings);
+            let input = gpu::collide::Input::new(
+                context.device(),
+                &settings,
+                gpu::collide::InputData {
+                    leaf_size,
+                    leaf_threshold,
+                    particle_positions_and_collider_bits: &test_particles
+                        .particle_positions_and_collider_bits,
+                    particle_velocities: &test_particles.particle_velocities,
+                    vertex_positions: &test_mesh.vertex_positions_a,
+                    vertex_normals: &test_mesh.vertex_normals_a,
+                    triangle_indices: &test_mesh.triangle_indices,
+                    triangle_collider: &vec![0; test_mesh.triangle_indices.len()],
+                    triangle_normals: &test_mesh.triangle_normals_a,
+                    triangle_opposites: &test_mesh.triangle_opposites,
+                    triangle_frictions: &test_mesh.triangle_frictions_a,
+                },
+            );
+            run_pipeline_part(
+                context,
+                generate as u64,
+                tool,
+                pipeline_part,
+                input,
+                gpu::collide::Parameters,
+            );
         }
         Task::PrepareGrid => {
-            let input: &[Vector4<f32>] = bytemuck::cast_slice(&input_bytes);
-            let indices: Vec<u32> = (0..input.len() as u32).collect();
-            let mut output = match mode {
-                Mode::Cpu => grid_on_cpu(cell_size, &indices, input),
-                Mode::Gpu => prepare_grid_on_gpu(
-                    tool,
-                    gpu::prepare_grid::Settings {
-                        workgroup_size,
-                        dispatch_limit,
-                        cell_size,
-                    },
-                    input,
-                ),
-            };
-            output.sort_by(|a, b| {
-                a.map(i32_to_u32_offset)
-                    .iter()
-                    .cmp(b.map(i32_to_u32_offset).iter())
-            });
-            out.write_all(bytemuck::cast_slice(&output)).unwrap();
-        }
-        Task::DetectColliders => match mode {
-            Mode::Cpu => todo!(),
-            Mode::Gpu => detect_colliders_on_gpu(
-                tool,
-                gpu::detect_colliders::Settings {
-                    workgroup_size,
-                    dispatch_limit,
-                    cell_size,
-                    layers: 3,
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-1000.),
+                    max: Vector3::repeat(1000.),
                 },
-            ),
-        },
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            tracing::info!("got particles");
+            let settings = gpu::prepare_grid::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+            };
+            let pipeline_part = gpu::PrepareGrid::new(&context, settings.clone());
+            tracing::info!("prep input");
+            let input = gpu::prepare_grid::Input::new(
+                context.device(),
+                settings,
+                &test_particles.particle_positions_and_collider_bits,
+            );
+            tracing::info!("go");
+            run_pipeline_part(
+                context,
+                generate as u64 * 2048,
+                tool,
+                pipeline_part,
+                input,
+                gpu::prepare_grid::Parameters,
+            );
+        }
+        Task::RegisterContributors => todo!(),
+        Task::PrepareTmp => todo!(),
+        Task::Scatter => todo!(),
+        Task::MeldGrid => todo!(),
+        Task::Collect => todo!(),
+    };
+}
+
+fn run_pipeline_part<P: PipelinePart>(
+    mut context: GpuContext,
+    allocator_size: u64,
+    tool: Option<Tool>,
+    pipeline_part: P,
+    input: P::Input,
+    parameters: P::Parameters,
+) {
+    tracing::info!("setting up allocator");
+    context
+        .setup_allocator(allocator_size, "allocator", true)
+        .unwrap();
+    context
+        .setup_indirect_allocator(2048, "indirect allocator", true)
+        .unwrap();
+
+    if let Some(tool) = tool {
+        run_with_window(tool, context, |context, encoder| {
+            pipeline_part
+                .record(context, &mut encoder.into(), input, parameters)
+                .unwrap();
+        });
+        return;
     }
+
+    tracing::info!("recording");
+    let mut encoder = context.device().create_command_encoder(&Default::default());
+
+    let mut profiler =
+        wgpu_profiler::GpuProfiler::new(context.device(), Default::default()).unwrap();
+    let scope = profiler.scope("run", &mut encoder);
+    let _output = pipeline_part
+        .record(&mut context, &mut scope.into(), input, parameters)
+        .unwrap();
+
+    profiler.resolve_queries(&mut encoder);
+
+    context.queue().submit([encoder.finish()]);
+
+    profiler.end_frame().unwrap();
+
+    tracing::info!("waiting");
+    context
+        .device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .unwrap();
+
+    profiler_output(&context, &mut profiler).unwrap();
 }

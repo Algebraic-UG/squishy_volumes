@@ -10,7 +10,10 @@ use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 use squishy_volumes_util::{lambda, mu};
 
-use crate::particle_parameters::{Host, Solid};
+use crate::{
+    particle_parameters::{Host, Solid},
+    test_data::{test_inviscid_parameters, test_lame_parameters, test_position_gradients_random},
+};
 
 use super::*;
 
@@ -23,7 +26,7 @@ fn check(settings: Settings, input_data: InputData) {
     let gpu_particle_tmp = run(settings, input_data);
 
     for (cpu, gpu) in cpu_particle_tmp.into_iter().zip(gpu_particle_tmp) {
-        check_iters(cpu.iter(), gpu.iter());
+        check_iters_by_norm(cpu.iter(), gpu.iter());
     }
 }
 
@@ -101,7 +104,7 @@ fn test_many_random_props() {
         .collect::<Vec<_>>();
 
     let particle_parameters = test_lame_parameters()
-        .chain(test_lame_parameters())
+        .chain(test_inviscid_parameters())
         .cycle()
         .take(n)
         .map(Into::into)

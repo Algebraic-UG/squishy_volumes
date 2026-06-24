@@ -8,7 +8,7 @@
 
 use std::{num::NonZeroU32, sync::Mutex};
 
-use crate::{DispatchSettings, GpuContext, Indirect, particle_parameters};
+use crate::{DispatchSettings, GpuContext, Indirect};
 
 use approx::assert_relative_eq;
 // Maybe we can avoid this once this is fixed?
@@ -16,7 +16,6 @@ use approx::assert_relative_eq;
 // https://github.com/KhronosGroup/Vulkan-Loader/issues/1863
 use lazy_static::lazy_static;
 use nalgebra::{Matrix3, Vector3, Vector4};
-use squishy_volumes_util::{lambda, mu};
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
         let mut context = GpuContext::new().unwrap();
@@ -676,66 +675,37 @@ pub fn test_position_gradients_simple() -> Vec<Matrix3<f32>> {
     ]
 }
 
-pub fn test_position_gradients_random(n: usize) -> Vec<Matrix3<f32>> {
-    use rand::prelude::*;
-    use rand::rngs::ChaCha8Rng;
-
-    let mut tmp = Vec::new();
-
-    let mut rng = ChaCha8Rng::seed_from_u64(42);
-    let mut position_gradient;
-    for _ in 0..n {
-        loop {
-            position_gradient = Matrix3::from_fn(|_, _| rng.random::<f32>());
-            let d = position_gradient.determinant().abs();
-            if d > 1e-1 && d < 1e+1 {
-                break;
-            }
-        }
-
-        if position_gradient.determinant() < 0. {
-            position_gradient *= -1.;
-        }
-        tmp.push(position_gradient);
-    }
-
-    tmp
-}
-
-pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host> + Clone {
-    use particle_parameters::{Host, Solid};
-
-    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
-        .into_iter()
-        .map(|[youngs_modulus, poissons_ratio]| {
-            let mu = mu(youngs_modulus, poissons_ratio);
-            let lambda = lambda(youngs_modulus, poissons_ratio);
-            Host::Solid(Solid {
-                mu,
-                lambda,
-                viscosity: None,
-                sand_alpha: None,
-            })
-        })
-}
-
-pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::Host> + Clone {
-    use particle_parameters::{Fluid, Host};
-
-    [(100., 2), (1000., 2), (100., 7), (1000., 7)]
-        .into_iter()
-        .map(|(bulk_modulus, exponent)| {
-            Host::Fluid(Fluid {
-                exponent,
-                bulk_modulus,
-                viscosity: None,
-            })
-        })
-}
-
 pub fn check_iters<'a>(a: impl IntoIterator<Item = &'a f32>, b: impl IntoIterator<Item = &'a f32>) {
     for (a, b) in a.into_iter().zip(b.into_iter()) {
         println!("{a} vs {b}");
         assert_relative_eq!(a, b, epsilon = 0.000001, max_relative = 0.01);
     }
+}
+
+pub fn check_iters_by_norm<'a>(
+    a: impl IntoIterator<Item = &'a f32>,
+    b: impl IntoIterator<Item = &'a f32>,
+) {
+    let mut norm_a = 0.;
+    let mut norm_b = 0.;
+    let mut norm_difference = 0.;
+    for (a, b) in a.into_iter().zip(b.into_iter()) {
+        norm_a += a * a;
+        norm_b += b * b;
+        norm_difference += (a - b) * (a - b);
+    }
+
+    let scale = norm_a.max(norm_b).sqrt();
+    let error = norm_difference.sqrt();
+
+    let epsilon = 1.0e-6;
+    let max_relative = 0.01;
+
+    let tolerance = epsilon + max_relative * scale;
+
+    assert!(
+        error <= tolerance,
+        "error={error}, tolerance={tolerance}, relative_error={}",
+        error / scale.max(epsilon),
+    );
 }

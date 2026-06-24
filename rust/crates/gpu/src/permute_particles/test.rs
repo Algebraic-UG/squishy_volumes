@@ -112,7 +112,7 @@ fn test_random() {
         .map(|_| rng.random_range(0.01..0.05))
         .collect::<Vec<_>>();
     let particle_parameters = test_lame_parameters()
-        .chain(test_lame_parameters())
+        .chain(test_invsicid_parameters())
         .cycle()
         .take(n)
         .map(Into::into)

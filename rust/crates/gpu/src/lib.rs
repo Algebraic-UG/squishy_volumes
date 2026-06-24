@@ -22,6 +22,8 @@ mod pipeline_part;
 mod profiler_output;
 mod util;
 
+pub mod test_data;
+
 pub use allocator::*;
 pub use allowed_in_binding::*;
 pub use bounding_volume_hierarchy::*;

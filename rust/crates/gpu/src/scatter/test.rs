@@ -9,6 +9,10 @@
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 
+use crate::test_data::{
+    test_inviscid_parameters, test_lame_parameters, test_position_gradients_random,
+};
+
 use super::*;
 
 fn check(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) {
@@ -116,7 +120,7 @@ fn test_many_random_props() {
         .collect::<Vec<_>>();
 
     let particle_parameters = test_lame_parameters()
-        .chain(test_lame_parameters())
+        .chain(test_inviscid_parameters())
         .cycle()
         .take(n)
         .map(Into::into)

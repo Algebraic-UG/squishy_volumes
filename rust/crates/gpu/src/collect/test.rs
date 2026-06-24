@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use crate::test_data::test_position_gradients_random;
+
 use super::*;
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
