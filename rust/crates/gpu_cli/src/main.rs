@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 
 use gpu::{GpuContext, PipelinePart, profiler_output};
-use nalgebra::Vector3;
+use nalgebra::{Vector3, Vector4};
 use rand::{RngExt, SeedableRng, rngs::ChaCha8Rng};
 use squishy_volumes_gpu::{
     self as gpu, contributors_on_cpu, get_node_set, prepare_tmp_on_cpu,
@@ -361,7 +361,52 @@ fn main() {
                 gpu::scatter::Parameters,
             );
         }
-        Task::MeldGrid => todo!(),
+        Task::MeldGrid => {
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-1000.),
+                    max: Vector3::repeat(1000.),
+                },
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            let node_ids_and_collider_bits: Vec<_> = get_node_set(
+                grid_node_size,
+                &test_particles.particle_positions_and_collider_bits,
+            )
+            .into_iter()
+            .collect();
+            let node_momentums_in: Vec<_> = (0..node_ids_and_collider_bits.len())
+                .map(|_| {
+                    Vector4::new(
+                        rng.random_range(-1.0..1.),
+                        rng.random_range(-1.0..1.),
+                        rng.random_range(-1.0..1.),
+                        rng.random_range(0.1..10.),
+                    )
+                })
+                .collect();
+
+            let settings = gpu::meld_grid::Settings { workgroup_size };
+            let pipeline_part = gpu::MeldGrid::new(&context, settings.clone());
+            let input = gpu::meld_grid::Input::new(
+                context.device(),
+                settings,
+                dispatch_limit,
+                gpu::meld_grid::InputData {
+                    node_ids_and_collider_bits: &node_ids_and_collider_bits,
+                    node_momentums_in: &node_momentums_in,
+                },
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 4 * 4 * 27,
+                tool,
+                pipeline_part,
+                input,
+                gpu::meld_grid::Parameters,
+            );
+        }
         Task::Collect => todo!(),
     };
 }
