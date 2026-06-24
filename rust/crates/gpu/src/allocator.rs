@@ -63,6 +63,10 @@ pub struct Allocation {
 }
 
 impl Allocation {
+    pub fn fake(device: &wgpu::Device) -> Self {
+        Self::new::<u32>(device, "fake", &[])
+    }
+
     pub fn new<T: AllowedInBinding + bytemuck::Pod>(
         device: &wgpu::Device,
         label: &'static str,
