@@ -222,7 +222,7 @@ pub fn counts_count(
 }
 
 pub fn position_to_low_node(grid_node_size: f32, position: &Vector3<f32>) -> Vector3<i32> {
-    position.map(|c| (c / grid_node_size).round() as i32 - 1)
+    position.map(|c| (c / grid_node_size).round_ties_even() as i32 - 1)
 }
 
 pub fn prepare_tmp_on_cpu(
@@ -408,7 +408,7 @@ pub fn collect_on_cpu(
             let mut velocity_gradient = velocity_gradient.fixed_view_mut::<3, 3>(0, 0);
 
             let normalized_position = *position / grid_node_size;
-            let low_node = normalized_position.map(|c| c.round() as i32 - 1);
+            let low_node = normalized_position.map(|c| c.round_ties_even() as i32 - 1);
 
             velocity.fill(0.);
             velocity_gradient.fill(0.);

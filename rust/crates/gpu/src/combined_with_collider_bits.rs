@@ -11,7 +11,7 @@ use nalgebra::Vector3;
 use crate::AllowedInBinding;
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable, Debug)]
 pub struct PositionAndColliderBits {
     pub position: Vector3<f32>,
     pub collider_bits: u32,
