@@ -36,6 +36,7 @@ enum Task {
     Scatter,
     MeldGrid,
     Collect,
+    Step,
 }
 
 #[derive(Parser)]
@@ -178,8 +179,8 @@ fn main() {
             let test_particles = TestParticles::new(
                 generate as usize,
                 Aabb {
-                    min: Vector3::repeat(-1000.),
-                    max: Vector3::repeat(1000.),
+                    min: Vector3::repeat(-100.),
+                    max: Vector3::repeat(100.),
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
@@ -206,8 +207,8 @@ fn main() {
             let test_particles = TestParticles::new(
                 generate as usize,
                 Aabb {
-                    min: Vector3::repeat(-1000.),
-                    max: Vector3::repeat(1000.),
+                    min: Vector3::repeat(-100.),
+                    max: Vector3::repeat(100.),
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
@@ -235,8 +236,8 @@ fn main() {
             let test_particles = TestParticles::new(
                 generate as usize,
                 Aabb {
-                    min: Vector3::repeat(-1000.),
-                    max: Vector3::repeat(1000.),
+                    min: Vector3::repeat(-100.),
+                    max: Vector3::repeat(100.),
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
@@ -311,8 +312,8 @@ fn main() {
             let test_particles = TestParticles::new(
                 generate as usize,
                 Aabb {
-                    min: Vector3::repeat(-1000.),
-                    max: Vector3::repeat(1000.),
+                    min: Vector3::repeat(-100.),
+                    max: Vector3::repeat(100.),
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
@@ -365,8 +366,8 @@ fn main() {
             let test_particles = TestParticles::new(
                 generate as usize,
                 Aabb {
-                    min: Vector3::repeat(-1000.),
-                    max: Vector3::repeat(1000.),
+                    min: Vector3::repeat(-100.),
+                    max: Vector3::repeat(100.),
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
@@ -411,8 +412,8 @@ fn main() {
             let test_particles = TestParticles::new(
                 generate as usize,
                 Aabb {
-                    min: Vector3::repeat(-1000.),
-                    max: Vector3::repeat(1000.),
+                    min: Vector3::repeat(-100.),
+                    max: Vector3::repeat(100.),
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
@@ -459,6 +460,59 @@ fn main() {
                 pipeline_part,
                 input,
                 gpu::collect::Parameters,
+            );
+        }
+        Task::Step => {
+            let aabb = Aabb {
+                min: Vector3::repeat(-100.),
+                max: Vector3::repeat(100.),
+            };
+
+            let test_particles = TestParticles::new(
+                generate as usize,
+                aabb,
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            let test_mesh = TestMesh::new(10000, aabb);
+
+            let settings = gpu::step::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+                forget_distance,
+                accept_distance,
+                time_step,
+            };
+            let pipeline_part = gpu::Step::new(&context, settings.clone());
+            let input = gpu::step::Input::new(
+                context.device(),
+                leaf_size,
+                leaf_threshold,
+                settings,
+                gpu::step::InputData {
+                    masses: &test_particles.particle_masses,
+                    initial_volumes: &test_particles.particle_initial_volumes,
+                    parameters: &test_particles.particle_parameters,
+                    positions_and_collider_bits: &test_particles
+                        .particle_positions_and_collider_bits,
+                    position_gradients: &test_particles.particle_position_gradients,
+                    velocities: &test_particles.particle_velocities,
+                    velocity_gradients: &test_particles.particle_velocity_gradients,
+                    vertex_positions_start: &test_mesh.vertex_positions_a,
+                    vertex_positions_end: &test_mesh.vertex_positions_b,
+                    triangle_indices: &test_mesh.triangle_indices,
+                    triangle_collider: &vec![0; test_mesh.triangle_indices.len()],
+                    triangle_opposites: &test_mesh.triangle_opposites,
+                    triangle_frictions: &test_mesh.triangle_frictions_a,
+                },
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 4096,
+                tool,
+                pipeline_part,
+                input,
+                gpu::step::Parameters { factor: 0.5 },
             );
         }
     };

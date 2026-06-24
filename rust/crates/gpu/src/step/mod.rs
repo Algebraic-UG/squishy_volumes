@@ -72,11 +72,10 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
-    pub collider_bits: &'a [u32],
     pub masses: &'a [f32],
     pub initial_volumes: &'a [f32],
     pub parameters: &'a [particle_parameters::Device],
-    pub positions: &'a [Vector4<f32>],
+    pub positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub position_gradients: &'a [Matrix4x3<f32>],
     pub velocities: &'a [Vector4<f32>],
     pub velocity_gradients: &'a [Matrix4x3<f32>],
@@ -100,11 +99,10 @@ impl Input {
             ..
         }: Settings,
         InputData {
-            collider_bits,
             masses,
             initial_volumes,
             parameters,
-            positions,
+            positions_and_collider_bits,
             position_gradients,
             velocities,
             velocity_gradients,
@@ -116,10 +114,9 @@ impl Input {
             triangle_frictions,
         }: InputData,
     ) -> Self {
-        assert_eq!(masses.len(), collider_bits.len());
         assert_eq!(masses.len(), initial_volumes.len());
         assert_eq!(masses.len(), parameters.len());
-        assert_eq!(masses.len(), positions.len());
+        assert_eq!(masses.len(), positions_and_collider_bits.len());
         assert_eq!(masses.len(), position_gradients.len());
         assert_eq!(masses.len(), velocities.len());
         assert_eq!(masses.len(), velocity_gradients.len());
@@ -178,16 +175,6 @@ impl Input {
             len: masses.len() as u32,
         });
 
-        let particle_positions_and_collider_bits = positions
-            .iter()
-            .map(Vector4::xyz)
-            .zip(collider_bits)
-            .map(|(position, &collider_bits)| PositionAndColliderBits {
-                position,
-                collider_bits,
-            })
-            .collect::<Vec<_>>();
-
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect]);
         let particle_masses = Allocation::new(device, "particle_masses", masses);
         let particle_initial_volumes =
@@ -196,7 +183,7 @@ impl Input {
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
-            &particle_positions_and_collider_bits,
+            positions_and_collider_bits,
         );
         let particle_position_gradients =
             Allocation::new(device, "particle_position_gradients", position_gradients);
