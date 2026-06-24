@@ -407,7 +407,60 @@ fn main() {
                 gpu::meld_grid::Parameters,
             );
         }
-        Task::Collect => todo!(),
+        Task::Collect => {
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-1000.),
+                    max: Vector3::repeat(1000.),
+                },
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            let node_ids_and_collider_bits: Vec<_> = get_node_set(
+                grid_node_size,
+                &test_particles.particle_positions_and_collider_bits,
+            )
+            .into_iter()
+            .collect();
+            let node_momentums: Vec<_> = (0..node_ids_and_collider_bits.len())
+                .map(|_| {
+                    Vector4::new(
+                        rng.random_range(-1.0..1.),
+                        rng.random_range(-1.0..1.),
+                        rng.random_range(-1.0..1.),
+                        rng.random_range(0.1..10.),
+                    )
+                })
+                .collect();
+
+            let settings = gpu::collect::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+                time_step,
+            };
+            let pipeline_part = gpu::Collect::new(&context, settings);
+            let input = gpu::collect::Input::new(
+                context.device(),
+                gpu::collect::InputData {
+                    node_ids_and_collider_bits: &node_ids_and_collider_bits,
+                    node_momentums: &node_momentums,
+                    particle_positions_and_collider_bits: &test_particles
+                        .particle_positions_and_collider_bits,
+                    particle_position_gradients: &test_particles.particle_position_gradients,
+                    particle_velocities: &test_particles.particle_velocities,
+                    particle_velocity_gradients: &test_particles.particle_velocity_gradients,
+                },
+            );
+            run_pipeline_part(
+                context,
+                0,
+                tool,
+                pipeline_part,
+                input,
+                gpu::collect::Parameters,
+            );
+        }
     };
 }
 
