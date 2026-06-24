@@ -4,7 +4,7 @@ use gpu::{GpuContext, PipelinePart, profiler_output};
 use nalgebra::Vector3;
 use rand::{RngExt, SeedableRng, rngs::ChaCha8Rng};
 use squishy_volumes_gpu::{
-    self as gpu, get_node_set,
+    self as gpu, contributors_on_cpu, get_node_set, prepare_tmp_on_cpu,
     test_data::{ParticleSampling, TestMesh, TestParticles},
 };
 use squishy_volumes_util::Aabb;
@@ -307,7 +307,60 @@ fn main() {
                 gpu::prepare_tmp::Parameters,
             );
         }
-        Task::Scatter => todo!(),
+        Task::Scatter => {
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-1000.),
+                    max: Vector3::repeat(1000.),
+                },
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            let (node_ids_and_collider_bits, contributor_offsets, contributors) =
+                contributors_on_cpu(
+                    grid_node_size,
+                    &test_particles.particle_positions_and_collider_bits,
+                );
+            let particle_tmp = prepare_tmp_on_cpu(
+                grid_node_size,
+                time_step,
+                gpu::prepare_tmp::InputData {
+                    particle_masses: &test_particles.particle_masses,
+                    particle_initial_volumes: &test_particles.particle_initial_volumes,
+                    particle_parameters: &test_particles.particle_parameters,
+                    particle_positions_and_collider_bits: &test_particles
+                        .particle_positions_and_collider_bits,
+                    particle_position_gradients: &test_particles.particle_position_gradients,
+                    particle_velocities: &test_particles.particle_velocities,
+                    particle_velocity_gradients: &test_particles.particle_velocity_gradients,
+                },
+            );
+
+            let settings = gpu::scatter::Settings {
+                workgroup_size,
+                grid_node_size,
+            };
+            let pipeline_part = gpu::Scatter::new(&context, settings);
+            let input = gpu::scatter::Input::new(
+                context.device(),
+                settings,
+                dispatch_limit,
+                gpu::scatter::InputData {
+                    contributor_offsets: &contributor_offsets,
+                    contributors: &contributors,
+                    node_ids_and_collider_bits: &node_ids_and_collider_bits,
+                    particle_tmp: &particle_tmp,
+                },
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 4 * 4 * 27,
+                tool,
+                pipeline_part,
+                input,
+                gpu::scatter::Parameters,
+            );
+        }
         Task::MeldGrid => todo!(),
         Task::Collect => todo!(),
     };
