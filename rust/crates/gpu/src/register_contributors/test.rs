@@ -11,18 +11,8 @@ use nalgebra::Vector3;
 use super::*;
 
 fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBits]) {
-    let mut node_ids_and_collider_bits = Vec::new();
-    let mut cpu_contributor_offsets = Vec::new();
-    let mut cpu_contributors = Vec::new();
-    let mut offset = 0;
-    for (node, mut contributors) in
-        get_contributors(settings.grid_node_size, positions_and_collider_bits).into_iter()
-    {
-        cpu_contributor_offsets.push(offset);
-        node_ids_and_collider_bits.push(node);
-        offset += contributors.len() as u32;
-        cpu_contributors.append(&mut contributors);
-    }
+    let (node_ids_and_collider_bits, cpu_contributor_offsets, cpu_contributors) =
+        contributors_on_cpu(settings.grid_node_size, positions_and_collider_bits);
 
     let (gpu_contributor_offsets, gpu_contributors) = run(
         settings,

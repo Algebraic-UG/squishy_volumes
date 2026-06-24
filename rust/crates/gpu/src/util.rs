@@ -541,3 +541,26 @@ pub fn hash_table_on_cpu(
     }
     hash_table
 }
+
+pub fn contributors_on_cpu(
+    grid_node_size: f32,
+    positions_and_collider_bits: &[PositionAndColliderBits],
+) -> (Vec<NodeIdAndColliderBits>, Vec<u32>, Vec<u32>) {
+    let mut node_ids_and_collider_bits = Vec::new();
+    let mut contributor_offsets = Vec::new();
+    let mut contributors = Vec::new();
+    let mut offset = 0;
+    for (node, mut node_contributors) in
+        get_contributors(grid_node_size, positions_and_collider_bits).into_iter()
+    {
+        contributor_offsets.push(offset);
+        node_ids_and_collider_bits.push(node);
+        offset += node_contributors.len() as u32;
+        contributors.append(&mut node_contributors);
+    }
+    (
+        node_ids_and_collider_bits,
+        contributor_offsets,
+        contributors,
+    )
+}
