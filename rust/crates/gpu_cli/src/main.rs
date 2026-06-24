@@ -29,6 +29,7 @@ enum Task {
     Sum,
     AnimateMesh,
     Collide,
+    PartitionNodes,
     PrepareGrid,
     RegisterContributors,
     PrepareTmp,
@@ -173,6 +174,34 @@ fn main() {
                 gpu::collide::Parameters,
             );
         }
+        Task::PartitionNodes => {
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-1000.),
+                    max: Vector3::repeat(1000.),
+                },
+                ParticleSampling::Neat(grid_node_size / 2.),
+            );
+            let settings = gpu::partition_nodes::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+            };
+            let pipeline_part = gpu::PartitionNodes::new(&context, settings.clone());
+            let input = gpu::partition_nodes::Input::new(
+                context.device(),
+                &test_particles.particle_positions_and_collider_bits,
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 1024,
+                tool,
+                pipeline_part,
+                input,
+                gpu::partition_nodes::Parameters,
+            );
+        }
         Task::PrepareGrid => {
             let test_particles = TestParticles::new(
                 generate as usize,
@@ -182,20 +211,17 @@ fn main() {
                 },
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
-            tracing::info!("got particles");
             let settings = gpu::prepare_grid::Settings {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
             };
             let pipeline_part = gpu::PrepareGrid::new(&context, settings.clone());
-            tracing::info!("prep input");
             let input = gpu::prepare_grid::Input::new(
                 context.device(),
                 settings,
                 &test_particles.particle_positions_and_collider_bits,
             );
-            tracing::info!("go");
             run_pipeline_part(
                 context,
                 generate as u64 * 2048,
