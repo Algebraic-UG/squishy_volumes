@@ -269,7 +269,44 @@ fn main() {
                 gpu::register_contributors::Parameters,
             );
         }
-        Task::PrepareTmp => todo!(),
+        Task::PrepareTmp => {
+            let test_particles = TestParticles::new(
+                generate as usize,
+                Aabb {
+                    min: Vector3::repeat(-10.),
+                    max: Vector3::repeat(10.),
+                },
+                ParticleSampling::Random,
+            );
+            let settings = gpu::prepare_tmp::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+                time_step,
+            };
+            let pipeline_part = gpu::PrepareTmp::new(&context, settings);
+            let input = gpu::prepare_tmp::Input::new(
+                context.device(),
+                gpu::prepare_tmp::InputData {
+                    particle_masses: &test_particles.particle_masses,
+                    particle_initial_volumes: &test_particles.particle_initial_volumes,
+                    particle_parameters: &test_particles.particle_parameters,
+                    particle_positions_and_collider_bits: &test_particles
+                        .particle_positions_and_collider_bits,
+                    particle_position_gradients: &test_particles.particle_position_gradients,
+                    particle_velocities: &test_particles.particle_velocities,
+                    particle_velocity_gradients: &test_particles.particle_velocity_gradients,
+                },
+            );
+            run_pipeline_part(
+                context,
+                generate as u64 * 16 * 4,
+                tool,
+                pipeline_part,
+                input,
+                gpu::prepare_tmp::Parameters,
+            );
+        }
         Task::Scatter => todo!(),
         Task::MeldGrid => todo!(),
         Task::Collect => todo!(),
