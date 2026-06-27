@@ -69,7 +69,9 @@ pub enum GpuInputError {
         b: &'static str,
         b_len: usize,
     },
-    #[error("Length multiple mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}")]
+    #[error(
+        "Length multiple mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}, multiple {multiple}"
+    )]
     LengthMultipleMismatch {
         a: &'static str,
         a_len: usize,
@@ -107,12 +109,13 @@ macro_rules! check_length {
 #[macro_export]
 macro_rules! check_length_multiple {
     ($a:expr, $b:expr, $multiple:expr) => {
-        if $a.len() != $b.len() {
-            Err(GpuInputError::LengthMismatch {
+        if $a.len() != $b.len() * $multiple {
+            Err(GpuInputError::LengthMultipleMismatch {
                 a: stringify!($a),
                 a_len: $a.len(),
                 b: stringify!($b),
                 b_len: $b.len(),
+                multiple: $multiple,
             })
         } else {
             Ok(())
