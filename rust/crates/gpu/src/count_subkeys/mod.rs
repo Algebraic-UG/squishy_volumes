@@ -49,9 +49,9 @@ impl Input {
         }: Settings,
         indices: Option<&[u32]>,
         keys: &[u32],
-    ) -> Self {
+    ) -> Result<Self, GpuError> {
         if let Some(indices) = indices.as_ref() {
-            assert_eq!(indices.len(), keys.len());
+            check_length!(indices, keys)?;
         }
 
         let indirect = Indirect::new(DispatchSettings {
@@ -60,15 +60,17 @@ impl Input {
             len: keys.len() as u32,
         });
 
-        let indices = indices.map(|indices| Allocation::new(device, "indices", indices));
-        let keys = Allocation::new(device, "keys", keys);
-        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let indices = indices
+            .map(|indices| Allocation::new(device, "indices", indices))
+            .transpose()?;
+        let keys = Allocation::new(device, "keys", keys)?;
+        let indirect = Allocation::new(device, "indirect", &[indirect])?;
 
-        Self {
+        Ok(Self {
             indirect,
             indices,
             keys,
-        }
+        })
     }
 }
 

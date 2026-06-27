@@ -65,31 +65,38 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
         }: InputData,
-    ) -> Self {
-        let particle_masses = Allocation::new(device, "particle_masses", particle_masses);
+    ) -> Result<Self, GpuError> {
+        check_length!(particle_masses, particle_initial_volumes)?;
+        check_length!(particle_masses, particle_parameters)?;
+        check_length!(particle_masses, particle_positions_and_collider_bits)?;
+        check_length!(particle_masses, particle_position_gradients)?;
+        check_length!(particle_masses, particle_velocities)?;
+        check_length!(particle_masses, particle_velocity_gradients)?;
+
+        let particle_masses = Allocation::new(device, "particle_masses", particle_masses)?;
         let particle_initial_volumes =
-            Allocation::new(device, "particle_initial_volumes", particle_initial_volumes);
+            Allocation::new(device, "particle_initial_volumes", particle_initial_volumes)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", particle_parameters);
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
             particle_positions_and_collider_bits,
-        );
+        )?;
         let particle_position_gradients = Allocation::new(
             device,
             "particle_position_gradients",
             particle_position_gradients,
-        );
+        )?;
         let particle_velocities =
-            Allocation::new(device, "particle_velocities", particle_velocities);
+            Allocation::new(device, "particle_velocities", particle_velocities)?;
         let particle_velocity_gradients = Allocation::new(
             device,
             "particle_velocity_gradients",
             particle_velocity_gradients,
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             particle_masses,
             particle_initial_volumes,
             particle_parameters,
@@ -97,7 +104,7 @@ impl Input {
             particle_position_gradients,
             particle_velocities,
             particle_velocity_gradients,
-        }
+        })
     }
 }
 

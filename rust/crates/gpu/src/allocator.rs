@@ -45,6 +45,8 @@ In total free: {total_free}"
         continuous_free: u64,
         total_free: u64,
     },
+    #[error("Expected non-zero allocation for {label}")]
+    AllocationEmpty { label: &'static str },
 }
 
 pub struct GpuAllocator {
@@ -63,15 +65,15 @@ pub struct Allocation {
 }
 
 impl Allocation {
-    pub fn fake(device: &wgpu::Device) -> Self {
-        Self::new::<u32>(device, "fake", &[])
-    }
-
     pub fn new<T: AllowedInBinding + bytemuck::Pod>(
         device: &wgpu::Device,
         label: &'static str,
         contents: &[T],
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
+        if contents.is_empty() {
+            return Err(GpuAllocatorError::AllocationEmpty { label });
+        }
+
         let buffer = Arc::new(
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(label),
@@ -84,12 +86,12 @@ impl Allocation {
         );
         let (partition, _keep_alive) = Partition::new(0..buffer.size());
 
-        Self {
+        Ok(Self {
             label,
             buffer,
             range: partition.range,
             _keep_alive,
-        }
+        })
     }
 
     pub fn label(&self) -> &'static str {

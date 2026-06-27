@@ -53,7 +53,7 @@ impl Input {
         }: Settings,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
         let hash_table = hash_table_on_cpu(
             node_ids_and_collider_bits,
             particle_positions_and_collider_bits,
@@ -65,25 +65,25 @@ impl Input {
             len: node_ids_and_collider_bits.len() as u32,
         });
 
-        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
+        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes])?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
             particle_positions_and_collider_bits,
-        );
-        let hash_table = Allocation::new(device, "hash_table", &hash_table);
+        )?;
+        let hash_table = Allocation::new(device, "hash_table", &hash_table)?;
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
             node_ids_and_collider_bits,
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             indirect_nodes,
             particle_positions_and_collider_bits,
             hash_table,
             node_ids_and_collider_bits,
-        }
+        })
     }
 }
 

@@ -56,15 +56,11 @@ impl Input {
             node_ids_and_collider_bits,
             particle_tmp,
         }: InputData,
-    ) -> Self {
-        assert_eq!(contributor_offsets.len(), node_ids_and_collider_bits.len());
-        assert_eq!(contributors.len(), particle_tmp.len() * 27);
-        for offset in contributor_offsets {
-            assert!((*offset as usize) < contributors.len());
-        }
-        for contributor in contributors {
-            assert!((*contributor as usize) < particle_tmp.len());
-        }
+    ) -> Result<Self, GpuError> {
+        check_length!(contributor_offsets, node_ids_and_collider_bits)?;
+        check_length_multiple!(contributors, particle_tmp, 27)?;
+        check_indices_valid!(contributor_offsets, contributors)?;
+        check_indices_valid!(contributors, particle_tmp)?;
 
         let indirect_nodes = Indirect::new(DispatchSettings {
             workgroup_size,
@@ -72,24 +68,24 @@ impl Input {
             len: contributor_offsets.len() as u32,
         });
 
-        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
+        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes])?;
         let contributor_offsets =
-            Allocation::new(device, "contributor_offsets", contributor_offsets);
-        let contributors = Allocation::new(device, "contributors", contributors);
+            Allocation::new(device, "contributor_offsets", contributor_offsets)?;
+        let contributors = Allocation::new(device, "contributors", contributors)?;
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
             node_ids_and_collider_bits,
-        );
-        let particle_tmp = Allocation::new(device, "particle_tmp", particle_tmp);
+        )?;
+        let particle_tmp = Allocation::new(device, "particle_tmp", particle_tmp)?;
 
-        Self {
+        Ok(Self {
             indirect_nodes,
             contributor_offsets,
             contributors,
             node_ids_and_collider_bits,
             particle_tmp,
-        }
+        })
     }
 }
 

@@ -89,7 +89,7 @@ fn main() {
                 dispatch_limit,
             };
             let pipeline_part = gpu::PrefixSum::new(&context, settings);
-            let input = gpu::prefix_sum::Input::new(context.device(), settings, &numbers);
+            let input = gpu::prefix_sum::Input::new(context.device(), settings, &numbers).unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 16,
@@ -119,7 +119,8 @@ fn main() {
                     vertex_positions_end: &test_mesh.vertex_positions_b,
                     triangle_indices: &test_mesh.triangle_indices,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 1024,
@@ -165,7 +166,8 @@ fn main() {
                     triangle_opposites: &test_mesh.triangle_opposites,
                     triangle_frictions: &test_mesh.triangle_frictions_a,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64,
@@ -193,7 +195,8 @@ fn main() {
             let input = gpu::partition_nodes::Input::new(
                 context.device(),
                 &test_particles.particle_positions_and_collider_bits,
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 1024,
@@ -222,7 +225,8 @@ fn main() {
                 context.device(),
                 settings,
                 &test_particles.particle_positions_and_collider_bits,
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 2048,
@@ -260,7 +264,8 @@ fn main() {
                 settings,
                 &node_ids_and_collider_bits,
                 &test_particles.particle_positions_and_collider_bits,
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 2048,
@@ -298,7 +303,8 @@ fn main() {
                     particle_velocities: &test_particles.particle_velocities,
                     particle_velocity_gradients: &test_particles.particle_velocity_gradients,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 16 * 4,
@@ -352,7 +358,8 @@ fn main() {
                     node_ids_and_collider_bits: &node_ids_and_collider_bits,
                     particle_tmp: &particle_tmp,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 4 * 4 * 27,
@@ -398,7 +405,8 @@ fn main() {
                     node_ids_and_collider_bits: &node_ids_and_collider_bits,
                     node_momentums_in: &node_momentums_in,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 4 * 4 * 27,
@@ -452,7 +460,8 @@ fn main() {
                     particle_velocities: &test_particles.particle_velocities,
                     particle_velocity_gradients: &test_particles.particle_velocity_gradients,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 0,
@@ -505,7 +514,8 @@ fn main() {
                     triangle_opposites: &test_mesh.triangle_opposites,
                     triangle_frictions: &test_mesh.triangle_frictions_a,
                 },
-            );
+            )
+            .unwrap();
             run_pipeline_part(
                 context,
                 generate as u64 * 4096,

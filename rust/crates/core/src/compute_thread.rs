@@ -21,8 +21,8 @@ use anyhow::{Context, Result};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
 use squishy_volumes_gpu::{
-    PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, profiler_output, wgpu,
-    wgpu_profiler,
+    Allocation, PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, profiler_output,
+    wgpu, wgpu_profiler,
 };
 use strum::IntoEnumIterator;
 use tracing::info;
@@ -140,7 +140,7 @@ impl ComputeThread {
                     gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
 
                     info!("setting up GPU state");
-                    Some(current_state.to_gpu_state(&mut phase_input, gpu_context))
+                    Some(current_state.to_gpu_state(&mut phase_input, gpu_context)?)
                 } else {
                     None
                 };
@@ -219,6 +219,40 @@ impl ComputeThread {
 
                         let downloads = downloads.prep();
                         profiler.end_frame().unwrap();
+
+                        info!("prepare next collider geometry");
+                        phase_input
+                            .input_interpolation
+                            .load(&phase_input.consts, next_frame + 1)?;
+
+                        if let Some(collider_input) = next_input.collider_input.as_mut() {
+                            let a = phase_input.input_interpolation.a();
+                            let b = phase_input.input_interpolation.b().unwrap_or(a);
+
+                            let vertex_positions_start: Vec<Vector4<f32>> =
+                                a.vertex_positions().iter().map(|p| p.push(0.)).collect();
+                            let vertex_positions_end: Vec<Vector4<f32>> =
+                                b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+
+                            info!("allocate next collider geometry");
+                            collider_input.vertex_positions_start = Allocation::new(
+                                gpu_context.device(),
+                                "vertex_positions_start",
+                                &vertex_positions_start,
+                            )?;
+                            collider_input.vertex_positions_end = Allocation::new(
+                                gpu_context.device(),
+                                "vertex_positions_end",
+                                &vertex_positions_end,
+                            )?;
+
+                            collider_input.bvh =
+                                squishy_volumes_gpu::BoundingVolumeHierarchyAllocations::new(
+                                    gpu_context.device(),
+                                    phase_input.consts.leaf_size,
+                                    phase_input.input_interpolation.bvh(),
+                                )?;
+                        }
 
                         info!("wait");
                         gpu_context

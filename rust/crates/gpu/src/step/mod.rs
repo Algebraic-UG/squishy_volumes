@@ -47,16 +47,7 @@ pub struct Parameters {
 }
 
 #[derive(Clone)]
-pub struct Input {
-    pub indirect_particles: Allocation,
-    pub particle_masses: Allocation,
-    pub particle_initial_volumes: Allocation,
-    pub particle_parameters: Allocation,
-    pub particle_positions_and_collider_bits: Allocation,
-    pub particle_position_gradients: Allocation,
-    pub particle_velocities: Allocation,
-    pub particle_velocity_gradients: Allocation,
-
+pub struct ColliderInput {
     pub vertex_positions_start: Allocation,
     pub vertex_positions_end: Allocation,
     pub vertex_triangle_offsets: Allocation,
@@ -68,6 +59,20 @@ pub struct Input {
     pub triangle_frictions: Allocation,
 
     pub bvh: BoundingVolumeHierarchyAllocations,
+}
+
+#[derive(Clone)]
+pub struct Input {
+    pub indirect_particles: Allocation,
+    pub particle_masses: Allocation,
+    pub particle_initial_volumes: Allocation,
+    pub particle_parameters: Allocation,
+    pub particle_positions_and_collider_bits: Allocation,
+    pub particle_position_gradients: Allocation,
+    pub particle_velocities: Allocation,
+    pub particle_velocity_gradients: Allocation,
+
+    pub collider_input: Option<ColliderInput>,
 }
 
 #[derive(Clone)]
@@ -113,28 +118,29 @@ impl Input {
             triangle_opposites,
             triangle_frictions,
         }: InputData,
-    ) -> Self {
-        assert_eq!(masses.len(), initial_volumes.len());
-        assert_eq!(masses.len(), parameters.len());
-        assert_eq!(masses.len(), positions_and_collider_bits.len());
-        assert_eq!(masses.len(), position_gradients.len());
-        assert_eq!(masses.len(), velocities.len());
-        assert_eq!(masses.len(), velocity_gradients.len());
-        assert_eq!(vertex_positions_start.len(), vertex_positions_end.len());
-        assert_eq!(triangle_indices.len(), triangle_collider.len());
-        assert_eq!(triangle_indices.len(), triangle_opposites.len());
-        assert_eq!(triangle_indices.len(), triangle_frictions.len());
-        assert!(triangle_indices.iter().all(|indices| {
-            indices
+    ) -> Result<Self, GpuError> {
+        check_length!(masses, initial_volumes)?;
+        check_length!(masses, parameters)?;
+        check_length!(masses, positions_and_collider_bits)?;
+        check_length!(masses, position_gradients)?;
+        check_length!(masses, velocities)?;
+        check_length!(masses, velocity_gradients)?;
+        check_length!(vertex_positions_start, vertex_positions_end)?;
+        check_length!(triangle_indices, triangle_collider)?;
+        check_length!(triangle_indices, triangle_opposites)?;
+        check_length!(triangle_indices, triangle_frictions)?;
+
+        {
+            let triangle_indices = triangle_indices.iter().flat_map(Triangle::iter);
+            check_indices_valid!(triangle_indices, vertex_positions_start)?;
+        }
+        {
+            let triangle_opposites = triangle_opposites
                 .iter()
-                .all(|&index| (index as usize) < vertex_positions_start.len())
-        }));
-        assert!(triangle_opposites.iter().all(|indices| {
-            indices
-                .iter()
-                .filter(|&&i| i != u32::MAX)
-                .all(|&index| (index as usize) < triangle_indices.len())
-        }));
+                .flat_map(Opposites::iter)
+                .filter(|&&index| index != u32::MAX);
+            check_indices_valid!(triangle_opposites, triangle_indices)?;
+        }
 
         let vertex_triangle_lists =
             compute_triangle_lists(vertex_positions_start.len(), triangle_indices);
@@ -175,39 +181,39 @@ impl Input {
             len: masses.len() as u32,
         });
 
-        let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect]);
-        let particle_masses = Allocation::new(device, "particle_masses", masses);
+        let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
+        let particle_masses = Allocation::new(device, "particle_masses", masses)?;
         let particle_initial_volumes =
-            Allocation::new(device, "particle_initial_volumes", initial_volumes);
-        let particle_parameters = Allocation::new(device, "particle_parameters", parameters);
+            Allocation::new(device, "particle_initial_volumes", initial_volumes)?;
+        let particle_parameters = Allocation::new(device, "particle_parameters", parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
             positions_and_collider_bits,
-        );
+        )?;
         let particle_position_gradients =
-            Allocation::new(device, "particle_position_gradients", position_gradients);
-        let particle_velocities = Allocation::new(device, "particle_velocities", velocities);
+            Allocation::new(device, "particle_position_gradients", position_gradients)?;
+        let particle_velocities = Allocation::new(device, "particle_velocities", velocities)?;
         let particle_velocity_gradients =
-            Allocation::new(device, "particle_velocity_gradients", velocity_gradients);
+            Allocation::new(device, "particle_velocity_gradients", velocity_gradients)?;
 
         let vertex_positions_start =
-            Allocation::new(device, "vertex_positions_start", vertex_positions_start);
+            Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
         let vertex_positions_end =
-            Allocation::new(device, "vertex_positions_end", vertex_positions_end);
+            Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
         let vertex_triangle_offsets =
-            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets);
+            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
         let vertex_triangle_lists =
-            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists);
+            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
 
-        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices);
-        let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider);
-        let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites);
-        let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions);
+        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
+        let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider)?;
+        let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites)?;
+        let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions)?;
 
-        let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh);
+        let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
-        Self {
+        Ok(Self {
             indirect_particles,
 
             particle_masses,
@@ -218,16 +224,18 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
 
-            vertex_positions_start,
-            vertex_positions_end,
-            vertex_triangle_offsets,
-            vertex_triangle_lists,
-            triangle_indices,
-            triangle_collider,
-            triangle_opposites,
-            triangle_frictions,
-            bvh,
-        }
+            collider_input: Some(ColliderInput {
+                vertex_positions_start,
+                vertex_positions_end,
+                vertex_triangle_offsets,
+                vertex_triangle_lists,
+                triangle_indices,
+                triangle_collider,
+                triangle_opposites,
+                triangle_frictions,
+                bvh,
+            }),
+        })
     }
 }
 
@@ -339,6 +347,12 @@ impl PipelinePart for Step {
             particle_position_gradients,
             particle_velocities,
             particle_velocity_gradients,
+            collider_input,
+        }: Input,
+        Parameters { factor }: Parameters,
+    ) -> Result<Output, GpuError> {
+        let meld_needed = collider_input.is_some();
+        if let Some(ColliderInput {
             vertex_positions_start,
             vertex_positions_end,
             vertex_triangle_offsets,
@@ -348,43 +362,44 @@ impl PipelinePart for Step {
             triangle_opposites,
             triangle_frictions,
             bvh,
-        }: Input,
-        Parameters { factor }: Parameters,
-    ) -> Result<Output, GpuError> {
-        let animate_mesh::Output {
-            vertex_positions,
-            vertex_normals,
-            triangle_normals,
-        } = self.animate_mesh.record(
-            context,
-            encoder,
-            animate_mesh::Input {
-                vertex_positions_start,
-                vertex_positions_end,
-                vertex_triangle_offsets,
-                vertex_triangle_lists,
-                triangle_indices: triangle_indices.clone(),
-            },
-            animate_mesh::Parameters { factor },
-        )?;
-
-        let collide::Output = self.collide.record(
-            context,
-            encoder,
-            collide::Input {
-                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
-                particle_velocities: particle_velocities.clone(),
+        }) = collider_input
+        {
+            let animate_mesh::Output {
                 vertex_positions,
                 vertex_normals,
-                triangle_indices,
-                triangle_collider,
                 triangle_normals,
-                triangle_opposites,
-                triangle_frictions,
-                bvh,
-            },
-            collide::Parameters,
-        )?;
+            } = self.animate_mesh.record(
+                context,
+                encoder,
+                animate_mesh::Input {
+                    vertex_positions_start,
+                    vertex_positions_end,
+                    vertex_triangle_offsets,
+                    vertex_triangle_lists,
+                    triangle_indices: triangle_indices.clone(),
+                },
+                animate_mesh::Parameters { factor },
+            )?;
+
+            let collide::Output = self.collide.record(
+                context,
+                encoder,
+                collide::Input {
+                    particle_positions_and_collider_bits: particle_positions_and_collider_bits
+                        .clone(),
+                    particle_velocities: particle_velocities.clone(),
+                    vertex_positions,
+                    vertex_normals,
+                    triangle_indices,
+                    triangle_collider,
+                    triangle_normals,
+                    triangle_opposites,
+                    triangle_frictions,
+                    bvh,
+                },
+                collide::Parameters,
+            )?;
+        }
 
         let prepare_grid::Output {
             indirect_nodes,
@@ -446,21 +461,26 @@ impl PipelinePart for Step {
             scatter::Parameters,
         )?;
 
-        let meld_grid::Output {
-            node_momentums_out: node_momentums,
-        } = self.meld_grid.record(
-            context,
-            encoder,
-            meld_grid::Input {
-                indirect_nodes: indirect_nodes.clone(),
-                node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
-                hash_table_multi,
-                multi_offsets,
-                multi,
-                node_momentums_in: node_momentums,
-            },
-            meld_grid::Parameters,
-        )?;
+        let node_momentums = if meld_needed {
+            let meld_grid::Output {
+                node_momentums_out: node_momentums,
+            } = self.meld_grid.record(
+                context,
+                encoder,
+                meld_grid::Input {
+                    indirect_nodes: indirect_nodes.clone(),
+                    node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
+                    hash_table_multi,
+                    multi_offsets,
+                    multi,
+                    node_momentums_in: node_momentums,
+                },
+                meld_grid::Parameters,
+            )?;
+            node_momentums
+        } else {
+            node_momentums
+        };
 
         let collect::Output = self.collect.record(
             context,

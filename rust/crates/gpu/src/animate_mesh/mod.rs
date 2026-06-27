@@ -58,7 +58,7 @@ impl Input {
             vertex_positions_end,
             triangle_indices,
         }: InputData,
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
         assert_eq!(vertex_positions_start.len(), vertex_positions_end.len());
         assert!(triangle_indices.iter().all(|indices| {
             indices
@@ -84,23 +84,23 @@ impl Input {
         }
 
         let vertex_positions_start =
-            Allocation::new(device, "vertex_positions_start", vertex_positions_start);
+            Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
         let vertex_positions_end =
-            Allocation::new(device, "vertex_positions_end", vertex_positions_end);
+            Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
         let vertex_triangle_offsets =
-            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets);
+            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
         let vertex_triangle_lists =
-            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists);
+            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
 
-        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices);
+        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
 
-        Self {
+        Ok(Self {
             vertex_positions_start,
             vertex_positions_end,
             vertex_triangle_offsets,
             vertex_triangle_lists,
             triangle_indices,
-        }
+        })
     }
 }
 

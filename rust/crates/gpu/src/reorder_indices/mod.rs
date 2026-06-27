@@ -52,9 +52,9 @@ impl Input {
         indices: Option<&[u32]>,
         keys: &[u32],
         prefix_sums: &[u32],
-    ) -> Self {
+    ) -> Result<Self, GpuError> {
         if let Some(indices) = indices.as_ref() {
-            assert_eq!(indices.len(), keys.len());
+            check_length!(indices, keys)?;
         }
 
         let indirect = Indirect::new(DispatchSettings {
@@ -63,17 +63,19 @@ impl Input {
             len: keys.len() as u32,
         });
 
-        let indices_in = indices.map(|indices| Allocation::new(device, "indices_in", indices));
-        let keys = Allocation::new(device, "keys", keys);
-        let prefix_sums = Allocation::new(device, "prefix_sums", prefix_sums);
-        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let indices_in = indices
+            .map(|indices| Allocation::new(device, "indices_in", indices))
+            .transpose()?;
+        let keys = Allocation::new(device, "keys", keys)?;
+        let prefix_sums = Allocation::new(device, "prefix_sums", prefix_sums)?;
+        let indirect = Allocation::new(device, "indirect", &[indirect])?;
 
-        Self {
+        Ok(Self {
             indirect,
             indices_in,
             keys,
             prefix_sums,
-        }
+        })
     }
 }
 

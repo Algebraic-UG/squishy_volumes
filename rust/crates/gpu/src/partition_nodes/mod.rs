@@ -44,16 +44,16 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
             particle_positions_and_collider_bits,
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             particle_positions_and_collider_bits,
-        }
+        })
     }
 }
 

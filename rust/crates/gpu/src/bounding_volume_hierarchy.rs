@@ -11,7 +11,7 @@ use std::{iter::once, num::NonZeroU64};
 
 use squishy_volumes_util::{BoundingVolumeHierarchy, bounding_volume_hierarchy::Node};
 
-use crate::{Allocation, AllowedInBinding, prefix_sum_on_cpu};
+use crate::{Allocation, AllowedInBinding, GpuAllocatorError, prefix_sum_on_cpu};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
@@ -35,7 +35,11 @@ pub struct BoundingVolumeHierarchyAllocations {
 }
 
 impl BoundingVolumeHierarchyAllocations {
-    pub fn new(device: &wgpu::Device, leaf_size: f32, bvh: &BoundingVolumeHierarchy) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        leaf_size: f32,
+        bvh: &BoundingVolumeHierarchy,
+    ) -> Result<Self, GpuAllocatorError> {
         let offset = bvh.aabb().min;
         let meta = Allocation::new(
             device,
@@ -47,7 +51,7 @@ impl BoundingVolumeHierarchyAllocations {
                 offset_y: offset.y,
                 offset_z: offset.z,
             }],
-        );
+        )?;
 
         let indices_counts: Vec<u32> = bvh
             .nodes()
@@ -120,7 +124,7 @@ impl BoundingVolumeHierarchyAllocations {
                 }
             })
             .collect();
-        let nodes = Allocation::new(device, "nodes", &nodes);
+        let nodes = Allocation::new(device, "nodes", &nodes)?;
 
         let indices: Vec<u32> = bvh
             .nodes()
@@ -134,12 +138,12 @@ impl BoundingVolumeHierarchyAllocations {
             })
             .flat_map(|leaf| leaf.indices().iter().cloned())
             .collect();
-        let indices = Allocation::new(device, "indices", &indices);
+        let indices = Allocation::new(device, "indices", &indices)?;
 
-        Self {
+        Ok(Self {
             meta,
             nodes,
             indices,
-        }
+        })
     }
 }

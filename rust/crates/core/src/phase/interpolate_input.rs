@@ -12,9 +12,9 @@ use rayon::iter::{IndexedParallelIterator as _, IntoParallelRefIterator, Paralle
 use squishy_volumes_api::T;
 use squishy_volumes_util::{NORMALIZATION_EPS, triangle::Triangle};
 
-use crate::{input_interpolation::InterpolatedInput, profile};
+use crate::{profile, state::InterpolatedInput};
 
-use super::{PhaseInput, State};
+use super::*;
 
 impl State {
     pub fn interpolate_input(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
@@ -35,28 +35,28 @@ impl State {
         let factor_b = (frame_time % 1.) as T;
         let factor_a = 1. - factor_b;
 
-        let gravity = factor_a * a.gravity + factor_b * b.gravity;
+        let gravity = factor_a * a.gravity() + factor_b * b.gravity();
 
-        let particle_flags = a.particle_flags.clone();
+        let particle_flags = a.particle_flags().to_vec();
 
         let particle_goal_positions: Vec<Vector3<T>> = a
-            .particle_goal_positions
+            .particle_goal_positions()
             .par_iter()
-            .zip(&b.particle_goal_positions)
+            .zip(b.particle_goal_positions())
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
         let vertex_positions: Vec<Vector3<T>> = a
-            .vertex_positions
+            .vertex_positions()
             .par_iter()
-            .zip(&b.vertex_positions)
+            .zip(b.vertex_positions())
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
         let triangle_normals: Vec<Vector3<T>> = phase_input
             .input_interpolation
             .topology()
-            .triangle_indices
+            .triangle_indices()
             .par_iter()
             .map(|Triangle { a, b, c }| {
                 let a = &vertex_positions[*a as usize];
@@ -72,7 +72,7 @@ impl State {
         let vertex_normals: Vec<Vector3<T>> = phase_input
             .input_interpolation
             .topology()
-            .vertex_triangle_lists
+            .vertex_triangle_lists()
             .par_iter()
             .map(|triangles| {
                 triangles
@@ -85,9 +85,9 @@ impl State {
             .collect();
 
         let triangle_frictions: Vec<T> = a
-            .triangle_frictions
+            .triangle_frictions()
             .par_iter()
-            .zip(&b.triangle_frictions)
+            .zip(b.triangle_frictions())
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 

@@ -84,27 +84,24 @@ impl Input {
             triangle_opposites,
             triangle_frictions,
         }: InputData,
-    ) -> Self {
-        assert_eq!(
-            particle_positions_and_collider_bits.len(),
-            particle_velocities.len()
-        );
-        assert_eq!(vertex_positions.len(), vertex_normals.len());
-        assert_eq!(triangle_indices.len(), triangle_collider.len());
-        assert_eq!(triangle_indices.len(), triangle_normals.len());
-        assert_eq!(triangle_indices.len(), triangle_opposites.len());
-        assert_eq!(triangle_indices.len(), triangle_frictions.len());
-        assert!(triangle_indices.iter().all(|indices| {
-            indices
+    ) -> Result<Self, GpuError> {
+        check_length!(particle_positions_and_collider_bits, particle_velocities)?;
+        check_length!(vertex_positions, vertex_normals)?;
+        check_length!(triangle_indices, triangle_collider)?;
+        check_length!(triangle_indices, triangle_normals)?;
+        check_length!(triangle_indices, triangle_opposites)?;
+        check_length!(triangle_indices, triangle_frictions)?;
+        {
+            let triangle_indices = triangle_indices.iter().flat_map(|indices| indices.iter());
+            check_indices_valid!(triangle_indices, vertex_positions)?;
+        }
+        {
+            let triangle_opposites = triangle_opposites
                 .iter()
-                .all(|&index| (index as usize) < vertex_positions.len())
-        }));
-        assert!(triangle_opposites.iter().all(|indices| {
-            indices
-                .iter()
-                .filter(|&&i| i != u32::MAX)
-                .all(|&index| (index as usize) < triangle_indices.len())
-        }));
+                .flat_map(|opposites| opposites.iter())
+                .filter(|&&i| i != u32::MAX);
+            check_indices_valid!(triangle_opposites, triangle_indices)?;
+        }
 
         let vertices_3d: Vec<_> = vertex_positions.iter().map(Vector4::xyz).collect();
         let aabbs =
@@ -116,22 +113,22 @@ impl Input {
             device,
             "particle_positions_and_collider_bits",
             particle_positions_and_collider_bits,
-        );
+        )?;
         let particle_velocities =
-            Allocation::new(device, "particle_velocities", particle_velocities);
+            Allocation::new(device, "particle_velocities", particle_velocities)?;
 
-        let vertex_positions = Allocation::new(device, "vertex_positions", vertex_positions);
-        let vertex_normals = Allocation::new(device, "vertex_normals", vertex_normals);
+        let vertex_positions = Allocation::new(device, "vertex_positions", vertex_positions)?;
+        let vertex_normals = Allocation::new(device, "vertex_normals", vertex_normals)?;
 
-        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices);
-        let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider);
-        let triangle_normals = Allocation::new(device, "triangle_normals", triangle_normals);
-        let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites);
-        let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions);
+        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
+        let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider)?;
+        let triangle_normals = Allocation::new(device, "triangle_normals", triangle_normals)?;
+        let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites)?;
+        let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions)?;
 
-        let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh);
+        let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
-        Self {
+        Ok(Self {
             particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
@@ -142,7 +139,7 @@ impl Input {
             triangle_opposites,
             triangle_frictions,
             bvh,
-        }
+        })
     }
 }
 

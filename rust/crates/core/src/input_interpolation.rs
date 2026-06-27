@@ -12,7 +12,6 @@ use std::mem::take;
 
 use nalgebra::Vector3;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use squishy_volumes_api::T;
 use squishy_volumes_util::{
@@ -59,31 +58,17 @@ pub enum InterpolationError {
     InputError(#[from] InputError),
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct InterpolatedInput {
-    pub gravity: Vector3<T>,
-
-    pub particle_flags: Vec<ParticleFlags>,
-    pub particle_goal_positions: Vec<Vector3<T>>,
-
-    pub vertex_positions: Vec<Vector3<T>>,
-    pub vertex_normals: Vec<Vector3<T>>,
-
-    pub triangle_frictions: Vec<T>,
-    pub triangle_normals: Vec<Vector3<T>>,
-}
-
 #[derive(Default)]
 pub struct InputInterpolationPoint {
-    pub frame: usize,
+    frame: usize,
 
-    pub gravity: Vector3<T>,
+    gravity: Vector3<T>,
 
-    pub particle_flags: Vec<ParticleFlags>,
-    pub particle_goal_positions: Vec<Vector3<T>>,
+    particle_flags: Vec<ParticleFlags>,
+    particle_goal_positions: Vec<Vector3<T>>,
 
-    pub vertex_positions: Vec<Vector3<T>>,
-    pub triangle_frictions: Vec<T>,
+    vertex_positions: Vec<Vector3<T>>,
+    triangle_frictions: Vec<T>,
 }
 
 impl InputInterpolationPoint {
@@ -153,13 +138,35 @@ impl InputInterpolationPoint {
             triangle_frictions,
         })
     }
+
+    pub fn frame(&self) -> usize {
+        self.frame
+    }
+
+    pub fn gravity(&self) -> &Vector3<T> {
+        &self.gravity
+    }
+
+    pub fn particle_flags(&self) -> &[ParticleFlags] {
+        &self.particle_flags
+    }
+    pub fn particle_goal_positions(&self) -> &[Vector3<T>] {
+        &self.particle_goal_positions
+    }
+
+    pub fn vertex_positions(&self) -> &[Vector3<T>] {
+        &self.vertex_positions
+    }
+    pub fn triangle_frictions(&self) -> &[T] {
+        &self.triangle_frictions
+    }
 }
 
 pub struct Topology {
-    pub vertex_triangle_lists: Vec<SmallVec<[u32; 8]>>,
-    pub triangle_indices: Vec<Triangle>,
-    pub triangle_opposites: Vec<Opposites>,
-    pub triangle_collider: Vec<u32>,
+    vertex_triangle_lists: Vec<SmallVec<[u32; 8]>>,
+    triangle_indices: Vec<Triangle>,
+    triangle_opposites: Vec<Opposites>,
+    triangle_collider: Vec<u32>,
 }
 
 pub struct InputInterpolation {
@@ -416,6 +423,26 @@ impl Topology {
             triangle_opposites,
             triangle_collider,
         })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.triangle_indices.is_empty()
+    }
+
+    pub fn vertex_triangle_lists(&self) -> &[SmallVec<[u32; 8]>] {
+        &self.vertex_triangle_lists
+    }
+
+    pub fn triangle_indices(&self) -> &[Triangle] {
+        &self.triangle_indices
+    }
+
+    pub fn triangle_opposites(&self) -> &[Opposites] {
+        &self.triangle_opposites
+    }
+
+    pub fn triangle_collider(&self) -> &[u32] {
+        &self.triangle_collider
     }
 }
 

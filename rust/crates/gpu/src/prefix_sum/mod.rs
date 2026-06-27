@@ -44,17 +44,17 @@ impl Input {
             dispatch_limit,
         }: Settings,
         numbers: &[u32],
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: numbers.len() as u32,
         });
 
-        let numbers = Allocation::new(device, "numbers", numbers);
-        let indirect = Allocation::new(device, "indirect", &[indirect]);
+        let numbers = Allocation::new(device, "numbers", numbers)?;
+        let indirect = Allocation::new(device, "indirect", &[indirect])?;
 
-        Self { indirect, numbers }
+        Ok(Self { indirect, numbers })
     }
 }
 

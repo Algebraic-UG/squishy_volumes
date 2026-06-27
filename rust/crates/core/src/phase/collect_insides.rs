@@ -16,12 +16,11 @@ use squishy_volumes_util::{
 };
 
 use crate::{
-    input_interpolation::{InterpolatedInput, Topology},
     profile,
-    state::particles::ParticleState,
+    state::{InterpolatedInput, particles::ParticleState},
 };
 
-use super::{PhaseInput, State};
+use super::*;
 
 impl State {
     pub(super) fn collect_insides(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
@@ -29,12 +28,10 @@ impl State {
 
         let time_step = phase_input.time_step;
 
-        let Topology {
-            triangle_indices,
-            triangle_opposites,
-            triangle_collider,
-            ..
-        } = phase_input.input_interpolation.topology();
+        let topology = phase_input.input_interpolation.topology();
+        let triangle_indices = topology.triangle_indices();
+        let triangle_opposites = topology.triangle_opposites();
+        let triangle_collider = topology.triangle_collider();
 
         let InterpolatedInput {
             vertex_positions,

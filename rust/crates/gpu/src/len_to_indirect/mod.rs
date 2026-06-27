@@ -30,9 +30,9 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new(device: &wgpu::Device, len: u32) -> Self {
-        let len = Allocation::new(device, "len", &[len]);
-        Self { len }
+    pub fn new(device: &wgpu::Device, len: u32) -> Result<Self, GpuAllocatorError> {
+        let len = Allocation::new(device, "len", &[len])?;
+        Ok(Self { len })
     }
 }
 

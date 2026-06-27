@@ -66,49 +66,46 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
         }: InputData,
-    ) -> Self {
-        assert_eq!(node_ids_and_collider_bits.len(), node_momentums.len());
-        assert_eq!(
-            particle_positions_and_collider_bits.len(),
-            particle_position_gradients.len()
-        );
-        assert_eq!(
-            particle_positions_and_collider_bits.len(),
-            particle_velocities.len()
-        );
-        assert_eq!(
-            particle_positions_and_collider_bits.len(),
-            particle_velocity_gradients.len()
-        );
+    ) -> Result<Self, GpuError> {
+        check_length!(node_ids_and_collider_bits, node_momentums)?;
+        check_length!(
+            particle_positions_and_collider_bits,
+            particle_position_gradients
+        )?;
+        check_length!(particle_positions_and_collider_bits, particle_velocities)?;
+        check_length!(
+            particle_positions_and_collider_bits,
+            particle_velocity_gradients
+        )?;
 
         let hash_table = build_hash_table_on_cpu(node_ids_and_collider_bits);
 
-        let hash_table = Allocation::new(device, "hash_table", &hash_table);
+        let hash_table = Allocation::new(device, "hash_table", &hash_table)?;
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
             node_ids_and_collider_bits,
-        );
-        let node_momentums = Allocation::new(device, "node_momentums", node_momentums);
+        )?;
+        let node_momentums = Allocation::new(device, "node_momentums", node_momentums)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
             particle_positions_and_collider_bits,
-        );
+        )?;
         let particle_position_gradients = Allocation::new(
             device,
             "particle_position_gradients",
             particle_position_gradients,
-        );
+        )?;
         let particle_velocities =
-            Allocation::new(device, "particle_velocities", particle_velocities);
+            Allocation::new(device, "particle_velocities", particle_velocities)?;
         let particle_velocity_gradients = Allocation::new(
             device,
             "particle_velocity_gradients",
             particle_velocity_gradients,
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             hash_table,
             node_ids_and_collider_bits,
             node_momentums,
@@ -116,7 +113,7 @@ impl Input {
             particle_position_gradients,
             particle_velocities,
             particle_velocity_gradients,
-        }
+        })
     }
 }
 

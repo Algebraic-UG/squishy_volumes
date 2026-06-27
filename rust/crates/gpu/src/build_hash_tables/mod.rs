@@ -50,25 +50,25 @@ impl Input {
         dispatch_limit: NonZeroU32,
         Settings { workgroup_size }: Settings,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
         let indirect_nodes = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: node_ids_and_collider_bits.len() as u32,
         });
 
-        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
+        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes])?;
 
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
             node_ids_and_collider_bits,
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             indirect_nodes,
             node_ids_and_collider_bits,
-        }
+        })
     }
 }
 

@@ -265,6 +265,8 @@ impl SimulationInput for SimulationInputImpl {
         } in current_frame.particles_inputs.values()
         {
             let n = flags.len();
+            ensure!(transforms.len().is_multiple_of(16));
+            ensure!(initial_positions.len().is_multiple_of(3));
             ensure!(n == transforms.len() / 16);
             ensure!(n == sizes.len());
             ensure!(n == densities.len());
@@ -277,8 +279,7 @@ impl SimulationInput for SimulationInputImpl {
                 // these have to be complete
                 vertex_positions,
                 triangles,
-
-                triangle_frictions: _,
+                triangle_frictions,
             },
         ) in current_frame.collider_inputs.iter()
         {
@@ -290,7 +291,10 @@ impl SimulationInput for SimulationInputImpl {
             else {
                 bail!("Input object type changed");
             };
+            ensure!(vertex_positions.len().is_multiple_of(3));
+            ensure!(triangles.len().is_multiple_of(3));
             ensure!(*num_vertices == vertex_positions.len() / 3);
+            ensure!(triangles.len() / 3 == triangle_frictions.len());
             ensure!(triangles.iter().all(|&vertex_idx| {
                 vertex_idx >= 0 && (vertex_idx as usize) < vertex_positions.len()
             }));

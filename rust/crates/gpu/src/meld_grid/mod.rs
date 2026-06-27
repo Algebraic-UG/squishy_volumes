@@ -52,8 +52,8 @@ impl Input {
             node_ids_and_collider_bits,
             node_momentums_in,
         }: InputData,
-    ) -> Self {
-        assert_eq!(node_ids_and_collider_bits.len(), node_momentums_in.len());
+    ) -> Result<Self, GpuError> {
+        check_length!(node_ids_and_collider_bits, node_momentums_in)?;
 
         let indirect_nodes = Indirect::new(DispatchSettings {
             workgroup_size,
@@ -87,27 +87,27 @@ impl Input {
 
         let multi_offsets = prefix_sum_on_cpu(&multi_counts);
 
-        assert_eq!(multi.len(), node_ids_and_collider_bits.len());
+        check_length!(node_ids_and_collider_bits, multi)?;
 
-        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes]);
+        let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes])?;
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
             node_ids_and_collider_bits,
-        );
-        let hash_table_multi = Allocation::new(device, "hash_table_multi", &hash_table_multi);
-        let multi_offsets = Allocation::new(device, "multi_offsets", &multi_offsets);
-        let multi = Allocation::new(device, "multi", &multi);
-        let node_momentums_in = Allocation::new(device, "node_momentums_in", node_momentums_in);
+        )?;
+        let hash_table_multi = Allocation::new(device, "hash_table_multi", &hash_table_multi)?;
+        let multi_offsets = Allocation::new(device, "multi_offsets", &multi_offsets)?;
+        let multi = Allocation::new(device, "multi", &multi)?;
+        let node_momentums_in = Allocation::new(device, "node_momentums_in", node_momentums_in)?;
 
-        Self {
+        Ok(Self {
             indirect_nodes,
             node_ids_and_collider_bits,
             hash_table_multi,
             multi_offsets,
             multi,
             node_momentums_in,
-        }
+        })
     }
 }
 

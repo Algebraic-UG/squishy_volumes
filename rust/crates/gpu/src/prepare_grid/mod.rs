@@ -70,24 +70,24 @@ impl Input {
             ..
         }: Settings,
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
-    ) -> Self {
+    ) -> Result<Self, GpuAllocatorError> {
         let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: particle_positions_and_collider_bits.len() as u32,
         });
         let indirect_particles =
-            Allocation::new(device, "indirect_particles", &[indirect_particles]);
+            Allocation::new(device, "indirect_particles", &[indirect_particles])?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
             particle_positions_and_collider_bits,
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             indirect_particles,
             particle_positions_and_collider_bits,
-        }
+        })
     }
 }
 

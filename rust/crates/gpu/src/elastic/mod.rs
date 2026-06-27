@@ -38,23 +38,23 @@ impl Input {
         dispatch_limit: NonZeroU32,
         position_gradients: &[Matrix4x3<f32>],
         particle_parameters: &[particle_parameters::Device],
-    ) -> Self {
-        assert_eq!(position_gradients.len(), particle_parameters.len());
+    ) -> Result<Self, GpuError> {
+        check_length!(position_gradients, particle_parameters)?;
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: position_gradients.len() as u32,
         });
-        let indirect = Allocation::new(device, "indirect", &[indirect]);
-        let position_gradients = Allocation::new(device, "position_gradients", position_gradients);
+        let indirect = Allocation::new(device, "indirect", &[indirect])?;
+        let position_gradients = Allocation::new(device, "position_gradients", position_gradients)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", particle_parameters);
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
 
-        Self {
+        Ok(Self {
             indirect,
             position_gradients,
             particle_parameters,
-        }
+        })
     }
 }
 

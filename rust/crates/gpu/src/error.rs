@@ -55,4 +55,86 @@ pub enum GpuError {
 
     #[error("Something went wrong with creating the profiler: {0}")]
     ProfilerError(#[from] wgpu_profiler::CreationError),
+
+    #[error("Input to the GPU wasn't valid: {0}")]
+    Input(#[from] GpuInputError),
+}
+
+#[derive(Error, Debug)]
+pub enum GpuInputError {
+    #[error("Length mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}")]
+    LengthMismatch {
+        a: &'static str,
+        a_len: usize,
+        b: &'static str,
+        b_len: usize,
+    },
+    #[error("Length multiple mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}")]
+    LengthMultipleMismatch {
+        a: &'static str,
+        a_len: usize,
+        b: &'static str,
+        b_len: usize,
+        multiple: usize,
+    },
+    #[error(
+        "Index out of bounds: '{indices}' contains {index} but length of {indexed} is {indexed_len}"
+    )]
+    IndexOutOfBounds {
+        indices: &'static str,
+        index: usize,
+        indexed: &'static str,
+        indexed_len: usize,
+    },
+}
+
+#[macro_export]
+macro_rules! check_length {
+    ($a:expr, $b:expr) => {
+        if $a.len() != $b.len() {
+            Err(GpuInputError::LengthMismatch {
+                a: stringify!($a),
+                a_len: $a.len(),
+                b: stringify!($b),
+                b_len: $b.len(),
+            })
+        } else {
+            Ok(())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! check_length_multiple {
+    ($a:expr, $b:expr, $multiple:expr) => {
+        if $a.len() != $b.len() {
+            Err(GpuInputError::LengthMismatch {
+                a: stringify!($a),
+                a_len: $a.len(),
+                b: stringify!($b),
+                b_len: $b.len(),
+            })
+        } else {
+            Ok(())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! check_indices_valid {
+    ($indices:expr, $indexed:expr) => {
+        if let Some(&index) = $indices
+            .into_iter()
+            .find(|&&index| (index as usize) >= $indexed.len())
+        {
+            Err(GpuInputError::IndexOutOfBounds {
+                indices: stringify!($indices),
+                index: index as usize,
+                indexed: stringify!($indexed),
+                indexed_len: $indexed.len(),
+            })
+        } else {
+            Ok(())
+        }
+    };
 }
