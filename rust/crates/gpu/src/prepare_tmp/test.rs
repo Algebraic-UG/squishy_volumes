@@ -161,7 +161,7 @@ fn test_many_random_props() {
 fn run(settings: Settings, input_data: InputData<'_>) -> Vec<Matrix4<f32>> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), input_data);
+    let input = Input::new(context.device(), input_data).unwrap();
     let prepare_tmp = PrepareTmp::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

@@ -55,7 +55,7 @@ fn test_random() {
 fn run_counts_indirect(settings: Settings, len: u32) -> Vec<Indirect> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings, len);
+    let input = Input::new(context.device(), settings, len).unwrap();
     let counts_indirect = CountsIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

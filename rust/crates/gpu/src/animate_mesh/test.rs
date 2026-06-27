@@ -119,7 +119,7 @@ fn run(
 ) -> (Vec<Vector4<f32>>, Vec<Vector4<f32>>, Vec<Vector4<f32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), input_data);
+    let input = Input::new(context.device(), input_data).unwrap();
     let step = AnimateMesh::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

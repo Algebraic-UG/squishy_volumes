@@ -127,7 +127,7 @@ fn run_reorder_indices(
 ) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings, indices, keys, prefix_sums);
+    let input = Input::new(context.device(), settings, indices, keys, prefix_sums).unwrap();
 
     let reorder_indices = ReorderIndices::new(&context, settings);
 

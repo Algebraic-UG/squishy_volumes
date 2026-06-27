@@ -64,8 +64,8 @@ fn specific() {
     };
     let keys = [2, 0, 1, 100, 200, 42];
 
-    let indirect = Allocation::new(context.device(), "indirect", &[indirect]);
-    let keys = Allocation::new(context.device(), "keys", &keys);
+    let indirect = Allocation::new(context.device(), "indirect", &[indirect]).unwrap();
+    let keys = Allocation::new(context.device(), "keys", &keys).unwrap();
 
     let indices = run_with_input(
         Settings {
@@ -92,7 +92,7 @@ fn specific() {
 fn run_radix_sort(settings: Settings, indices: Option<&[u32]>, keys: &[u32]) -> Vec<u32> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings.clone(), indices, keys);
+    let input = Input::new(context.device(), settings.clone(), indices, keys).unwrap();
     run_with_input(settings, &mut context, input, false)
 }
 

@@ -155,7 +155,8 @@ fn run_elastic(
         dispatch_limit,
         position_gradients,
         particle_parameters,
-    );
+    )
+    .unwrap();
 
     let elastic = Elastic::new(&context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());

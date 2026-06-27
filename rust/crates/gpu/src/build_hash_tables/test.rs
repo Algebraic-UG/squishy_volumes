@@ -142,7 +142,8 @@ fn run(settings: Settings, node_id_and_collider_bits: &[NodeIdAndColliderBits]) 
         (u16::MAX as u32).try_into().unwrap(),
         settings.clone(),
         node_id_and_collider_bits,
-    );
+    )
+    .unwrap();
     let build_hash_tables = BuildHashTables::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

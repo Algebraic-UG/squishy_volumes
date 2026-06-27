@@ -394,7 +394,7 @@ fn run(
 ) -> (Vec<PositionAndColliderBits>, Vec<Vector4<f32>>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), &settings, input_data);
+    let input = Input::new(context.device(), &settings, input_data).unwrap();
     let step = Collide::new(&context, settings);
 
     let particle_positions_and_collider_bits = input.particle_positions_and_collider_bits.clone();

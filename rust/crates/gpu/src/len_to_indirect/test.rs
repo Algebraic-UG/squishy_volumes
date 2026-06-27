@@ -65,7 +65,7 @@ fn test_random() {
 fn run(settings: Settings, len: u32) -> Vec<Indirect> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), len);
+    let input = Input::new(context.device(), len).unwrap();
     let len_to_indirect = LenToIndirect::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

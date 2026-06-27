@@ -104,7 +104,8 @@ fn run(
         settings.workgroup_size,
         dispatch_limit,
         node_ids_and_collider_bits,
-    );
+    )
+    .unwrap();
 
     let node_ids_to_murmur = NodeIdsToMurmur::new(&context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());

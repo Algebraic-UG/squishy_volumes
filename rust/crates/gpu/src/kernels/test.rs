@@ -53,7 +53,7 @@ fn test_random() {
 fn run_kernels(settings: Settings, values: &[f32]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), values);
+    let input = Input::new(context.device(), values).unwrap();
     let kernels = Kernels::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

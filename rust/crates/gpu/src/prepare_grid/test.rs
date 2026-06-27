@@ -191,7 +191,8 @@ fn run_prepare_grid(
         context.device(),
         settings.clone(),
         positions_and_collider_bits,
-    );
+    )
+    .unwrap();
     let prepare_grid = PrepareGrid::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

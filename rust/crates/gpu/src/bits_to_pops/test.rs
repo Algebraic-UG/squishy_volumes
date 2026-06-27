@@ -54,7 +54,8 @@ fn run(settings: Settings, bits: &[u32]) -> Vec<u32> {
         settings,
         (u16::MAX as u32).try_into().unwrap(),
         bits,
-    );
+    )
+    .unwrap();
     let bits_to_pops = BitsToPops::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());

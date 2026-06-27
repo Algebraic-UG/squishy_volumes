@@ -113,7 +113,8 @@ fn run(
         settings.clone(),
         node_ids_and_collider_bits,
         positions_and_collider_bits,
-    );
+    )
+    .unwrap();
     let register_contributors = RegisterContributors::new(&context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
