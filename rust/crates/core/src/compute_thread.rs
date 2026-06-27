@@ -22,11 +22,11 @@ use anyhow::{Context, Result};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
 use squishy_volumes_gpu::{
-    Allocation, PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, profiler_output,
-    wgpu, wgpu_profiler,
+    Allocation, PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, wgpu,
+    wgpu_profiler,
 };
 use strum::IntoEnumIterator;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     input_file::{InputConsts, InputReader},
@@ -133,16 +133,21 @@ impl ComputeThread {
                     .load(&phase_input.consts, frame_time.floor() as usize)?;
 
                 let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
-                    info!("setting up GPU allocators");
-                    gpu_context.setup_allocator(
-                        current_state.particles.sort_map.len().max(1000) as u64 * 4096,
-                        "main allocator",
-                        true,
-                    )?;
-                    gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
+                    if current_state.particles.sort_map.is_empty() {
+                        warn!("can't setup GPU state without particles");
+                        None
+                    } else {
+                        info!("setting up GPU allocators");
+                        gpu_context.setup_allocator(
+                            current_state.particles.sort_map.len().max(1000) as u64 * 4096,
+                            "main allocator",
+                            true,
+                        )?;
+                        gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
 
-                    info!("setting up GPU state");
-                    Some(current_state.to_gpu_state(&mut phase_input, gpu_context)?)
+                        info!("setting up GPU state");
+                        Some(current_state.to_gpu_state(&mut phase_input, gpu_context)?)
+                    }
                 } else {
                     None
                 };

@@ -66,11 +66,6 @@ impl State {
         let frame_time = self.time * phase_input.consts.frames_per_second as f64;
         assert!(phase_input.next_frame != 0);
 
-        tracing::info!(
-            frame_time,
-            low = (phase_input.next_frame - 1) as f64,
-            high = phase_input.next_frame as f64
-        );
         if frame_time < (phase_input.next_frame - 1) as f64
             || frame_time > phase_input.next_frame as f64
         {
@@ -265,10 +260,14 @@ impl State {
                         .map(|v| v.len() as u32)
                         .collect::<Vec<_>>(),
                 );
-                let vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
+                let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
                     .iter()
                     .flat_map(|list| list.iter().cloned())
                     .collect();
+                if vertex_triangle_lists.is_empty() {
+                    tracing::warn!("all vertices are on open edges");
+                    vertex_triangle_lists.push(0);
+                }
 
                 tracing::info!("creating mesh allocations");
                 let vertex_positions_start =
