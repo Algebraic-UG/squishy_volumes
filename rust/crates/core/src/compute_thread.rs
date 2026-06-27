@@ -298,7 +298,7 @@ impl ComputeFrameGPU<'_> {
                 &mut scope.into(),
                 next_input.clone(),
                 squishy_volumes_gpu::step::Parameters {
-                    factor: current_state.frame_factor(phase_input)? as f32,
+                    factor: current_state.frame_factor(phase_input)?,
                 },
             )?;
             current_state.time += phase_input.time_step as f64;
@@ -315,7 +315,7 @@ impl ComputeFrameGPU<'_> {
         }
 
         let downloads = squishy_volumes_gpu::DownloadsToHost::new(
-            &gpu_context,
+            gpu_context,
             [
                 next_input.particle_positions_and_collider_bits.clone(),
                 next_input.particle_position_gradients.clone(),
@@ -372,7 +372,7 @@ impl ComputeFrameGPU<'_> {
             .unwrap();
 
         //profiler_output(&gpu_context, &mut profiler)?;
-        profile_data_csv_writer.write_frame(&gpu_context, &mut profiler, phase_input.next_frame)?;
+        profile_data_csv_writer.write_frame(gpu_context, &mut profiler, phase_input.next_frame)?;
 
         info!("download");
         let [
