@@ -20,19 +20,16 @@ impl State {
     pub fn interpolate_input(mut self, phase_input: &mut PhaseInput) -> Result<Self> {
         profile!("interpolate_input");
 
-        let time = self.time;
-        let frame_time = time * phase_input.consts.frames_per_second as f64;
-
         // this should be a no-op for all in-between-frame-steps
         phase_input
             .input_interpolation
-            .load(&phase_input.consts, frame_time.floor() as usize)?;
+            .load(&phase_input.consts, phase_input.next_frame - 1)?;
 
         let a = phase_input.input_interpolation.a();
         let b = phase_input.input_interpolation.b().unwrap_or(a);
 
         // linear interpolation between a and b
-        let factor_b = (frame_time % 1.) as T;
+        let factor_b = self.frame_factor(phase_input)?;
         let factor_a = 1. - factor_b;
 
         let gravity = factor_a * a.gravity() + factor_b * b.gravity();

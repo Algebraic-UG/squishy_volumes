@@ -6,8 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use anyhow::{Result, bail};
 use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
 use serde::{Deserialize, Serialize};
+use squishy_volumes_api::T;
 use squishy_volumes_gpu::{
     Allocation, BoundingVolumeHierarchyAllocations, DispatchSettings, GpuAllocatorError, Indirect,
     PipelinePart, PositionAndColliderBits, prefix_sum_on_cpu,
@@ -33,7 +35,7 @@ pub use interpolated_input::InterpolatedInput;
 use object::{ObjectCollider, ObjectParticles};
 use particles::Particles;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct State {
     pub time: f64,
     pub phase: Phase,
@@ -58,6 +60,28 @@ pub enum ObjectIndex {
 impl State {
     pub fn time(&self) -> f64 {
         self.time
+    }
+
+    pub fn frame_factor(&self, phase_input: &PhaseInput) -> Result<T> {
+        let frame_time = self.time * phase_input.consts.frames_per_second as f64;
+        assert!(phase_input.next_frame != 0);
+
+        tracing::info!(
+            frame_time,
+            low = (phase_input.next_frame - 1) as f64,
+            high = phase_input.next_frame as f64
+        );
+        if frame_time < (phase_input.next_frame - 1) as f64
+            || frame_time > phase_input.next_frame as f64
+        {
+            bail!(
+                "Mismatch between time {} and next_frame {}",
+                self.time,
+                phase_input.next_frame
+            );
+        }
+
+        Ok((frame_time % 1.) as T)
     }
 
     pub fn stats(&self) -> StateStats {

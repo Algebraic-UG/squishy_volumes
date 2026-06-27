@@ -86,6 +86,8 @@ pub struct PhaseInput {
 
     pub input_interpolation: InputInterpolation,
 
+    pub next_frame: usize,
+
     pub max_time_step: T,
     pub time_step_by_velocity: Option<T>,
     pub time_step_by_deformation: Option<T>,

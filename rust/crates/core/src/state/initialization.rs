@@ -94,6 +94,23 @@ impl State {
             action_matrices: _,
         } = &mut particles;
 
+        if input_header
+            .objects
+            .values()
+            .find(|object| matches!(object, InputObject::Particles))
+            .is_none()
+        {
+            tracing::warn!("No input particle objects");
+        }
+        if input_header
+            .objects
+            .values()
+            .find(|object| matches!(object, InputObject::Collider { .. }))
+            .is_none()
+        {
+            tracing::warn!("No input collider objects");
+        }
+
         for (name, object) in input_header.objects.iter() {
             match object {
                 InputObject::Particles => {

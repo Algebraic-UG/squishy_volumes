@@ -75,13 +75,12 @@ pub fn profiler_output(
     Ok(())
 }
 
-#[derive(Default)]
-pub struct ProfileDataCsvWriter<W> {
-    writer: W,
+pub struct ProfileDataCsvWriter {
+    writer: BufWriter<File>,
     labels: Option<Vec<String>>,
 }
 
-impl ProfileDataCsvWriter<BufWriter<File>> {
+impl ProfileDataCsvWriter {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, ProfilerError> {
         let writer = BufWriter::new(File::create(path)?);
         Ok(Self {
