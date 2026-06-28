@@ -126,11 +126,9 @@ impl ComputeThread {
                     next_frame,
                 };
 
-                let frame_time = current_state.time() * phase_input.consts.frames_per_second as f64;
-                // this should be a no-op for all in-between-frame-steps
                 phase_input
                     .input_interpolation
-                    .load(&phase_input.consts, frame_time.floor() as usize)?;
+                    .load(&phase_input.consts, phase_input.next_frame)?;
 
                 let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
                     if current_state.particles.sort_map.is_empty() {
@@ -340,7 +338,7 @@ impl ComputeFrameGPU<'_> {
         info!("prepare next collider geometry");
         phase_input
             .input_interpolation
-            .load(&phase_input.consts, phase_input.next_frame + 1)?;
+            .load(&phase_input.consts, phase_input.next_frame)?;
 
         if let Some(collider_input) = next_input.collider_input.as_mut() {
             let a = phase_input.input_interpolation.a();

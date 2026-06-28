@@ -70,8 +70,7 @@ impl State {
             || frame_time > phase_input.next_frame as f64
         {
             bail!(
-                "Mismatch between time {} and next_frame {}",
-                self.time,
+                "Mismatch between frame_time {frame_time} and next_frame {}",
                 phase_input.next_frame
             );
         }
