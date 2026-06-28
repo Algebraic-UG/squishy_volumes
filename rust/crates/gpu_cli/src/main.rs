@@ -472,6 +472,7 @@ fn main() {
             );
         }
         Task::Step => {
+            let gravity = Vector4::new(0., 0., -9.8, 0.);
             let aabb = Aabb {
                 min: Vector3::repeat(-100.),
                 max: Vector3::repeat(100.),
@@ -499,6 +500,7 @@ fn main() {
                 leaf_threshold,
                 settings,
                 gpu::step::InputData {
+                    gravity,
                     masses: &test_particles.particle_masses,
                     initial_volumes: &test_particles.particle_initial_volumes,
                     parameters: &test_particles.particle_parameters,

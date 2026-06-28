@@ -23,6 +23,7 @@ use super::*;
 
 pub struct Step {
     animate_mesh: AnimateMesh,
+    external_force: ExternalForce,
     collide: Collide,
     prepare_grid: PrepareGrid,
     register_contributors: RegisterContributors,
@@ -63,6 +64,7 @@ pub struct ColliderInput {
 
 #[derive(Clone)]
 pub struct Input {
+    pub gravity: Allocation,
     pub indirect_particles: Allocation,
     pub particle_masses: Allocation,
     pub particle_initial_volumes: Allocation,
@@ -77,6 +79,7 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
+    pub gravity: Vector4<f32>,
     pub masses: &'a [f32],
     pub initial_volumes: &'a [f32],
     pub parameters: &'a [particle_parameters::Device],
@@ -104,6 +107,7 @@ impl Input {
             ..
         }: Settings,
         InputData {
+            gravity,
             masses,
             initial_volumes,
             parameters,
@@ -181,6 +185,7 @@ impl Input {
             len: masses.len() as u32,
         });
 
+        let gravity = Allocation::new(device, "gravity", &[gravity])?;
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
         let particle_masses = Allocation::new(device, "particle_masses", masses)?;
         let particle_initial_volumes =
@@ -214,6 +219,8 @@ impl Input {
         let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
         Ok(Self {
+            gravity,
+
             indirect_particles,
 
             particle_masses,
@@ -267,6 +274,14 @@ impl PipelinePart for Step {
             animate_mesh::Settings {
                 workgroup_size,
                 dispatch_limit,
+            },
+        );
+        let external_force = ExternalForce::new(
+            context,
+            external_force::Settings {
+                workgroup_size,
+                dispatch_limit,
+                time_step,
             },
         );
         let collide = Collide::new(
@@ -324,6 +339,7 @@ impl PipelinePart for Step {
 
         Self {
             animate_mesh,
+            external_force,
             collide,
             prepare_grid,
             register_contributors,
@@ -339,6 +355,7 @@ impl PipelinePart for Step {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            gravity,
             indirect_particles,
             particle_masses,
             particle_initial_volumes,
@@ -379,6 +396,16 @@ impl PipelinePart for Step {
                     triangle_indices: triangle_indices.clone(),
                 },
                 animate_mesh::Parameters { factor },
+            )?;
+
+            let external_force::Output = self.external_force.record(
+                context,
+                encoder,
+                external_force::Input {
+                    gravity,
+                    particle_velocities: particle_velocities.clone(),
+                },
+                external_force::Parameters,
             )?;
 
             let collide::Output = self.collide.record(

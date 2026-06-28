@@ -210,7 +210,14 @@ impl State {
             len: num_particles as u32,
         });
 
+        let a = phase_input.input_interpolation.a();
+        let b = phase_input.input_interpolation.b().unwrap_or(a);
+
         tracing::info!("creating particle allocations");
+
+        // TODO: interpolate that
+        let gravity = Allocation::new(device, "gravity", &[a.gravity().push(0.)])?;
+
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
         let particle_masses = Allocation::new(device, "particle_masses", &self.particles.masses)?;
         let particle_initial_volumes = Allocation::new(
@@ -237,9 +244,6 @@ impl State {
             "particle_velocity_gradients",
             &particle_velocity_gradients,
         )?;
-
-        let a = phase_input.input_interpolation.a();
-        let b = phase_input.input_interpolation.b().unwrap_or(a);
 
         let collider_input = (!phase_input.input_interpolation.topology().is_empty())
             .then(|| {
@@ -314,6 +318,7 @@ impl State {
             .transpose()?;
 
         let next_input = squishy_volumes_gpu::step::Input {
+            gravity,
             indirect_particles,
             particle_masses,
             particle_initial_volumes,
