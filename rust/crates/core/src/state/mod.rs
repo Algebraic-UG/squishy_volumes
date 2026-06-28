@@ -48,6 +48,7 @@ pub struct State {
     pub particles: Particles,
     pub grid: GridMomentum,
 
+    #[serde(skip)]
     pub interpolated_input: Option<InterpolatedInput>,
 }
 
