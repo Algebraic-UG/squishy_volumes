@@ -50,8 +50,12 @@ In total free: {total_free}"
 }
 
 pub struct GpuAllocator {
-    min_storage_buffer_offset_alignment: u64,
     max_storage_buffer_binding_size: u64,
+    buffers: Vec<GpuBuffer>,
+}
+
+struct GpuBuffer {
+    min_storage_buffer_offset_alignment: u64,
     buffer: Arc<wgpu::Buffer>,
     partitions: Vec<Partition>,
 }
@@ -129,13 +133,14 @@ impl Allocation {
     }
 }
 
-impl GpuAllocator {
-    pub fn new(
+impl GpuBuffer {
+    fn new(
         context: &GpuContext,
         size: u64,
-        label: &'static str,
+        label: &str,
         scram: bool,
     ) -> Result<Self, GpuAllocatorError> {
+        tracing::info!(label, size, "creating new gpu buffer");
         if context.adapter().limits().max_buffer_size < size {
             return Err(GpuAllocatorError::ExceedingMaxBufferSize {
                 requested: size,
@@ -177,44 +182,20 @@ impl GpuAllocator {
             .limits()
             .min_storage_buffer_offset_alignment
             as u64;
-        let max_storage_buffer_binding_size =
-            context.device().limits().max_storage_buffer_binding_size;
 
         Ok(Self {
             min_storage_buffer_offset_alignment,
-            max_storage_buffer_binding_size,
             buffer,
             partitions,
         })
     }
 
-    pub fn allocate<T: AllowedInBinding>(
-        &mut self,
-        label: &'static str,
-        len: NonZeroU64,
-    ) -> Result<Allocation, GpuAllocatorError> {
-        self.allocate_raw(
-            label,
-            NonZeroU64::new(T::MIN_BINDING_SIZE.get() * len.get()).unwrap(),
-            T::ALIGNMENT,
-        )
-    }
-
-    pub fn allocate_raw(
+    fn allocate_raw(
         &mut self,
         label: &'static str,
         size: NonZeroU64,
         align: NonZeroU64,
-    ) -> Result<Allocation, GpuAllocatorError> {
-        // sanity check
-        if self.max_storage_buffer_binding_size < size.get() {
-            return Err(GpuAllocatorError::ExceedingMaxBufferBindingSize {
-                label,
-                requested: size.get(),
-                max: self.max_storage_buffer_binding_size,
-            });
-        }
-
+    ) -> Option<Allocation> {
         self.fix();
 
         let mut allocation = None;
@@ -256,12 +237,7 @@ impl GpuAllocator {
             ));
         }
 
-        allocation.ok_or(GpuAllocatorError::FailedToFindSpace {
-            label,
-            requested: size.get(),
-            continuous_free: self.biggest_free(),
-            total_free: self.total_free(),
-        })
+        allocation
     }
 
     fn free_sizes(&self) -> impl Iterator<Item = u64> + '_ {
@@ -274,11 +250,11 @@ impl GpuAllocator {
         })
     }
 
-    pub fn biggest_free(&self) -> u64 {
+    fn biggest_free(&self) -> u64 {
         self.free_sizes().max().unwrap_or(0)
     }
 
-    pub fn total_free(&self) -> u64 {
+    fn total_free(&self) -> u64 {
         self.free_sizes().sum()
     }
 
@@ -317,7 +293,7 @@ impl GpuAllocator {
         }
     }
 
-    pub fn check_overlap(&self) {
+    fn check_overlap(&self) {
         for a in 0..self.partitions.len() {
             for b in a + 1..self.partitions.len() {
                 println!("{a} vs {b}");
@@ -327,6 +303,94 @@ impl GpuAllocator {
                 assert!(!a.overlap(b));
             }
         }
+    }
+}
+
+impl GpuAllocator {
+    pub fn new(
+        context: &GpuContext,
+        size: u64,
+        label: &'static str,
+        scram: bool,
+    ) -> Result<Self, GpuAllocatorError> {
+        let max_buffer_size = context.adapter().limits().max_buffer_size;
+        let num_buffer = size.div_ceil(max_buffer_size);
+        tracing::info!(label, size, num_buffer, "creating new gpu allocator");
+
+        let max_storage_buffer_binding_size =
+            context.device().limits().max_storage_buffer_binding_size;
+
+        Ok(Self {
+            max_storage_buffer_binding_size,
+            buffers: (0..num_buffer)
+                .map(|i| {
+                    assert!(size > i * max_buffer_size);
+                    let size = (size - i * max_buffer_size).min(max_buffer_size);
+                    GpuBuffer::new(context, size, &format!("{label}-{i}"), scram)
+                })
+                .collect::<Result<_, _>>()?,
+        })
+    }
+
+    pub fn allocate<T: AllowedInBinding>(
+        &mut self,
+        label: &'static str,
+        len: NonZeroU64,
+    ) -> Result<Allocation, GpuAllocatorError> {
+        self.allocate_raw(
+            label,
+            NonZeroU64::new(T::MIN_BINDING_SIZE.get() * len.get()).unwrap(),
+            T::ALIGNMENT,
+        )
+    }
+
+    pub fn allocate_raw(
+        &mut self,
+        label: &'static str,
+        size: NonZeroU64,
+        align: NonZeroU64,
+    ) -> Result<Allocation, GpuAllocatorError> {
+        // sanity check
+        if self.max_storage_buffer_binding_size < size.get() {
+            return Err(GpuAllocatorError::ExceedingMaxBufferBindingSize {
+                label,
+                requested: size.get(),
+                max: self.max_storage_buffer_binding_size,
+            });
+        }
+
+        for buffer in &mut self.buffers {
+            if let Some(allocation) = buffer.allocate_raw(label, size, align) {
+                return Ok(allocation);
+            }
+        }
+
+        Err(GpuAllocatorError::FailedToFindSpace {
+            label,
+            requested: size.get(),
+            continuous_free: self.biggest_free(),
+            total_free: self.total_free(),
+        })
+    }
+
+    pub fn biggest_free(&self) -> u64 {
+        self.buffers
+            .iter()
+            .map(GpuBuffer::biggest_free)
+            .max()
+            .unwrap_or(0)
+    }
+
+    pub fn total_free(&self) -> u64 {
+        self.buffers.iter().map(GpuBuffer::total_free).sum()
+    }
+
+    pub fn check_overlap(&self) {
+        self.buffers.iter().for_each(GpuBuffer::check_overlap);
+    }
+
+    fn fix(&mut self) {
+        self.buffers.iter_mut().for_each(GpuBuffer::fix);
     }
 }
 
