@@ -250,7 +250,12 @@ impl ComputeThread {
             return Ok(None);
         };
         if thread.is_finished() {
-            thread.join().unwrap().context("Compute Fail")?;
+            thread
+                .join()
+                .map_err(|_| {
+                    anyhow::anyhow!("Compute Panic, could be out of memory, please consult logs.")
+                })?
+                .context("Compute Fail")?;
             return Ok(None);
         }
         self.thread = Some(thread);
