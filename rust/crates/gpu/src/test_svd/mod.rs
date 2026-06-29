@@ -65,7 +65,10 @@ impl PipelinePart for TestSvd {
             test_svd,
             CompiledModuleSettings {
                 device: context.device(),
-                bind_group_entries: [(Matrix4x3::<f32>::MIN_BINDING_SIZE, false)],
+                bind_group_entries: [
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
+                    (Svd::MIN_BINDING_SIZE, false),
+                ],
                 immediate_size: 0,
                 constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
             }
@@ -99,7 +102,11 @@ impl PipelinePart for TestSvd {
         compute_pass.set_pipeline(&self.test_svd.compute_pipeline);
         compute_pass.set_bind_group(
             0,
-            &create_bind_group(context.device(), &self.test_svd, [matrices.binding()]),
+            &create_bind_group(
+                context.device(),
+                &self.test_svd,
+                [matrices.binding(), svds.binding()],
+            ),
             &[],
         );
         compute_pass.dispatch_workgroups(x, y, z);

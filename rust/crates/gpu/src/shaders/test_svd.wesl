@@ -6,8 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import package::wgebra::svd3::{Svd, svd};
 import super::util::{Indirect, get_global_index};
+import super::svd::{Svd, svd};
 
 @group(0) @binding(0)
 var<storage, read_write> matrices: array<mat3x3f>;
@@ -23,7 +23,7 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
-    if global_index >= indirect.len {
+    if global_index >= arrayLength(&matrices) {
         return;
     }
 
