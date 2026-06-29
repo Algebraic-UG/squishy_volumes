@@ -15,7 +15,7 @@ use crate::AllowedInBinding;
 pub struct Svd {
     pub u: Matrix4x3<f32>,
     pub s: Vector4<f32>,
-    pub v: Matrix4x3<f32>,
+    pub v_t: Matrix4x3<f32>,
 }
 
 impl AllowedInBinding for Svd {

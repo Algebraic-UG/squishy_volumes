@@ -33,17 +33,21 @@ fn check(matrices: &[Matrix4x3<f32>]) {
         println!("u");
         println!("{} vs {}", cpu.u.unwrap(), gpu.u.fixed_view::<3, 3>(0, 0));
         println!("{} vs {}", cpu.singular_values, gpu.s.xyz());
-        println!("{} vs {}", cpu.v_t.unwrap(), gpu.v.fixed_view::<3, 3>(0, 0));
+        println!(
+            "{} vs {}",
+            cpu.v_t.unwrap(),
+            gpu.v_t.fixed_view::<3, 3>(0, 0)
+        );
         println!(
             "{} vs {}",
             cpu.recompose().unwrap(),
             gpu.u.fixed_view::<3, 3>(0, 0)
                 * Matrix3::from_diagonal(&gpu.s.xyz())
-                * gpu.v.fixed_view::<3, 3>(0, 0)
+                * gpu.v_t.fixed_view::<3, 3>(0, 0)
         );
 
         let cpu_uv = cpu.u.unwrap() * cpu.v_t.unwrap();
-        let gpu_uv = gpu.u.fixed_view::<3, 3>(0, 0) * gpu.v.fixed_view::<3, 3>(0, 0);
+        let gpu_uv = gpu.u.fixed_view::<3, 3>(0, 0) * gpu.v_t.fixed_view::<3, 3>(0, 0);
 
         println!("uv");
         check_iters_by_norm(&cpu_uv, &gpu_uv);

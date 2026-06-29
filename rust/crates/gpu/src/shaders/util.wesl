@@ -202,6 +202,11 @@ struct ParticleParameters {
     e: f32,
 }
 
+const IS_SOLID: u32 = 1;
+const IS_FLUID: u32 = 1 << 1;
+const USE_VISCOSITY: u32 = 1 << 2;
+const USE_SAND_ALPHA: u32 = 1 << 3;
+
 fn invariant_2(position_gradient: mat3x3f) -> f32 {
     return dot(position_gradient[0], position_gradient[0]) +
         dot(position_gradient[1], position_gradient[1]) +
