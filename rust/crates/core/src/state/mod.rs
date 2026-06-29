@@ -149,13 +149,13 @@ impl State {
                         mu,
                         lambda,
                         viscosity: _,
-                        sand_alpha: _,
+                        sand_alpha,
                     } => squishy_volumes_gpu::particle_parameters::Host::Solid(
                         squishy_volumes_gpu::particle_parameters::Solid {
                             mu,
                             lambda,
                             viscosity: None,
-                            sand_alpha: None,
+                            sand_alpha,
                         },
                     ),
                     crate::state::particles::ParticleParameters::Fluid {
