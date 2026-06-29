@@ -493,6 +493,8 @@ impl Drop for ComputeThread {
             return;
         };
         self.run.store(false, Ordering::Relaxed);
-        let _ = thread.join().unwrap();
+        if let Err(e) = thread.join() {
+            tracing::error!("Compute Panic, could be out of memory, please consult logs.");
+        }
     }
 }
