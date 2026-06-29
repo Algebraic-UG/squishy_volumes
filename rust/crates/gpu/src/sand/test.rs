@@ -55,8 +55,7 @@ fn check(
             let e_tr = e.sum();
             let e_hat = e - Vector3::repeat(e_tr / 3.);
             let e_hat_norm = e_hat.norm();
-            if e_tr < 0. && e_hat_norm > 0. {
-                assert!(*mu > 0.);
+            if *mu > 0. && e_tr < 0. && e_hat_norm > 0. {
                 if e_hat_norm != 0. {
                     let delta_gamma =
                         e_hat_norm + (3. * lambda + 2. * mu) / 2. / mu * e_tr * sand_alpha;
@@ -86,7 +85,16 @@ fn check(
 fn random() {
     let n = 1000;
     check(
-        &test_lame_parameters().cycle().take(n).collect::<Vec<_>>(),
+        &test_lame_parameters()
+            .cycle()
+            .take(n)
+            .map(|mut paramters| {
+                if let particle_parameters::Host::Solid(solid) = &mut paramters {
+                    solid.sand_alpha = Some(0.3);
+                };
+                paramters
+            })
+            .collect::<Vec<_>>(),
         #[allow(clippy::toplevel_ref_arg)]
         &test_position_gradients_random(1000)
             .into_iter()

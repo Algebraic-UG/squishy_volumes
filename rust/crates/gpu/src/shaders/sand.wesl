@@ -59,7 +59,7 @@ fn sand_plasticity(
     let e_tr = e.x + e.y + e.z;
     let e_hat = e - vec3f(e_tr / 3.);
     let e_hat_norm = length(e_hat);
-    if e_tr < 0. && e_hat_norm > 0. {
+    if mu > 0. && e_tr < 0. && e_hat_norm > 0. {
         if e_hat_norm != 0. {
             let delta_gamma = e_hat_norm + (3. * lambda + 2. * mu) / 2. / mu * e_tr * sand_alpha;
             if delta_gamma > 0. {
@@ -67,9 +67,9 @@ fn sand_plasticity(
                 svd.S = exp(big_h);
                 return recompose(svd);
             }
-        } else {
-            return svd.U * svd.Vt;
         }
+    } else {
+        return svd.U * svd.Vt;
     }
     return position_gradient;
 }
