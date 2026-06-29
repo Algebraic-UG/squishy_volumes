@@ -6,7 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA};
+import super::sand::sand_plasticity;
 
 @group(0) @binding(0)
 var<storage, read_write> masses: array<f32>;
@@ -54,17 +55,23 @@ fn main(
     let initial_volume = initial_volumes[global_index];
     let parameter = parameters[global_index];
     let position: vec3f = positions_and_collider_bits[global_index].position;
-    let position_gradient = position_gradients[global_index];
+    var position_gradient = position_gradients[global_index];
     let velocity = velocities[global_index];
     let velocity_gradient = velocity_gradients[global_index];
 
     var stress = mat3x3f();
-    if (parameter.flags & 1) > 0 {
+    if (parameter.flags & IS_SOLID) > 0 {
         let mu = parameter.a;
         let lambda = parameter.b;
+        if (parameter.flags & USE_SAND_ALPHA) > 0 {
+            let sand_alpha = parameter.e;
+            position_gradient = sand_plasticity(mu, lambda, sand_alpha, position_gradient);
+            position_gradients[global_index] = position_gradient;
+        }
+
         stress = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
     }
-    if (parameter.flags & 2) > 0 {
+    if (parameter.flags & IS_FLUID) > 0 {
         let exponent = parameter.a;
         let bulk_modulus = parameter.b;
         stress = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);

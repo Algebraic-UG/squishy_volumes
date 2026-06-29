@@ -40,8 +40,20 @@ fn main(
     let lambda = parameters.b;
     let sand_alpha = parameters.e;
 
-    let position_gradient = particle_position_gradients[global_index];
+    particle_position_gradients[global_index] = sand_plasticity(
+        mu,
+        lambda,
+        sand_alpha,
+        particle_position_gradients[global_index],
+    );
+}
 
+fn sand_plasticity(
+    mu: f32,
+    lambda: f32,
+    sand_alpha: f32,
+    position_gradient: mat3x3f
+) -> mat3x3f {
     var svd = svd(position_gradient);
     let e = log(svd.S);
     let e_tr = e.x + e.y + e.z;
@@ -53,10 +65,11 @@ fn main(
             if delta_gamma > 0. {
                 let big_h = e - delta_gamma / e_hat_norm * e_hat;
                 svd.S = exp(big_h);
-                particle_position_gradients[global_index] = recompose(svd);
+                return recompose(svd);
             }
         } else {
-            particle_position_gradients[global_index] = svd.U * svd.Vt;
+            return svd.U * svd.Vt;
         }
     }
+    return position_gradient;
 }
