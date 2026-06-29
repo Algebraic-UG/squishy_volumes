@@ -6,6 +6,8 @@ license = "MIT"
 
 [build-dependencies]
 wesl.workspace = true
+wgebra = "0.2.0"
+wgcore = "0.2.0"
 
 [dependencies]
 wesl.workspace = true

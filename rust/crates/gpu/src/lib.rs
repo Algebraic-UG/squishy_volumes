@@ -20,6 +20,7 @@ mod error;
 mod indirect;
 mod pipeline_part;
 mod profiler_output;
+mod svd;
 mod util;
 
 pub mod test_data;
@@ -35,6 +36,7 @@ pub use error::*;
 pub use indirect::*;
 pub use pipeline_part::*;
 pub use profiler_output::*;
+pub use svd::*;
 pub use util::*;
 
 pub mod animate_mesh;
@@ -60,6 +62,7 @@ pub mod register_contributors;
 pub mod reorder_indices;
 pub mod scatter;
 pub mod step;
+pub mod test_svd;
 
 pub use animate_mesh::AnimateMesh;
 pub use bits_to_pops::BitsToPops;
@@ -82,6 +85,7 @@ pub use register_contributors::RegisterContributors;
 pub use reorder_indices::ReorderIndices;
 pub use scatter::Scatter;
 pub use step::Step;
+pub use test_svd::TestSvd;
 
 #[cfg(test)]
 mod test_util;
