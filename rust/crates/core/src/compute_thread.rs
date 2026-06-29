@@ -15,10 +15,10 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     thread::{JoinHandle, spawn},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
 use squishy_volumes_gpu::{
@@ -374,10 +374,23 @@ impl ComputeFrameGPU<'_> {
         }
 
         info!("wait");
-        gpu_context
-            .device()
-            .poll(wgpu::PollType::wait_indefinitely())
-            .unwrap();
+
+        loop {
+            match gpu_context.device().poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(Duration::from_millis(100)),
+            }) {
+                Ok(_) => break,
+                Err(wgpu::PollError::Timeout) => {
+                    if !run.load(Ordering::Relaxed) {
+                        return Ok(());
+                    }
+                }
+                Err(e) => {
+                    bail!("while waiting on GPU: {e}");
+                }
+            }
+        }
 
         //profiler_output(&gpu_context, &mut profiler)?;
         profile_data_csv_writer.write_frame(gpu_context, &mut profiler, phase_input.next_frame)?;
