@@ -26,11 +26,16 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    if atomicLoad(&status) != 0 {
-        return;
-    }
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index >= arrayLength(&indirect_levels) {
+        return;
+    }
+
+    if atomicLoad(&status) != 0 {
+        indirect_levels[global_index].len = 0;
+        indirect_levels[global_index].x = 0;
+        indirect_levels[global_index].y = 0;
+        indirect_levels[global_index].z = 0;
         return;
     }
 

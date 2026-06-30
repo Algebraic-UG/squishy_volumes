@@ -25,6 +25,10 @@ fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
     if atomicLoad(&status) != 0 {
+        new_indirect.x = 0;
+        new_indirect.y = 0;
+        new_indirect.z = 0;
+        new_indirect.len = 0;
         return;
     }
     let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);

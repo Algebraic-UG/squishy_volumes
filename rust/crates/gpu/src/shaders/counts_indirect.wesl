@@ -26,8 +26,13 @@ fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
     if atomicLoad(&status) != 0 {
+        counts_indirect.x = 0;
+        counts_indirect.y = 0;
+        counts_indirect.z = 0;
+        counts_indirect.len = 0;
         return;
     }
+
     let counter_count = 1u << BIT_COUNT;
     let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
     let actual_workgroup_count = indirect.x * indirect.y * indirect.z;
