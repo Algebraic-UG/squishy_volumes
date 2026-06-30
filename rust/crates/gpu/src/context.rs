@@ -10,7 +10,7 @@ use std::{iter::once, num::NonZeroU32};
 
 use crate::{
     Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
-    GpuError, GpuStatus,
+    GpuAllocatorError, GpuError, GpuStatus,
 };
 
 pub struct GpuContext {
@@ -205,5 +205,14 @@ impl GpuContext {
         compute_pass.set_bind_group(0, &bind_group, &[]);
 
         compute_pass
+    }
+
+    pub fn status(&self) -> Allocation {
+        self.status.clone()
+    }
+
+    pub fn reset_status(&mut self) -> Result<(), GpuAllocatorError> {
+        self.status = Allocation::new(&self.device, "status", &[GpuStatus::default()])?;
+        Ok(())
     }
 }

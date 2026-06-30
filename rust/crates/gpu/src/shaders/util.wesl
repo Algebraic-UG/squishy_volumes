@@ -339,3 +339,5 @@ struct NodeIdAndColliderBits {
     node_id: vec3i,
     collider_bits: u32,
 }
+
+const TABLE_TRIES_EXCEEDED: u32 = 1;

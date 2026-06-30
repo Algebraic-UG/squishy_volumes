@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: MIT
+//
+// Copyright 2025  Algebraic UG (haftungsbeschränkt)
+//
+// Use of this source code is governed by an MIT-style
+// license that can be found in the LICENSE_MIT file or at
+// https://opensource.org/licenses/MIT.
+
+use bitflags::bitflags;
+
+use crate::AllowedInBinding;
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
+pub struct GpuStatus(u32);
+bitflags! {
+    impl GpuStatus: u32{
+        const TABLE_TRIES_EXCEEDED = 1;
+    }
+}
+
+impl AllowedInBinding for GpuStatus {}

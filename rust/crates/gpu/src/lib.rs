@@ -65,6 +65,7 @@ pub mod reorder_indices;
 pub mod sand;
 pub mod scatter;
 pub mod step;
+pub mod test_status;
 pub mod test_svd;
 
 pub use animate_mesh::AnimateMesh;
@@ -89,6 +90,7 @@ pub use reorder_indices::ReorderIndices;
 pub use sand::Sand;
 pub use scatter::Scatter;
 pub use step::Step;
+pub use test_status::TestStatus;
 pub use test_svd::TestSvd;
 
 #[cfg(test)]
