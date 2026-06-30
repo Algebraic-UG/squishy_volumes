@@ -186,6 +186,10 @@ impl ComputeThread {
                         .run()?;
                     }
 
+                    if !run.load(Ordering::Relaxed) {
+                        return Ok(());
+                    }
+
                     frame_report.step();
 
                     cache.store_frame(current_state.clone())?;
