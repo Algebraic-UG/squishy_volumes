@@ -489,7 +489,7 @@ mod tests {
     fn test_buffer_too_large() {
         let context = SHARED_CONTEXT.lock().unwrap();
         assert!(matches!(
-            GpuAllocator::new(&context, u64::MAX, "allocation", false),
+            GpuBuffer::new(&context, u64::MAX, "allocation", false),
             Err(GpuAllocatorError::ExceedingMaxBufferSize { .. })
         ));
     }
