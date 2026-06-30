@@ -154,25 +154,6 @@ macro_rules! let_buffer {
     };
 }
 
-pub fn create_bind_group<'a>(
-    device: &wgpu::Device,
-    compiled_module: &CompiledModule,
-    entries: impl IntoIterator<Item = wgpu::BufferBinding<'a>>,
-) -> wgpu::BindGroup {
-    device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: compiled_module.label,
-        layout: &compiled_module.bind_group_layout,
-        entries: &entries
-            .into_iter()
-            .enumerate()
-            .map(|(binding, entry)| wgpu::BindGroupEntry {
-                binding: binding as u32,
-                resource: wgpu::BindingResource::Buffer(entry),
-            })
-            .collect::<Vec<_>>(),
-    })
-}
-
 pub fn block_offset(block: u32) -> Vector4<i32> {
     Vector4::new(
         if (block & 1) == 1 { 1 } else { 0 },
