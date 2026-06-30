@@ -14,6 +14,9 @@ var<storage, read_write> indirect: Indirect;
 @group(0) @binding(1)
 var<storage, read_write> counts_indirect: Indirect;
 
+@group(0) @binding(2)
+var<storage, read_write> status: atomic<u32>;
+
 override DISPATCH_LIMIT: u32;
 override WORKGROUP_SIZE: u32;
 override BIT_COUNT: u32;
@@ -22,6 +25,9 @@ override BIT_COUNT: u32;
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     let counter_count = 1u << BIT_COUNT;
     let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
     let actual_workgroup_count = indirect.x * indirect.y * indirect.z;

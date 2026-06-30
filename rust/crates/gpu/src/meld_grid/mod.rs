@@ -166,12 +166,9 @@ impl PipelinePart for MeldGrid {
             node_momentums_in.len::<Vector4<f32>>(),
         )?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.meld_grid.label);
-        compute_pass.set_pipeline(&self.meld_grid.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.meld_grid,
                 [
                     indirect_nodes.binding(),
@@ -182,10 +179,8 @@ impl PipelinePart for MeldGrid {
                     node_momentums_in.binding(),
                     node_momentums_out.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
+            )
+            .dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
 
         Ok(Output { node_momentums_out })
     }

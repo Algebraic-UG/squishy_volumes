@@ -28,6 +28,9 @@ var<storage, read_write> multi_offsets: array<u32>;
 @group(0) @binding(5)
 var<storage, read_write> multi: array<u32>;
 
+@group(0) @binding(6)
+var<storage, read_write> status: atomic<u32>;
+
 override WORKGROUP_SIZE: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -35,6 +38,9 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     var global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index >= indirect.len {
         return;

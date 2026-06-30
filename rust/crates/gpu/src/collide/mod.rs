@@ -223,12 +223,9 @@ impl PipelinePart for Collide {
         })
         .direct();
 
-        let mut compute_pass = encoder.begin_compute_pass(self.collide.label);
-        compute_pass.set_pipeline(&self.collide.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.collide,
                 [
                     particle_positions_and_collider_bits.binding(),
@@ -244,10 +241,8 @@ impl PipelinePart for Collide {
                     bvh.nodes.binding(),
                     bvh.indices.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output)
     }

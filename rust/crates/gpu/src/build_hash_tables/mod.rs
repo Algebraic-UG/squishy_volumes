@@ -139,12 +139,9 @@ impl PipelinePart for BuildHashTables {
             Some(multi_counts.size().get()),
         );
 
-        let mut compute_pass = encoder.begin_compute_pass(self.build_hash_tables.label);
-        compute_pass.set_pipeline(&self.build_hash_tables.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.build_hash_tables,
                 [
                     indirect_nodes.binding(),
@@ -153,10 +150,8 @@ impl PipelinePart for BuildHashTables {
                     hash_table_multi.binding(),
                     multi_counts.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
+            )
+            .dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
 
         Ok(Output {
             hash_table,

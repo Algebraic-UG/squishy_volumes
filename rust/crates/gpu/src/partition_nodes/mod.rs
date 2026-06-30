@@ -133,22 +133,17 @@ impl PipelinePart for PartitionNodes {
                 Some(hash_table.size().get()),
             );
 
-        let mut compute_pass = encoder.begin_compute_pass(self.partition_nodes.label);
-        compute_pass.set_pipeline(&self.partition_nodes.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.partition_nodes,
                 [
                     particle_positions_and_collider_bits.binding(),
                     owns.binding(),
                     hash_table.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output { owns })
     }

@@ -157,30 +157,18 @@ impl PipelinePart for PrefixSum {
             NonZeroU64::new(max_level as u64 + 1).unwrap(),
         )?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.prepare_indirect.label);
-        compute_pass.set_pipeline(&self.prepare_indirect.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.prepare_indirect,
                 [input.indirect.binding(), indirect_levels.binding()],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(1, 1, 1);
-        drop(compute_pass);
+            )
+            .dispatch_workgroups(1, 1, 1);
 
-        let mut compute_pass = encoder.begin_compute_pass(self.build_levels.label);
-        compute_pass.set_pipeline(&self.build_levels.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
-                &self.build_levels,
-                [input.indirect.binding(), input.numbers.binding()],
-            ),
-            &[],
+        let mut compute_pass = context.enter_module(
+            encoder,
+            &self.build_levels,
+            [input.indirect.binding(), input.numbers.binding()],
         );
         for level in 0..max_level {
             let stride = self.subgroup_size.pow(level);
@@ -194,44 +182,33 @@ impl PipelinePart for PrefixSum {
 
         let prefix_sums = context.allocator()?.allocate::<u32>("prefix_sums", len)?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.fill_final.label);
-        compute_pass.set_pipeline(&self.fill_final.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.fill_final,
                 [
                     input.indirect.binding(),
                     input.numbers.binding(),
                     prefix_sums.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(input.indirect.buffer(), input.indirect.offset());
-        drop(compute_pass);
+            )
+            .dispatch_workgroups_indirect(input.indirect.buffer(), input.indirect.offset());
 
         let total_sum = if total_sum {
             let total_sum = context
                 .allocator()?
                 .allocate::<u32>("total_sum", 1.try_into().unwrap())?;
-            let mut compute_pass = encoder.begin_compute_pass(self.total_sum.label);
-            compute_pass.set_pipeline(&self.total_sum.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
-                    &self.fill_final,
+            context
+                .enter_module(
+                    encoder,
+                    &self.total_sum,
                     [
                         input.indirect.binding(),
                         input.numbers.binding(),
                         total_sum.binding(),
                     ],
-                ),
-                &[],
-            );
-            compute_pass.dispatch_workgroups(1, 1, 1);
+                )
+                .dispatch_workgroups(1, 1, 1);
             Some(total_sum)
         } else {
             None

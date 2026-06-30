@@ -170,43 +170,33 @@ impl PipelinePart for ReorderIndices {
             .allocator()?
             .allocate::<u32>("indices_out", keys.len::<u32>())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.reorder_indices.label);
-        if let Some(indices_in) = indices_in {
-            compute_pass.set_pipeline(&self.reorder_indices_with_indices.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
-                    &self.reorder_indices_with_indices,
-                    [
-                        indirect.binding(),
-                        keys.binding(),
-                        prefix_sums.binding(),
-                        indices_in.binding(),
-                        indices_out.binding(),
-                    ],
-                ),
-                &[],
-            );
+        let mut compute_pass = if let Some(indices_in) = indices_in.as_ref() {
+            context.enter_module(
+                encoder,
+                &self.reorder_indices_with_indices,
+                [
+                    indirect.binding(),
+                    keys.binding(),
+                    prefix_sums.binding(),
+                    indices_in.binding(),
+                    indices_out.binding(),
+                ],
+            )
         } else {
-            compute_pass.set_pipeline(&self.reorder_indices.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
-                    &self.reorder_indices,
-                    [
-                        indirect.binding(),
-                        keys.binding(),
-                        prefix_sums.binding(),
-                        indices_out.binding(),
-                    ],
-                ),
-                &[],
-            );
-        }
+            context.enter_module(
+                encoder,
+                &self.reorder_indices,
+                [
+                    indirect.binding(),
+                    keys.binding(),
+                    prefix_sums.binding(),
+                    indices_out.binding(),
+                ],
+            )
+        };
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+        drop(compute_pass);
 
         Ok(Output { indices_out })
     }

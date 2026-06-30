@@ -90,19 +90,13 @@ impl PipelinePart for BitsToPops {
             .allocator()?
             .allocate::<u32>("pops", bits.len::<u32>())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.bits_to_pops.label);
-        compute_pass.set_pipeline(&self.bits_to_pops.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.bits_to_pops,
                 [indirect.binding(), bits.binding(), pops.binding()],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
-        drop(compute_pass);
+            )
+            .dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
 
         Ok(Output { pops })
     }

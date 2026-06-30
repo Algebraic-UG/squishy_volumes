@@ -6,9 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::num::NonZeroU32;
+use std::{iter::once, num::NonZeroU32};
 
-use crate::{ExceedingLimit, GpuAllocator, GpuError};
+use crate::{
+    Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
+    GpuError, GpuStatus,
+};
 
 pub struct GpuContext {
     instance: wgpu::Instance,
@@ -17,6 +20,8 @@ pub struct GpuContext {
     queue: wgpu::Queue,
 
     subgroup_size: NonZeroU32,
+
+    status: Allocation,
 
     allocator: Option<GpuAllocator>,
     indirect_allocator: Option<GpuAllocator>,
@@ -108,12 +113,17 @@ impl GpuContext {
                 trace: wgpu::Trace::Off,
             }))?;
 
+        let status = Allocation::new(&device, "status", &[GpuStatus::default()])?;
+
         Ok(Self {
             instance,
             adapter,
             device,
             queue,
             subgroup_size,
+
+            status,
+
             allocator: None,
             indirect_allocator: None,
         })
@@ -167,5 +177,33 @@ impl GpuContext {
         self.indirect_allocator
             .as_mut()
             .ok_or(GpuError::IndirectAllocatorMissing)
+    }
+
+    pub fn enter_module<'a>(
+        &'a self,
+        encoder: &'a mut CommandEncoder,
+        compiled_module: &CompiledModule,
+        entries: impl IntoIterator<Item = wgpu::BufferBinding<'a>>,
+    ) -> ComputePass<'a> {
+        let status_binding = self.status.binding();
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: compiled_module.label,
+            layout: &compiled_module.bind_group_layout,
+            entries: &entries
+                .into_iter()
+                .chain(once(status_binding))
+                .enumerate()
+                .map(|(binding, entry)| wgpu::BindGroupEntry {
+                    binding: binding as u32,
+                    resource: wgpu::BindingResource::Buffer(entry),
+                })
+                .collect::<Vec<_>>(),
+        });
+
+        let mut compute_pass = encoder.begin_compute_pass(compiled_module.label);
+        compute_pass.set_pipeline(&compiled_module.compute_pipeline);
+        compute_pass.set_bind_group(0, &bind_group, &[]);
+
+        compute_pass
     }
 }

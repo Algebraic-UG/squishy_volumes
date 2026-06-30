@@ -201,61 +201,57 @@ impl PipelinePart for AnimateMesh {
             .allocate::<Vector4<f32>>("vertex_normals", num_vertices)?;
 
         {
-            let mut compute_pass = encoder.begin_compute_pass(self.move_vertices.label);
-            compute_pass.set_pipeline(&self.move_vertices.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
-                    &self.move_vertices,
-                    [
-                        vertex_positions_start.binding(),
-                        vertex_positions_end.binding(),
-                        vertex_positions.binding(),
-                    ],
-                ),
-                &[],
-            );
-            let Indirect { x, y, z, .. } = Indirect::new(DispatchSettings {
+            let [x, y, z] = Indirect::new(DispatchSettings {
                 workgroup_size: self.workgroup_size,
                 dispatch_limit: self.dispatch_limit,
                 len: num_vertices.get() as u32,
-            });
+            })
+            .direct();
+            let mut compute_pass = context.enter_module(
+                encoder,
+                &self.move_vertices,
+                [
+                    vertex_positions_start.binding(),
+                    vertex_positions_end.binding(),
+                    vertex_positions.binding(),
+                ],
+            );
             compute_pass.set_immediates(0, bytemuck::bytes_of(&factor));
             compute_pass.dispatch_workgroups(x, y, z);
         }
 
         {
-            let mut compute_pass = encoder.begin_compute_pass(self.compute_triangle_normals.label);
-            compute_pass.set_pipeline(&self.compute_triangle_normals.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
+            let [x, y, z] = Indirect::new(DispatchSettings {
+                workgroup_size: self.workgroup_size,
+                dispatch_limit: self.dispatch_limit,
+                len: num_triangles.get() as u32,
+            })
+            .direct();
+
+            context
+                .enter_module(
+                    encoder,
                     &self.compute_triangle_normals,
                     [
                         vertex_positions.binding(),
                         triangle_indices.binding(),
                         triangle_normals.binding(),
                     ],
-                ),
-                &[],
-            );
-            let Indirect { x, y, z, .. } = Indirect::new(DispatchSettings {
-                workgroup_size: self.workgroup_size,
-                dispatch_limit: self.dispatch_limit,
-                len: num_triangles.get() as u32,
-            });
-            compute_pass.dispatch_workgroups(x, y, z);
+                )
+                .dispatch_workgroups(x, y, z);
         }
 
         {
-            let mut compute_pass = encoder.begin_compute_pass(self.compute_vertex_normals.label);
-            compute_pass.set_pipeline(&self.compute_vertex_normals.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
+            let [x, y, z] = Indirect::new(DispatchSettings {
+                workgroup_size: self.workgroup_size,
+                dispatch_limit: self.dispatch_limit,
+                len: num_vertices.get() as u32,
+            })
+            .direct();
+
+            context
+                .enter_module(
+                    encoder,
                     &self.compute_vertex_normals,
                     [
                         vertex_triangle_offsets.binding(),
@@ -263,15 +259,8 @@ impl PipelinePart for AnimateMesh {
                         vertex_normals.binding(),
                         triangle_normals.binding(),
                     ],
-                ),
-                &[],
-            );
-            let Indirect { x, y, z, .. } = Indirect::new(DispatchSettings {
-                workgroup_size: self.workgroup_size,
-                dispatch_limit: self.dispatch_limit,
-                len: num_vertices.get() as u32,
-            });
-            compute_pass.dispatch_workgroups(x, y, z);
+                )
+                .dispatch_workgroups(x, y, z);
         }
 
         Ok(Output {

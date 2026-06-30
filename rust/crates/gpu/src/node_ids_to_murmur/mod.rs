@@ -106,12 +106,9 @@ impl PipelinePart for NodeIdsToMurmur {
             node_ids_and_collider_bits.len::<NodeIdAndColliderBits>(),
         )?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.node_ids_to_murmur.label);
-        compute_pass.set_pipeline(&self.node_ids_to_murmur.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.node_ids_to_murmur,
                 [
                     indirect.binding(),
@@ -119,10 +116,8 @@ impl PipelinePart for NodeIdsToMurmur {
                     hashes_node_ids.binding(),
                     hashes_node_ids_and_collider_bits.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+            )
+            .dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
         Ok(Output {
             hashes_node_ids,
             hashes_node_ids_and_collider_bits,

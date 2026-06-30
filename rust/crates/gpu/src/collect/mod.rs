@@ -195,12 +195,9 @@ impl PipelinePart for Collect {
         })
         .direct();
 
-        let mut compute_pass = encoder.begin_compute_pass(self.collect.label);
-        compute_pass.set_pipeline(&self.collect.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.collect,
                 [
                     hash_table.binding(),
@@ -211,10 +208,8 @@ impl PipelinePart for Collect {
                     particle_velocities.binding(),
                     particle_velocity_gradients.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output)
     }

@@ -14,6 +14,9 @@ var<storage, read> len: u32;
 @group(0) @binding(1)
 var<storage, read_write> new_indirect: Indirect;
 
+@group(0) @binding(2)
+var<storage, read_write> status: atomic<u32>;
+
 override DISPATCH_LIMIT: u32;
 override WORKGROUP_SIZE: u32;
 
@@ -21,6 +24,9 @@ override WORKGROUP_SIZE: u32;
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);
     new_indirect.x = dispatch_xzy.x;
     new_indirect.y = dispatch_xzy.y;

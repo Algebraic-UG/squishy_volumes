@@ -6,7 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::num::NonZeroU64;
+use std::{iter, num::NonZeroU64};
+
+use crate::{AllowedInBinding, GpuStatus};
 
 pub struct CompiledModule {
     pub label: Option<&'static str>,
@@ -41,6 +43,7 @@ impl CompiledModule {
             label,
             entries: &bind_group_entries
                 .into_iter()
+                .chain(iter::once((GpuStatus::MIN_BINDING_SIZE, false)))
                 .enumerate()
                 .map(
                     |(binding, (min_binding_size, read_only))| wgpu::BindGroupLayoutEntry {

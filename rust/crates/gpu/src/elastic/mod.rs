@@ -109,24 +109,20 @@ impl PipelinePart for Elastic {
             .allocator()?
             .allocate::<f32>("energies", position_gradients.len::<Matrix4x3<f32>>())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.stress_and_energy.label);
-        compute_pass.set_pipeline(&self.stress_and_energy.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
-                &self.stress_and_energy,
-                [
-                    indirect.binding(),
-                    position_gradients.binding(),
-                    particle_parameters.binding(),
-                    stresses.binding(),
-                    energies.binding(),
-                ],
-            ),
-            &[],
+        let mut compute_pass = context.enter_module(
+            encoder,
+            &self.stress_and_energy,
+            [
+                indirect.binding(),
+                position_gradients.binding(),
+                particle_parameters.binding(),
+                stresses.binding(),
+                energies.binding(),
+            ],
         );
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+        drop(compute_pass);
+
         Ok(Output { stresses, energies })
     }
 }

@@ -20,6 +20,7 @@ mod error;
 mod indirect;
 mod pipeline_part;
 mod profiler_output;
+mod status;
 mod svd;
 mod util;
 
@@ -36,6 +37,7 @@ pub use error::*;
 pub use indirect::*;
 pub use pipeline_part::*;
 pub use profiler_output::*;
+pub use status::*;
 pub use svd::*;
 pub use util::*;
 

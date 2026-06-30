@@ -20,6 +20,9 @@ var<storage, read_write> vertex_normals: array<vec3f>;
 @group(0) @binding(3)
 var<storage, read_write> triangle_normals: array<vec3f>;
 
+@group(0) @binding(4)
+var<storage, read_write> status: atomic<u32>;
+
 override WORKGROUP_SIZE: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -27,6 +30,9 @@ fn main(
     @builtin(num_workgroups) num_workgroups: vec3u,
     @builtin(global_invocation_id) global_invocation_id: vec3u,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index >= arrayLength(&vertex_triangle_offsets) {
         return;

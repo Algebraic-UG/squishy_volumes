@@ -248,12 +248,9 @@ impl PipelinePart for PrepareGrid {
             .allocator()?
             .allocate::<NodeIdAndColliderBits>("node_ids_and_collider_bits", max_num_nodes)?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.build_nodes.label);
-        compute_pass.set_pipeline(&self.build_nodes.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.build_nodes,
                 [
                     particle_positions_and_collider_bits.binding(),
@@ -261,11 +258,8 @@ impl PipelinePart for PrepareGrid {
                     offsets.binding(),
                     node_ids_and_collider_bits.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
-        drop(compute_pass);
+            )
+            .dispatch_workgroups(x, y, z);
 
         drop(owns);
         drop(offsets);
@@ -312,12 +306,9 @@ impl PipelinePart for PrepareGrid {
             .allocator()?
             .allocate::<u32>("multi", max_num_nodes)?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.fill_multi_map.label);
-        compute_pass.set_pipeline(&self.fill_multi_map.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.fill_multi_map,
                 [
                     indirect_nodes.binding(),
@@ -327,10 +318,8 @@ impl PipelinePart for PrepareGrid {
                     multi_offsets.binding(),
                     multi.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
+            )
+            .dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
 
         Ok(Output {
             indirect_nodes,

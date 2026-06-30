@@ -14,6 +14,9 @@ var<storage, read_write> numbers_indirect: Indirect;
 @group(0) @binding(1)
 var<storage, read_write> indirect_levels: array<Indirect>;
 
+@group(0) @binding(2)
+var<storage, read_write> status: atomic<u32>;
+
 override WORKGROUP_SIZE: u32;
 override DISPATCH_LIMIT: u32;
 
@@ -23,6 +26,9 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index >= arrayLength(&indirect_levels) {
         return;

@@ -98,18 +98,13 @@ impl PipelinePart for TestSvd {
 
         let svds = context.allocator()?.allocate::<Svd>("svds", num_matrices)?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.test_svd.label);
-        compute_pass.set_pipeline(&self.test_svd.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.test_svd,
                 [matrices.binding(), svds.binding()],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output { svds })
     }

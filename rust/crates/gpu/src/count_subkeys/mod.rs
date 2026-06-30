@@ -159,37 +159,27 @@ impl PipelinePart for CountSubkeys {
             .unwrap();
         let counts = context.allocator()?.allocate::<u32>("counts", counts_len)?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.count_subkeys.label);
-        if let Some(indices) = indices {
-            compute_pass.set_pipeline(&self.count_subkeys_with_indices.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
-                    &self.count_subkeys_with_indices,
-                    [
-                        indirect.binding(),
-                        indices.binding(),
-                        keys.binding(),
-                        counts.binding(),
-                    ],
-                ),
-                &[],
-            );
+        let mut compute_pass = if let Some(indices) = indices.as_ref() {
+            context.enter_module(
+                encoder,
+                &self.count_subkeys_with_indices,
+                [
+                    indirect.binding(),
+                    indices.binding(),
+                    keys.binding(),
+                    counts.binding(),
+                ],
+            )
         } else {
-            compute_pass.set_pipeline(&self.count_subkeys.compute_pipeline);
-            compute_pass.set_bind_group(
-                0,
-                &create_bind_group(
-                    context.device(),
-                    &self.count_subkeys,
-                    [indirect.binding(), keys.binding(), counts.binding()],
-                ),
-                &[],
-            );
-        }
+            context.enter_module(
+                encoder,
+                &self.count_subkeys,
+                [indirect.binding(), keys.binding(), counts.binding()],
+            )
+        };
         compute_pass.set_immediates(0, bytemuck::bytes_of(&bit_offset));
         compute_pass.dispatch_workgroups_indirect(indirect.buffer(), indirect.offset());
+        drop(compute_pass);
         Ok(Output { counts })
     }
 }

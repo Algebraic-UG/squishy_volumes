@@ -17,6 +17,9 @@ var<storage, read_write> intermediate: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> total_sum: u32;
 
+@group(0) @binding(3)
+var<storage, read_write> status: atomic<u32>;
+
 override WORKGROUP_SIZE: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -24,6 +27,9 @@ fn main(
     @builtin(subgroup_size) subgroup_size: u32,
     @builtin(subgroup_invocation_id) subgroup_invocation_id: u32,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     var offset_from_level = 0u;
 
     let max_level = int_log(indirect.len * subgroup_size - 1, subgroup_size);

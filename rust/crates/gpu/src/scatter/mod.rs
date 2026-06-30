@@ -155,12 +155,9 @@ impl PipelinePart for Scatter {
             .allocator()?
             .allocate::<Vector4<f32>>("node_momentums", contributor_offsets.len::<u32>())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.scatter.label);
-        compute_pass.set_pipeline(&self.scatter.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.scatter,
                 [
                     indirect_nodes.binding(),
@@ -170,10 +167,8 @@ impl PipelinePart for Scatter {
                     particle_tmp.binding(),
                     node_momentums.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
+            )
+            .dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
 
         Ok(Output { node_momentums })
     }

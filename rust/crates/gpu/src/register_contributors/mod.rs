@@ -189,12 +189,9 @@ impl PipelinePart for RegisterContributors {
                 Some(contributor_counts.size().get()),
             );
 
-        let mut compute_pass = encoder.begin_compute_pass(self.count_contributors.label);
-        compute_pass.set_pipeline(&self.count_contributors.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.count_contributors,
                 [
                     particle_positions_and_collider_bits.binding(),
@@ -202,11 +199,8 @@ impl PipelinePart for RegisterContributors {
                     node_ids_and_collider_bits.binding(),
                     contributor_counts.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
-        drop(compute_pass);
+            )
+            .dispatch_workgroups(x, y, z);
 
         let prefix_sum::Output {
             prefix_sums: contributor_offsets,
@@ -235,12 +229,9 @@ impl PipelinePart for RegisterContributors {
                 Some(contributor_counts.size().get()),
             );
 
-        let mut compute_pass = encoder.begin_compute_pass(self.register_contributors.label);
-        compute_pass.set_pipeline(&self.register_contributors.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        context
+            .enter_module(
+                encoder,
                 &self.register_contributors,
                 [
                     particle_positions_and_collider_bits.binding(),
@@ -250,11 +241,8 @@ impl PipelinePart for RegisterContributors {
                     contributor_offsets.binding(),
                     contributors.binding(),
                 ],
-            ),
-            &[],
-        );
-        compute_pass.dispatch_workgroups(x, y, z);
-        drop(compute_pass);
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output {
             contributor_offsets,

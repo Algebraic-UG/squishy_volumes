@@ -90,12 +90,16 @@ impl PipelinePart for Kernels {
             .allocator()?
             .allocate::<f32>("cubic", values.len::<f32>())?;
 
-        let mut compute_pass = encoder.begin_compute_pass(self.kernels.label);
-        compute_pass.set_pipeline(&self.kernels.compute_pipeline);
-        compute_pass.set_bind_group(
-            0,
-            &create_bind_group(
-                context.device(),
+        let [x, y, z] = Indirect::new(DispatchSettings {
+            workgroup_size: self.workgroup_size,
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            len: values.len::<f32>().get() as u32,
+        })
+        .direct();
+
+        context
+            .enter_module(
+                encoder,
                 &self.kernels,
                 [
                     values.binding(),
@@ -103,15 +107,8 @@ impl PipelinePart for Kernels {
                     quadratic.binding(),
                     cubic.binding(),
                 ],
-            ),
-            &[],
-        );
-        let indirect = Indirect::new(DispatchSettings {
-            workgroup_size: self.workgroup_size,
-            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
-            len: values.len::<f32>().get() as u32,
-        });
-        compute_pass.dispatch_workgroups(indirect.x, indirect.y, indirect.z);
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output {
             linear,

@@ -20,6 +20,9 @@ var<storage, read_write> keys: array<u32>;
 @group(0) @binding(3)
 var<storage, read_write> counts: array<u32>;
 
+@group(0) @binding(4)
+var<storage, read_write> status: atomic<u32>;
+
 var<immediate> bit_offset: u32;
 
 override WORKGROUP_SIZE: u32;
@@ -33,6 +36,9 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
+    if atomicLoad(&status) != 0 {
+        return;
+    }
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
 
     let array_length = arrayLength(&keys);
