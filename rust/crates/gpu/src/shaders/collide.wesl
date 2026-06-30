@@ -167,9 +167,10 @@ fn main(
             }
         }
 
+        let distance = length(to_p);
         let new_side = 0 <= dot(normal, to_p);
         if (collider_bits & (0x00010000u << collider)) == 0 {
-            if length(to_p) < ACCEPT_DISTANCE {
+            if distance < ACCEPT_DISTANCE {
                 if new_side {
                     bits = 0x00010001u << collider;
                 } else {
@@ -185,7 +186,11 @@ fn main(
             continue;
         }
 
-        // TODO: friction
+        if distance > NORMALIZATION_EPS {
+            let to_p_normalized = to_p / distance;
+            let tangential = velocity - to_p_normalized * dot(velocity, to_p_normalized);
+            velocity -= tangential * min(distance * triangle_frictions[closest_triangle], 1.);
+        }
 
         velocity -= to_p / TIME_STEP;
 
