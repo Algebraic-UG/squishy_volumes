@@ -244,12 +244,23 @@ impl GpuContext {
         let Some(reporting_shader) = self.get_shader_label(shader_id) else {
             return Err(GpuError::ShaderIdMissing(shader_id));
         };
+        let mut errors = Vec::new();
+
         if status.table_tries_exceeded() {
-            Err(GpuShaderError::TableTriesExceeded { reporting_shader })?;
+            errors.push(GpuShaderError::TableTriesExceeded { reporting_shader });
         }
         if status.table_entry_missing() {
-            Err(GpuShaderError::TableEntryMissing { reporting_shader })?;
+            errors.push(GpuShaderError::TableEntryMissing { reporting_shader });
         }
-        Ok(())
+
+        if errors.is_empty() {
+            return Ok(());
+        }
+
+        if errors.len() == 1 {
+            Err(errors.pop().unwrap())?;
+        }
+
+        Err(GpuShaderError::Multi { errors })?
     }
 }

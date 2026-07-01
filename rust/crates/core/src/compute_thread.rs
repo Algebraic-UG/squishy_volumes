@@ -137,7 +137,7 @@ impl ComputeThread {
                     } else {
                         info!("setting up GPU allocators");
                         gpu_context.setup_allocator(
-                            current_state.particles.sort_map.len().max(1000) as u64 * 4096,
+                            current_state.particles.sort_map.len().max(1000) as u64 * 1024,
                             "main allocator",
                             true,
                         )?;
