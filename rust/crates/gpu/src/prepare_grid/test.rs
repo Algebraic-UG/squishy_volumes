@@ -184,6 +184,19 @@ fn test_random() {
     );
 }
 
+#[test]
+fn specific() {
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            grid_node_size: 0.5,
+            table_tries: 50,
+        },
+        &specific_positions_and_collider_bits(),
+    );
+}
+
 fn run_prepare_grid(
     settings: Settings,
     positions_and_collider_bits: &[PositionAndColliderBits],
@@ -220,6 +233,7 @@ fn run_prepare_grid(
             hash_table_multi,
             multi_offsets,
             multi,
+            context.status(),
         ],
     );
     downloads.copy(&mut encoder);
@@ -240,7 +254,10 @@ fn run_prepare_grid(
         hash_table_multi,
         multi_offsets,
         multi,
+        status,
     ] = downloads.try_into().unwrap();
+
+    context.status_to_result(status.to_vec()[0]).unwrap();
 
     OutputData {
         indirect_nodes: indirect_nodes.to_vec()[0],

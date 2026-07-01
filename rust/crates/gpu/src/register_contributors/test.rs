@@ -6,7 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::once;
+
 use nalgebra::Vector3;
+use rustc_hash::FxHashSet;
 
 use super::*;
 
@@ -21,7 +24,37 @@ fn check(settings: Settings, positions_and_collider_bits: &[PositionAndColliderB
     );
 
     assert_eq!(cpu_contributor_offsets, gpu_contributor_offsets, "offsets");
-    assert_eq!(cpu_contributors, gpu_contributors, "actual contributors");
+    assert_eq!(
+        cpu_contributors.len(),
+        gpu_contributors.len(),
+        "contributor lengths"
+    );
+
+    for (node_id_and_collider_bits, (start, end)) in node_ids_and_collider_bits.iter().zip(
+        cpu_contributor_offsets.iter().cloned().zip(
+            cpu_contributor_offsets
+                .iter()
+                .skip(1)
+                .cloned()
+                .chain(once(cpu_contributors.len() as u32)),
+        ),
+    ) {
+        let cpu: FxHashSet<u32> = cpu_contributors.as_slice()[start as usize..end as usize]
+            .iter()
+            .cloned()
+            .collect();
+        assert_eq!(cpu.len() as u32, end - start);
+        let gpu: FxHashSet<u32> = gpu_contributors.as_slice()[start as usize..end as usize]
+            .iter()
+            .cloned()
+            .collect();
+        assert_eq!(gpu.len() as u32, end - start);
+
+        assert_eq!(
+            cpu, gpu,
+            "actual contributors for {node_id_and_collider_bits:?}"
+        );
+    }
 }
 
 #[test]
@@ -98,9 +131,22 @@ fn test_random() {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             grid_node_size: 1337.,
-            table_tries: 1000,
+            table_tries: 200, // TODO: why so many?
         },
         &positions_and_collider_bits,
+    );
+}
+
+#[test]
+fn specific() {
+    check(
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+            dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            grid_node_size: 0.5,
+            table_tries: 50,
+        },
+        &specific_positions_and_collider_bits(),
     );
 }
 
@@ -129,7 +175,10 @@ fn run(
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(&context, [contributor_offsets, contributors]);
+    let downloads = DownloadsToHost::new(
+        &context,
+        [contributor_offsets, contributors, context.status()],
+    );
     downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
@@ -141,7 +190,9 @@ fn run(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let [contributor_offsets, contributors] = downloads.try_into().unwrap();
+    let [contributor_offsets, contributors, status] = downloads.try_into().unwrap();
+
+    context.status_to_result(status.to_vec()[0]).unwrap();
 
     (contributor_offsets.to_vec(), contributors.to_vec())
 }
