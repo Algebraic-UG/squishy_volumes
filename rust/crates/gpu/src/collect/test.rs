@@ -70,6 +70,7 @@ fn test_single_undeformed() {
         dispatch_limit,
         grid_node_size,
         time_step,
+        table_tries: 50,
     };
 
     let node_ids = [
@@ -145,6 +146,7 @@ fn test_many_random_props() {
         dispatch_limit,
         grid_node_size,
         time_step,
+        table_tries: 50,
     };
 
     let positions = many_positions();

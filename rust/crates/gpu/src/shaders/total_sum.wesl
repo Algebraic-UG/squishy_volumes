@@ -31,6 +31,10 @@ fn main(
     if is_error() {
         return;
     }
+    if subgroup_invocation_id == 0 {
+        set_shader_id();
+    }
+
     var offset_from_level = 0u;
 
     let max_level = int_log(indirect.len * subgroup_size - 1, subgroup_size);

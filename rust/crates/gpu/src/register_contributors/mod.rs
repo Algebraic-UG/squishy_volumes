@@ -27,6 +27,7 @@ pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
     pub grid_node_size: f32,
+    pub table_tries: u32,
 }
 
 pub struct Parameters;
@@ -99,6 +100,7 @@ impl PipelinePart for RegisterContributors {
             workgroup_size,
             dispatch_limit,
             grid_node_size,
+            table_tries,
         }: Settings,
     ) -> Self {
         let_compiled_module!(
@@ -115,6 +117,7 @@ impl PipelinePart for RegisterContributors {
                 constants: [
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
+                    ("TABLE_TRIES", table_tries as f64),
                 ]
             }
         );
@@ -143,6 +146,7 @@ impl PipelinePart for RegisterContributors {
                 constants: [
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
+                    ("TABLE_TRIES", table_tries as f64),
                 ]
             }
         );

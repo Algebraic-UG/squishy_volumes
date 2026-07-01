@@ -28,6 +28,7 @@ pub struct Settings {
     pub dispatch_limit: NonZeroU32,
     pub grid_node_size: f32,
     pub time_step: f32,
+    pub table_tries: u32,
 }
 
 pub struct Parameters;
@@ -140,6 +141,7 @@ impl PipelinePart for Collect {
             dispatch_limit,
             grid_node_size,
             time_step,
+            table_tries,
         }: Settings,
     ) -> Self {
         let_compiled_module!(
@@ -160,6 +162,7 @@ impl PipelinePart for Collect {
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
                     ("TIME_STEP", time_step as f64),
+                    ("TABLE_TRIES", table_tries as f64),
                 ]
             }
         );

@@ -62,7 +62,10 @@ fn check(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) 
 fn test_all_zero() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let settings = Settings { workgroup_size };
+    let settings = Settings {
+        workgroup_size,
+        table_tries: 50,
+    };
 
     let node_ids = [
         Vector3::new(0, 0, 0),
@@ -116,7 +119,10 @@ fn test_all_zero() {
 fn test_random() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let settings = Settings { workgroup_size };
+    let settings = Settings {
+        workgroup_size,
+        table_tries: 50,
+    };
 
     let mut rng = ChaCha8Rng::seed_from_u64(234);
     let n = 1000;

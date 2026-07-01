@@ -34,6 +34,7 @@ pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
     pub grid_node_size: f32,
+    pub table_tries: u32,
 }
 
 pub struct Parameters;
@@ -103,6 +104,7 @@ impl PipelinePart for PrepareGrid {
             workgroup_size,
             dispatch_limit,
             grid_node_size,
+            table_tries,
         }: Settings,
     ) -> Self {
         let partition_nodes = PartitionNodes::new(
@@ -111,6 +113,7 @@ impl PipelinePart for PrepareGrid {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                table_tries,
             },
         );
 
@@ -147,8 +150,13 @@ impl PipelinePart for PrepareGrid {
             }
         );
 
-        let build_hash_tables =
-            BuildHashTables::new(context, build_hash_tables::Settings { workgroup_size });
+        let build_hash_tables = BuildHashTables::new(
+            context,
+            build_hash_tables::Settings {
+                workgroup_size,
+                table_tries,
+            },
+        );
 
         let_compiled_module!(
             fill_multi_map,
@@ -163,7 +171,10 @@ impl PipelinePart for PrepareGrid {
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("TABLE_TRIES", table_tries as f64),
+                ]
             }
         );
 

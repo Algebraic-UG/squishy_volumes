@@ -23,6 +23,7 @@ pub struct BuildHashTables {
 #[derive(Clone)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
+    pub table_tries: u32,
 }
 
 pub struct Parameters;
@@ -48,7 +49,7 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         dispatch_limit: NonZeroU32,
-        Settings { workgroup_size }: Settings,
+        Settings { workgroup_size, .. }: Settings,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
     ) -> Result<Self, GpuAllocatorError> {
         let indirect_nodes = Indirect::new(DispatchSettings {
@@ -78,7 +79,13 @@ impl PipelinePart for BuildHashTables {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        Settings {
+            workgroup_size,
+            table_tries,
+        }: Settings,
+    ) -> Self {
         let_compiled_module!(
             build_hash_tables,
             CompiledModuleSettings {
@@ -91,7 +98,10 @@ impl PipelinePart for BuildHashTables {
                     (AtomicU32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("TABLE_TRIES", table_tries as f64),
+                ]
             }
         );
 

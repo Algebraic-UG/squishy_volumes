@@ -132,6 +132,7 @@ impl State {
                 forget_distance: phase_input.consts.forget_distance(),
                 accept_distance: phase_input.consts.accept_distance(),
                 time_step: phase_input.time_step,
+                table_tries: 50,
             },
         );
 

@@ -98,6 +98,7 @@ fn test_single() {
     check(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
+            table_tries: 50,
         },
         &node_ids_and_collider_bits,
     );
@@ -129,6 +130,7 @@ fn test_simple() {
     check(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
+            table_tries: 50,
         },
         &node_ids_and_collider_bits,
     );

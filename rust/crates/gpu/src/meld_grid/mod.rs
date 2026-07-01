@@ -24,6 +24,7 @@ pub struct MeldGrid {
 #[derive(Clone)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
+    pub table_tries: u32,
 }
 
 pub struct Parameters;
@@ -46,7 +47,7 @@ pub struct InputData<'a> {
 impl Input {
     pub fn new(
         device: &wgpu::Device,
-        Settings { workgroup_size }: Settings,
+        Settings { workgroup_size, .. }: Settings,
         dispatch_limit: NonZeroU32,
         InputData {
             node_ids_and_collider_bits,
@@ -121,7 +122,13 @@ impl PipelinePart for MeldGrid {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        Settings {
+            workgroup_size,
+            table_tries,
+        }: Settings,
+    ) -> Self {
         let_compiled_module!(
             meld_grid,
             CompiledModuleSettings {
@@ -136,7 +143,10 @@ impl PipelinePart for MeldGrid {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+                constants: [
+                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("TABLE_TRIES", table_tries as f64),
+                ]
             }
         );
         Self { meld_grid }

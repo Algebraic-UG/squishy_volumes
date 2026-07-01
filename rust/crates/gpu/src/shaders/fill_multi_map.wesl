@@ -33,6 +33,7 @@ var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
+override TABLE_TRIES: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -56,7 +57,7 @@ fn main(
     let table_mask = arrayLength(&hash_table_multi) - 1;
     let hash = murmur_of_node_id(node_id, 0);
 
-    var tries = 0;
+    var tries = 0u;
     var slot = hash & table_mask;
     if hash_table_multi[slot] == 0 {
         atomicOr(&status, TABLE_ENTRY_MISSING);
@@ -64,7 +65,7 @@ fn main(
     }
     var node_index = hash_table_multi[slot] - 1;
     loop {
-        if tries > 50 {
+        if tries > TABLE_TRIES {
             atomicOr(&status, TABLE_TRIES_EXCEEDED);
             return;
         }

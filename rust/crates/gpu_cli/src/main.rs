@@ -78,6 +78,7 @@ fn main() {
     let accept_distance = grid_node_size * 2.;
     let leaf_size = accept_distance;
     let leaf_threshold = 16;
+    let table_tries = 50;
 
     let mut context = GpuContext::new().unwrap();
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
@@ -190,6 +191,7 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                table_tries,
             };
             let pipeline_part = gpu::PartitionNodes::new(&mut context, settings.clone());
             let input = gpu::partition_nodes::Input::new(
@@ -219,6 +221,7 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                table_tries,
             };
             let pipeline_part = gpu::PrepareGrid::new(&mut context, settings.clone());
             let input = gpu::prepare_grid::Input::new(
@@ -256,6 +259,7 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                table_tries,
             };
             let pipeline_part = gpu::RegisterContributors::new(&mut context, settings.clone());
             tracing::info!("creating input");
@@ -395,7 +399,10 @@ fn main() {
                 })
                 .collect();
 
-            let settings = gpu::meld_grid::Settings { workgroup_size };
+            let settings = gpu::meld_grid::Settings {
+                workgroup_size,
+                table_tries,
+            };
             let pipeline_part = gpu::MeldGrid::new(&mut context, settings.clone());
             let input = gpu::meld_grid::Input::new(
                 context.device(),
@@ -447,6 +454,7 @@ fn main() {
                 dispatch_limit,
                 grid_node_size,
                 time_step,
+                table_tries,
             };
             let pipeline_part = gpu::Collect::new(&mut context, settings);
             let input = gpu::collect::Input::new(
@@ -492,6 +500,7 @@ fn main() {
                 forget_distance,
                 accept_distance,
                 time_step,
+                table_tries,
             };
             let pipeline_part = gpu::Step::new(&mut context, settings.clone());
             let input = gpu::step::Input::new(

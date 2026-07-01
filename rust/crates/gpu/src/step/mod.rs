@@ -41,6 +41,7 @@ pub struct Settings {
     pub forget_distance: f32,
     pub accept_distance: f32,
     pub time_step: f32,
+    pub table_tries: u32,
 }
 
 pub struct Parameters {
@@ -267,6 +268,7 @@ impl PipelinePart for Step {
             forget_distance,
             accept_distance,
             time_step,
+            table_tries,
         }: Settings,
     ) -> Self {
         let animate_mesh = AnimateMesh::new(
@@ -300,6 +302,7 @@ impl PipelinePart for Step {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                table_tries,
             },
         );
         let register_contributors = RegisterContributors::new(
@@ -308,6 +311,7 @@ impl PipelinePart for Step {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                table_tries,
             },
         );
         let prepare_tmp = PrepareTmp::new(
@@ -326,7 +330,13 @@ impl PipelinePart for Step {
                 grid_node_size,
             },
         );
-        let meld_grid = MeldGrid::new(context, meld_grid::Settings { workgroup_size });
+        let meld_grid = MeldGrid::new(
+            context,
+            meld_grid::Settings {
+                workgroup_size,
+                table_tries,
+            },
+        );
         let collect = Collect::new(
             context,
             collect::Settings {
@@ -334,6 +344,7 @@ impl PipelinePart for Step {
                 dispatch_limit,
                 grid_node_size,
                 time_step,
+                table_tries,
             },
         );
 
