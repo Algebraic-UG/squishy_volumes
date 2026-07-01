@@ -129,7 +129,7 @@ fn run_reorder_indices(
 
     let input = Input::new(context.device(), settings, indices, keys, prefix_sums).unwrap();
 
-    let reorder_indices = ReorderIndices::new(&context, settings);
+    let reorder_indices = ReorderIndices::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

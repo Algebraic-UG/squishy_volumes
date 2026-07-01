@@ -49,13 +49,11 @@ impl PipelinePart for Kernels {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
-        let device = context.device();
-
+    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let_compiled_module!(
             kernels,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (f32::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),

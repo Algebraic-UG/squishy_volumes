@@ -65,7 +65,7 @@ impl PipelinePart for Sand {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -74,7 +74,7 @@ impl PipelinePart for Sand {
         let_compiled_module!(
             sand,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (particle_parameters::Device::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),

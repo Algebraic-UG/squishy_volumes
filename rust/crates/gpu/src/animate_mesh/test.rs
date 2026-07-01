@@ -120,7 +120,7 @@ fn run(
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), input_data).unwrap();
-    let step = AnimateMesh::new(&context, settings);
+    let step = AnimateMesh::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

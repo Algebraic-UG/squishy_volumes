@@ -69,7 +69,7 @@ impl PipelinePart for PrefixSum {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, settings: Settings) -> Self {
+    fn new(context: &mut GpuContext, settings: Settings) -> Self {
         let workgroup_size = settings.workgroup_size.get();
         let dispatch_limit = settings.dispatch_limit.get();
         let subgroup_size = context.subgroup_size().get();
@@ -78,7 +78,7 @@ impl PipelinePart for PrefixSum {
         let_compiled_module!(
             prepare_indirect,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
@@ -94,7 +94,7 @@ impl PipelinePart for PrefixSum {
         let_compiled_module!(
             build_levels,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
@@ -107,7 +107,7 @@ impl PipelinePart for PrefixSum {
         let_compiled_module!(
             fill_final,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
@@ -121,7 +121,7 @@ impl PipelinePart for PrefixSum {
         let_compiled_module!(
             total_sum,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),

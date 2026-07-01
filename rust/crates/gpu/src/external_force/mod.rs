@@ -68,7 +68,7 @@ impl PipelinePart for ExternalForce {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -78,7 +78,7 @@ impl PipelinePart for ExternalForce {
         let_compiled_module!(
             external_force,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // gravity
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // particle_velocities

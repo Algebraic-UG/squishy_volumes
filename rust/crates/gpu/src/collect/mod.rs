@@ -134,7 +134,7 @@ impl PipelinePart for Collect {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -145,7 +145,7 @@ impl PipelinePart for Collect {
         let_compiled_module!(
             collect,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, false),                     // hash_table
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits

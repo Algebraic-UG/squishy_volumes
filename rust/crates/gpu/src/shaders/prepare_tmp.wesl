@@ -37,6 +37,7 @@ var<storage, read_write> tmp: array<mat4x4f>;
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
+override SHADER_ID: u32;
 override GRID_NODE_SIZE: f32;
 override TIME_STEP: f32;
 
@@ -47,12 +48,15 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    if atomicLoad(&status) != 0 {
+    if is_error() {
         return;
     }
     let scaling = TIME_STEP * 4. / (GRID_NODE_SIZE * GRID_NODE_SIZE);
 
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
+    if global_index == 0 {
+        set_shader_id();
+    }
     if global_index >= arrayLength(&masses) {
         return;
     }
@@ -92,4 +96,13 @@ fn main(
         vec4f(matrix_part[2], position.z / GRID_NODE_SIZE),
         vec4f(vector_part, mass),
     );
+}
+
+fn is_error() -> bool {
+    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+}
+
+fn set_shader_id() {
+    atomicAnd(&status, 0x0000FFFFu);
+    atomicOr(&status, SHADER_ID << 16);
 }

@@ -107,7 +107,7 @@ fn run(
     )
     .unwrap();
 
-    let node_ids_to_murmur = NodeIdsToMurmur::new(&context, settings);
+    let node_ids_to_murmur = NodeIdsToMurmur::new(&mut context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output {

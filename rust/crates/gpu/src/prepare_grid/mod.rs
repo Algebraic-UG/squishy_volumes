@@ -98,7 +98,7 @@ impl PipelinePart for PrepareGrid {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -132,7 +132,7 @@ impl PipelinePart for PrepareGrid {
         let_compiled_module!(
             build_nodes,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
@@ -153,7 +153,7 @@ impl PipelinePart for PrepareGrid {
         let_compiled_module!(
             fill_multi_map,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),

@@ -78,11 +78,11 @@ impl PipelinePart for BuildHashTables {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let_compiled_module!(
             build_hash_tables,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),

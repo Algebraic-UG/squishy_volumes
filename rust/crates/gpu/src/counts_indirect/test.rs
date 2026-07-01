@@ -56,7 +56,7 @@ fn run_counts_indirect(settings: Settings, len: u32) -> Vec<Indirect> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, len).unwrap();
-    let counts_indirect = CountsIndirect::new(&context, settings);
+    let counts_indirect = CountsIndirect::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let Output { indirect_counts } = counts_indirect

@@ -104,7 +104,7 @@ pub trait PipelinePart {
     type Input;
     type Output;
 
-    fn new(context: &GpuContext, settings: Self::Settings) -> Self;
+    fn new(context: &mut GpuContext, settings: Self::Settings) -> Self;
 
     fn record(
         &self,

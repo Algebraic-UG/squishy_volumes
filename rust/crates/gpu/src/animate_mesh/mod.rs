@@ -117,7 +117,7 @@ impl PipelinePart for AnimateMesh {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -126,7 +126,7 @@ impl PipelinePart for AnimateMesh {
         let_compiled_module!(
             move_vertices,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_start
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_end
@@ -140,7 +140,7 @@ impl PipelinePart for AnimateMesh {
         let_compiled_module!(
             compute_triangle_normals,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_start
                     (Triangle::MIN_BINDING_SIZE, false),       // triangle_indices
@@ -154,7 +154,7 @@ impl PipelinePart for AnimateMesh {
         let_compiled_module!(
             compute_vertex_normals,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, false),            // vertex_triangle_offsets
                     (u32::MIN_BINDING_SIZE, false),            // vertex_triangle_lists

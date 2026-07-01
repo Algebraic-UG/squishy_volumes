@@ -87,7 +87,7 @@ impl PipelinePart for RadixSort {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,

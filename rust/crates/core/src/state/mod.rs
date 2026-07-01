@@ -106,13 +106,11 @@ impl State {
     pub fn to_gpu_state(
         &self,
         phase_input: &mut PhaseInput,
-        gpu_context: squishy_volumes_gpu::GpuContext,
+        mut gpu_context: squishy_volumes_gpu::GpuContext,
     ) -> Result<GpuState, GpuAllocatorError> {
         profile!("to_gpu_state");
 
         tracing::info!("creating GPU state");
-
-        let device = gpu_context.device();
 
         let workgroup_size = 64.try_into().unwrap();
         let dispatch_limit = gpu_context
@@ -126,7 +124,7 @@ impl State {
 
         tracing::info!("creating pipeline");
         let pipeline_part = squishy_volumes_gpu::Step::new(
-            &gpu_context,
+            &mut gpu_context,
             squishy_volumes_gpu::step::Settings {
                 workgroup_size,
                 dispatch_limit,
@@ -136,6 +134,8 @@ impl State {
                 time_step: phase_input.time_step,
             },
         );
+
+        let device = gpu_context.device();
 
         let num_particles = self.particles.sort_map.len();
         tracing::info!(num_particles, "preparing particles for transfer");

@@ -21,13 +21,14 @@ var<storage, read_write> total_sum: u32;
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
+override SHADER_ID: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
     @builtin(subgroup_invocation_id) subgroup_invocation_id: u32,
 ) {
-    if atomicLoad(&status) != 0 {
+    if is_error() {
         return;
     }
     var offset_from_level = 0u;
@@ -53,4 +54,13 @@ fn main(
     }
 
     total_sum = subgroup_offset;
+}
+
+fn is_error() -> bool {
+    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+}
+
+fn set_shader_id() {
+    atomicAnd(&status, 0x0000FFFFu);
+    atomicOr(&status, SHADER_ID << 16);
 }

@@ -66,13 +66,11 @@ impl PipelinePart for NodeIdsToMurmur {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
-        let device = context.device();
-
+    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let_compiled_module!(
             node_ids_to_murmur,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),

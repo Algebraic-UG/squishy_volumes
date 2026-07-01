@@ -54,7 +54,7 @@ fn run_kernels(settings: Settings, values: &[f32]) -> (Vec<f32>, Vec<f32>, Vec<f
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), values).unwrap();
-    let kernels = Kernels::new(&context, settings);
+    let kernels = Kernels::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

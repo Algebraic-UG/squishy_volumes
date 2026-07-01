@@ -61,7 +61,7 @@ fn run(settings: Settings, input_data: InputData) -> Vec<Vector4<f32>> {
 
     let input = Input::new(context.device(), input_data).unwrap();
     let particle_velocities = input.particle_velocities.clone();
-    let step = ExternalForce::new(&context, settings);
+    let step = ExternalForce::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

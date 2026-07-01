@@ -20,18 +20,20 @@ var<storage, read_write> status: atomic<u32>;
 override DISPATCH_LIMIT: u32;
 override WORKGROUP_SIZE: u32;
 override BIT_COUNT: u32;
+override SHADER_ID: u32;
 
 @compute @workgroup_size(1)
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
-    if atomicLoad(&status) != 0 {
+    if is_error() {
         counts_indirect.x = 0;
         counts_indirect.y = 0;
         counts_indirect.z = 0;
         counts_indirect.len = 0;
         return;
     }
+    set_shader_id();
 
     let counter_count = 1u << BIT_COUNT;
     let subgroups_per_workgroup = WORKGROUP_SIZE / subgroup_size;
@@ -43,4 +45,13 @@ fn main(
     counts_indirect.y = dispatch_xyz.y;
     counts_indirect.z = dispatch_xyz.z;
     counts_indirect.len = len;
+}
+
+fn is_error() -> bool {
+    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+}
+
+fn set_shader_id() {
+    atomicAnd(&status, 0x0000FFFFu);
+    atomicOr(&status, SHADER_ID << 16);
 }

@@ -56,7 +56,7 @@ fn run(settings: Settings, bits: &[u32]) -> Vec<u32> {
         bits,
     )
     .unwrap();
-    let bits_to_pops = BitsToPops::new(&context, settings);
+    let bits_to_pops = BitsToPops::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

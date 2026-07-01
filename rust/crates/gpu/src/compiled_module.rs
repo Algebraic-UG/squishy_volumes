@@ -8,7 +8,7 @@
 
 use std::{iter, num::NonZeroU64};
 
-use crate::{AllowedInBinding, GpuStatus};
+use crate::{AllowedInBinding, GpuContext, GpuStatus};
 
 pub struct CompiledModule {
     pub label: Option<&'static str>,
@@ -17,7 +17,7 @@ pub struct CompiledModule {
 }
 
 pub struct CompiledModuleSettings<'a, BindGroupEntries, Constants> {
-    pub device: &'a wgpu::Device,
+    pub context: &'a mut GpuContext,
     pub bind_group_entries: BindGroupEntries,
     pub immediate_size: u32,
     pub constants: Constants,
@@ -28,7 +28,7 @@ impl CompiledModule {
         label: &'static str,
         shader_module_descriptor: wgpu::ShaderModuleDescriptor,
         CompiledModuleSettings {
-            device,
+            context,
             bind_group_entries,
             immediate_size,
             constants,
@@ -38,7 +38,9 @@ impl CompiledModule {
         BindGroupEntries: IntoIterator<Item = (NonZeroU64, bool)>,
         Constants: IntoIterator<Item = (&'static str, f64)>,
     {
+        let shader_id = context.register_shader(label);
         let label = Some(label);
+        let device = context.device();
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
             entries: &bind_group_entries
@@ -72,7 +74,10 @@ impl CompiledModule {
             module: &device.create_shader_module(shader_module_descriptor),
             entry_point: Some("main"),
             compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &constants.into_iter().collect::<Vec<_>>(),
+                constants: &constants
+                    .into_iter()
+                    .chain(iter::once(("SHADER_ID", shader_id as f64)))
+                    .collect::<Vec<_>>(),
                 ..Default::default()
             },
             cache: None,

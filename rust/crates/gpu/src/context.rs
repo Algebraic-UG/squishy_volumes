@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{iter::once, num::NonZeroU32};
+use std::{collections::BTreeMap, iter::once, num::NonZeroU32};
 
 use crate::{
     Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
@@ -22,6 +22,9 @@ pub struct GpuContext {
     subgroup_size: NonZeroU32,
 
     status: Allocation,
+
+    next_shader_id: u32,
+    shader_ids: BTreeMap<&'static str, u32>,
 
     allocator: Option<GpuAllocator>,
     indirect_allocator: Option<GpuAllocator>,
@@ -124,6 +127,9 @@ impl GpuContext {
 
             status,
 
+            next_shader_id: 0,
+            shader_ids: Default::default(),
+
             allocator: None,
             indirect_allocator: None,
         })
@@ -214,5 +220,11 @@ impl GpuContext {
     pub fn reset_status(&mut self) -> Result<(), GpuAllocatorError> {
         self.status = Allocation::new(&self.device, "status", &[GpuStatus::default()])?;
         Ok(())
+    }
+
+    pub fn register_shader(&mut self, label: &'static str) -> u32 {
+        let shader_id = self.shader_ids.entry(label).or_insert(self.next_shader_id);
+        self.next_shader_id += 1;
+        *shader_id
     }
 }

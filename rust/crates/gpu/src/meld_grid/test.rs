@@ -163,7 +163,7 @@ fn run(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) ->
         input_data,
     )
     .unwrap();
-    let meld_grid = MeldGrid::new(&context, settings);
+    let meld_grid = MeldGrid::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

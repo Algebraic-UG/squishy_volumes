@@ -152,7 +152,7 @@ impl PipelinePart for Collide {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -164,7 +164,7 @@ impl PipelinePart for Collide {
         let_compiled_module!(
             collide,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), //particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //particle_velocities

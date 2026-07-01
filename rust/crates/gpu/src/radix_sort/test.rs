@@ -102,7 +102,7 @@ fn run_with_input(
     input: Input,
     one_round: bool,
 ) -> Vec<u32> {
-    let radix_sort = RadixSort::new(&context, settings);
+    let radix_sort = RadixSort::new(context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

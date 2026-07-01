@@ -100,7 +100,7 @@ impl PipelinePart for Scatter {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             grid_node_size,
@@ -109,7 +109,7 @@ impl PipelinePart for Scatter {
         let_compiled_module!(
             scatter,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),               // indirect
                     (u32::MIN_BINDING_SIZE, false),                   // contributor_offsets

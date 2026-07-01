@@ -19,21 +19,33 @@ var<storage, read_write> status: atomic<u32>;
 
 override DISPATCH_LIMIT: u32;
 override WORKGROUP_SIZE: u32;
+override SHADER_ID: u32;
 
 @compute @workgroup_size(1)
 fn main(
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
-    if atomicLoad(&status) != 0 {
+    if is_error() {
         new_indirect.x = 0;
         new_indirect.y = 0;
         new_indirect.z = 0;
         new_indirect.len = 0;
         return;
     }
+    set_shader_id();
+
     let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);
     new_indirect.x = dispatch_xzy.x;
     new_indirect.y = dispatch_xzy.y;
     new_indirect.z = dispatch_xzy.z;
     new_indirect.len = len;
+}
+
+fn is_error() -> bool {
+    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+}
+
+fn set_shader_id() {
+    atomicAnd(&status, 0x0000FFFFu);
+    atomicOr(&status, SHADER_ID << 16);
 }

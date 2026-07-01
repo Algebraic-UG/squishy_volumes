@@ -73,7 +73,7 @@ fn run(settings: Settings, matrices: &[Matrix4x3<f32>]) -> Vec<Svd> {
 
     let input = Input::new(context.device(), matrices).unwrap();
 
-    let test_svd = TestSvd::new(&context, settings);
+    let test_svd = TestSvd::new(&mut context, settings);
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output { svds } = test_svd

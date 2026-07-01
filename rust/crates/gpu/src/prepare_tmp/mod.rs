@@ -119,7 +119,7 @@ impl PipelinePart for PrepareTmp {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -130,7 +130,7 @@ impl PipelinePart for PrepareTmp {
         let_compiled_module!(
             prepare_tmp,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (f32::MIN_BINDING_SIZE, false),                         // masses
                     (f32::MIN_BINDING_SIZE, false),                         // initial_volumes

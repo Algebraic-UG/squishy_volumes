@@ -69,13 +69,11 @@ impl PipelinePart for Elastic {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
-        let device = context.device();
-
+    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let_compiled_module!(
             stress_and_energy,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),

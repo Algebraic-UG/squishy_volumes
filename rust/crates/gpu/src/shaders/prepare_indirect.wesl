@@ -19,6 +19,7 @@ var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override DISPATCH_LIMIT: u32;
+override SHADER_ID: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -31,12 +32,15 @@ fn main(
         return;
     }
 
-    if atomicLoad(&status) != 0 {
+    if is_error() {
         indirect_levels[global_index].len = 0;
         indirect_levels[global_index].x = 0;
         indirect_levels[global_index].y = 0;
         indirect_levels[global_index].z = 0;
         return;
+    }
+    if global_index == 0 {
+        set_shader_id();
     }
 
     let stride = int_pow(subgroup_size, global_index);
@@ -47,4 +51,13 @@ fn main(
     indirect_levels[global_index].x = dispatch_xyz.x;
     indirect_levels[global_index].y = dispatch_xyz.y;
     indirect_levels[global_index].z = dispatch_xyz.z;
+}
+
+fn is_error() -> bool {
+    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+}
+
+fn set_shader_id() {
+    atomicAnd(&status, 0x0000FFFFu);
+    atomicOr(&status, SHADER_ID << 16);
 }

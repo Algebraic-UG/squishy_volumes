@@ -55,7 +55,7 @@ impl PipelinePart for TestSvd {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -64,7 +64,7 @@ impl PipelinePart for TestSvd {
         let_compiled_module!(
             test_svd,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (Svd::MIN_BINDING_SIZE, false),

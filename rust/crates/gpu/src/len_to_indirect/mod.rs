@@ -47,17 +47,16 @@ impl PipelinePart for LenToIndirect {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
         }: Settings,
     ) -> Self {
-        let device = context.device();
         let_compiled_module!(
             len_to_indirect,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, true),
                     (Indirect::MIN_BINDING_SIZE, false),

@@ -230,7 +230,7 @@ fn run(settings: Settings, input_data: InputData) -> OutputData {
     let particle_velocities = input.particle_velocities.clone();
     let particle_velocity_gradients = input.particle_velocity_gradients.clone();
 
-    let collect = Collect::new(&context, settings);
+    let collect = Collect::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

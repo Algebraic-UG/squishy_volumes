@@ -94,7 +94,7 @@ impl PipelinePart for RegisterContributors {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
@@ -104,7 +104,7 @@ impl PipelinePart for RegisterContributors {
         let_compiled_module!(
             count_contributors,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
@@ -130,7 +130,7 @@ impl PipelinePart for RegisterContributors {
         let_compiled_module!(
             register_contributors,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),

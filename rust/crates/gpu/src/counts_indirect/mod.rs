@@ -61,18 +61,17 @@ impl PipelinePart for CountsIndirect {
     type Output = Output;
 
     fn new(
-        context: &GpuContext,
+        context: &mut GpuContext,
         Settings {
             workgroup_size,
             dispatch_limit,
             bit_count,
         }: Settings,
     ) -> Self {
-        let device = context.device();
         let_compiled_module!(
             counts_indirect,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),

@@ -29,11 +29,11 @@ impl PipelinePart for TestStatus {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, _: Settings) -> Self {
+    fn new(context: &mut GpuContext, _: Settings) -> Self {
         let_compiled_module!(
             test_status,
             CompiledModuleSettings {
-                device: context.device(),
+                context,
                 bind_group_entries: [],
                 immediate_size: 0,
                 constants: [],

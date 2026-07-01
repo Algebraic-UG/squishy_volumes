@@ -21,6 +21,7 @@ var<storage, read_write> prefix_sums: array<u32>;
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
+override SHADER_ID: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -29,10 +30,13 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    if atomicLoad(&status) != 0 {
+    if is_error() {
         return;
     }
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
+    if global_index == 0 {
+        set_shader_id();
+    }
 
     var offset_from_level = 0u;
 
@@ -62,4 +66,13 @@ fn main(
     if global_index < indirect.len {
         prefix_sums[global_index] = my_data;
     }
+}
+
+fn is_error() -> bool {
+    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+}
+
+fn set_shader_id() {
+    atomicAnd(&status, 0x0000FFFFu);
+    atomicOr(&status, SHADER_ID << 16);
 }

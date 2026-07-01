@@ -84,7 +84,7 @@ impl PipelinePart for CountSubkeys {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, settings: Self::Settings) -> Self {
+    fn new(context: &mut GpuContext, settings: Self::Settings) -> Self {
         let workgroup_size = settings.workgroup_size.get();
         let dispatch_limit = settings.dispatch_limit.get();
         let bit_count = settings.bit_count.get();
@@ -92,12 +92,10 @@ impl PipelinePart for CountSubkeys {
         assert!(workgroup_size.is_multiple_of(subgroup_size));
         assert!(subgroup_size >= 2u32.pow(bit_count));
 
-        let device = context.device();
-
         let_compiled_module!(
             count_subkeys,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
@@ -114,7 +112,7 @@ impl PipelinePart for CountSubkeys {
         let_compiled_module!(
             count_subkeys_with_indices,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),

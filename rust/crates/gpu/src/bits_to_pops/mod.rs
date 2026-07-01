@@ -59,13 +59,11 @@ impl PipelinePart for BitsToPops {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &GpuContext, Settings { workgroup_size }: Settings) -> Self {
-        let device = context.device();
-
+    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
         let_compiled_module!(
             bits_to_pops,
             CompiledModuleSettings {
-                device,
+                context,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
