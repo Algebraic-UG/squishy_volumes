@@ -8,7 +8,7 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id};
+import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
@@ -52,15 +52,31 @@ fn main(
     let table_mask = arrayLength(&hash_table_multi) - 1;
     let hash = murmur_of_node_id(node_id, 0);
 
+    var tries = 0;
     var slot = hash & table_mask;
+    if hash_table_multi[slot] == 0 {
+        atomicOr(&status, TABLE_ENTRY_MISSING);
+        return;
+    }
     var node_index = hash_table_multi[slot] - 1;
     loop {
+        if tries > 50 {
+            atomicOr(&status, TABLE_TRIES_EXCEEDED);
+            return;
+        }
+
         if all(node_id == node_ids_and_collider_bits[node_index].node_id) {
             break;
         }
 
         slot += 1;
         slot &= table_mask;
+        tries += 1;
+
+        if hash_table_multi[slot] == 0 {
+            atomicOr(&status, TABLE_ENTRY_MISSING);
+            return;
+        }
 
         node_index = hash_table_multi[slot] - 1;
     }

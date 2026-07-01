@@ -8,7 +8,7 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{PositionAndColliderBits, get_global_index, node_offset, position_to_low_node, murmur_of_node_id};
+import super::util::{PositionAndColliderBits, get_global_index, node_offset, position_to_low_node, murmur_of_node_id, TABLE_TRIES_EXCEEDED};
 
 @group(0) @binding(0)
 var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
@@ -53,7 +53,13 @@ fn main(
         let hash = murmur_of_node_id(node_id, collider_bits);
 
         var slot = hash & table_mask;
+        var tries = 0;
         loop {
+            if tries > 50 {
+                atomicOr(&status, TABLE_TRIES_EXCEEDED);
+                return;
+            }
+
             let result = atomicCompareExchangeWeak(&hash_table[slot], 0, node_and_index);
 
             if result.exchanged {
@@ -77,6 +83,7 @@ fn main(
             continuing {
                 slot += 1;
                 slot &= table_mask;
+                tries += 1;
             }
         }
     }

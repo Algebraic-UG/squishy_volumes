@@ -22,7 +22,7 @@ use anyhow::{Context, Result, bail};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
 use squishy_volumes_gpu::{
-    Allocation, PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, wgpu,
+    Allocation, GpuStatus, PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, wgpu,
     wgpu_profiler,
 };
 use strum::IntoEnumIterator;
@@ -332,6 +332,7 @@ impl ComputeFrameGPU<'_> {
                 next_input.particle_positions_and_collider_bits.clone(),
                 next_input.particle_position_gradients.clone(),
                 next_input.particle_velocities.clone(),
+                gpu_context.status(),
             ],
         );
         downloads.copy(&mut encoder);
@@ -404,6 +405,7 @@ impl ComputeFrameGPU<'_> {
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
+            status,
         ] = downloads.try_into().unwrap();
 
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
@@ -427,6 +429,8 @@ impl ComputeFrameGPU<'_> {
             .iter()
             .map(Vector4::xyz)
             .collect();
+
+        info!(gpu_status = ?status.to_vec::<GpuStatus>()[0]);
 
         Ok(())
     }

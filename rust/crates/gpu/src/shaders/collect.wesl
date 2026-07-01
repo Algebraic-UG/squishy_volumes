@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic, TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED};
 
 @group(0) @binding(0)
 var<storage, read_write> hash_table: array<u32>;
@@ -67,10 +67,18 @@ fn main(
         let node_id = low_node_id + node_offset(node);
         let hash = murmur_of_node_id(node_id, collider_bits);
 
+        var tries = 0;
         var slot = hash & table_mask;
-        //  this must never be zero, or we're in big trouble
+        if hash_table[slot] == 0 {
+            atomicOr(&status, TABLE_ENTRY_MISSING);
+            return;
+        }
         var node_index = hash_table[slot] - 1;
         loop {
+            if tries > 50 {
+                atomicOr(&status, TABLE_TRIES_EXCEEDED);
+                return;
+            }
             let entry = node_ids_and_collider_bits[node_index];
             if entry.collider_bits == collider_bits && all(node_id == entry.node_id) {
                 break;
@@ -78,7 +86,12 @@ fn main(
 
             slot += 1;
             slot &= table_mask;
+            tries += 1;
 
+            if hash_table[slot] == 0 {
+                atomicOr(&status, TABLE_ENTRY_MISSING);
+                return;
+            }
             node_index = hash_table[slot] - 1;
         }
 

@@ -8,7 +8,7 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id};
+import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, TABLE_TRIES_EXCEEDED};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
@@ -54,9 +54,15 @@ fn main(
         let hash = murmur_of_node_id(node_id, collider_bits);
         var slot = hash & table_mask;
 
+        var tries = 0;
         while !atomicCompareExchangeWeak(&hash_table[slot], 0, global_index + 1).exchanged {
+            if tries > 50 {
+                atomicOr(&status, TABLE_TRIES_EXCEEDED);
+                return;
+            }
             slot += 1;
             slot &= table_mask;
+            tries += 1;
         }
     }
 
@@ -66,7 +72,13 @@ fn main(
     let hash = murmur_of_node_id(node_id, 0);
     var node_index = 0u;
     var slot = hash & table_mask;
+    var tries = 0;
     loop {
+        if tries > 50 {
+            atomicOr(&status, TABLE_TRIES_EXCEEDED);
+            return;
+        }
+
         let result = atomicCompareExchangeWeak(&hash_table_multi[slot], 0, global_index + 1);
         if result.exchanged {
             node_index = global_index;
@@ -80,6 +92,7 @@ fn main(
 
         slot += 1;
         slot &= table_mask;
+        tries += 1;
     }
 
     atomicAdd(&multi_counts[node_index], 1);

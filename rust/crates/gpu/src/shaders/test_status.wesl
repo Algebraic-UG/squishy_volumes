@@ -16,5 +16,5 @@ fn main() {
     if atomicLoad(&status) != 0 {
         return;
     }
-    atomicStore(&status, TABLE_TRIES_EXCEEDED);
+    atomicOr(&status, TABLE_TRIES_EXCEEDED);
 }
