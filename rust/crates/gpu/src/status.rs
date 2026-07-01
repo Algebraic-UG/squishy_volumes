@@ -22,8 +22,6 @@ pub enum GpuShaderError {
     TableEntryMissing { reporting_shader: &'static str },
     #[error("{reporting_shader} exceeded indirect limit")]
     IndirectLimitExceeded { reporting_shader: &'static str },
-    #[error("Multi-error {errors:?}")]
-    Multi { errors: Vec<Self> },
 }
 
 const TABLE_TRIES_EXCEEDED: u32 = 1;
@@ -37,29 +35,20 @@ impl GpuStatus {
         let Some(reporting_shader) = context.get_shader_label(shader_id) else {
             return Err(GpuError::ShaderIdMissing(shader_id));
         };
-        let mut errors = Vec::new();
-
-        if self.0 & TABLE_TRIES_EXCEEDED != 0 {
-            errors.push(GpuShaderError::TableTriesExceeded { reporting_shader });
-        }
 
         if self.0 & TABLE_ENTRY_MISSING != 0 {
-            errors.push(GpuShaderError::TableEntryMissing { reporting_shader });
+            Err(GpuShaderError::TableEntryMissing { reporting_shader })?;
+        }
+
+        if self.0 & TABLE_TRIES_EXCEEDED != 0 {
+            Err(GpuShaderError::TableTriesExceeded { reporting_shader })?;
         }
 
         if self.0 & INDIRECT_LIMIT_EXCEEDED != 0 {
-            errors.push(GpuShaderError::IndirectLimitExceeded { reporting_shader });
+            Err(GpuShaderError::IndirectLimitExceeded { reporting_shader })?;
         }
 
-        if errors.is_empty() {
-            return Ok(());
-        }
-
-        if errors.len() == 1 {
-            Err(errors.pop().unwrap())?;
-        }
-
-        Err(GpuShaderError::Multi { errors })?
+        Ok(())
     }
 }
 
