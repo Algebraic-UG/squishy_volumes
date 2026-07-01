@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, find_dispatch_xyz};
+import super::util::{Indirect, find_dispatch_xyz, INDIRECT_LIMIT_EXCEEDED};
 
 @group(0) @binding(0)
 var<storage, read> len: u32;
@@ -16,6 +16,8 @@ var<storage, read_write> new_indirect: Indirect;
 
 @group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
+
+var<immediate> limit: u32;
 
 override DISPATCH_LIMIT: u32;
 override WORKGROUP_SIZE: u32;
@@ -33,6 +35,15 @@ fn main(
         return;
     }
     set_shader_id();
+
+    if len > limit {
+        atomicOr(&status, INDIRECT_LIMIT_EXCEEDED);
+        new_indirect.x = 0;
+        new_indirect.y = 0;
+        new_indirect.z = 0;
+        new_indirect.len = 0;
+        return;
+    }
 
     let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);
     new_indirect.x = dispatch_xzy.x;

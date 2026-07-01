@@ -8,7 +8,7 @@
 
 use thiserror::Error;
 
-use crate::GpuAllocatorError;
+use crate::{GpuAllocatorError, GpuShaderError};
 
 #[allow(dead_code)] // fields are read in the error below
 #[derive(Debug, Clone)]
@@ -64,16 +64,6 @@ pub enum GpuError {
 
     #[error("Input to the GPU wasn't valid: {0}")]
     Input(#[from] GpuInputError),
-}
-
-#[derive(Error, Debug)]
-pub enum GpuShaderError {
-    #[error("{reporting_shader} exceeded table tries")]
-    TableTriesExceeded { reporting_shader: &'static str },
-    #[error("{reporting_shader} failed to find entry")]
-    TableEntryMissing { reporting_shader: &'static str },
-    #[error("Multi-error {errors:?}")]
-    Multi { errors: Vec<Self> },
 }
 
 #[derive(Error, Debug)]

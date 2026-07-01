@@ -6,26 +6,60 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::AllowedInBinding;
+use thiserror::Error;
+
+use crate::{AllowedInBinding, GpuContext, GpuError};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
 pub struct GpuStatus(u32);
 
+#[derive(Error, Debug)]
+pub enum GpuShaderError {
+    #[error("{reporting_shader} exceeded table tries")]
+    TableTriesExceeded { reporting_shader: &'static str },
+    #[error("{reporting_shader} failed to find entry")]
+    TableEntryMissing { reporting_shader: &'static str },
+    #[error("{reporting_shader} exceeded indirect limit")]
+    IndirectLimitExceeded { reporting_shader: &'static str },
+    #[error("Multi-error {errors:?}")]
+    Multi { errors: Vec<Self> },
+}
+
 const TABLE_TRIES_EXCEEDED: u32 = 1;
 const TABLE_ENTRY_MISSING: u32 = 2;
+const INDIRECT_LIMIT_EXCEEDED: u32 = 4;
 
 impl GpuStatus {
-    pub fn table_tries_exceeded(&self) -> bool {
-        self.0 & TABLE_TRIES_EXCEEDED != 0
-    }
+    pub fn to_result(&self, context: &GpuContext) -> Result<(), GpuError> {
+        let shader_id = self.0 >> 16;
 
-    pub fn table_entry_missing(&self) -> bool {
-        self.0 & TABLE_ENTRY_MISSING != 0
-    }
+        let Some(reporting_shader) = context.get_shader_label(shader_id) else {
+            return Err(GpuError::ShaderIdMissing(shader_id));
+        };
+        let mut errors = Vec::new();
 
-    pub fn shader_id(&self) -> u32 {
-        self.0 >> 16
+        if self.0 & TABLE_TRIES_EXCEEDED != 0 {
+            errors.push(GpuShaderError::TableTriesExceeded { reporting_shader });
+        }
+
+        if self.0 & TABLE_ENTRY_MISSING != 0 {
+            errors.push(GpuShaderError::TableEntryMissing { reporting_shader });
+        }
+
+        if self.0 & INDIRECT_LIMIT_EXCEEDED != 0 {
+            errors.push(GpuShaderError::IndirectLimitExceeded { reporting_shader });
+        }
+
+        if errors.is_empty() {
+            return Ok(());
+        }
+
+        if errors.len() == 1 {
+            Err(errors.pop().unwrap())?;
+        }
+
+        Err(GpuShaderError::Multi { errors })?
     }
 }
 

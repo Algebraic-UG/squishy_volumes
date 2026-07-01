@@ -342,3 +342,4 @@ struct NodeIdAndColliderBits {
 
 const TABLE_TRIES_EXCEEDED: u32 = 1;
 const TABLE_ENTRY_MISSING: u32 = 2;
+const INDIRECT_LIMIT_EXCEEDED: u32 = 4;

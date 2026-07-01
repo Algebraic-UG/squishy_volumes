@@ -23,7 +23,9 @@ pub struct Settings {
     pub dispatch_limit: NonZeroU32,
 }
 
-pub struct Parameters;
+pub struct Parameters {
+    pub limit: u32,
+}
 
 pub struct Input {
     pub len: Allocation,
@@ -61,7 +63,7 @@ impl PipelinePart for LenToIndirect {
                     (u32::MIN_BINDING_SIZE, true),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
-                immediate_size: 0,
+                immediate_size: 4,
                 constants: [
                     ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("DISPATCH_LIMIT", dispatch_limit.get() as f64),
@@ -77,19 +79,20 @@ impl PipelinePart for LenToIndirect {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input { len }: Input,
-        _: Parameters,
+        Parameters { limit }: Parameters,
     ) -> Result<Output, GpuError> {
         let new_indirect = context
             .indirect_allocator()?
             .allocate::<Indirect>("new_indirect", 1.try_into().unwrap())?;
 
-        context
-            .enter_module(
-                encoder,
-                &self.len_to_indirect,
-                [len.binding(), new_indirect.binding()],
-            )
-            .dispatch_workgroups(1, 1, 1);
+        let mut compute_pass = context.enter_module(
+            encoder,
+            &self.len_to_indirect,
+            [len.binding(), new_indirect.binding()],
+        );
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&limit));
+        compute_pass.dispatch_workgroups(1, 1, 1);
+        drop(compute_pass);
 
         Ok(Output { new_indirect })
     }

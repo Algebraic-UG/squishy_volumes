@@ -252,7 +252,9 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             len_to_indirect::Input { len: total_nodes },
-            len_to_indirect::Parameters,
+            len_to_indirect::Parameters {
+                limit: max_num_nodes.get() as u32,
+            },
         )?;
 
         let node_ids_and_collider_bits = context

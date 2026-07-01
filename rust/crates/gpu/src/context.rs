@@ -238,29 +238,4 @@ impl GpuContext {
     pub fn get_shader_label(&self, id: u32) -> Option<&'static str> {
         self.shader_id_to_label.get(&id).cloned()
     }
-
-    pub fn status_to_result(&self, status: GpuStatus) -> Result<(), GpuError> {
-        let shader_id = status.shader_id();
-        let Some(reporting_shader) = self.get_shader_label(shader_id) else {
-            return Err(GpuError::ShaderIdMissing(shader_id));
-        };
-        let mut errors = Vec::new();
-
-        if status.table_tries_exceeded() {
-            errors.push(GpuShaderError::TableTriesExceeded { reporting_shader });
-        }
-        if status.table_entry_missing() {
-            errors.push(GpuShaderError::TableEntryMissing { reporting_shader });
-        }
-
-        if errors.is_empty() {
-            return Ok(());
-        }
-
-        if errors.len() == 1 {
-            Err(errors.pop().unwrap())?;
-        }
-
-        Err(GpuShaderError::Multi { errors })?
-    }
 }
