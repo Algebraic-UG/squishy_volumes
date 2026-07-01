@@ -6,11 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-/*
+use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
-
-use nalgebra::{Matrix1x3, Matrix3, stack};
 use squishy_volumes_util::{lambda, mu};
 
 use crate::particle_parameters::{Host, Solid};
@@ -19,58 +17,78 @@ use super::*;
 
 fn check(
     settings @ Settings {
-        cell_size,
         time_step,
+        grid_node_size,
         ..
     }: Settings,
-    input_data @ InputData {
-        masses,
-        initial_volumes,
-        parameters,
-        positions,
-        position_gradients,
-        velocities,
-        velocity_gradients,
-        ..
-    }: InputData,
+    input_data: InputData,
 ) {
-    let permutation = sort_positions_into_cells_on_cpu(
-        &(0..positions.len() as u32).collect::<Vec<_>>(),
-        positions,
-        cell_size,
-    );
-    let permutation = permutation.as_slice();
+    let InputData {
+        gravity,
+        particle_masses,
+        particle_initial_volumes,
+        particle_parameters,
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+        collider_input,
+    } = &input_data;
 
-    let scatter_collect_data = scatter::InputData {
-        masses,
-        initial_volumes,
-        particle_parameters: parameters,
-        positions,
-        position_gradients,
-        velocities,
-        velocity_gradients,
-    };
-    let (positions, position_gradients, velocities, velocity_gradients) = collect_on_cpu(
-        cell_size,
+    let (node_ids_and_collider_bits, contributor_offsets, contributors) = contributors_on_cpu(
+        settings.grid_node_size,
+        particle_positions_and_collider_bits,
+    );
+    let particle_tmp = prepare_tmp_on_cpu(
+        settings.grid_node_size,
+        settings.time_step,
+        prepare_tmp::InputData {
+            particle_masses,
+            particle_initial_volumes,
+            particle_parameters,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
+        },
+    );
+
+    let node_momentums = scatter_on_cpu(
+        grid_node_size,
+        scatter::InputData {
+            contributor_offsets: &contributor_offsets,
+            contributors: &contributors,
+            node_ids_and_collider_bits: &node_ids_and_collider_bits,
+            particle_tmp: &particle_tmp,
+        },
+    );
+
+    collect_on_cpu(
+        grid_node_size,
         time_step,
-        scatter_collect_data.clone(),
-        scatter_on_cpu(cell_size, time_step, scatter_collect_data.clone()),
+        collect::InputData {
+            node_ids_and_collider_bits: &node_ids_and_collider_bits,
+            node_momentums: &node_momentums,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
+        },
     );
-
-    let positions_cpu = permutation.permute(&positions);
-    let position_gradients_cpu = permutation.permute(&position_gradients);
-    let velocities_cpu = permutation.permute(&velocities);
-    let velocity_gradients_cpu = permutation.permute(&velocity_gradients);
 
     let OutputData {
-        positions_out: positions_gpu,
-        position_gradients_out: position_gradients_gpu,
-        velocities_out: velocities_gpu,
-        velocity_gradients_out: velocity_gradients_gpu,
-        ..
-    } = run_step(settings, input_data);
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+        indirect_nodes,
+        node_ids_and_collider_bits,
+        node_momentums,
+    } = run(settings, input_data.clone());
 
-    println!("positions:");
+    todo!()
+    /*
+    println!("positions_and_collider_bits:");
     for (cpu, gpu) in positions_cpu.into_iter().zip(positions_gpu) {
         check_iters(cpu.xyz().iter(), gpu.xyz().iter());
     }
@@ -98,50 +116,117 @@ fn check(
             gpu.fixed_view::<3, 3>(0, 0).iter(),
         );
     }
+
+    println!("indirect nodes:");
+    println!("node_ids_and_collider_bits:");
+    println!("node_momentums:");
+        */
+}
+
+#[test]
+fn specific() {
+    let workgroup_size = 64.try_into().unwrap();
+    let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
+    let grid_node_size = 0.5;
+    let time_step = 0.001;
+    let settings = Settings {
+        workgroup_size,
+        dispatch_limit,
+        time_step,
+        grid_node_size,
+        forget_distance: grid_node_size * 2.2,
+        accept_distance: grid_node_size * 2.,
+        table_tries: 50,
+    };
+
+    let particle_positions_and_collider_bits = specific_positions_and_collider_bits();
+    let n = particle_positions_and_collider_bits.len();
+
+    check(
+        settings,
+        InputData {
+            gravity: Vector4::new(0., 0., -9.8, 0.),
+            particle_masses: &vec![1.; n],
+            particle_initial_volumes: &vec![1.; n],
+            particle_parameters: &vec![
+                Host::Solid(Solid {
+                    mu: mu(1000., 0.3),
+                    lambda: lambda(1000., 0.3),
+                    viscosity: None,
+                    sand_alpha: None,
+                })
+                .into();
+                n
+            ],
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+            particle_position_gradients: &vec![
+                stack![
+                    Matrix3::identity();
+                    Matrix1x3::zeros()
+                ];
+                n
+            ],
+            particle_velocities: &vec![Vector4::zeros(); n],
+            particle_velocity_gradients: &vec![
+                stack![
+                    Matrix3::zeros();
+                    Matrix1x3::zeros()
+                ];
+                n
+            ],
+            collider_input: None,
+        },
+    )
 }
 
 #[test]
 fn test_single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
-    let bit_count = 2.try_into().unwrap();
-    let cell_size = 1.;
+    let grid_node_size = 0.5;
     let time_step = 0.001;
     let settings = Settings {
         workgroup_size,
         dispatch_limit,
-        bit_count,
-        cell_size,
         time_step,
+        grid_node_size,
+        forget_distance: grid_node_size * 2.2,
+        accept_distance: grid_node_size * 2.,
+        table_tries: 50,
     };
 
     check(
         settings,
         InputData {
-            indices: &[0],
-            masses: &[1.],
-            initial_volumes: &[1.],
-            parameters: &[Host::Solid(Solid {
+            gravity: Vector4::new(0., 0., -9.8, 0.),
+            particle_masses: &[1.],
+            particle_initial_volumes: &[1.],
+            particle_parameters: &[Host::Solid(Solid {
                 mu: mu(1000., 0.3),
                 lambda: lambda(1000., 0.3),
                 viscosity: None,
                 sand_alpha: None,
             })
             .into()],
-            positions: &[Vector4::zeros()],
-            position_gradients: &[stack![
+            particle_positions_and_collider_bits: &[PositionAndColliderBits {
+                position: Vector3::zeros(),
+                collider_bits: 0,
+            }],
+            particle_position_gradients: &[stack![
                 Matrix3::identity();
                 Matrix1x3::zeros()
             ]],
-            velocities: &[Vector4::zeros()],
-            velocity_gradients: &[stack![
+            particle_velocities: &[Vector4::zeros()],
+            particle_velocity_gradients: &[stack![
                 Matrix3::zeros();
                 Matrix1x3::zeros()
             ]],
+            collider_input: None,
         },
     );
 }
 
+/*
 #[test]
 fn test_many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
@@ -222,39 +307,53 @@ fn test_many_random_props() {
         },
     );
 }
+*/
 
-fn run_step(settings: Settings, data: InputData) -> OutputData {
+fn run(settings: Settings, data: InputData) -> OutputData {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
-    let input = Input::new(context.device(), settings.clone(), data);
-    let step = Step::new(&context, settings);
+    let input = Input::new(
+        context.device(),
+        settings.accept_distance,
+        16,
+        settings.clone(),
+        data,
+    )
+    .unwrap();
+
+    let particle_positions_and_collider_bits = input.particle_positions_and_collider_bits.clone();
+    let particle_position_gradients = input.particle_position_gradients.clone();
+    let particle_velocities = input.particle_velocities.clone();
+    let particle_velocity_gradients = input.particle_velocity_gradients.clone();
+
+    let step = Step::new(&mut context, settings);
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output {
-        indices_out,
-        masses_out,
-        initial_volumes_out,
-        parameters_out,
-        positions_out,
-        position_gradients_out,
-        velocities_out,
-        velocity_gradients_out,
+        indirect_nodes,
+        node_ids_and_collider_bits,
+        node_momentums,
     } = step
-        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .record(
+            &mut context,
+            &mut (&mut encoder).into(),
+            input,
+            Parameters { factor: 0.5 },
+        )
         .unwrap();
 
     let downloads = DownloadsToHost::new(
         &context,
         [
-            indices_out,
-            masses_out,
-            initial_volumes_out,
-            parameters_out,
-            positions_out,
-            position_gradients_out,
-            velocities_out,
-            velocity_gradients_out,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
+            indirect_nodes,
+            node_ids_and_collider_bits,
+            node_momentums,
+            context.status(),
         ],
     );
     downloads.copy(&mut encoder);
@@ -267,24 +366,25 @@ fn run_step(settings: Settings, data: InputData) -> OutputData {
         .unwrap();
 
     let [
-        indices_out,
-        masses_out,
-        initial_volumes_out,
-        parameters_out,
-        positions_out,
-        position_gradients_out,
-        velocities_out,
-        velocity_gradients_out,
+        particle_positions_and_collider_bits,
+        particle_position_gradients,
+        particle_velocities,
+        particle_velocity_gradients,
+        indirect_nodes,
+        node_ids_and_collider_bits,
+        node_momentums,
+        status,
     ] = downloads.try_into().unwrap();
+
+    context.status_to_result(status.to_vec()[0]).unwrap();
+
     OutputData {
-        indices_out: indices_out.to_vec(),
-        masses_out: masses_out.to_vec(),
-        initial_volumes_out: initial_volumes_out.to_vec(),
-        parameters_out: parameters_out.to_vec(),
-        positions_out: positions_out.to_vec(),
-        position_gradients_out: position_gradients_out.to_vec(),
-        velocities_out: velocities_out.to_vec(),
-        velocity_gradients_out: velocity_gradients_out.to_vec(),
+        particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec(),
+        particle_position_gradients: particle_position_gradients.to_vec(),
+        particle_velocities: particle_velocities.to_vec(),
+        particle_velocity_gradients: particle_velocity_gradients.to_vec(),
+        indirect_nodes: indirect_nodes.to_vec(),
+        node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec(),
+        node_momentums: node_momentums.to_vec(),
     }
 }
-*/

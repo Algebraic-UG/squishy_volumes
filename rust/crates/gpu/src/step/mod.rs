@@ -79,21 +79,27 @@ pub struct Input {
 }
 
 #[derive(Clone)]
-pub struct InputData<'a> {
-    pub gravity: Vector4<f32>,
-    pub masses: &'a [f32],
-    pub initial_volumes: &'a [f32],
-    pub parameters: &'a [particle_parameters::Device],
-    pub positions_and_collider_bits: &'a [PositionAndColliderBits],
-    pub position_gradients: &'a [Matrix4x3<f32>],
-    pub velocities: &'a [Vector4<f32>],
-    pub velocity_gradients: &'a [Matrix4x3<f32>],
+pub struct ColliderInputData<'a> {
     pub vertex_positions_start: &'a [Vector4<f32>],
     pub vertex_positions_end: &'a [Vector4<f32>],
     pub triangle_indices: &'a [Triangle],
     pub triangle_collider: &'a [u32],
     pub triangle_opposites: &'a [Opposites],
     pub triangle_frictions: &'a [f32],
+}
+
+#[derive(Clone)]
+pub struct InputData<'a> {
+    pub gravity: Vector4<f32>,
+    pub particle_masses: &'a [f32],
+    pub particle_initial_volumes: &'a [f32],
+    pub particle_parameters: &'a [particle_parameters::Device],
+    pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
+    pub particle_position_gradients: &'a [Matrix4x3<f32>],
+    pub particle_velocities: &'a [Vector4<f32>],
+    pub particle_velocity_gradients: &'a [Matrix4x3<f32>],
+
+    pub collider_input: Option<ColliderInputData<'a>>,
 }
 
 impl Input {
@@ -109,115 +115,153 @@ impl Input {
         }: Settings,
         InputData {
             gravity,
-            masses,
-            initial_volumes,
-            parameters,
-            positions_and_collider_bits,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-            vertex_positions_start,
-            vertex_positions_end,
-            triangle_indices,
-            triangle_collider,
-            triangle_opposites,
-            triangle_frictions,
+            particle_masses,
+            particle_initial_volumes,
+            particle_parameters,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            particle_velocity_gradients,
+            collider_input,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        check_length!(masses, initial_volumes)?;
-        check_length!(masses, parameters)?;
-        check_length!(masses, positions_and_collider_bits)?;
-        check_length!(masses, position_gradients)?;
-        check_length!(masses, velocities)?;
-        check_length!(masses, velocity_gradients)?;
-        check_length!(vertex_positions_start, vertex_positions_end)?;
-        check_length!(triangle_indices, triangle_collider)?;
-        check_length!(triangle_indices, triangle_opposites)?;
-        check_length!(triangle_indices, triangle_frictions)?;
+        check_length!(particle_masses, particle_initial_volumes)?;
+        check_length!(particle_masses, particle_parameters)?;
+        check_length!(particle_masses, particle_positions_and_collider_bits)?;
+        check_length!(particle_masses, particle_position_gradients)?;
+        check_length!(particle_masses, particle_velocities)?;
+        check_length!(particle_masses, particle_velocity_gradients)?;
 
-        {
-            let triangle_indices = triangle_indices.iter().flat_map(Triangle::iter);
-            check_indices_valid!(triangle_indices, vertex_positions_start)?;
-        }
-        {
-            let triangle_opposites = triangle_opposites
-                .iter()
-                .flat_map(Opposites::iter)
-                .filter(|&&index| index != u32::MAX);
-            check_indices_valid!(triangle_opposites, triangle_indices)?;
-        }
-
-        let vertex_triangle_lists =
-            compute_triangle_lists(vertex_positions_start.len(), triangle_indices);
-
-        let vertex_triangle_offsets = prefix_sum_on_cpu(
-            &vertex_triangle_lists
-                .iter()
-                .map(|v| v.len() as u32)
-                .collect::<Vec<_>>(),
-        );
-        let mut vertex_triangle_lists = vertex_triangle_lists
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        if vertex_triangle_lists.is_empty() {
-            vertex_triangle_lists.push(0);
-        }
-
-        let make_aabbs = |positions: &[Vector4<f32>]| {
-            triangles_to_leaf_aabbs(
-                leaf_size,
-                forget_distance,
-                &positions.iter().map(Vector4::xyz).collect::<Vec<_>>(),
-                triangle_indices,
-            )
-        };
-        let aabbs = make_aabbs(vertex_positions_start)
-            .into_iter()
-            .zip(make_aabbs(vertex_positions_end))
-            .map(|(start, end)| start.extend(&end.min).extend(&end.max))
-            .collect();
-
-        let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
-
-        let indirect = Indirect::new(DispatchSettings {
+        let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
-            len: masses.len() as u32,
+            len: particle_masses.len() as u32,
         });
 
         let gravity = Allocation::new(device, "gravity", &[gravity])?;
-        let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
-        let particle_masses = Allocation::new(device, "particle_masses", masses)?;
+        let indirect_particles =
+            Allocation::new(device, "indirect_particles", &[indirect_particles])?;
+        let particle_masses = Allocation::new(device, "particle_masses", particle_masses)?;
         let particle_initial_volumes =
-            Allocation::new(device, "particle_initial_volumes", initial_volumes)?;
-        let particle_parameters = Allocation::new(device, "particle_parameters", parameters)?;
+            Allocation::new(device, "particle_initial_volumes", particle_initial_volumes)?;
+        let particle_parameters =
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
-            positions_and_collider_bits,
+            particle_positions_and_collider_bits,
         )?;
-        let particle_position_gradients =
-            Allocation::new(device, "particle_position_gradients", position_gradients)?;
-        let particle_velocities = Allocation::new(device, "particle_velocities", velocities)?;
-        let particle_velocity_gradients =
-            Allocation::new(device, "particle_velocity_gradients", velocity_gradients)?;
+        let particle_position_gradients = Allocation::new(
+            device,
+            "particle_position_gradients",
+            particle_position_gradients,
+        )?;
+        let particle_velocities =
+            Allocation::new(device, "particle_velocities", particle_velocities)?;
+        let particle_velocity_gradients = Allocation::new(
+            device,
+            "particle_velocity_gradients",
+            particle_velocity_gradients,
+        )?;
 
-        let vertex_positions_start =
-            Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
-        let vertex_positions_end =
-            Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
-        let vertex_triangle_offsets =
-            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
-        let vertex_triangle_lists =
-            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+        let collider_input = collider_input
+            .map(
+                |ColliderInputData {
+                     vertex_positions_start,
+                     vertex_positions_end,
+                     triangle_indices,
+                     triangle_collider,
+                     triangle_opposites,
+                     triangle_frictions,
+                 }|
+                 -> Result<ColliderInput, GpuError> {
+                    check_length!(vertex_positions_start, vertex_positions_end)?;
+                    check_length!(triangle_indices, triangle_collider)?;
+                    check_length!(triangle_indices, triangle_opposites)?;
+                    check_length!(triangle_indices, triangle_frictions)?;
 
-        let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
-        let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider)?;
-        let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites)?;
-        let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions)?;
+                    {
+                        let triangle_indices = triangle_indices.iter().flat_map(Triangle::iter);
+                        check_indices_valid!(triangle_indices, vertex_positions_start)?;
+                    }
+                    {
+                        let triangle_opposites = triangle_opposites
+                            .iter()
+                            .flat_map(Opposites::iter)
+                            .filter(|&&index| index != u32::MAX);
+                        check_indices_valid!(triangle_opposites, triangle_indices)?;
+                    }
 
-        let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
+                    let vertex_triangle_lists =
+                        compute_triangle_lists(vertex_positions_start.len(), triangle_indices);
+
+                    let vertex_triangle_offsets = prefix_sum_on_cpu(
+                        &vertex_triangle_lists
+                            .iter()
+                            .map(|v| v.len() as u32)
+                            .collect::<Vec<_>>(),
+                    );
+                    let mut vertex_triangle_lists = vertex_triangle_lists
+                        .into_iter()
+                        .flatten()
+                        .collect::<Vec<_>>();
+                    if vertex_triangle_lists.is_empty() {
+                        vertex_triangle_lists.push(0);
+                    }
+
+                    let make_aabbs = |positions: &[Vector4<f32>]| {
+                        triangles_to_leaf_aabbs(
+                            leaf_size,
+                            forget_distance,
+                            &positions.iter().map(Vector4::xyz).collect::<Vec<_>>(),
+                            triangle_indices,
+                        )
+                    };
+                    let aabbs = make_aabbs(vertex_positions_start)
+                        .into_iter()
+                        .zip(make_aabbs(vertex_positions_end))
+                        .map(|(start, end)| start.extend(&end.min).extend(&end.max))
+                        .collect();
+
+                    let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
+
+                    let vertex_positions_start =
+                        Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
+                    let vertex_positions_end =
+                        Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
+                    let vertex_triangle_offsets = Allocation::new(
+                        device,
+                        "vertex_triangle_offsets",
+                        &vertex_triangle_offsets,
+                    )?;
+                    let vertex_triangle_lists =
+                        Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+
+                    let triangle_indices =
+                        Allocation::new(device, "triangle_indices", triangle_indices)?;
+                    let triangle_collider =
+                        Allocation::new(device, "triangle_collider", triangle_collider)?;
+                    let triangle_opposites =
+                        Allocation::new(device, "triangle_opposites", triangle_opposites)?;
+                    let triangle_frictions =
+                        Allocation::new(device, "triangle_frictions", triangle_frictions)?;
+
+                    let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
+
+                    Ok(ColliderInput {
+                        vertex_positions_start,
+                        vertex_positions_end,
+                        vertex_triangle_offsets,
+                        vertex_triangle_lists,
+                        triangle_indices,
+                        triangle_collider,
+                        triangle_opposites,
+                        triangle_frictions,
+                        bvh,
+                    })
+                },
+            )
+            .transpose()?;
 
         Ok(Self {
             gravity,
@@ -232,17 +276,7 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
 
-            collider_input: Some(ColliderInput {
-                vertex_positions_start,
-                vertex_positions_end,
-                vertex_triangle_offsets,
-                vertex_triangle_lists,
-                triangle_indices,
-                triangle_collider,
-                triangle_opposites,
-                triangle_frictions,
-                bvh,
-            }),
+            collider_input,
         })
     }
 }
@@ -251,6 +285,16 @@ pub struct Output {
     pub indirect_nodes: Allocation,
     pub node_ids_and_collider_bits: Allocation,
     pub node_momentums: Allocation,
+}
+
+pub struct OutputData {
+    pub particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
+    pub particle_position_gradients: Vec<Matrix4x3<f32>>,
+    pub particle_velocities: Vec<Vector4<f32>>,
+    pub particle_velocity_gradients: Vec<Matrix4x3<f32>>,
+    pub indirect_nodes: Vec<Indirect>,
+    pub node_ids_and_collider_bits: Vec<NodeIdAndColliderBits>,
+    pub node_momentums: Vec<Vector4<f32>>,
 }
 
 impl PipelinePart for Step {

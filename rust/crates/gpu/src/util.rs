@@ -12,6 +12,9 @@ use itertools::izip;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use rustc_hash::FxHashMap;
+use squishy_volumes_util::collider_bits;
+use squishy_volumes_util::mesh::{DistanceResult, distance_to_triangle, segment_distance_result};
+use squishy_volumes_util::triangle::Triangle;
 use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
@@ -543,5 +546,151 @@ pub fn contributors_on_cpu(
         node_ids_and_collider_bits,
         contributor_offsets,
         contributors,
+    )
+}
+
+pub fn collide_on_cpu(
+    time_step: f32,
+    accept_distance: f32,
+    forget_distance: f32,
+    collide::InputData {
+        particle_positions_and_collider_bits,
+        particle_velocities,
+        vertex_positions,
+        triangle_indices,
+        triangle_collider,
+        triangle_frictions: _,
+        vertex_normals,
+        triangle_normals,
+        triangle_opposites, // TODO
+        ..
+    }: collide::InputData,
+) -> (Vec<PositionAndColliderBits>, Vec<Vector3<f32>>) {
+    let mut cpu_particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
+        particle_positions_and_collider_bits.to_vec();
+    let mut cpu_particle_velocites: Vec<Vector3<f32>> =
+        particle_velocities.iter().map(Vector4::xyz).collect();
+
+    for (
+        PositionAndColliderBits {
+            position,
+            collider_bits: bits,
+        },
+        velocity,
+    ) in cpu_particle_positions_and_collider_bits
+        .iter_mut()
+        .zip(&mut cpu_particle_velocites)
+    {
+        let p = *position;
+        let mut closest_triangle_per_collider: [u32; 16] = [u32::MAX; 16];
+        let mut min_distance_per_collider: [f32; 16] = [f32::MAX; 16];
+        for (triangle_index, ((Triangle { a, b, c }, n), collider)) in triangle_indices
+            .iter()
+            .zip(triangle_normals)
+            .zip(triangle_collider)
+            .enumerate()
+        {
+            if *n == Vector3::zeros() {
+                continue;
+            }
+            let distance = distance_to_triangle(
+                &p.xyz(),
+                &vertex_positions[*a as usize].xyz(),
+                &vertex_positions[*b as usize].xyz(),
+                &vertex_positions[*c as usize].xyz(),
+                &n.xyz(),
+            );
+            if distance < forget_distance
+                && distance < min_distance_per_collider[*collider as usize]
+            {
+                min_distance_per_collider[*collider as usize] = distance;
+                closest_triangle_per_collider[*collider as usize] = triangle_index as u32;
+            }
+        }
+
+        for (collider, closest_triangle) in closest_triangle_per_collider.into_iter().enumerate() {
+            if closest_triangle == u32::MAX {
+                collider_bits::set(bits, collider, None);
+                continue;
+            }
+
+            let triangle = triangle_indices[closest_triangle as usize];
+
+            let opps = triangle_opposites[closest_triangle as usize];
+            let n = triangle_normals[closest_triangle as usize].xyz();
+            let a = vertex_positions[triangle.a as usize].xyz();
+            let b = vertex_positions[triangle.b as usize].xyz();
+            let c = vertex_positions[triangle.c as usize].xyz();
+            let a_n = vertex_normals[triangle.a as usize].xyz();
+            let b_n = vertex_normals[triangle.b as usize].xyz();
+            let c_n = vertex_normals[triangle.c as usize].xyz();
+            let ab_n = if opps.ab != u32::MAX {
+                triangle_normals[opps.ab as usize].xyz()
+            } else {
+                Vector3::zeros()
+            };
+            let bc_n = if opps.bc != u32::MAX {
+                triangle_normals[opps.bc as usize].xyz()
+            } else {
+                Vector3::zeros()
+            };
+            let ca_n = if opps.ca != u32::MAX {
+                triangle_normals[opps.ca as usize].xyz()
+            } else {
+                Vector3::zeros()
+            };
+
+            let ab = a - b;
+            let bc = b - c;
+            let ca = c - a;
+
+            let sa = n.dot(&bc.cross(&(c - p))) > 0.;
+            let sb = n.dot(&ca.cross(&(a - p))) > 0.;
+            let sc = n.dot(&ab.cross(&(b - p))) > 0.;
+
+            let DistanceResult {
+                distance,
+                to_p,
+                normal,
+            } = if sa && sb && sc {
+                DistanceResult {
+                    distance: (p - a).dot(&n).abs(),
+                    to_p: n * (p - a).dot(&n),
+                    normal: n,
+                }
+            } else {
+                [
+                    segment_distance_result(&p, &a, &b, &a_n, &ab_n, &b_n),
+                    segment_distance_result(&p, &b, &c, &b_n, &bc_n, &c_n),
+                    segment_distance_result(&p, &c, &a, &c_n, &ca_n, &a_n),
+                ]
+                .into_iter()
+                .min_by(|a, b| a.distance.total_cmp(&b.distance))
+                .unwrap()
+            };
+
+            if normal == Vector3::zeros() {
+                collider_bits::set(bits, collider, None);
+                continue;
+            }
+
+            let new_side = 0. <= to_p.dot(&normal);
+            let Some(prior_side) = collider_bits::get(*bits, collider) else {
+                if distance < accept_distance {
+                    collider_bits::set(bits, collider, Some(new_side));
+                }
+                continue;
+            };
+
+            if prior_side == new_side {
+                continue;
+            }
+
+            *velocity -= to_p / time_step;
+        }
+    }
+    (
+        cpu_particle_positions_and_collider_bits,
+        cpu_particle_velocites,
     )
 }
