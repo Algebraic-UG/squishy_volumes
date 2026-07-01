@@ -430,7 +430,7 @@ impl ComputeFrameGPU<'_> {
             .map(Vector4::xyz)
             .collect();
 
-        info!(gpu_status = ?status.to_vec::<GpuStatus>()[0]);
+        gpu_context.status_to_result(status.to_vec::<GpuStatus>()[0])?;
 
         Ok(())
     }

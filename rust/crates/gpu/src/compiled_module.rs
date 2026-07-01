@@ -38,7 +38,7 @@ impl CompiledModule {
         BindGroupEntries: IntoIterator<Item = (NonZeroU64, bool)>,
         Constants: IntoIterator<Item = (&'static str, f64)>,
     {
-        let shader_id = context.register_shader(label);
+        let shader_id = context.get_shader_id(label);
         let label = Some(label);
         let device = context.device();
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

@@ -10,7 +10,7 @@ use std::{collections::BTreeMap, iter::once, num::NonZeroU32};
 
 use crate::{
     Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
-    GpuAllocatorError, GpuError, GpuStatus,
+    GpuAllocatorError, GpuError, GpuShaderError, GpuStatus,
 };
 
 pub struct GpuContext {
@@ -24,7 +24,8 @@ pub struct GpuContext {
     status: Allocation,
 
     next_shader_id: u32,
-    shader_ids: BTreeMap<&'static str, u32>,
+    shader_id_to_label: BTreeMap<u32, &'static str>,
+    shader_label_to_id: BTreeMap<&'static str, u32>,
 
     allocator: Option<GpuAllocator>,
     indirect_allocator: Option<GpuAllocator>,
@@ -127,8 +128,9 @@ impl GpuContext {
 
             status,
 
-            next_shader_id: 0,
-            shader_ids: Default::default(),
+            next_shader_id: 1,
+            shader_id_to_label: Default::default(),
+            shader_label_to_id: Default::default(),
 
             allocator: None,
             indirect_allocator: None,
@@ -222,9 +224,32 @@ impl GpuContext {
         Ok(())
     }
 
-    pub fn register_shader(&mut self, label: &'static str) -> u32 {
-        let shader_id = self.shader_ids.entry(label).or_insert(self.next_shader_id);
+    pub fn get_shader_id(&mut self, label: &'static str) -> u32 {
+        let shader_id = self
+            .shader_label_to_id
+            .entry(label)
+            .or_insert_with(|| self.next_shader_id);
+        self.shader_id_to_label.insert(*shader_id, label);
+
         self.next_shader_id += 1;
         *shader_id
+    }
+
+    pub fn get_shader_label(&self, id: u32) -> Option<&'static str> {
+        self.shader_id_to_label.get(&id).cloned()
+    }
+
+    pub fn status_to_result(&self, status: GpuStatus) -> Result<(), GpuError> {
+        let shader_id = status.shader_id();
+        let Some(reporting_shader) = self.get_shader_label(shader_id) else {
+            return Err(GpuError::ShaderIdMissing(shader_id));
+        };
+        if status.table_tries_exceeded() {
+            Err(GpuShaderError::TableTriesExceeded { reporting_shader })?;
+        }
+        if status.table_entry_missing() {
+            Err(GpuShaderError::TableEntryMissing { reporting_shader })?;
+        }
+        Ok(())
     }
 }

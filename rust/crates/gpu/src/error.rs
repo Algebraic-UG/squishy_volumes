@@ -56,8 +56,22 @@ pub enum GpuError {
     #[error("Something went wrong with creating the profiler: {0}")]
     ProfilerError(#[from] wgpu_profiler::CreationError),
 
+    #[error("There's no shader registered to {0}")]
+    ShaderIdMissing(u32),
+
+    #[error("A shader reported an error: {0}")]
+    Shader(#[from] GpuShaderError),
+
     #[error("Input to the GPU wasn't valid: {0}")]
     Input(#[from] GpuInputError),
+}
+
+#[derive(Error, Debug)]
+pub enum GpuShaderError {
+    #[error("{reporting_shader} exceeded table tries")]
+    TableTriesExceeded { reporting_shader: &'static str },
+    #[error("{reporting_shader} failed to find entry")]
+    TableEntryMissing { reporting_shader: &'static str },
 }
 
 #[derive(Error, Debug)]
