@@ -6,10 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{
-    num::{NonZeroU32, NonZeroU64},
-    sync::atomic::AtomicU32,
-};
+use std::{num::NonZeroU32, sync::atomic::AtomicU32};
 
 #[cfg(test)]
 mod test;
@@ -37,7 +34,9 @@ pub struct Settings {
     pub table_tries: u32,
 }
 
-pub struct Parameters;
+pub struct Parameters {
+    pub max_num_grid_nodes: NonZeroU32,
+}
 
 pub struct Input {
     pub indirect_particles: Allocation,
@@ -200,10 +199,9 @@ impl PipelinePart for PrepareGrid {
             indirect_particles,
             particle_positions_and_collider_bits,
         }: Input,
-        _: Parameters,
+        Parameters { max_num_grid_nodes }: Parameters,
     ) -> Result<Output, GpuError> {
         let num_particles = particle_positions_and_collider_bits.len::<PositionAndColliderBits>();
-        let max_num_nodes: NonZeroU64 = (num_particles.get() * 27).try_into().unwrap();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
@@ -217,7 +215,7 @@ impl PipelinePart for PrepareGrid {
             partition_nodes::Input {
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
             },
-            partition_nodes::Parameters,
+            partition_nodes::Parameters { max_num_grid_nodes },
         )?;
 
         let bits_to_pops::Output { pops } = self.bits_to_pops.record(
@@ -253,13 +251,14 @@ impl PipelinePart for PrepareGrid {
             encoder,
             len_to_indirect::Input { len: total_nodes },
             len_to_indirect::Parameters {
-                limit: max_num_nodes.get() as u32,
+                limit: max_num_grid_nodes.get(),
             },
         )?;
 
-        let node_ids_and_collider_bits = context
-            .allocator()?
-            .allocate::<NodeIdAndColliderBits>("node_ids_and_collider_bits", max_num_nodes)?;
+        let node_ids_and_collider_bits = context.allocator()?.allocate::<NodeIdAndColliderBits>(
+            "node_ids_and_collider_bits",
+            max_num_grid_nodes.into(),
+        )?;
 
         context
             .enter_module(
@@ -317,7 +316,7 @@ impl PipelinePart for PrepareGrid {
 
         let multi = context
             .allocator()?
-            .allocate::<u32>("multi", max_num_nodes)?;
+            .allocate::<u32>("multi", max_num_grid_nodes.into())?;
 
         context
             .enter_module(

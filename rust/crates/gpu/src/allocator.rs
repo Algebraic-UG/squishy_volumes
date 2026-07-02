@@ -24,8 +24,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone)]
 pub enum GpuAllocatorError {
-    #[error("Failed to allocate buffer, requested {requested}, but max is {max}")]
-    ExceedingMaxBufferSize { requested: u64, max: u64 },
     #[error(
         "Failed to allocate buffer binding for {label}, requested {requested}, but max is {max}"
     )]
@@ -47,9 +45,15 @@ In total free: {total_free}"
     },
     #[error("Expected non-zero allocation for {label}")]
     AllocationEmpty { label: &'static str },
+
+    #[error("Trying to resize while in use {label:?}")]
+    ResizingWhileInUse { label: Option<&'static str> },
 }
 
 pub struct GpuAllocator {
+    label: &'static str,
+    size: u64,
+    max_buffer_size: u64,
     max_storage_buffer_binding_size: u64,
     buffers: Vec<GpuBuffer>,
 }
@@ -88,7 +92,7 @@ impl Allocation {
                     | wgpu::BufferUsages::INDIRECT,
             }),
         );
-        let (partition, _keep_alive) = Partition::new(0..buffer.size());
+        let (partition, _keep_alive) = Partition::new(Some(label), 0..buffer.size());
 
         Ok(Self {
             label,
@@ -135,36 +139,28 @@ impl Allocation {
 
 impl GpuBuffer {
     fn new(
-        context: &GpuContext,
+        device: &wgpu::Device,
         size: u64,
         label: &str,
         scram: bool,
     ) -> Result<Self, GpuAllocatorError> {
         tracing::info!(label, size, "creating new gpu buffer");
-        if context.adapter().limits().max_buffer_size < size {
-            return Err(GpuAllocatorError::ExceedingMaxBufferSize {
-                requested: size,
-                max: context.adapter().limits().max_buffer_size,
-            });
-        }
 
         let buffer = Arc::new(if scram {
             let random_content: Vec<u8> = ChaCha8Rng::seed_from_u64(42)
                 .random_iter::<u8>()
                 .take(size as usize)
                 .collect();
-            context
-                .device()
-                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some(label),
-                    contents: &random_content,
-                    usage: wgpu::BufferUsages::STORAGE
-                        | wgpu::BufferUsages::COPY_DST
-                        | wgpu::BufferUsages::COPY_SRC
-                        | wgpu::BufferUsages::INDIRECT,
-                })
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(label),
+                contents: &random_content,
+                usage: wgpu::BufferUsages::STORAGE
+                    | wgpu::BufferUsages::COPY_DST
+                    | wgpu::BufferUsages::COPY_SRC
+                    | wgpu::BufferUsages::INDIRECT,
+            })
         } else {
-            context.device().create_buffer(&wgpu::BufferDescriptor {
+            device.create_buffer(&wgpu::BufferDescriptor {
                 label: Some(label),
                 size,
                 usage: wgpu::BufferUsages::STORAGE
@@ -177,11 +173,8 @@ impl GpuBuffer {
 
         let partitions = vec![Partition::unused(0..size)];
 
-        let min_storage_buffer_offset_alignment = context
-            .device()
-            .limits()
-            .min_storage_buffer_offset_alignment
-            as u64;
+        let min_storage_buffer_offset_alignment =
+            device.limits().min_storage_buffer_offset_alignment as u64;
 
         Ok(Self {
             min_storage_buffer_offset_alignment,
@@ -222,7 +215,7 @@ impl GpuBuffer {
             // this part is actually used
             // we keep the arc alive
             let (allocated_partition, _keep_alive) =
-                Partition::new(aligned_start..aligned_start + size.get());
+                Partition::new(Some(label), aligned_start..aligned_start + size.get());
             allocation = Some(Allocation {
                 label,
                 buffer: self.buffer.clone(),
@@ -321,15 +314,65 @@ impl GpuAllocator {
             context.device().limits().max_storage_buffer_binding_size;
 
         Ok(Self {
+            size,
+            label,
+            max_buffer_size,
             max_storage_buffer_binding_size,
             buffers: (0..num_buffer)
                 .map(|i| {
                     assert!(size > i * max_buffer_size);
                     let size = (size - i * max_buffer_size).min(max_buffer_size);
-                    GpuBuffer::new(context, size, &format!("{label}-{i}"), scram)
+                    GpuBuffer::new(context.device(), size, &format!("{label}-{i}"), scram)
                 })
                 .collect::<Result<_, _>>()?,
         })
+    }
+
+    pub fn resize_to(
+        &mut self,
+        device: &wgpu::Device,
+        size: u64,
+        scram: bool,
+    ) -> Result<(), GpuAllocatorError> {
+        if size <= self.size {
+            tracing::info!("Ignore downsizing");
+            return Ok(());
+        }
+
+        let num_buffer = size.div_ceil(self.max_buffer_size);
+
+        tracing::info!(
+            label = self.label,
+            new_size = size,
+            old_size = self.size,
+            new_num_buffer = num_buffer,
+            old_num_buffer = self.buffers.len(),
+            "resizing gpu allocator"
+        );
+
+        if let Some(used_partition) = self
+            .buffers
+            .last()
+            .and_then(|buffer| buffer.partitions.iter().find(|p| p.in_use()))
+        {
+            return Err(GpuAllocatorError::ResizingWhileInUse {
+                label: used_partition.label,
+            });
+        }
+        self.buffers.pop();
+
+        for i in self.buffers.len() as u64..num_buffer {
+            assert!(size > i * self.max_buffer_size);
+            let size = (size - i * self.max_buffer_size).min(self.max_buffer_size);
+            self.buffers.push(GpuBuffer::new(
+                device,
+                size,
+                &format!("{}-{i}", self.label),
+                scram,
+            )?);
+        }
+
+        Ok(())
     }
 
     pub fn allocate<T: AllowedInBinding>(
@@ -388,14 +431,11 @@ impl GpuAllocator {
     pub fn check_overlap(&self) {
         self.buffers.iter().for_each(GpuBuffer::check_overlap);
     }
-
-    fn fix(&mut self) {
-        self.buffers.iter_mut().for_each(GpuBuffer::fix);
-    }
 }
 
 #[derive(Clone)]
 struct Partition {
+    label: Option<&'static str>,
     range: Range<u64>,
     counter: Weak<()>,
 }
@@ -403,13 +443,14 @@ struct Partition {
 impl Partition {
     // immediately drop the arc
     fn unused(range: Range<u64>) -> Self {
-        Self::new(range).0
+        Self::new(None, range).0
     }
 
-    fn new(range: Range<u64>) -> (Self, Arc<()>) {
+    fn new(label: Option<&'static str>, range: Range<u64>) -> (Self, Arc<()>) {
         let arc = Arc::new(());
         (
             Self {
+                label,
                 range,
                 counter: Arc::downgrade(&arc),
             },
@@ -489,7 +530,7 @@ mod tests {
     fn test_buffer_too_large() {
         let context = SHARED_CONTEXT.lock().unwrap();
         assert!(matches!(
-            GpuBuffer::new(&context, u64::MAX, "allocation", false),
+            GpuBuffer::new(context.device(), u64::MAX, "allocation", false),
             Err(GpuAllocatorError::ExceedingMaxBufferSize { .. })
         ));
     }

@@ -20,6 +20,9 @@ pub struct ExceedingLimit {
 
 #[derive(Error, Debug)]
 pub enum GpuError {
+    #[error("No particle input")]
+    NoParticles,
+
     #[error("Failed to request the adapter: {0}")]
     RequestAdapterError(#[from] wgpu::RequestAdapterError),
 

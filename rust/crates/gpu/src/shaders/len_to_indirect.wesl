@@ -31,7 +31,6 @@ fn main(
         new_indirect.x = 0;
         new_indirect.y = 0;
         new_indirect.z = 0;
-        new_indirect.len = 0;
         return;
     }
     set_shader_id();
@@ -41,7 +40,7 @@ fn main(
         new_indirect.x = 0;
         new_indirect.y = 0;
         new_indirect.z = 0;
-        new_indirect.len = 0;
+        new_indirect.len = len;
         return;
     }
 

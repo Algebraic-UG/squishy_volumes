@@ -31,7 +31,9 @@ pub struct Settings {
     pub table_tries: u32,
 }
 
-pub struct Parameters;
+pub struct Parameters {
+    pub max_num_grid_nodes: NonZeroU32,
+}
 
 pub struct Input {
     pub particle_positions_and_collider_bits: Allocation,
@@ -106,10 +108,9 @@ impl PipelinePart for PartitionNodes {
         Input {
             particle_positions_and_collider_bits,
         }: Input,
-        _: Parameters,
+        Parameters { max_num_grid_nodes }: Parameters,
     ) -> Result<Output, GpuError> {
         let num_particles = particle_positions_and_collider_bits.len::<PositionAndColliderBits>();
-        let max_num_nodes: NonZeroU64 = (num_particles.get() * 27).try_into().unwrap();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
@@ -122,7 +123,7 @@ impl PipelinePart for PartitionNodes {
             .allocate::<u32>("owns", num_particles)?;
         let hash_table = context.allocator()?.allocate::<AtomicU32>(
             "hash_table",
-            (max_num_nodes.get() * 2)
+            (max_num_grid_nodes.get() as u64 * 2)
                 .next_power_of_two()
                 .try_into()
                 .unwrap(),

@@ -8,13 +8,16 @@
 
 use anyhow::{Result, bail};
 use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
+use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use squishy_volumes_gpu::{
-    Allocation, BoundingVolumeHierarchyAllocations, DispatchSettings, GpuAllocatorError, Indirect,
+    Allocation, BoundingVolumeHierarchyAllocations, DispatchSettings, GpuError, Indirect,
     PipelinePart, PositionAndColliderBits, prefix_sum_on_cpu,
+    step::{VariableParticleInput, VariableParticleInputData},
+    wgpu,
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, num::NonZeroU32};
 
 use crate::{
     phase::{Phase, PhaseInput},
@@ -103,14 +106,78 @@ impl State {
         }
     }
 
+    pub fn get_variable_particle_input(
+        &self,
+        device: &wgpu::Device,
+    ) -> Result<VariableParticleInput, GpuError> {
+        tracing::info!("preparing variable particle data for transfer");
+        let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = self
+            .particles
+            .positions
+            .iter()
+            .zip(&self.particles.collider_bits)
+            .map(|(&position, &collider_bits)| PositionAndColliderBits {
+                position,
+                collider_bits,
+            })
+            .collect();
+        #[allow(clippy::toplevel_ref_arg)]
+        let particle_position_gradients: Vec<Matrix4x3<f32>> = self
+            .particles
+            .position_gradients
+            .iter()
+            .map(|m| stack![m; Matrix1x3::zeros()])
+            .collect();
+        let particle_velocities: Vec<Vector4<f32>> = self
+            .particles
+            .velocities
+            .iter()
+            .map(|v| v.push(0.))
+            .collect();
+        #[allow(clippy::toplevel_ref_arg)]
+        let particle_velocity_gradients: Vec<Matrix4x3<f32>> = self
+            .particles
+            .velocity_gradients
+            .iter()
+            .map(|m| stack![m; Matrix1x3::zeros()])
+            .collect();
+
+        VariableParticleInput::new(
+            device,
+            VariableParticleInputData {
+                particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+                particle_position_gradients: &particle_position_gradients,
+                particle_velocities: &particle_velocities,
+                particle_velocity_gradients: &particle_velocity_gradients,
+            },
+        )
+    }
+
     pub fn to_gpu_state(
         &self,
         phase_input: &mut PhaseInput,
         mut gpu_context: squishy_volumes_gpu::GpuContext,
-    ) -> Result<GpuState, GpuAllocatorError> {
+    ) -> Result<GpuState, GpuError> {
         profile!("to_gpu_state");
 
         tracing::info!("creating GPU state");
+
+        if self.particles.sort_map.is_empty() {
+            tracing::warn!("can't setup GPU state without particles");
+            return Err(GpuError::NoParticles);
+        }
+
+        let max_num_grid_nodes: NonZeroU32 = (self.particles.sort_map.len().max(1000) as u32)
+            .try_into()
+            .unwrap();
+
+        tracing::info!("setting up GPU allocators");
+        gpu_context.setup_allocator(
+            max_num_grid_nodes.get() as u64 * 1024,
+            "main allocator",
+            false,
+        )?;
+        gpu_context.setup_indirect_allocator(2048, "indirect allocator", false)?;
 
         let workgroup_size = 64.try_into().unwrap();
         let dispatch_limit = gpu_context
@@ -174,37 +241,6 @@ impl State {
                 .into()
             })
             .collect();
-        let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = self
-            .particles
-            .positions
-            .iter()
-            .zip(&self.particles.collider_bits)
-            .map(|(&position, &collider_bits)| PositionAndColliderBits {
-                position,
-                collider_bits,
-            })
-            .collect();
-        #[allow(clippy::toplevel_ref_arg)]
-        let particle_position_gradients: Vec<Matrix4x3<f32>> = self
-            .particles
-            .position_gradients
-            .iter()
-            .map(|m| stack![m; Matrix1x3::zeros()])
-            .collect();
-        let particle_velocities: Vec<Vector4<f32>> = self
-            .particles
-            .velocities
-            .iter()
-            .map(|v| v.push(0.))
-            .collect();
-        #[allow(clippy::toplevel_ref_arg)]
-        let particle_velocity_gradients: Vec<Matrix4x3<f32>> = self
-            .particles
-            .velocity_gradients
-            .iter()
-            .map(|m| stack![m; Matrix1x3::zeros()])
-            .collect();
-
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -228,94 +264,87 @@ impl State {
         )?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
-        let particle_positions_and_collider_bits = Allocation::new(
-            device,
-            "particle_positions_and_collider_bits",
-            &particle_positions_and_collider_bits,
-        )?;
-        let particle_position_gradients = Allocation::new(
-            device,
-            "particle_position_gradients",
-            &particle_position_gradients,
-        )?;
-        let particle_velocities =
-            Allocation::new(device, "particle_velocities", &particle_velocities)?;
-        let particle_velocity_gradients = Allocation::new(
-            device,
-            "particle_velocity_gradients",
-            &particle_velocity_gradients,
-        )?;
+
+        let variable_particle_input = self.get_variable_particle_input(gpu_context.device())?;
 
         let collider_input = (!phase_input.input_interpolation.topology().is_empty())
-            .then(|| {
-                let topology = phase_input.input_interpolation.topology();
-                let num_triangles = topology.triangle_indices().len();
-                let num_vertices = topology.vertex_triangle_lists().len();
-                tracing::info!(num_vertices, num_triangles, "preparing mesh for transfer");
+            .then(
+                || -> Result<squishy_volumes_gpu::step::ColliderInput, GpuError> {
+                    let topology = phase_input.input_interpolation.topology();
+                    let num_triangles = topology.triangle_indices().len();
+                    let num_vertices = topology.vertex_triangle_lists().len();
+                    tracing::info!(num_vertices, num_triangles, "preparing mesh for transfer");
 
-                let vertex_positions_start: Vec<Vector4<f32>> =
-                    a.vertex_positions().iter().map(|p| p.push(0.)).collect();
-                let vertex_positions_end: Vec<Vector4<f32>> =
-                    b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+                    let vertex_positions_start: Vec<Vector4<f32>> =
+                        a.vertex_positions().iter().map(|p| p.push(0.)).collect();
+                    let vertex_positions_end: Vec<Vector4<f32>> =
+                        b.vertex_positions().iter().map(|p| p.push(0.)).collect();
 
-                let vertex_triangle_lists = topology.vertex_triangle_lists();
-                let vertex_triangle_offsets = prefix_sum_on_cpu(
-                    &vertex_triangle_lists
+                    let vertex_triangle_lists = topology.vertex_triangle_lists();
+                    let vertex_triangle_offsets = prefix_sum_on_cpu(
+                        &vertex_triangle_lists
+                            .iter()
+                            .map(|v| v.len() as u32)
+                            .collect::<Vec<_>>(),
+                    );
+                    let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
                         .iter()
-                        .map(|v| v.len() as u32)
-                        .collect::<Vec<_>>(),
-                );
-                let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
-                    .iter()
-                    .flat_map(|list| list.iter().cloned())
-                    .collect();
-                if vertex_triangle_lists.is_empty() {
-                    tracing::warn!("all vertices are on open edges");
-                    vertex_triangle_lists.push(0);
-                }
+                        .flat_map(|list| list.iter().cloned())
+                        .collect();
+                    if vertex_triangle_lists.is_empty() {
+                        tracing::warn!("all vertices are on open edges");
+                        vertex_triangle_lists.push(0);
+                    }
 
-                tracing::info!("creating mesh allocations");
-                let vertex_positions_start =
-                    Allocation::new(device, "vertex_positions_start", &vertex_positions_start)?;
-                let vertex_positions_end =
-                    Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
-                let vertex_triangle_offsets =
-                    Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
-                let vertex_triangle_lists =
-                    Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+                    tracing::info!("creating mesh allocations");
+                    let vertex_positions_start =
+                        Allocation::new(device, "vertex_positions_start", &vertex_positions_start)?;
+                    let vertex_positions_end =
+                        Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
+                    let vertex_triangle_offsets = Allocation::new(
+                        device,
+                        "vertex_triangle_offsets",
+                        &vertex_triangle_offsets,
+                    )?;
+                    let vertex_triangle_lists =
+                        Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
 
-                let triangle_indices =
-                    Allocation::new(device, "triangle_indices", topology.triangle_indices())?;
-                let triangle_collider =
-                    Allocation::new(device, "triangle_collider", topology.triangle_collider())?;
-                let triangle_opposites =
-                    Allocation::new(device, "triangle_opposites", topology.triangle_opposites())?;
+                    let triangle_indices =
+                        Allocation::new(device, "triangle_indices", topology.triangle_indices())?;
+                    let triangle_collider =
+                        Allocation::new(device, "triangle_collider", topology.triangle_collider())?;
+                    let triangle_opposites = Allocation::new(
+                        device,
+                        "triangle_opposites",
+                        topology.triangle_opposites(),
+                    )?;
 
-                // TODO: interpolate that
-                let triangle_frictions =
-                    Allocation::new(device, "triangle_frictions", a.triangle_frictions())?;
+                    // TODO: interpolate that
+                    let triangle_frictions =
+                        Allocation::new(device, "triangle_frictions", a.triangle_frictions())?;
 
-                let num_bvh_levels = phase_input.input_interpolation.bvh().level();
-                let num_bvh_nodes = phase_input.input_interpolation.bvh().nodes().len();
-                tracing::info!(num_bvh_levels, num_bvh_nodes, "creating bvh allocations");
-                let bvh = BoundingVolumeHierarchyAllocations::new(
-                    device,
-                    phase_input.consts.leaf_size,
-                    phase_input.input_interpolation.bvh(),
-                )?;
+                    let num_bvh_levels = phase_input.input_interpolation.bvh().level();
+                    let num_bvh_nodes = phase_input.input_interpolation.bvh().nodes().len();
+                    tracing::info!(num_bvh_levels, num_bvh_nodes, "creating bvh allocations");
+                    let bvh = BoundingVolumeHierarchyAllocations::new(
+                        device,
+                        phase_input.consts.leaf_size,
+                        phase_input.input_interpolation.bvh(),
+                    )?;
 
-                Ok(squishy_volumes_gpu::step::ColliderInput {
-                    vertex_positions_start,
-                    vertex_positions_end,
-                    vertex_triangle_offsets,
-                    vertex_triangle_lists,
-                    triangle_indices,
-                    triangle_collider,
-                    triangle_opposites,
-                    triangle_frictions,
-                    bvh,
-                })
-            })
+                    Ok(squishy_volumes_gpu::step::ColliderInput {
+                        vertex_positions_start,
+                        vertex_positions_end,
+                        vertex_triangle_offsets,
+                        vertex_triangle_lists,
+                        triangle_indices,
+                        triangle_collider,
+                        triangle_opposites,
+                        triangle_frictions,
+                        bvh,
+                    })
+                },
+            )
             .transpose()?;
 
         let next_input = squishy_volumes_gpu::step::Input {
@@ -324,10 +353,8 @@ impl State {
             particle_masses,
             particle_initial_volumes,
             particle_parameters,
-            particle_positions_and_collider_bits,
-            particle_position_gradients,
-            particle_velocities,
-            particle_velocity_gradients,
+
+            variable_particle_input,
 
             collider_input,
         };
@@ -336,6 +363,7 @@ impl State {
             gpu_context,
             pipeline_part,
             next_input,
+            max_num_grid_nodes,
         })
     }
 }
@@ -344,4 +372,5 @@ pub struct GpuState {
     pub gpu_context: squishy_volumes_gpu::GpuContext,
     pub pipeline_part: squishy_volumes_gpu::Step,
     pub next_input: squishy_volumes_gpu::step::Input,
+    pub max_num_grid_nodes: NonZeroU32,
 }

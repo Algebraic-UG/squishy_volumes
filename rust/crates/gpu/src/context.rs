@@ -10,7 +10,7 @@ use std::{collections::BTreeMap, iter::once, num::NonZeroU32};
 
 use crate::{
     Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
-    GpuAllocatorError, GpuError, GpuShaderError, GpuStatus,
+    GpuAllocatorError, GpuError, GpuStatus,
 };
 
 pub struct GpuContext {
@@ -162,8 +162,16 @@ impl GpuContext {
         size: u64,
         label: &'static str,
         scram: bool,
-    ) -> Result<(), GpuError> {
+    ) -> Result<(), GpuAllocatorError> {
         self.allocator = Some(GpuAllocator::new(self, size, label, scram)?);
+        Ok(())
+    }
+
+    pub fn resize_allocator(&mut self, size: u64, scram: bool) -> Result<(), GpuError> {
+        self.allocator
+            .as_mut()
+            .ok_or(GpuError::AllocatorMissing)?
+            .resize_to(&self.device, size, scram)?;
         Ok(())
     }
 

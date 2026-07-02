@@ -22,11 +22,11 @@ use anyhow::{Context, Result, bail};
 use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_api::{T, Task};
 use squishy_volumes_gpu::{
-    Allocation, GpuStatus, PipelinePart as _, PositionAndColliderBits, ProfileDataCsvWriter, wgpu,
-    wgpu_profiler,
+    Allocation, GpuError, GpuShaderError, GpuStatus, PipelinePart as _, PositionAndColliderBits,
+    ProfileDataCsvWriter, wgpu, wgpu_profiler,
 };
 use strum::IntoEnumIterator;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::{
     input_file::{InputConsts, InputReader},
@@ -130,25 +130,9 @@ impl ComputeThread {
                     .input_interpolation
                     .load(&phase_input.consts, phase_input.next_frame)?;
 
-                let mut gpu_state = if let Some(mut gpu_context) = gpu_context {
-                    if current_state.particles.sort_map.is_empty() {
-                        warn!("can't setup GPU state without particles");
-                        None
-                    } else {
-                        info!("setting up GPU allocators");
-                        gpu_context.setup_allocator(
-                            current_state.particles.sort_map.len().max(1000) as u64 * 1024,
-                            "main allocator",
-                            true,
-                        )?;
-                        gpu_context.setup_indirect_allocator(2048, "indirect allocator", true)?;
-
-                        info!("setting up GPU state");
-                        Some(current_state.to_gpu_state(&mut phase_input, gpu_context)?)
-                    }
-                } else {
-                    None
-                };
+                let mut gpu_state = gpu_context
+                    .map(|gpu_context| current_state.to_gpu_state(&mut phase_input, gpu_context))
+                    .transpose()?;
 
                 let mut profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
 
@@ -277,20 +261,26 @@ struct ComputeFrameGPU<'a> {
 }
 
 impl ComputeFrameGPU<'_> {
-    pub fn run(self) -> Result<()> {
+    pub fn run(mut self) -> Result<()> {
         let Self {
-            run,
+            ref run,
             gpu_state:
                 GpuState {
                     gpu_context,
                     pipeline_part,
                     next_input,
+                    max_num_grid_nodes,
                 },
-            current_state,
+            ref mut current_state,
             next_stored_frame_time,
-            phase_input,
-            profile_data_csv_writer,
+            ref mut phase_input,
+            ref mut profile_data_csv_writer,
         } = self;
+        if current_state.time() >= next_stored_frame_time {
+            tracing::warn!("nothing do to for this frame");
+            return Ok(());
+        }
+        let state_start_time = current_state.time();
 
         let mut encoder = gpu_context
             .device()
@@ -299,17 +289,17 @@ impl ComputeFrameGPU<'_> {
             wgpu_profiler::GpuProfiler::new(gpu_context.device(), Default::default()).unwrap();
 
         let mut recorded_steps = 0;
-        while current_state.time() < next_stored_frame_time {
+        let indirect_nodes = loop {
             if !run.load(Ordering::Relaxed) {
                 return Ok(());
             }
             let scope = profiler.scope("run_step", &mut encoder);
-
-            let squishy_volumes_gpu::step::Output { .. } = pipeline_part.record(
+            let squishy_volumes_gpu::step::Output { indirect_nodes, .. } = pipeline_part.record(
                 gpu_context,
                 &mut scope.into(),
                 next_input.clone(),
                 squishy_volumes_gpu::step::Parameters {
+                    max_num_grid_nodes: *max_num_grid_nodes,
                     factor: current_state.frame_factor(phase_input)?,
                 },
             )?;
@@ -324,14 +314,28 @@ impl ComputeFrameGPU<'_> {
                     .create_command_encoder(&Default::default());
                 recorded_steps = 0;
             }
-        }
+
+            if current_state.time() >= next_stored_frame_time {
+                break indirect_nodes;
+            }
+        };
 
         let downloads = squishy_volumes_gpu::DownloadsToHost::new(
             gpu_context,
             [
-                next_input.particle_positions_and_collider_bits.clone(),
-                next_input.particle_position_gradients.clone(),
-                next_input.particle_velocities.clone(),
+                next_input
+                    .variable_particle_input
+                    .particle_positions_and_collider_bits
+                    .clone(),
+                next_input
+                    .variable_particle_input
+                    .particle_position_gradients
+                    .clone(),
+                next_input
+                    .variable_particle_input
+                    .particle_velocities
+                    .clone(),
+                indirect_nodes,
                 gpu_context.status(),
             ],
         );
@@ -342,7 +346,7 @@ impl ComputeFrameGPU<'_> {
         info!("submit");
         gpu_context.queue().submit([encoder.finish()]);
 
-        let downloads = downloads.prep();
+        let downloads_ready = downloads.prep();
         profiler.end_frame().unwrap();
 
         info!("prepare next collider geometry");
@@ -405,8 +409,51 @@ impl ComputeFrameGPU<'_> {
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
+            indirect_nodes_download,
             status,
-        ] = downloads.try_into().unwrap();
+        ] = downloads_ready.try_into().unwrap();
+
+        let num_grid_nodes =
+            indirect_nodes_download.to_vec::<squishy_volumes_gpu::Indirect>()[0].len;
+        tracing::info!(max_num_grid_nodes, num_grid_nodes);
+
+        let mut redo_frame = false;
+        match status.to_vec::<GpuStatus>()[0].to_result(gpu_context) {
+            Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded { reporting_shader })) => {
+                tracing::warn!(
+                    reporting_shader,
+                    "The number of grid nodes is larger than expected."
+                );
+                redo_frame = true;
+            }
+            Err(GpuError::Shader(GpuShaderError::TableTriesExceeded { reporting_shader })) => {
+                tracing::warn!(reporting_shader, "The hash table appears to be too small.");
+                next_input.variable_particle_input =
+                    current_state.get_variable_particle_input(gpu_context.device())?;
+                redo_frame = true;
+            }
+            x => x?,
+        };
+        gpu_context.reset_status()?;
+
+        if redo_frame {
+            drop(downloads);
+            current_state.time = state_start_time;
+            let grid_node_cap = current_state.particles.sort_map.len() * 27;
+            anyhow::ensure!(
+                (max_num_grid_nodes.get() as usize) < grid_node_cap,
+                "theoretical max grid nodes exceeded"
+            );
+            *max_num_grid_nodes = (max_num_grid_nodes.get() * 2)
+                .max(grid_node_cap as u32)
+                .try_into()
+                .unwrap();
+            tracing::warn!(max_num_grid_nodes, "The frame needs to be redone");
+            next_input.variable_particle_input =
+                current_state.get_variable_particle_input(gpu_context.device())?;
+            gpu_context.resize_allocator(max_num_grid_nodes.get() as u64 * 1024, false)?;
+            return self.run();
+        }
 
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
             particle_positions_and_collider_bits.to_vec();
@@ -429,8 +476,6 @@ impl ComputeFrameGPU<'_> {
             .iter()
             .map(Vector4::xyz)
             .collect();
-
-        status.to_vec::<GpuStatus>()[0].to_result(gpu_context)?;
 
         Ok(())
     }
