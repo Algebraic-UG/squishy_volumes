@@ -32,9 +32,10 @@ fn read_back_status() {
 
     context.reset_status().unwrap();
 
-    assert_eq!(
-        context.get_shader_id(test_status.test_status.label.unwrap()),
-        status.shader_id()
-    );
-    assert!(status.table_tries_exceeded());
+    assert!(matches!(
+        status.to_result(&context),
+        Err(GpuError::Shader(GpuShaderError::TableTriesExceeded {
+            reporting_shader: "test_status"
+        })),
+    ));
 }

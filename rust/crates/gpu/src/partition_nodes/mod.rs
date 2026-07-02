@@ -6,10 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{
-    num::{NonZeroU32, NonZeroU64},
-    sync::atomic::AtomicU32,
-};
+use std::{num::NonZeroU32, sync::atomic::AtomicU32};
 
 #[cfg(test)]
 mod test;

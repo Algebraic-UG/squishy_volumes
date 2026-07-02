@@ -70,7 +70,12 @@ fn run(settings: Settings, len: u32) -> Vec<Indirect> {
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let Output { new_indirect } = len_to_indirect
-        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .record(
+            &mut context,
+            &mut (&mut encoder).into(),
+            input,
+            Parameters { limit: len },
+        )
         .unwrap();
 
     let download = DownloadToHost::new(&context, new_indirect);

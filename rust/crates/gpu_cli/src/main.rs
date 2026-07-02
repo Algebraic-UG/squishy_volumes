@@ -79,6 +79,7 @@ fn main() {
     let leaf_size = accept_distance;
     let leaf_threshold = 16;
     let table_tries = 50;
+    let max_num_grid_nodes = generate.try_into().unwrap();
 
     let mut context = GpuContext::new().unwrap();
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
@@ -205,7 +206,7 @@ fn main() {
                 tool,
                 pipeline_part,
                 input,
-                gpu::partition_nodes::Parameters,
+                gpu::partition_nodes::Parameters { max_num_grid_nodes },
             );
         }
         Task::PrepareGrid => {
@@ -236,7 +237,7 @@ fn main() {
                 tool,
                 pipeline_part,
                 input,
-                gpu::prepare_grid::Parameters,
+                gpu::prepare_grid::Parameters { max_num_grid_nodes },
             );
         }
         Task::RegisterContributors => {
@@ -510,20 +511,24 @@ fn main() {
                 settings,
                 gpu::step::InputData {
                     gravity,
-                    masses: &test_particles.particle_masses,
-                    initial_volumes: &test_particles.particle_initial_volumes,
-                    parameters: &test_particles.particle_parameters,
-                    positions_and_collider_bits: &test_particles
-                        .particle_positions_and_collider_bits,
-                    position_gradients: &test_particles.particle_position_gradients,
-                    velocities: &test_particles.particle_velocities,
-                    velocity_gradients: &test_particles.particle_velocity_gradients,
-                    vertex_positions_start: &test_mesh.vertex_positions_a,
-                    vertex_positions_end: &test_mesh.vertex_positions_b,
-                    triangle_indices: &test_mesh.triangle_indices,
-                    triangle_collider: &vec![0; test_mesh.triangle_indices.len()],
-                    triangle_opposites: &test_mesh.triangle_opposites,
-                    triangle_frictions: &test_mesh.triangle_frictions_a,
+                    particle_masses: &test_particles.particle_masses,
+                    particle_initial_volumes: &test_particles.particle_initial_volumes,
+                    particle_parameters: &test_particles.particle_parameters,
+                    variable_particle_input: gpu::step::VariableParticleInputData {
+                        particle_positions_and_collider_bits: &test_particles
+                            .particle_positions_and_collider_bits,
+                        particle_position_gradients: &test_particles.particle_position_gradients,
+                        particle_velocities: &test_particles.particle_velocities,
+                        particle_velocity_gradients: &test_particles.particle_velocity_gradients,
+                    },
+                    collider_input: Some(gpu::step::ColliderInputData {
+                        vertex_positions_start: &test_mesh.vertex_positions_a,
+                        vertex_positions_end: &test_mesh.vertex_positions_b,
+                        triangle_indices: &test_mesh.triangle_indices,
+                        triangle_collider: &vec![0; test_mesh.triangle_indices.len()],
+                        triangle_opposites: &test_mesh.triangle_opposites,
+                        triangle_frictions: &test_mesh.triangle_frictions_a,
+                    }),
                 },
             )
             .unwrap();
@@ -533,7 +538,10 @@ fn main() {
                 tool,
                 pipeline_part,
                 input,
-                gpu::step::Parameters { factor: 0.5 },
+                gpu::step::Parameters {
+                    factor: 0.5,
+                    max_num_grid_nodes,
+                },
             );
         }
     };

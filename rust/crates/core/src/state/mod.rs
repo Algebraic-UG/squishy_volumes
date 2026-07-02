@@ -8,7 +8,6 @@
 
 use anyhow::{Result, bail};
 use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
-use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
 use squishy_volumes_gpu::{

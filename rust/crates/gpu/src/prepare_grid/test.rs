@@ -221,7 +221,16 @@ fn run_prepare_grid(
         multi_offsets,
         multi,
     } = prepare_grid
-        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .record(
+            &mut context,
+            &mut (&mut encoder).into(),
+            input,
+            Parameters {
+                max_num_grid_nodes: (positions_and_collider_bits.len() as u32 * 27)
+                    .try_into()
+                    .unwrap(),
+            },
+        )
         .unwrap();
 
     let downloads = DownloadsToHost::new(
@@ -257,7 +266,7 @@ fn run_prepare_grid(
         status,
     ] = downloads.try_into().unwrap();
 
-    context.status_to_result(status.to_vec()[0]).unwrap();
+    status.to_vec::<GpuStatus>()[0].to_result(&context).unwrap();
 
     OutputData {
         indirect_nodes: indirect_nodes.to_vec()[0],

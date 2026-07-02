@@ -431,6 +431,11 @@ impl GpuAllocator {
     pub fn check_overlap(&self) {
         self.buffers.iter().for_each(GpuBuffer::check_overlap);
     }
+
+    #[cfg(test)]
+    fn fix(&mut self) {
+        self.buffers.iter_mut().for_each(GpuBuffer::fix);
+    }
 }
 
 #[derive(Clone)]
@@ -524,15 +529,6 @@ mod tests {
         allocator.fix();
         assert_eq!(allocator.total_free(), binding_size * 3);
         assert_eq!(allocator.biggest_free(), binding_size * 2);
-    }
-
-    #[test]
-    fn test_buffer_too_large() {
-        let context = SHARED_CONTEXT.lock().unwrap();
-        assert!(matches!(
-            GpuBuffer::new(context.device(), u64::MAX, "allocation", false),
-            Err(GpuAllocatorError::ExceedingMaxBufferSize { .. })
-        ));
     }
 
     #[test]

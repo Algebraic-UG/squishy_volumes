@@ -111,7 +111,16 @@ fn run(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBit
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output { owns } = partition_nodes
-        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .record(
+            &mut context,
+            &mut (&mut encoder).into(),
+            input,
+            Parameters {
+                max_num_grid_nodes: (positions_and_collider_bits.len() as u32 * 27)
+                    .try_into()
+                    .unwrap(),
+            },
+        )
         .unwrap();
 
     let download = DownloadToHost::new(&context, owns);
