@@ -119,12 +119,20 @@ fn test_many_random_props() {
         .map(|_| rng.random_range(0.01..0.05))
         .collect::<Vec<_>>();
 
-    let particle_parameters = test_lame_parameters()
+    let particle_parameters_host = test_lame_parameters()
         .chain(test_inviscid_parameters())
         .cycle()
         .take(n)
+        .collect::<Vec<_>>();
+    let particle_flags = particle_parameters_host
+        .iter()
         .map(Into::into)
         .collect::<Vec<_>>();
+    let particle_parameters = particle_parameters_host
+        .iter()
+        .map(Into::into)
+        .collect::<Vec<_>>();
+
     #[allow(clippy::toplevel_ref_arg)]
     let position_gradients = test_position_gradients_random(n)
         .into_iter()
@@ -169,6 +177,7 @@ fn test_many_random_props() {
         prepare_tmp::InputData {
             particle_masses: &masses,
             particle_initial_volumes: &initial_volumes,
+            particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,
             particle_position_gradients: &position_gradients,

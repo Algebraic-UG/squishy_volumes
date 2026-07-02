@@ -7,6 +7,7 @@ use crate::{PositionAndColliderBits, particle_parameters};
 pub struct TestParticles {
     pub particle_masses: Vec<f32>,
     pub particle_initial_volumes: Vec<f32>,
+    pub particle_flags: Vec<particle_parameters::Flags>,
     pub particle_parameters: Vec<particle_parameters::Device>,
     pub particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
     pub particle_position_gradients: Vec<Matrix4x3<f32>>,
@@ -86,10 +87,18 @@ impl TestParticles {
         let particle_initial_volumes = (0..num_particles)
             .map(|_| rng.random_range(0.1..1.0))
             .collect();
-        let particle_parameters = test_lame_parameters()
+        let particle_parameters_host = test_lame_parameters()
             .chain(test_inviscid_parameters())
             .cycle()
             .take(num_particles)
+            .collect::<Vec<_>>();
+
+        let particle_flags = particle_parameters_host
+            .iter()
+            .map(Into::into)
+            .collect::<Vec<_>>();
+        let particle_parameters = particle_parameters_host
+            .iter()
             .map(Into::into)
             .collect::<Vec<_>>();
         let particle_positions_and_collider_bits = match sampling {
@@ -152,6 +161,7 @@ impl TestParticles {
         Self {
             particle_masses,
             particle_initial_volumes,
+            particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,

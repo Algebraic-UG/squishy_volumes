@@ -301,6 +301,7 @@ fn main() {
                 gpu::prepare_tmp::InputData {
                     particle_masses: &test_particles.particle_masses,
                     particle_initial_volumes: &test_particles.particle_initial_volumes,
+                    particle_flags: &test_particles.particle_flags,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_positions_and_collider_bits: &test_particles
                         .particle_positions_and_collider_bits,
@@ -339,6 +340,7 @@ fn main() {
                 gpu::prepare_tmp::InputData {
                     particle_masses: &test_particles.particle_masses,
                     particle_initial_volumes: &test_particles.particle_initial_volumes,
+                    particle_flags: &test_particles.particle_flags,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_positions_and_collider_bits: &test_particles
                         .particle_positions_and_collider_bits,
@@ -515,6 +517,7 @@ fn main() {
                     particle_initial_volumes: &test_particles.particle_initial_volumes,
                     particle_parameters: &test_particles.particle_parameters,
                     variable_particle_input: gpu::step::VariableParticleInputData {
+                        particle_flags: &test_particles.particle_flags,
                         particle_positions_and_collider_bits: &test_particles
                             .particle_positions_and_collider_bits,
                         particle_position_gradients: &test_particles.particle_position_gradients,

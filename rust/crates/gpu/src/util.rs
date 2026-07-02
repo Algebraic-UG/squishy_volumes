@@ -215,6 +215,7 @@ pub fn prepare_tmp_on_cpu(
     prepare_tmp::InputData {
         particle_masses,
         particle_initial_volumes,
+        particle_flags,
         particle_parameters,
         particle_positions_and_collider_bits,
         particle_position_gradients,
@@ -228,6 +229,7 @@ pub fn prepare_tmp_on_cpu(
     izip!(
         particle_masses,
         particle_initial_volumes,
+        particle_flags,
         particle_parameters,
         particle_positions_and_collider_bits,
         particle_position_gradients,
@@ -238,6 +240,7 @@ pub fn prepare_tmp_on_cpu(
         |(
             mass,
             initial_volume,
+            flags,
             paramters,
             position_and_collider_bits,
             position_gradient,
@@ -246,7 +249,7 @@ pub fn prepare_tmp_on_cpu(
         )|
          -> Matrix4<f32> {
             let position_gradient: Matrix3<f32> = position_gradient.fixed_view::<3, 3>(0, 0).into();
-            let stress = match Host::from(*paramters) {
+            let stress = match Host::from((*flags, *paramters)) {
                 Host::Solid(Solid {
                     mu,
                     lambda,

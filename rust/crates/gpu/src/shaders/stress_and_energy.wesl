@@ -15,15 +15,18 @@ var<storage, read> indirect: Indirect;
 var<storage, read_write> position_gradients: array<mat3x3f>;
 
 @group(0) @binding(2)
-var<storage, read_write> particle_parameters: array<ParticleParameters>;
+var<storage, read_write> particle_flags: array<u32>;
 
 @group(0) @binding(3)
-var<storage, read_write> stresses: array<mat3x3f>;
+var<storage, read_write> particle_parameters: array<ParticleParameters>;
 
 @group(0) @binding(4)
-var<storage, read_write> energies: array<f32>;
+var<storage, read_write> stresses: array<mat3x3f>;
 
 @group(0) @binding(5)
+var<storage, read_write> energies: array<f32>;
+
+@group(0) @binding(6)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -46,9 +49,10 @@ fn main(
     }
 
     let position_gradient = position_gradients[global_index];
+    let flags = particle_flags[global_index];
     let parameters = particle_parameters[global_index];
 
-    if (parameters.flags & 1) > 0 {
+    if (flags & 1) > 0 {
         let mu = parameters.a;
         let lambda = parameters.b;
 
@@ -57,7 +61,7 @@ fn main(
         return;
     }
 
-    if (parameters.flags & 2) > 0 {
+    if (flags & 2) > 0 {
         let exponent = parameters.a;
         let bulk_modulus = parameters.b;
 

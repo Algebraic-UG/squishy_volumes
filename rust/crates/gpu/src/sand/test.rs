@@ -16,17 +16,17 @@ fn check(
     particle_parameters: &[particle_parameters::Host],
     particle_position_gradients: &[Matrix4x3<f32>],
 ) {
-    let particle_parameters_device: Vec<particle_parameters::Device> = particle_parameters
-        .iter()
-        .cloned()
-        .map(Into::into)
-        .collect();
+    let particle_flags: Vec<particle_parameters::Flags> =
+        particle_parameters.iter().map(Into::into).collect();
+    let particle_parameters_device: Vec<particle_parameters::Device> =
+        particle_parameters.iter().map(Into::into).collect();
 
     let gpu_particle_position_gradients = run(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
         },
+        &particle_flags,
         &particle_parameters_device,
         particle_position_gradients,
     );
@@ -105,6 +105,7 @@ fn random() {
 
 fn run(
     settings: Settings,
+    particle_flags: &[particle_parameters::Flags],
     particle_parameters: &[particle_parameters::Device],
     particle_position_gradients: &[Matrix4x3<f32>],
 ) -> Vec<Matrix4x3<f32>> {
@@ -112,6 +113,7 @@ fn run(
 
     let input = Input::new(
         context.device(),
+        particle_flags,
         particle_parameters,
         particle_position_gradients,
     )

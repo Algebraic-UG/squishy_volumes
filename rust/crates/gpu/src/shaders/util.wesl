@@ -194,7 +194,6 @@ fn kernel_cubic(signed_x: f32) -> f32 {
 }
 
 struct ParticleParameters {
-    flags: u32,
     a: f32,
     b: f32,
     c: f32,

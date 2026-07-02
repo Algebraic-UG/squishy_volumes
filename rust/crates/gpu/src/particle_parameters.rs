@@ -14,13 +14,15 @@ use crate::AllowedInBinding;
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
-struct Flags(u32);
+pub struct Flags(u32);
 bitflags! {
     impl Flags: u32{
-        const IS_SOLID = 1;
+        const IS_SOLID = 1 << 0;
         const IS_FLUID = 1 << 1;
         const USE_VISCOSITY = 1 << 2;
         const USE_SAND_ALPHA = 1 << 3;
+        const HAS_GOAL = 1 << 4;
+        const TOMBSTONED = 1 << 5;
     }
 }
 
@@ -28,7 +30,6 @@ bitflags! {
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
 pub struct Device {
-    flags: Flags,
     a: f32,
     b: f32,
     c: f32,
@@ -63,8 +64,36 @@ pub struct Fluid {
     pub viscosity: Option<Viscosity>,
 }
 
-impl From<Host> for Device {
-    fn from(value: Host) -> Self {
+impl From<&Host> for Flags {
+    fn from(value: &Host) -> Self {
+        let mut res = Self::default();
+        match value {
+            Host::Solid(Solid {
+                viscosity,
+                sand_alpha,
+                ..
+            }) => {
+                res |= Flags::IS_SOLID;
+                if viscosity.is_some() {
+                    res |= Flags::USE_VISCOSITY;
+                }
+                if sand_alpha.is_some() {
+                    res |= Flags::USE_SAND_ALPHA;
+                }
+            }
+            Host::Fluid(Fluid { viscosity, .. }) => {
+                res |= Flags::IS_FLUID;
+                if viscosity.is_some() {
+                    res |= Flags::USE_VISCOSITY;
+                }
+            }
+        }
+        res
+    }
+}
+
+impl From<&Host> for Device {
+    fn from(value: &Host) -> Self {
         let mut res = Self::default();
         match value {
             Host::Solid(Solid {
@@ -73,17 +102,14 @@ impl From<Host> for Device {
                 viscosity,
                 sand_alpha,
             }) => {
-                res.flags |= Flags::IS_SOLID;
-                res.a = mu;
-                res.b = lambda;
+                res.a = *mu;
+                res.b = *lambda;
                 if let Some(viscosity) = viscosity {
-                    res.flags |= Flags::USE_VISCOSITY;
                     res.c = viscosity.dynamic;
                     res.d = viscosity.bulk;
                 }
                 if let Some(sand_alpha) = sand_alpha {
-                    res.flags |= Flags::USE_SAND_ALPHA;
-                    res.e = sand_alpha;
+                    res.e = *sand_alpha;
                 }
             }
             Host::Fluid(Fluid {
@@ -91,11 +117,9 @@ impl From<Host> for Device {
                 bulk_modulus,
                 viscosity,
             }) => {
-                res.flags |= Flags::IS_FLUID;
-                res.a = exponent as f32;
-                res.b = bulk_modulus;
+                res.a = *exponent as f32;
+                res.b = *bulk_modulus;
                 if let Some(viscosity) = viscosity {
-                    res.flags |= Flags::USE_VISCOSITY;
                     res.c = viscosity.dynamic;
                     res.d = viscosity.bulk;
                 }
@@ -105,17 +129,8 @@ impl From<Host> for Device {
     }
 }
 
-impl From<Device> for Host {
-    fn from(
-        Device {
-            flags,
-            a,
-            b,
-            c,
-            d,
-            e,
-        }: Device,
-    ) -> Self {
+impl From<(Flags, Device)> for Host {
+    fn from((flags, Device { a, b, c, d, e }): (Flags, Device)) -> Self {
         if flags.contains(Flags::IS_SOLID) {
             return Self::Solid(Solid {
                 mu: a,
@@ -141,6 +156,7 @@ impl From<Device> for Host {
     }
 }
 
+impl AllowedInBinding for Flags {}
 impl AllowedInBinding for Device {
     const ALIGNMENT: NonZeroU64 = u32::ALIGNMENT;
 }

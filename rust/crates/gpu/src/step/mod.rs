@@ -66,6 +66,7 @@ pub struct ColliderInput {
 
 #[derive(Clone)]
 pub struct VariableParticleInput {
+    pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_position_gradients: Allocation,
     pub particle_velocities: Allocation,
@@ -97,6 +98,7 @@ pub struct ColliderInputData<'a> {
 
 #[derive(Clone)]
 pub struct VariableParticleInputData<'a> {
+    pub particle_flags: &'a [particle_parameters::Flags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_position_gradients: &'a [Matrix4x3<f32>],
     pub particle_velocities: &'a [Vector4<f32>],
@@ -216,22 +218,19 @@ impl VariableParticleInput {
     pub fn new(
         device: &wgpu::Device,
         VariableParticleInputData {
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
             particle_velocity_gradients,
         }: VariableParticleInputData,
     ) -> Result<Self, GpuError> {
-        check_length!(
-            particle_positions_and_collider_bits,
-            particle_position_gradients
-        )?;
-        check_length!(particle_positions_and_collider_bits, particle_velocities)?;
-        check_length!(
-            particle_positions_and_collider_bits,
-            particle_velocity_gradients
-        )?;
+        check_length!(particle_flags, particle_positions_and_collider_bits)?;
+        check_length!(particle_flags, particle_position_gradients)?;
+        check_length!(particle_flags, particle_velocities)?;
+        check_length!(particle_flags, particle_velocity_gradients)?;
 
+        let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -251,6 +250,7 @@ impl VariableParticleInput {
         )?;
 
         Ok(Self {
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -465,6 +465,7 @@ impl PipelinePart for Step {
             particle_parameters,
             variable_particle_input:
                 VariableParticleInput {
+                    particle_flags,
                     particle_positions_and_collider_bits,
                     particle_position_gradients,
                     particle_velocities,
@@ -575,6 +576,7 @@ impl PipelinePart for Step {
             prepare_tmp::Input {
                 particle_masses,
                 particle_initial_volumes,
+                particle_flags,
                 particle_parameters,
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_position_gradients: particle_position_gradients.clone(),

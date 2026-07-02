@@ -11,7 +11,7 @@ use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 use squishy_volumes_util::{lambda, mu};
 
 use crate::{
-    particle_parameters::{Host, Solid},
+    particle_parameters::{Flags, Host, Solid},
     test_data::{test_inviscid_parameters, test_lame_parameters, test_position_gradients_random},
 };
 
@@ -48,13 +48,14 @@ fn test_single_undeformed() {
         InputData {
             particle_masses: &[1.],
             particle_initial_volumes: &[1.],
-            particle_parameters: &[Host::Solid(Solid {
+            particle_flags: &[Flags::IS_SOLID],
+            particle_parameters: &[(&Host::Solid(Solid {
                 mu: mu(1000., 0.3),
                 lambda: lambda(1000., 0.3),
                 viscosity: None,
                 sand_alpha: None,
-            })
-            .into()],
+            }))
+                .into()],
             particle_positions_and_collider_bits: &[PositionAndColliderBits {
                 position: Vector3::zeros(),
                 collider_bits: 0,
@@ -103,10 +104,17 @@ fn test_many_random_props() {
         .map(|_| rng.random_range(0.01..0.05))
         .collect::<Vec<_>>();
 
-    let particle_parameters = test_lame_parameters()
+    let particle_parameters_host = test_lame_parameters()
         .chain(test_inviscid_parameters())
         .cycle()
         .take(n)
+        .collect::<Vec<_>>();
+    let particle_flags = particle_parameters_host
+        .iter()
+        .map(Into::into)
+        .collect::<Vec<_>>();
+    let particle_parameters = particle_parameters_host
+        .iter()
         .map(Into::into)
         .collect::<Vec<_>>();
     #[allow(clippy::toplevel_ref_arg)]
@@ -149,6 +157,7 @@ fn test_many_random_props() {
         InputData {
             particle_masses: &masses,
             particle_initial_volumes: &initial_volumes,
+            particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,
             particle_position_gradients: &position_gradients,

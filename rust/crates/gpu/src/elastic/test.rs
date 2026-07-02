@@ -44,11 +44,9 @@ fn check(position_gradients: &[Matrix3<f32>], parameters: &[Host]) {
             ]
         })
         .collect::<Vec<_>>();
-    let particle_parameters_device: Vec<_> = particle_parameters_host
-        .iter()
-        .cloned()
-        .map(Into::into)
-        .collect();
+    let particle_flags: Vec<_> = particle_parameters_host.iter().map(Into::into).collect();
+    let particle_parameters_device: Vec<_> =
+        particle_parameters_host.iter().map(Into::into).collect();
 
     let (stresses_cpu, energies_cpu): (Vec<Matrix3<f32>>, Vec<f32>) = position_gradients_host
         .iter()
@@ -75,6 +73,7 @@ fn check(position_gradients: &[Matrix3<f32>], parameters: &[Host]) {
         },
         (u16::MAX as u32).try_into().unwrap(),
         &position_gradients_device,
+        &particle_flags,
         &particle_parameters_device,
     );
 
@@ -145,6 +144,7 @@ fn run_elastic(
     settings: Settings,
     dispatch_limit: NonZeroU32,
     position_gradients: &[Matrix4x3<f32>],
+    particle_flags: &[particle_parameters::Flags],
     particle_parameters: &[particle_parameters::Device],
 ) -> (Vec<Matrix4x3<f32>>, Vec<f32>) {
     let mut context = SHARED_CONTEXT.lock().unwrap();
@@ -154,6 +154,7 @@ fn run_elastic(
         settings.workgroup_size,
         dispatch_limit,
         position_gradients,
+        particle_flags,
         particle_parameters,
     )
     .unwrap();

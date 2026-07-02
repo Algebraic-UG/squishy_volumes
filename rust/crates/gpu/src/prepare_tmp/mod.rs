@@ -35,6 +35,7 @@ pub struct Parameters;
 pub struct Input {
     pub particle_masses: Allocation,
     pub particle_initial_volumes: Allocation,
+    pub particle_flags: Allocation,
     pub particle_parameters: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_position_gradients: Allocation,
@@ -46,6 +47,7 @@ pub struct Input {
 pub struct InputData<'a> {
     pub particle_masses: &'a [f32],
     pub particle_initial_volumes: &'a [f32],
+    pub particle_flags: &'a [particle_parameters::Flags],
     pub particle_parameters: &'a [particle_parameters::Device],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_position_gradients: &'a [Matrix4x3<f32>],
@@ -59,6 +61,7 @@ impl Input {
         InputData {
             particle_masses,
             particle_initial_volumes,
+            particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
@@ -67,6 +70,7 @@ impl Input {
         }: InputData,
     ) -> Result<Self, GpuError> {
         check_length!(particle_masses, particle_initial_volumes)?;
+        check_length!(particle_masses, particle_flags)?;
         check_length!(particle_masses, particle_parameters)?;
         check_length!(particle_masses, particle_positions_and_collider_bits)?;
         check_length!(particle_masses, particle_position_gradients)?;
@@ -76,6 +80,7 @@ impl Input {
         let particle_masses = Allocation::new(device, "particle_masses", particle_masses)?;
         let particle_initial_volumes =
             Allocation::new(device, "particle_initial_volumes", particle_initial_volumes)?;
+        let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
@@ -99,6 +104,7 @@ impl Input {
         Ok(Self {
             particle_masses,
             particle_initial_volumes,
+            particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
@@ -134,7 +140,8 @@ impl PipelinePart for PrepareTmp {
                 bind_group_entries: [
                     (f32::MIN_BINDING_SIZE, false),                         // masses
                     (f32::MIN_BINDING_SIZE, false),                         // initial_volumes
-                    (particle_parameters::Device::MIN_BINDING_SIZE, false), // paramters
+                    (particle_parameters::Flags::MIN_BINDING_SIZE, false),  // flags
+                    (particle_parameters::Device::MIN_BINDING_SIZE, false), // parameters
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),        // position_gradients
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // velocities
@@ -164,6 +171,7 @@ impl PipelinePart for PrepareTmp {
         Input {
             particle_masses,
             particle_initial_volumes,
+            particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
@@ -191,6 +199,7 @@ impl PipelinePart for PrepareTmp {
                 [
                     particle_masses.binding(),
                     particle_initial_volumes.binding(),
+                    particle_flags.binding(),
                     particle_parameters.binding(),
                     particle_positions_and_collider_bits.binding(),
                     particle_position_gradients.binding(),

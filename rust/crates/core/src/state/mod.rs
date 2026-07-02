@@ -110,6 +110,13 @@ impl State {
         device: &wgpu::Device,
     ) -> Result<VariableParticleInput, GpuError> {
         tracing::info!("preparing variable particle data for transfer");
+        let particle_flags: Vec<squishy_volumes_gpu::particle_parameters::Flags> = self
+            .particles
+            .parameters
+            .iter()
+            .map(translate_particle_parameters)
+            .map(|p| (&p).into())
+            .collect();
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = self
             .particles
             .positions
@@ -144,6 +151,7 @@ impl State {
         VariableParticleInput::new(
             device,
             VariableParticleInputData {
+                particle_flags: &particle_flags,
                 particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
                 particle_position_gradients: &particle_position_gradients,
                 particle_velocities: &particle_velocities,
@@ -210,35 +218,8 @@ impl State {
             .particles
             .parameters
             .iter()
-            .map(|parameter| {
-                match parameter.clone() {
-                    crate::state::particles::ParticleParameters::Solid {
-                        mu,
-                        lambda,
-                        viscosity: _,
-                        sand_alpha,
-                    } => squishy_volumes_gpu::particle_parameters::Host::Solid(
-                        squishy_volumes_gpu::particle_parameters::Solid {
-                            mu,
-                            lambda,
-                            viscosity: None,
-                            sand_alpha,
-                        },
-                    ),
-                    crate::state::particles::ParticleParameters::Fluid {
-                        exponent,
-                        bulk_modulus,
-                        viscosity: _,
-                    } => squishy_volumes_gpu::particle_parameters::Host::Fluid(
-                        squishy_volumes_gpu::particle_parameters::Fluid {
-                            exponent,
-                            bulk_modulus,
-                            viscosity: None,
-                        },
-                    ),
-                }
-                .into()
-            })
+            .map(translate_particle_parameters)
+            .map(|p| (&p).into())
             .collect();
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
@@ -372,4 +353,35 @@ pub struct GpuState {
     pub pipeline_part: squishy_volumes_gpu::Step,
     pub next_input: squishy_volumes_gpu::step::Input,
     pub max_num_grid_nodes: NonZeroU32,
+}
+
+fn translate_particle_parameters(
+    p: &crate::state::particles::ParticleParameters,
+) -> squishy_volumes_gpu::particle_parameters::Host {
+    match p.clone() {
+        crate::state::particles::ParticleParameters::Solid {
+            mu,
+            lambda,
+            viscosity: _,
+            sand_alpha,
+        } => squishy_volumes_gpu::particle_parameters::Host::Solid(
+            squishy_volumes_gpu::particle_parameters::Solid {
+                mu,
+                lambda,
+                viscosity: None,
+                sand_alpha,
+            },
+        ),
+        crate::state::particles::ParticleParameters::Fluid {
+            exponent,
+            bulk_modulus,
+            viscosity: _,
+        } => squishy_volumes_gpu::particle_parameters::Host::Fluid(
+            squishy_volumes_gpu::particle_parameters::Fluid {
+                exponent,
+                bulk_modulus,
+                viscosity: None,
+            },
+        ),
+    }
 }

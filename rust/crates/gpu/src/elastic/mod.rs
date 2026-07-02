@@ -28,6 +28,7 @@ pub struct Parameters;
 pub struct Input {
     pub indirect: Allocation,
     pub position_gradients: Allocation,
+    pub particle_flags: Allocation,
     pub particle_parameters: Allocation,
 }
 
@@ -37,6 +38,7 @@ impl Input {
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
         position_gradients: &[Matrix4x3<f32>],
+        particle_flags: &[particle_parameters::Flags],
         particle_parameters: &[particle_parameters::Device],
     ) -> Result<Self, GpuError> {
         check_length!(position_gradients, particle_parameters)?;
@@ -47,12 +49,14 @@ impl Input {
         });
         let indirect = Allocation::new(device, "indirect", &[indirect])?;
         let position_gradients = Allocation::new(device, "position_gradients", position_gradients)?;
+        let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", particle_parameters)?;
 
         Ok(Self {
             indirect,
             position_gradients,
+            particle_flags,
             particle_parameters,
         })
     }
@@ -77,6 +81,7 @@ impl PipelinePart for Elastic {
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
+                    (particle_parameters::Flags::MIN_BINDING_SIZE, false),
                     (particle_parameters::Device::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
@@ -96,6 +101,7 @@ impl PipelinePart for Elastic {
         Input {
             indirect,
             position_gradients,
+            particle_flags,
             particle_parameters,
         }: Input,
         _: Parameters,
@@ -113,6 +119,7 @@ impl PipelinePart for Elastic {
             [
                 indirect.binding(),
                 position_gradients.binding(),
+                particle_flags.binding(),
                 particle_parameters.binding(),
                 stresses.binding(),
                 energies.binding(),

@@ -28,6 +28,7 @@ fn check(
         particle_parameters,
         variable_particle_input:
             VariableParticleInputData {
+                particle_flags,
                 particle_positions_and_collider_bits,
                 particle_position_gradients,
                 particle_velocities,
@@ -46,6 +47,7 @@ fn check(
         prepare_tmp::InputData {
             particle_masses,
             particle_initial_volumes,
+            particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
@@ -143,23 +145,22 @@ fn specific() {
     let particle_positions_and_collider_bits = specific_positions_and_collider_bits();
     let n = particle_positions_and_collider_bits.len();
 
+    let parameters_host = Host::Solid(Solid {
+        mu: mu(1000., 0.3),
+        lambda: lambda(1000., 0.3),
+        viscosity: None,
+        sand_alpha: None,
+    });
+
     check(
         settings,
         InputData {
             gravity: Vector4::new(0., 0., -9.8, 0.),
             particle_masses: &vec![1.; n],
             particle_initial_volumes: &vec![1.; n],
-            particle_parameters: &vec![
-                Host::Solid(Solid {
-                    mu: mu(1000., 0.3),
-                    lambda: lambda(1000., 0.3),
-                    viscosity: None,
-                    sand_alpha: None,
-                })
-                .into();
-                n
-            ],
+            particle_parameters: &vec![(&parameters_host).into(); n],
             variable_particle_input: VariableParticleInputData {
+                particle_flags: &vec![(&parameters_host).into(); n],
                 particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
                 particle_position_gradients: &vec![
                     stack![
@@ -198,20 +199,22 @@ fn test_single_undeformed() {
         table_tries: 50,
     };
 
+    let parameters_host = Host::Solid(Solid {
+        mu: mu(1000., 0.3),
+        lambda: lambda(1000., 0.3),
+        viscosity: None,
+        sand_alpha: None,
+    });
+
     check(
         settings,
         InputData {
             gravity: Vector4::new(0., 0., -9.8, 0.),
             particle_masses: &[1.],
             particle_initial_volumes: &[1.],
-            particle_parameters: &[Host::Solid(Solid {
-                mu: mu(1000., 0.3),
-                lambda: lambda(1000., 0.3),
-                viscosity: None,
-                sand_alpha: None,
-            })
-            .into()],
+            particle_parameters: &[(&parameters_host).into()],
             variable_particle_input: VariableParticleInputData {
+                particle_flags: &[(&parameters_host).into()],
                 particle_positions_and_collider_bits: &[PositionAndColliderBits {
                     position: Vector3::zeros(),
                     collider_bits: 0,
