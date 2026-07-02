@@ -22,7 +22,7 @@ fn check(
     input_data: InputData,
 ) {
     let InputData {
-        gravity,
+        gravity: _, //TODO
         particle_masses,
         particle_initial_volumes,
         particle_parameters,
@@ -33,7 +33,7 @@ fn check(
                 particle_velocities,
                 particle_velocity_gradients,
             },
-        collider_input,
+        collider_input: _, // TODO
     } = &input_data;
 
     let (node_ids_and_collider_bits, contributor_offsets, contributors) = contributors_on_cpu(
@@ -78,13 +78,13 @@ fn check(
     );
 
     let OutputData {
-        particle_positions_and_collider_bits,
-        particle_position_gradients,
-        particle_velocities,
-        particle_velocity_gradients,
-        indirect_nodes,
-        node_ids_and_collider_bits,
-        node_momentums,
+        particle_positions_and_collider_bits: _, // TODO
+        particle_position_gradients: _,          // TODO
+        particle_velocities: _,                  // TODO
+        particle_velocity_gradients: _,          // TODO
+        indirect_nodes: _,                       // TODO
+        node_ids_and_collider_bits: _,           // TODO
+        node_momentums: _,                       // TODO
     } = run(settings, input_data.clone());
 
     todo!()

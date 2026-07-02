@@ -546,7 +546,8 @@ impl Drop for ComputeThread {
             return;
         };
         self.run.store(false, Ordering::Relaxed);
-        if let Err(e) = thread.join() {
+        // TODO try to get string from error
+        if let Err(_) = thread.join() {
             tracing::error!("Compute Panic, could be out of memory, please consult logs.");
         }
     }

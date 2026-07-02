@@ -139,10 +139,6 @@ impl InputInterpolationPoint {
         })
     }
 
-    pub fn frame(&self) -> usize {
-        self.frame
-    }
-
     pub fn gravity(&self) -> &Vector3<T> {
         &self.gravity
     }
