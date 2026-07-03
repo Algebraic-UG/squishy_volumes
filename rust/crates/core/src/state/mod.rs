@@ -61,6 +61,8 @@ pub enum ObjectIndex {
     Collider(usize),
 }
 
+pub const BYTES_PER_GRID_NODE: u64 = 300;
+
 impl State {
     pub fn time(&self) -> f64 {
         self.time
@@ -270,7 +272,7 @@ impl State {
 
         tracing::info!("setting up GPU allocators");
         gpu_context.setup_allocator(
-            max_num_grid_nodes.get() as u64 * 1024,
+            max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE,
             "main allocator",
             false,
         )?;

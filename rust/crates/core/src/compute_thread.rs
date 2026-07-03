@@ -35,7 +35,7 @@ use crate::{
     phase::{Phase, PhaseInput},
     profile,
     report::{Report, ReportInfo},
-    state::{GpuState, State},
+    state::{BYTES_PER_GRID_NODE, GpuState, State},
     stats::ComputeStats,
 };
 
@@ -476,7 +476,8 @@ impl ComputeFrameGPU<'_> {
                 State::get_collider_input(phase_input, gpu_context.device())?;
             next_input.variable_particle_input =
                 current_state.get_variable_particle_input(phase_input, gpu_context.device())?;
-            gpu_context.resize_allocator(max_num_grid_nodes.get() as u64 * 1024, false)?;
+            gpu_context
+                .resize_allocator(max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE, false)?;
             return self.run();
         }
 
