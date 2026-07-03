@@ -516,6 +516,8 @@ fn main() {
                     particle_masses: &test_particles.particle_masses,
                     particle_initial_volumes: &test_particles.particle_initial_volumes,
                     particle_parameters: &test_particles.particle_parameters,
+                    particle_goals_start: &test_particles.particle_goals_start,
+                    particle_goals_end: &test_particles.particle_goals_end,
                     variable_particle_input: gpu::step::VariableParticleInputData {
                         particle_flags: &test_particles.particle_flags,
                         particle_positions_and_collider_bits: &test_particles

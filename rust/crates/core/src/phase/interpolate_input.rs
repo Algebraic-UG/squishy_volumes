@@ -34,8 +34,6 @@ impl State {
 
         let gravity = factor_a * a.gravity() + factor_b * b.gravity();
 
-        let particle_flags = a.particle_flags().to_vec();
-
         let particle_goal_positions: Vec<Vector3<T>> = a
             .particle_goal_positions()
             .par_iter()
@@ -90,7 +88,6 @@ impl State {
 
         self.interpolated_input = Some(InterpolatedInput {
             gravity,
-            particle_flags,
             particle_goal_positions,
             vertex_positions,
             vertex_normals,

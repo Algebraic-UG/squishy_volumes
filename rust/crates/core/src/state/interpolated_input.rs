@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::ParticleFlags;
-
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 use squishy_volumes_api::T;
@@ -16,7 +14,6 @@ use squishy_volumes_api::T;
 pub struct InterpolatedInput {
     pub gravity: Vector3<T>,
 
-    pub particle_flags: Vec<ParticleFlags>,
     pub particle_goal_positions: Vec<Vector3<T>>,
 
     pub vertex_positions: Vec<Vector3<T>>,

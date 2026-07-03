@@ -26,6 +26,8 @@ fn check(
         particle_masses,
         particle_initial_volumes,
         particle_parameters,
+        particle_goals_start: _, // TODO
+        particle_goals_end: _,   // TODO
         variable_particle_input:
             VariableParticleInputData {
                 particle_flags,
@@ -159,6 +161,8 @@ fn specific() {
             particle_masses: &vec![1.; n],
             particle_initial_volumes: &vec![1.; n],
             particle_parameters: &vec![(&parameters_host).into(); n],
+            particle_goals_start: &vec![Vector4::zeros(); n],
+            particle_goals_end: &vec![Vector4::zeros(); n],
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &vec![(&parameters_host).into(); n],
                 particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
@@ -213,6 +217,8 @@ fn test_single_undeformed() {
             particle_masses: &[1.],
             particle_initial_volumes: &[1.],
             particle_parameters: &[(&parameters_host).into()],
+            particle_goals_start: &[Vector4::zeros()],
+            particle_goals_end: &[Vector4::zeros()],
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &[(&parameters_host).into()],
                 particle_positions_and_collider_bits: &[PositionAndColliderBits {

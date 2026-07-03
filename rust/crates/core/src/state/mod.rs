@@ -16,9 +16,10 @@ use squishy_volumes_gpu::{
     step::{VariableParticleInput, VariableParticleInputData},
     wgpu,
 };
-use std::{collections::BTreeMap, num::NonZeroU32};
+use std::{collections::BTreeMap, iter::repeat, num::NonZeroU32};
 
 use crate::{
+    ParticleFlags,
     phase::{Phase, PhaseInput},
     profile,
     stats::StateStats,
@@ -107,6 +108,7 @@ impl State {
 
     pub fn get_variable_particle_input(
         &self,
+        phase_input: &PhaseInput,
         device: &wgpu::Device,
     ) -> Result<VariableParticleInput, GpuError> {
         tracing::info!("preparing variable particle data for transfer");
@@ -115,8 +117,16 @@ impl State {
             .parameters
             .iter()
             .map(translate_particle_parameters)
-            .map(|p| (&p).into())
+            .zip(phase_input.input_interpolation.a().particle_flags())
+            .map(|(p, input_flags)| {
+                let mut flags = (&p).into();
+                if input_flags.contains(ParticleFlags::HasGoal) {
+                    flags |= squishy_volumes_gpu::particle_parameters::Flags::HAS_GOAL;
+                }
+                flags
+            })
             .collect();
+
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = self
             .particles
             .positions
@@ -158,6 +168,86 @@ impl State {
                 particle_velocity_gradients: &particle_velocity_gradients,
             },
         )
+    }
+
+    pub fn get_collider_input(
+        phase_input: &mut PhaseInput,
+        device: &wgpu::Device,
+    ) -> Result<Option<squishy_volumes_gpu::step::ColliderInput>, GpuError> {
+        if phase_input.input_interpolation.topology().is_empty() {
+            return Ok(None);
+        }
+
+        let a = phase_input.input_interpolation.a();
+        let b = phase_input.input_interpolation.b().unwrap_or(a);
+
+        let topology = phase_input.input_interpolation.topology();
+        let num_triangles = topology.triangle_indices().len();
+        let num_vertices = topology.vertex_triangle_lists().len();
+        tracing::info!(num_vertices, num_triangles, "preparing mesh for transfer");
+
+        let vertex_positions_start: Vec<Vector4<f32>> =
+            a.vertex_positions().iter().map(|p| p.push(0.)).collect();
+        let vertex_positions_end: Vec<Vector4<f32>> =
+            b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+
+        let vertex_triangle_lists = topology.vertex_triangle_lists();
+        let vertex_triangle_offsets = prefix_sum_on_cpu(
+            &vertex_triangle_lists
+                .iter()
+                .map(|v| v.len() as u32)
+                .collect::<Vec<_>>(),
+        );
+        let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
+            .iter()
+            .flat_map(|list| list.iter().cloned())
+            .collect();
+        if vertex_triangle_lists.is_empty() {
+            tracing::warn!("all vertices are on open edges");
+            vertex_triangle_lists.push(0);
+        }
+
+        tracing::info!("creating mesh allocations");
+        let vertex_positions_start =
+            Allocation::new(device, "vertex_positions_start", &vertex_positions_start)?;
+        let vertex_positions_end =
+            Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
+        let vertex_triangle_offsets =
+            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
+        let vertex_triangle_lists =
+            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+
+        let triangle_indices =
+            Allocation::new(device, "triangle_indices", topology.triangle_indices())?;
+        let triangle_collider =
+            Allocation::new(device, "triangle_collider", topology.triangle_collider())?;
+        let triangle_opposites =
+            Allocation::new(device, "triangle_opposites", topology.triangle_opposites())?;
+
+        // TODO: interpolate that
+        let triangle_frictions =
+            Allocation::new(device, "triangle_frictions", a.triangle_frictions())?;
+
+        let num_bvh_levels = phase_input.input_interpolation.bvh().level();
+        let num_bvh_nodes = phase_input.input_interpolation.bvh().nodes().len();
+        tracing::info!(num_bvh_levels, num_bvh_nodes, "creating bvh allocations");
+        let bvh = BoundingVolumeHierarchyAllocations::new(
+            device,
+            phase_input.consts.leaf_size,
+            phase_input.input_interpolation.bvh(),
+        )?;
+
+        Ok(Some(squishy_volumes_gpu::step::ColliderInput {
+            vertex_positions_start,
+            vertex_positions_end,
+            vertex_triangle_offsets,
+            vertex_triangle_lists,
+            triangle_indices,
+            triangle_collider,
+            triangle_opposites,
+            triangle_frictions,
+            bvh,
+        }))
     }
 
     pub fn to_gpu_state(
@@ -230,6 +320,21 @@ impl State {
         let a = phase_input.input_interpolation.a();
         let b = phase_input.input_interpolation.b().unwrap_or(a);
 
+        let particle_goals_start = a
+            .particle_goal_positions()
+            .iter()
+            .map(|p| p.push(0.))
+            .chain(repeat(Vector4::zeros()))
+            .take(num_particles)
+            .collect::<Vec<_>>();
+        let particle_goals_end = b
+            .particle_goal_positions()
+            .iter()
+            .map(|p| p.push(0.))
+            .chain(repeat(Vector4::zeros()))
+            .take(num_particles)
+            .collect::<Vec<_>>();
+
         tracing::info!("creating particle allocations");
 
         // TODO: interpolate that
@@ -245,87 +350,15 @@ impl State {
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
 
-        let variable_particle_input = self.get_variable_particle_input(gpu_context.device())?;
+        let particle_goals_start =
+            Allocation::new(device, "particle_goals_start", &particle_goals_start)?;
+        let particle_goals_end =
+            Allocation::new(device, "particle_goals_end", &particle_goals_end)?;
 
-        let collider_input = (!phase_input.input_interpolation.topology().is_empty())
-            .then(
-                || -> Result<squishy_volumes_gpu::step::ColliderInput, GpuError> {
-                    let topology = phase_input.input_interpolation.topology();
-                    let num_triangles = topology.triangle_indices().len();
-                    let num_vertices = topology.vertex_triangle_lists().len();
-                    tracing::info!(num_vertices, num_triangles, "preparing mesh for transfer");
+        let variable_particle_input =
+            self.get_variable_particle_input(phase_input, gpu_context.device())?;
 
-                    let vertex_positions_start: Vec<Vector4<f32>> =
-                        a.vertex_positions().iter().map(|p| p.push(0.)).collect();
-                    let vertex_positions_end: Vec<Vector4<f32>> =
-                        b.vertex_positions().iter().map(|p| p.push(0.)).collect();
-
-                    let vertex_triangle_lists = topology.vertex_triangle_lists();
-                    let vertex_triangle_offsets = prefix_sum_on_cpu(
-                        &vertex_triangle_lists
-                            .iter()
-                            .map(|v| v.len() as u32)
-                            .collect::<Vec<_>>(),
-                    );
-                    let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
-                        .iter()
-                        .flat_map(|list| list.iter().cloned())
-                        .collect();
-                    if vertex_triangle_lists.is_empty() {
-                        tracing::warn!("all vertices are on open edges");
-                        vertex_triangle_lists.push(0);
-                    }
-
-                    tracing::info!("creating mesh allocations");
-                    let vertex_positions_start =
-                        Allocation::new(device, "vertex_positions_start", &vertex_positions_start)?;
-                    let vertex_positions_end =
-                        Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
-                    let vertex_triangle_offsets = Allocation::new(
-                        device,
-                        "vertex_triangle_offsets",
-                        &vertex_triangle_offsets,
-                    )?;
-                    let vertex_triangle_lists =
-                        Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
-
-                    let triangle_indices =
-                        Allocation::new(device, "triangle_indices", topology.triangle_indices())?;
-                    let triangle_collider =
-                        Allocation::new(device, "triangle_collider", topology.triangle_collider())?;
-                    let triangle_opposites = Allocation::new(
-                        device,
-                        "triangle_opposites",
-                        topology.triangle_opposites(),
-                    )?;
-
-                    // TODO: interpolate that
-                    let triangle_frictions =
-                        Allocation::new(device, "triangle_frictions", a.triangle_frictions())?;
-
-                    let num_bvh_levels = phase_input.input_interpolation.bvh().level();
-                    let num_bvh_nodes = phase_input.input_interpolation.bvh().nodes().len();
-                    tracing::info!(num_bvh_levels, num_bvh_nodes, "creating bvh allocations");
-                    let bvh = BoundingVolumeHierarchyAllocations::new(
-                        device,
-                        phase_input.consts.leaf_size,
-                        phase_input.input_interpolation.bvh(),
-                    )?;
-
-                    Ok(squishy_volumes_gpu::step::ColliderInput {
-                        vertex_positions_start,
-                        vertex_positions_end,
-                        vertex_triangle_offsets,
-                        vertex_triangle_lists,
-                        triangle_indices,
-                        triangle_collider,
-                        triangle_opposites,
-                        triangle_frictions,
-                        bvh,
-                    })
-                },
-            )
-            .transpose()?;
+        let collider_input = Self::get_collider_input(phase_input, gpu_context.device())?;
 
         let next_input = squishy_volumes_gpu::step::Input {
             gravity,
@@ -333,6 +366,9 @@ impl State {
             particle_masses,
             particle_initial_volumes,
             particle_parameters,
+
+            particle_goals_start,
+            particle_goals_end,
 
             variable_particle_input,
 
@@ -355,7 +391,7 @@ pub struct GpuState {
     pub max_num_grid_nodes: NonZeroU32,
 }
 
-fn translate_particle_parameters(
+pub fn translate_particle_parameters(
     p: &crate::state::particles::ParticleParameters,
 ) -> squishy_volumes_gpu::particle_parameters::Host {
     match p.clone() {

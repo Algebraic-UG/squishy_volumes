@@ -21,8 +21,10 @@ impl State {
             .interpolated_input
             .as_ref()
             .context("Missing interpolated input")?;
-        for (initial_index, (flags, goal_position)) in interpolated_input
-            .particle_flags
+        for (initial_index, (flags, goal_position)) in phase_input
+            .input_interpolation
+            .a()
+            .particle_flags()
             .iter()
             .zip(&interpolated_input.particle_goal_positions)
             .enumerate()

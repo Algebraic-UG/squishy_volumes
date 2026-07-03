@@ -83,6 +83,9 @@ pub struct Input {
 
     pub variable_particle_input: VariableParticleInput,
 
+    pub particle_goals_start: Allocation,
+    pub particle_goals_end: Allocation,
+
     pub collider_input: Option<ColliderInput>,
 }
 
@@ -111,6 +114,9 @@ pub struct InputData<'a> {
     pub particle_masses: &'a [f32],
     pub particle_initial_volumes: &'a [f32],
     pub particle_parameters: &'a [particle_parameters::Device],
+
+    pub particle_goals_start: &'a [Vector4<f32>],
+    pub particle_goals_end: &'a [Vector4<f32>],
 
     pub variable_particle_input: VariableParticleInputData<'a>,
 
@@ -274,6 +280,8 @@ impl Input {
             particle_masses,
             particle_initial_volumes,
             particle_parameters,
+            particle_goals_start,
+            particle_goals_end,
             variable_particle_input,
             collider_input,
         }: InputData,
@@ -300,6 +308,10 @@ impl Input {
         let particle_parameters =
             Allocation::new(device, "particle_parameters", particle_parameters)?;
 
+        let particle_goals_start =
+            Allocation::new(device, "particle_goals_start", particle_goals_start)?;
+        let particle_goals_end = Allocation::new(device, "particle_goals_end", particle_goals_end)?;
+
         let variable_particle_input = VariableParticleInput::new(device, variable_particle_input)?;
 
         let collider_input = collider_input
@@ -323,7 +335,11 @@ impl Input {
             particle_initial_volumes,
             particle_parameters,
 
+            particle_goals_start,
+            particle_goals_end,
+
             variable_particle_input,
+
             collider_input,
         })
     }
@@ -463,6 +479,8 @@ impl PipelinePart for Step {
             particle_masses,
             particle_initial_volumes,
             particle_parameters,
+            particle_goals_start,
+            particle_goals_end,
             variable_particle_input:
                 VariableParticleInput {
                     particle_flags,
@@ -513,9 +531,14 @@ impl PipelinePart for Step {
                 encoder,
                 external_force::Input {
                     gravity,
+                    particle_flags: particle_flags.clone(),
+                    particle_positions_and_collider_bits: particle_positions_and_collider_bits
+                        .clone(),
                     particle_velocities: particle_velocities.clone(),
+                    particle_goals_start,
+                    particle_goals_end,
                 },
-                external_force::Parameters,
+                external_force::Parameters { factor },
             )?;
 
             let collide::Output = self.collide.record(

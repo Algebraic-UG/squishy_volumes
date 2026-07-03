@@ -8,6 +8,7 @@
 
 use std::{
     collections::VecDeque,
+    iter::repeat,
     mem::take,
     num::NonZero,
     sync::{
@@ -349,26 +350,50 @@ impl ComputeFrameGPU<'_> {
         let downloads_ready = downloads.prep();
         profiler.end_frame().unwrap();
 
-        info!("prepare next collider geometry");
+        info!("prepare next frame input");
         phase_input
             .input_interpolation
             .load(&phase_input.consts, phase_input.next_frame)?;
 
-        if let Some(collider_input) = next_input.collider_input.as_mut() {
-            let a = phase_input.input_interpolation.a();
-            let b = phase_input.input_interpolation.b().unwrap_or(a);
+        let b = phase_input
+            .input_interpolation
+            .b()
+            .unwrap_or(phase_input.input_interpolation.a());
 
-            let vertex_positions_start: Vec<Vector4<f32>> =
-                a.vertex_positions().iter().map(|p| p.push(0.)).collect();
+        let particle_flags: Vec<squishy_volumes_gpu::particle_parameters::Flags> = current_state
+            .particles
+            .parameters
+            .iter()
+            .map(crate::state::translate_particle_parameters)
+            .zip(b.particle_flags())
+            .map(|(p, input_flags)| {
+                let mut flags = (&p).into();
+                if input_flags.contains(crate::ParticleFlags::HasGoal) {
+                    flags |= squishy_volumes_gpu::particle_parameters::Flags::HAS_GOAL;
+                }
+                flags
+            })
+            .collect();
+        next_input.variable_particle_input.particle_flags =
+            Allocation::new(gpu_context.device(), "particle_flags", &particle_flags)?;
+        next_input.particle_goals_start = next_input.particle_goals_end.clone();
+        let particle_goals_end = b
+            .particle_goal_positions()
+            .iter()
+            .map(|p| p.push(0.))
+            .chain(repeat(Vector4::zeros()))
+            .take(current_state.particles.sort_map.len())
+            .collect::<Vec<_>>();
+        next_input.particle_goals_end = Allocation::new(
+            gpu_context.device(),
+            "particle_goals_end",
+            &particle_goals_end,
+        )?;
+
+        if let Some(collider_input) = next_input.collider_input.as_mut() {
+            collider_input.vertex_positions_start = collider_input.vertex_positions_end.clone();
             let vertex_positions_end: Vec<Vector4<f32>> =
                 b.vertex_positions().iter().map(|p| p.push(0.)).collect();
-
-            info!("allocate next collider geometry");
-            collider_input.vertex_positions_start = Allocation::new(
-                gpu_context.device(),
-                "vertex_positions_start",
-                &vertex_positions_start,
-            )?;
             collider_input.vertex_positions_end = Allocation::new(
                 gpu_context.device(),
                 "vertex_positions_end",
@@ -428,8 +453,6 @@ impl ComputeFrameGPU<'_> {
             }
             Err(GpuError::Shader(GpuShaderError::TableTriesExceeded { reporting_shader })) => {
                 tracing::warn!(reporting_shader, "The hash table appears to be too small.");
-                next_input.variable_particle_input =
-                    current_state.get_variable_particle_input(gpu_context.device())?;
                 redo_frame = true;
             }
             x => x?,
@@ -449,8 +472,10 @@ impl ComputeFrameGPU<'_> {
                 .try_into()
                 .unwrap();
             tracing::warn!(max_num_grid_nodes, "The frame needs to be redone");
+            next_input.collider_input =
+                State::get_collider_input(phase_input, gpu_context.device())?;
             next_input.variable_particle_input =
-                current_state.get_variable_particle_input(gpu_context.device())?;
+                current_state.get_variable_particle_input(phase_input, gpu_context.device())?;
             gpu_context.resize_allocator(max_num_grid_nodes.get() as u64 * 1024, false)?;
             return self.run();
         }
