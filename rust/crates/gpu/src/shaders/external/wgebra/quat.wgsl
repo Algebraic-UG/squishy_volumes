@@ -91,13 +91,13 @@ fn invMulVec(q: Quat, v: vec3<f32>) -> vec3<f32> {
 }
 
 fn diff_conj1_2(a: Quat, b: Quat) -> mat3x3<f32> {
-        let v1 = imag(a);
-        let v2 = imag(b);
-        let w1 = a.coords.w;
-        let w2 = b.coords.w;
+    let v1 = imag(a);
+    let v2 = imag(b);
+    let w1 = a.coords.w;
+    let w2 = b.coords.w;
 
-        // TODO: this can probably be optimized a lot by unrolling the ops.
-        return (tensor_prod(v1, v2) + diag(w1 * w2)
+    // TODO: this can probably be optimized a lot by unrolling the ops.
+    return (tensor_prod(v1, v2) + diag(w1 * w2)
             - cross_matrix(v1 * w2 + v2 * w1)
             + cross_matrix(v1) * cross_matrix(v2))
             * 0.5;
