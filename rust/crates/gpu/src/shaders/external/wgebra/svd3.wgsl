@@ -3,8 +3,7 @@
 // which is an implementation of "Computing the Singular Value Decomposition of 3x3 matrices with minimal branching and
 // elementary floating point operations" from http://pages.cs.wisc.edu/~sifakis/project_pages/svd.html
 
-#define_import_path wgebra::svd3
-#import wgebra::quat as Quat
+import super::quat as Quat;
 
 // The SVD of a 3x3 matrix.
 struct Svd {

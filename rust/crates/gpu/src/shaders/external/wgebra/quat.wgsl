@@ -1,5 +1,3 @@
-#define_import_path wgebra::quat
-
 /// A unit quaternion representing a rotation.
 struct Quat {
     /// The quaternion’s coordinates (i, j, k, w).
