@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 import super::util::{Indirect, get_global_index};
-import super::svd::{Svd, svd};
+import super::external::wgebra::svd3::{Svd, svd};
 
 @group(0) @binding(0)
 var<storage, read_write> matrices: array<mat3x3f>;

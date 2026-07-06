@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 import super::util::{Indirect, get_global_index, ParticleParameters, IS_SOLID, USE_SAND_ALPHA};
-import super::svd::{Svd, svd, recompose};
+import super::external::wgebra::svd3::{Svd, svd, recompose};
 
 @group(0) @binding(0)
 var<storage, read_write> particle_flags: array<u32>;
