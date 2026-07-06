@@ -496,6 +496,20 @@ impl PipelinePart for Step {
             factor,
         }: Parameters,
     ) -> Result<Output, GpuError> {
+        let external_force::Output = self.external_force.record(
+            context,
+            encoder,
+            external_force::Input {
+                gravity,
+                particle_flags: particle_flags.clone(),
+                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
+                particle_velocities: particle_velocities.clone(),
+                particle_goals_start,
+                particle_goals_end,
+            },
+            external_force::Parameters { factor },
+        )?;
+
         let meld_needed = collider_input.is_some();
         if let Some(ColliderInput {
             vertex_positions_start,
@@ -524,21 +538,6 @@ impl PipelinePart for Step {
                     triangle_indices: triangle_indices.clone(),
                 },
                 animate_mesh::Parameters { factor },
-            )?;
-
-            let external_force::Output = self.external_force.record(
-                context,
-                encoder,
-                external_force::Input {
-                    gravity,
-                    particle_flags: particle_flags.clone(),
-                    particle_positions_and_collider_bits: particle_positions_and_collider_bits
-                        .clone(),
-                    particle_velocities: particle_velocities.clone(),
-                    particle_goals_start,
-                    particle_goals_end,
-                },
-                external_force::Parameters { factor },
             )?;
 
             let collide::Output = self.collide.record(
