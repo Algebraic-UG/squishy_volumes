@@ -1,3 +1,9 @@
+// This is copied from wgebra:
+// https://github.com/wgmath/wgmath/blob/main/crates/wgebra/src/geometry/svd3.wgsl (MIT & Apache 2.0 license)
+// Modifications:
+//   - formatting
+//   - import statements adjusted to work with WESL
+
 // This is a WGSL port of https://github.com/wi-re/tbtSVD/blob/master/source/SVD.h (MIT license)
 
 // which is an implementation of "Computing the Singular Value Decomposition of 3x3 matrices with minimal branching and

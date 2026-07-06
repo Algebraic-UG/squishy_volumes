@@ -1,3 +1,9 @@
+// This is copied from wgebra:
+// https://github.com/wgmath/wgmath/blob/main/crates/wgebra/src/geometry/quat.wgsl (MIT & Apache 2.0 license)
+// Modifications:
+//   - formatting
+//   - import statements removed to work with WESL
+
 /// A unit quaternion representing a rotation.
 struct Quat {
     /// The quaternion’s coordinates (i, j, k, w).
