@@ -1,0 +1,16 @@
+[package]
+name = "squishy_volumes_xpu"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+thiserror.workspace = true
+nalgebra.workspace = true
+bytemuck.workspace = true
+tracing.workspace = true
+
+squishy_volumes_file_input.path = "../file_input"
+squishy_volumes_file_frame.path = "../file_frame"
+squishy_volumes_mesh_util.path = "../mesh_util"
+squishy_volumes_util.path = "../util"
