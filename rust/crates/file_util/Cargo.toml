@@ -1,0 +1,12 @@
+[package]
+name = "squishy_volumes_file_util"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[build-dependencies]
+build-info-build.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+build-info.workspace = true
