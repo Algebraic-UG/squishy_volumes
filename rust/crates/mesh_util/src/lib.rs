@@ -7,9 +7,11 @@
 // https://opensource.org/licenses/MIT.
 
 mod bounding_volume_hierarchy;
+mod errors;
 mod mesh;
 mod triangle;
 
 pub use bounding_volume_hierarchy::*;
+pub use errors::*;
 pub use mesh::*;
 pub use triangle::*;
