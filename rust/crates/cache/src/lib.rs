@@ -15,5 +15,5 @@ use cache::*;
 use store_thread::*;
 use util::*;
 
-pub use cache::Cache;
+pub use cache::{Cache, CachedState};
 pub use errors::*;
