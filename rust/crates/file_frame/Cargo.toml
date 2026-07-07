@@ -1,0 +1,14 @@
+[package]
+name = "squishy_volumes_file_frame"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde.workspace = true
+bincode.workspace = true
+bytemuck.workspace = true
+bitflags.workspace = true
+thiserror.workspace = true
+
+squishy_volumes_file_util.path = "../file_util"
