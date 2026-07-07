@@ -8,20 +8,20 @@
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Default)]
 pub struct ParticlesInput {
-    pub flags: Vec<i32>,
-    pub transforms: Vec<f32>,
+    pub flags: Vec<u32>,
+    pub transforms: Vec<[f32; 16]>,
     pub sizes: Vec<f32>,
     pub densities: Vec<f32>,
     pub youngs_moduluses: Vec<f32>,
     pub poissons_ratios: Vec<f32>,
-    pub initial_positions: Vec<f32>,
-    pub initial_velocities: Vec<f32>,
+    pub initial_positions: Vec<[f32; 3]>,
+    pub initial_velocities: Vec<[f32; 3]>,
     pub viscosities_dynamic: Vec<f32>,
     pub viscosities_bulk: Vec<f32>,
-    pub exponents: Vec<i32>,
+    pub exponents: Vec<u32>,
     pub bulk_moduluses: Vec<f32>,
     pub sand_alphas: Vec<f32>,
-    pub goal_positions: Vec<f32>,
+    pub goal_positions: Vec<[f32; 3]>,
 }
 
 #[cfg(test)]
@@ -30,27 +30,27 @@ impl ParticlesInput {
         use rand::RngExt as _;
         Self {
             flags: rng.random_iter().take(n).collect(),
-            transforms: rng.random_iter().take(n * 16).collect(),
+            transforms: rng.random_iter().take(n).collect(),
             sizes: rng.random_iter().take(n).collect(),
             densities: rng.random_iter().take(n).collect(),
             youngs_moduluses: rng.random_iter().take(n).collect(),
             poissons_ratios: rng.random_iter().take(n).collect(),
-            initial_positions: rng.random_iter().take(n * 3).collect(),
-            initial_velocities: rng.random_iter().take(n * 3).collect(),
+            initial_positions: rng.random_iter().take(n).collect(),
+            initial_velocities: rng.random_iter().take(n).collect(),
             viscosities_dynamic: rng.random_iter().take(n).collect(),
             viscosities_bulk: rng.random_iter().take(n).collect(),
             exponents: rng.random_iter().take(n).collect(),
             bulk_moduluses: rng.random_iter().take(n).collect(),
             sand_alphas: rng.random_iter().take(n).collect(),
-            goal_positions: rng.random_iter().take(n * 3).collect(),
+            goal_positions: rng.random_iter().take(n).collect(),
         }
     }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Default)]
 pub struct ColliderInput {
-    pub vertex_positions: Vec<f32>,
-    pub triangles: Vec<i32>,
+    pub vertex_positions: Vec<[f32; 3]>,
+    pub triangle_indices: Vec<[u32; 3]>,
     pub triangle_frictions: Vec<f32>,
 }
 
@@ -59,8 +59,8 @@ impl ColliderInput {
     fn random(n: usize, rng: &mut impl rand::Rng) -> Self {
         use rand::RngExt as _;
         Self {
-            vertex_positions: rng.random_iter().take(n * 3).collect(),
-            triangles: rng.random_iter().take(n * 3).collect(),
+            vertex_positions: rng.random_iter().take(n).collect(),
+            triangle_indices: rng.random_iter().take(n).collect(),
             triangle_frictions: rng.random_iter().take(n).collect(),
         }
     }
