@@ -1,5 +1,5 @@
 [package]
-name = "squishy_volumes_input_file"
+name = "squishy_volumes_file_input"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
