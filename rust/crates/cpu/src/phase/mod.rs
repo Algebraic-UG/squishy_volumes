@@ -14,6 +14,7 @@ mod collide;
 mod external_force;
 mod interpolate_input;
 mod limit_time_step;
+mod scatter_momentum;
 mod sort;
 mod update_grid_nodes;
 
@@ -59,7 +60,7 @@ impl CpuState {
                 self.limit_time_step_before_force(grid_node_size);
                 Ok(())
             }
-            Phase::ScatterMomentum => todo!(),
+            Phase::ScatterMomentum => self.scatter_momentum(grid_node_size),
             Phase::MeldGrid => todo!(),
             Phase::CollectVelocity => todo!(),
             Phase::LimitTimeStepBeforeIntegrate => {

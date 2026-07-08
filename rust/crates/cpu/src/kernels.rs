@@ -8,6 +8,7 @@
 
 use nalgebra::Vector3;
 
+#[allow(unused)]
 pub fn kernel_linear(x: f32) -> f32 {
     let x = x.abs();
     if x < 1. { 1. - x } else { 0. }
@@ -24,6 +25,7 @@ pub fn kernel_quadratic(x: f32) -> f32 {
     }
 }
 
+#[allow(unused)]
 pub fn kernel_cubic(x: f32) -> f32 {
     let x = x.abs();
     if x < 1. {
@@ -37,6 +39,8 @@ pub fn kernel_cubic(x: f32) -> f32 {
 
 // XXX: changing this implies changing the shift for scatters.
 pub const KERNEL_QUADRATIC_LENGTH: usize = 3;
+
+#[allow(unused)]
 pub const KERNEL_CUBIC_LENGTH: usize = 4;
 
 pub fn position_to_shift_quadratic(position: &Vector3<f32>, grid_node_size: f32) -> Vector3<i32> {

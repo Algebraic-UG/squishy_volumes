@@ -6,8 +6,6 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::sync::WaitTimeoutResult;
-
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_file_frame::ParticleFlags;
