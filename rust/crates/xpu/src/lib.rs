@@ -13,13 +13,3 @@ mod harness;
 pub use errors::*;
 pub use frame_input::*;
 pub use harness::*;
-
-pub trait XpuState: std::marker::Sized {
-    type Error;
-
-    fn produce_next_state(
-        &mut self,
-        harness: &mut Harness,
-        frame_input: &mut FrameInput,
-    ) -> Result<squishy_volumes_file_frame::IoState, Self::Error>;
-}

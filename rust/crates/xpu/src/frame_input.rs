@@ -8,6 +8,9 @@
 
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
+    #[error("Wanted to interpolate from {frame_low}, but {frame} is loaded")]
+    WrongFrameLoaded { frame_low: usize, frame: usize },
+
     #[error("Failed to input from file: {0}")]
     InputError(#[from] squishy_volumes_file_input::InputError),
 
@@ -23,6 +26,8 @@ pub enum FrameInputError {
 }
 
 pub struct FrameInput {
+    frame: usize,
+
     consts: squishy_volumes_file_input::InputConsts,
 
     input_reader: squishy_volumes_file_input::InputReader,
@@ -154,6 +159,7 @@ impl FrameInput {
         let bvh = update_bvh(&consts, &topology, &a, b.as_ref());
 
         Ok(Self {
+            frame,
             consts,
             input_reader,
             topology,
@@ -181,7 +187,13 @@ impl FrameInput {
             self.bvh = update_bvh(&self.consts, &self.topology, &self.a, self.b.as_ref());
         }
 
+        self.frame = frame;
+
         Ok(())
+    }
+
+    pub fn consts(&self) -> &squishy_volumes_file_input::InputConsts {
+        &self.consts
     }
 
     pub fn topology(&self) -> &squishy_volumes_mesh_util::Topology {
@@ -198,6 +210,20 @@ impl FrameInput {
 
     pub fn b(&self) -> Option<&InputInterpolationPoint> {
         self.b.as_ref()
+    }
+
+    pub fn frame_factor(&self, time: f64) -> Result<f32, FrameInputError> {
+        let frame_time = time * self.consts.frames_per_second as f64;
+        let frame_low = frame_time.floor() as usize;
+
+        if self.frame != frame_low {
+            return Err(FrameInputError::WrongFrameLoaded {
+                frame_low,
+                frame: self.frame,
+            });
+        }
+
+        Ok((frame_time % 1.) as f32)
     }
 }
 
