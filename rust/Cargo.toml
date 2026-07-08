@@ -20,7 +20,7 @@ nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand", "bytemuc
 wgpu = "29.0.1"
 wgpu-profiler = "0.27.0"
 pollster = "0.4.0"
-bytemuck = "1.25.0"
+bytemuck = { version = "1.25.0", features = [ "derive", "extern_crate_alloc" ] }
 rand = { version = "0.10.0", features = ["chacha"] }
 env_logger = "0.11.9"
 bitflags = "2.10.0"
