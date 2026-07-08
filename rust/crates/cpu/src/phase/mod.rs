@@ -10,6 +10,7 @@ use strum::{EnumIter, IntoEnumIterator as _};
 
 use super::*;
 
+mod advance_particles;
 mod collect_velocity;
 mod collide;
 mod external_force;
@@ -34,7 +35,7 @@ pub enum Phase {
     MeldGrid,
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
-    AdvectParticles,
+    AdvanceParticles,
     CullParticles,
 }
 
@@ -65,7 +66,7 @@ impl CpuState {
             Phase::LimitTimeStepBeforeIntegrate => {
                 self.limit_time_step_before_integrate(grid_node_size)
             }
-            Phase::AdvectParticles => todo!(),
+            Phase::AdvanceParticles => self.advance_particles()?,
             Phase::CullParticles => todo!(),
         }
 

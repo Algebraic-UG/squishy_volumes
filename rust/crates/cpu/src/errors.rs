@@ -27,4 +27,7 @@ pub enum Error {
     GridMissing,
     #[error("The grid node is missing is the serialization")]
     GridNodeMissing,
+
+    #[error("Failed to compute the elastic energy of a particle: {0}")]
+    EnergyError(#[from] squishy_volumes_util::EnergyError),
 }
