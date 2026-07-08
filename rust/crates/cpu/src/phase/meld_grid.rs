@@ -13,7 +13,7 @@ use squishy_volumes_util::{collider_bits, profile};
 use super::*;
 
 impl CpuState {
-    pub fn meld_grid(mut self) {
+    pub fn meld_grid(&mut self) {
         profile!("meld_grid_nodes");
         let masses = self.grid_nodes.masses.clone();
         let velocities = self.grid_nodes.velocities.clone();

@@ -10,6 +10,7 @@ use strum::{EnumIter, IntoEnumIterator as _};
 
 use super::*;
 
+mod collect_velocity;
 mod collide;
 mod external_force;
 mod interpolate_input;
@@ -60,7 +61,7 @@ impl CpuState {
             Phase::LimitTimeStepBeforeForce => self.limit_time_step_before_force(grid_node_size),
             Phase::ScatterMomentum => self.scatter_momentum(grid_node_size),
             Phase::MeldGrid => self.meld_grid(),
-            Phase::CollectVelocity => todo!(),
+            Phase::CollectVelocity => self.collect_velocity(grid_node_size),
             Phase::LimitTimeStepBeforeIntegrate => {
                 self.limit_time_step_before_integrate(grid_node_size)
             }
