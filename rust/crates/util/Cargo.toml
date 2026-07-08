@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+profile = [ "dep:coarse-prof" ]
+
 [dev-dependencies]
 rand.workspace = true
 
@@ -11,3 +14,6 @@ rand.workspace = true
 nalgebra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+
+coarse-prof.workspace = true
+coarse-prof.optional = true

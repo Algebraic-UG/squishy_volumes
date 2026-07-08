@@ -39,3 +39,12 @@ macro_rules! ensure_err {
         }
     };
 }
+
+#[cfg(feature = "profile")]
+use coarse_prof::profile;
+#[macro_export]
+macro_rules! fake_profile {
+    ($name:expr) => {};
+}
+#[cfg(not(feature = "profile"))]
+pub use fake_profile as profile;
