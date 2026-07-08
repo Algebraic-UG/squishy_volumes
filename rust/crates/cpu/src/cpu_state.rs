@@ -164,14 +164,11 @@ impl CpuState {
             "Cpu next state".to_string(),
             NonZero::new(Phase::iter().len()).unwrap(),
         )?;
+
+        self.adaptive_time_step_state.max_time_step = max_time_step;
+
         while !harness.cancel() && self.time < target_time {
-            let time_step = if adaptive_time_steps {
-                self.adaptive_time_step_state
-                    .allowed_time_step(max_time_step)
-            } else {
-                max_time_step
-            };
-            if time_step == 0. {
+            if self.adaptive_time_step_state.allowed_time_step() == 0. {
                 return Err(Error::ZeroTimeStep);
             }
 
@@ -179,12 +176,12 @@ impl CpuState {
                 || (self.phase != Phase::LimitTimeStepBeforeForce
                     && self.phase != Phase::LimitTimeStepBeforeIntegrate);
             if run_phase {
-                self.run_phase(time_step, frame_input)?;
+                self.run_phase(frame_input)?;
             }
 
             self.phase = self.phase.cycle();
             if self.phase == Default::default() {
-                self.time += time_step as f64;
+                self.time += self.adaptive_time_step_state.allowed_time_step() as f64;
             }
             harness.step()?;
         }

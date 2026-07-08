@@ -13,7 +13,9 @@ use super::*;
 mod collide;
 mod external_force;
 mod interpolate_input;
+mod limit_time_step;
 mod sort;
+mod update_grid_nodes;
 
 // XXX: Order matters!
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, EnumIter, PartialOrd)]
@@ -23,13 +25,10 @@ pub enum Phase {
     Sort,
     Collide,
     ExternalForce,
-    GoalForces,
-    UpdateMomentumMaps,
+    UpdateGridNodes,
     LimitTimeStepBeforeForce,
     ScatterMomentum,
-    ScatterMomentumExplicit,
     MeldGrid,
-    ImplicitSolve,
     CollectVelocity,
     LimitTimeStepBeforeIntegrate,
     AdvectParticles,
@@ -47,23 +46,26 @@ impl Phase {
 impl CpuState {
     pub fn run_phase(
         &mut self,
-        time_step: f32,
         frame_input: &squishy_volumes_xpu::FrameInput,
     ) -> Result<(), Error> {
+        let grid_node_size = frame_input.consts().scaled_grid_node_size();
         match self.phase {
             Phase::InterpolateInput => self.interpolate_input(frame_input),
-            Phase::Sort => self.sort(frame_input.consts().scaled_grid_node_size()),
-            Phase::Collide => self.collide(time_step, frame_input),
-            Phase::ExternalForce => todo!(),
-            Phase::GoalForces => todo!(),
-            Phase::UpdateMomentumMaps => todo!(),
-            Phase::LimitTimeStepBeforeForce => todo!(),
+            Phase::Sort => self.sort(grid_node_size),
+            Phase::Collide => self.collide(frame_input),
+            Phase::ExternalForce => self.external_force(frame_input),
+            Phase::UpdateGridNodes => self.update_grid_nodes(grid_node_size),
+            Phase::LimitTimeStepBeforeForce => {
+                self.limit_time_step_before_force(grid_node_size);
+                Ok(())
+            }
             Phase::ScatterMomentum => todo!(),
-            Phase::ScatterMomentumExplicit => todo!(),
             Phase::MeldGrid => todo!(),
-            Phase::ImplicitSolve => todo!(),
             Phase::CollectVelocity => todo!(),
-            Phase::LimitTimeStepBeforeIntegrate => todo!(),
+            Phase::LimitTimeStepBeforeIntegrate => {
+                self.limit_time_step_before_integrate(grid_node_size);
+                Ok(())
+            }
             Phase::AdvectParticles => todo!(),
             Phase::CullParticles => todo!(),
         }

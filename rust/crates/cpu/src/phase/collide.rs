@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::sync::WaitTimeoutResult;
+
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_file_frame::ParticleFlags;
@@ -18,8 +20,10 @@ use squishy_volumes_xpu::FrameInput;
 use super::*;
 
 impl CpuState {
-    pub fn collide(&mut self, time_step: f32, frame_input: &FrameInput) -> Result<(), Error> {
+    pub fn collide(&mut self, frame_input: &FrameInput) -> Result<(), Error> {
         profile!("collect_insides");
+
+        let time_step = self.adaptive_time_step_state.allowed_time_step();
 
         let topology = frame_input.topology();
         let triangle_indices = topology.triangle_indices();

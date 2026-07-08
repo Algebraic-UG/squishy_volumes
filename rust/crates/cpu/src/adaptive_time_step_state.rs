@@ -6,8 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-#[derive(Default)]
+const TIME_STEP_HISTORY_LENGTH: usize = 10;
+
 pub struct AdaptiveTimeStepState {
+    pub max_time_step: f32,
     pub time_step_by_velocity: Option<f32>,
     pub time_step_by_deformation: Option<f32>,
     pub time_step_by_isolated: Option<f32>,
@@ -15,10 +17,23 @@ pub struct AdaptiveTimeStepState {
     pub time_step_prior: std::collections::VecDeque<f32>,
 }
 
+impl Default for AdaptiveTimeStepState {
+    fn default() -> Self {
+        Self {
+            max_time_step: f32::MAX,
+            time_step_by_velocity: Default::default(),
+            time_step_by_deformation: Default::default(),
+            time_step_by_isolated: Default::default(),
+            time_step_by_sound: Default::default(),
+            time_step_prior: Default::default(),
+        }
+    }
+}
+
 impl AdaptiveTimeStepState {
-    pub fn allowed_time_step(&self, max_time_step: f32) -> f32 {
+    pub fn allowed_time_step(&self) -> f32 {
         [
-            max_time_step,
+            self.max_time_step,
             self.time_step_by_velocity.unwrap_or(f32::MAX),
             self.time_step_by_deformation.unwrap_or(f32::MAX),
             self.time_step_by_sound.unwrap_or(f32::MAX),
@@ -28,5 +43,13 @@ impl AdaptiveTimeStepState {
         .chain(self.time_step_prior.iter().cloned())
         .min_by(f32::total_cmp)
         .unwrap()
+    }
+
+    pub fn push_current_limit(&mut self) {
+        if self.time_step_prior.len() > TIME_STEP_HISTORY_LENGTH {
+            self.time_step_prior.pop_front();
+        }
+
+        self.time_step_prior.push_back(self.allowed_time_step());
     }
 }

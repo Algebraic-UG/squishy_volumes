@@ -14,12 +14,9 @@ use squishy_volumes_xpu::FrameInput;
 use super::*;
 
 impl CpuState {
-    pub fn external_force(
-        &mut self,
-        time_step: f32,
-        frame_input: &FrameInput,
-    ) -> Result<(), Error> {
+    pub fn external_force(&mut self, frame_input: &FrameInput) -> Result<(), Error> {
         profile!("external_force");
+        let time_step = self.adaptive_time_step_state.allowed_time_step();
         let input_flags = frame_input.a().particle_flags();
         let interpolated_input = self
             .interpolated_input
