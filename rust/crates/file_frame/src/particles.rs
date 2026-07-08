@@ -37,7 +37,7 @@ pub struct ViscosityParameters {
     pub bulk: f32,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct ParticleParameters {
     pub mass: f32,
     pub initial_volume: f32,
@@ -45,7 +45,7 @@ pub struct ParticleParameters {
     pub specific: SpecificParticleParameters,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum SpecificParticleParameters {
     Solid {
         mu: f32,
@@ -64,13 +64,15 @@ pub struct Particles {
 
     pub parameters: Vec<ParticleParameters>,
 
+    pub elastic_energies: Vec<f32>,
+
     pub collider_bits: Vec<u32>,
 
     pub positions: Vec<[f32; 3]>,
-    pub position_gradients: Vec<[f32; 9]>,
+    pub position_gradients: Vec<[[f32; 3]; 3]>,
 
     pub velocities: Vec<[f32; 3]>,
-    pub velocity_gradients: Vec<[f32; 9]>,
+    pub velocity_gradients: Vec<[[f32; 3]; 3]>,
 
     pub initial_positions: Vec<[f32; 3]>,
 }

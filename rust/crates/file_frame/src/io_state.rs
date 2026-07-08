@@ -8,23 +8,13 @@
 
 use super::*;
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub enum Object {
-    Particles { indices: Vec<u32> },
-    Collider { index: u32 },
-}
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct IoState {
     pub time: f64,
 
-    pub objects: std::collections::BTreeMap<String, Object>,
-
     pub particles: Particles,
 
-    pub grid: Option<GridNodes>,
-
-    pub user_data: Vec<u8>,
+    pub grid_nodes: Option<GridNodes>,
 }
 
 fn magic_bytes() -> [u8; squishy_volumes_file_util::MAGIC_LEN] {
