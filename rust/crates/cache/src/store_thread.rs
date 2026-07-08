@@ -30,6 +30,7 @@ impl StoreThread {
         available_frames: Arc<AtomicUsize>,
     ) -> Self {
         tracing::info!("starting store thread");
+        // TODO: this should be bounded?
         let (store_tx, store_rx) = mpsc::channel::<squishy_volumes_file_frame::IoState>();
         let thread = std::thread::spawn(move || -> Result<(), CacheWritingError> {
             while let Ok(state) = store_rx.recv() {
