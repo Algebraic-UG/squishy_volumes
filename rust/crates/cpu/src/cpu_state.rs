@@ -23,10 +23,6 @@ pub struct CpuState {
     pub(crate) interpolated_input: Option<InterpolatedInput>,
 }
 
-pub struct IoSettings {
-    pub store_grid: bool,
-}
-
 impl CpuState {
     pub fn from_io_state(io_state: IoState) -> Result<Self, Error> {
         let time = io_state.time;
@@ -73,7 +69,7 @@ impl CpuState {
         })
     }
 
-    pub fn to_io_state(&self, IoSettings { store_grid }: &IoSettings) -> Result<IoState, Error> {
+    pub fn to_io_state(&self, store_grid: bool) -> Result<IoState, Error> {
         let time = self.time;
 
         fn permute<T: Copy, U: std::convert::From<T>>(
@@ -141,10 +137,10 @@ impl CpuState {
 }
 
 pub struct CpuRunParameters {
-    pub io_settings: IoSettings,
     pub target_time: f64,
     pub max_time_step: f32,
     pub adaptive_time_steps: bool,
+    pub store_grid: bool,
 }
 
 impl CpuState {
@@ -153,10 +149,10 @@ impl CpuState {
         harness: &mut squishy_volumes_xpu::Harness,
         frame_input: &squishy_volumes_xpu::FrameInput,
         CpuRunParameters {
-            io_settings,
             target_time,
             max_time_step,
             adaptive_time_steps,
+            store_grid,
         }: CpuRunParameters,
     ) -> Result<squishy_volumes_file_frame::IoState, Error> {
         squishy_volumes_util::profile!("produce_next_state");
@@ -190,6 +186,6 @@ impl CpuState {
             harness.step()?;
         }
 
-        self.to_io_state(&io_settings)
+        self.to_io_state(store_grid)
     }
 }
