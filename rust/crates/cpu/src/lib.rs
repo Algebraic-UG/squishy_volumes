@@ -16,12 +16,11 @@ mod particles;
 mod phase;
 
 use adaptive_time_step_state::*;
-use cpu_state::*;
 use grid_nodes::*;
 use interpolated_input::*;
 use kernels::*;
 use particles::*;
 use phase::*;
 
-pub use cpu_state::CpuState;
+pub use cpu_state::{CpuRunParameters, CpuState};
 pub use errors::*;
