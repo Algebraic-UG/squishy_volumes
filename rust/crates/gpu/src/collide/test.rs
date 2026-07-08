@@ -7,13 +7,11 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector3;
-use squishy_volumes_util::{
-    Aabb, NORMALIZATION_EPS, collider_bits,
-    mesh::{
-        DistanceResult, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle,
-        segment_distance_result,
-    },
+use squishy_volumes_mesh_util::{
+    DistanceResult, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle,
+    segment_distance_result,
 };
+use squishy_volumes_util::{Aabb, NORMALIZATION_EPS, collider_bits};
 
 use super::*;
 

@@ -12,7 +12,7 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
-use squishy_volumes_util::{mesh::compute_triangle_lists, triangle::Triangle};
+use squishy_volumes_mesh_util::{Triangle, compute_triangle_lists};
 
 use super::*;
 

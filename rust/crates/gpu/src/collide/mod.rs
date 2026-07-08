@@ -12,10 +12,8 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
-use squishy_volumes_util::{
-    BoundingVolumeHierarchy,
-    bounding_volume_hierarchy::triangles_to_leaf_aabbs,
-    triangle::{Opposites, Triangle},
+use squishy_volumes_mesh_util::{
+    BoundingVolumeHierarchy, Opposites, Triangle, triangles_to_leaf_aabbs,
 };
 
 use super::*;

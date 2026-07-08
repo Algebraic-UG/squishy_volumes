@@ -9,7 +9,7 @@
 use iter_enumeration::IntoIterEnum2;
 use std::{iter::once, num::NonZeroU64};
 
-use squishy_volumes_util::{BoundingVolumeHierarchy, bounding_volume_hierarchy::Node};
+use squishy_volumes_mesh_util::{BoundingVolumeHierarchy, Node};
 
 use crate::{Allocation, AllowedInBinding, GpuAllocatorError, prefix_sum_on_cpu};
 

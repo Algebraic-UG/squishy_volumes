@@ -1,10 +1,9 @@
 use nalgebra::{Vector3, Vector4};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_util::{
-    Aabb, NORMALIZATION_EPS,
-    mesh::{compute_triangle_lists, compute_triangle_opposites},
-    triangle::{Opposites, Triangle},
+use squishy_volumes_mesh_util::{
+    Opposites, Triangle, compute_triangle_lists, compute_triangle_opposites,
 };
+use squishy_volumes_util::{Aabb, NORMALIZATION_EPS};
 
 pub struct TestMesh {
     pub vertex_positions_a: Vec<Vector4<f32>>,

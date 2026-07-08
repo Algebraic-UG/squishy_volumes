@@ -12,9 +12,10 @@ use itertools::izip;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use rustc_hash::FxHashMap;
+use squishy_volumes_mesh_util::{
+    DistanceResult, Triangle, distance_to_triangle, segment_distance_result,
+};
 use squishy_volumes_util::collider_bits;
-use squishy_volumes_util::mesh::{DistanceResult, distance_to_triangle, segment_distance_result};
-use squishy_volumes_util::triangle::Triangle;
 use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;

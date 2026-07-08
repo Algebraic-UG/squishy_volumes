@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix4, Matrix4x3, Vector4};
-use squishy_volumes_util::triangle::{Opposites, Triangle};
+use squishy_volumes_mesh_util::{Opposites, Triangle};
 use std::num::NonZeroU64;
 use std::sync::atomic::AtomicU32;
 
