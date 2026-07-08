@@ -14,6 +14,7 @@ mod collide;
 mod external_force;
 mod interpolate_input;
 mod limit_time_step;
+mod meld_grid;
 mod scatter_momentum;
 mod sort;
 mod update_grid_nodes;
@@ -51,24 +52,22 @@ impl CpuState {
     ) -> Result<(), Error> {
         let grid_node_size = frame_input.consts().scaled_grid_node_size();
         match self.phase {
-            Phase::InterpolateInput => self.interpolate_input(frame_input),
+            Phase::InterpolateInput => self.interpolate_input(frame_input)?,
             Phase::Sort => self.sort(grid_node_size),
             Phase::Collide => self.collide(frame_input),
-            Phase::ExternalForce => self.external_force(frame_input),
+            Phase::ExternalForce => self.external_force(frame_input)?,
             Phase::UpdateGridNodes => self.update_grid_nodes(grid_node_size),
-            Phase::LimitTimeStepBeforeForce => {
-                self.limit_time_step_before_force(grid_node_size);
-                Ok(())
-            }
+            Phase::LimitTimeStepBeforeForce => self.limit_time_step_before_force(grid_node_size),
             Phase::ScatterMomentum => self.scatter_momentum(grid_node_size),
-            Phase::MeldGrid => todo!(),
+            Phase::MeldGrid => self.meld_grid(),
             Phase::CollectVelocity => todo!(),
             Phase::LimitTimeStepBeforeIntegrate => {
-                self.limit_time_step_before_integrate(grid_node_size);
-                Ok(())
+                self.limit_time_step_before_integrate(grid_node_size)
             }
             Phase::AdvectParticles => todo!(),
             Phase::CullParticles => todo!(),
         }
+
+        Ok(())
     }
 }

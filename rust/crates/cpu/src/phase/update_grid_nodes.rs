@@ -28,7 +28,7 @@ use super::*;
 impl CpuState {
     // Update the hash map that allows to index into all the vectors of each momentum grid
     // with the node's 3d integer position. The data vectors are effectively invalidated.
-    pub fn update_grid_nodes(&mut self, grid_node_size: f32) -> Result<(), Error> {
+    pub fn update_grid_nodes(&mut self, grid_node_size: f32) {
         profile!("update_grid_nodes");
 
         {
@@ -150,7 +150,5 @@ impl CpuState {
                     .push(index as u32);
             }
         }
-
-        Ok(())
     }
 }

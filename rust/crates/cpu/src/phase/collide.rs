@@ -18,7 +18,7 @@ use squishy_volumes_xpu::FrameInput;
 use super::*;
 
 impl CpuState {
-    pub fn collide(&mut self, frame_input: &FrameInput) -> Result<(), Error> {
+    pub fn collide(&mut self, frame_input: &FrameInput) {
         profile!("collect_insides");
 
         let time_step = self.adaptive_time_step_state.allowed_time_step();
@@ -176,7 +176,5 @@ impl CpuState {
                     *velocity -= to_p / time_step;
                 }
             });
-
-        Ok(())
     }
 }

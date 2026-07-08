@@ -19,7 +19,7 @@ use super::*;
 impl CpuState {
     // Mass and velocity transported by particles is scattered to the grids.
     // In explicit time integration the forces can be applied at the same time.
-    pub fn scatter_momentum(&mut self, grid_node_size: f32) -> Result<(), Error> {
+    pub fn scatter_momentum(&mut self, grid_node_size: f32) {
         profile!("scatter_momentum");
         let scaling =
             self.adaptive_time_step_state.allowed_time_step() * 4. / grid_node_size.powi(2);
@@ -90,7 +90,5 @@ impl CpuState {
                     }
                 },
             );
-
-        Ok(())
     }
 }

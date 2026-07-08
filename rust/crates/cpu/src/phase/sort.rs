@@ -14,7 +14,7 @@ use super::*;
 
 impl CpuState {
     // This is only to optimize memory access.
-    pub fn sort(&mut self, grid_node_size: f32) -> Result<(), Error> {
+    pub fn sort(&mut self, grid_node_size: f32) {
         profile!("sort");
 
         // Probably many other alternatives exist, e.g. one could do a z-order curve.
@@ -111,7 +111,5 @@ impl CpuState {
                 }
             }
         }
-
-        Ok(())
     }
 }
