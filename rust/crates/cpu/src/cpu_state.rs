@@ -167,7 +167,11 @@ impl CpuState {
 
         self.adaptive_time_step_state.max_time_step = max_time_step;
 
-        while !harness.cancel() && self.time < target_time {
+        while self.time < target_time {
+            if harness.cancel() {
+                return Err(Error::Canceled);
+            }
+
             if self.adaptive_time_step_state.allowed_time_step() == 0. {
                 return Err(Error::ZeroTimeStep);
             }

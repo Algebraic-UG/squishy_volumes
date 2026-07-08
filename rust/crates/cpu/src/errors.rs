@@ -8,6 +8,9 @@
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("The computation was canceled")]
+    Canceled,
+
     #[error("Something went wron accessing frame input: {0}")]
     FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
 
