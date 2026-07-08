@@ -13,6 +13,7 @@ use super::*;
 mod advance_particles;
 mod collect_velocity;
 mod collide;
+mod cull_particles;
 mod external_force;
 mod interpolate_input;
 mod limit_time_step;
@@ -67,7 +68,7 @@ impl CpuState {
                 self.limit_time_step_before_integrate(grid_node_size)
             }
             Phase::AdvanceParticles => self.advance_particles()?,
-            Phase::CullParticles => todo!(),
+            Phase::CullParticles => self.cull_particles(frame_input),
         }
 
         Ok(())
