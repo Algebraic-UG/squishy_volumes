@@ -54,8 +54,13 @@ impl InputConsts {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum InputObject {
-    Particles,
-    Collider { num_vertices: usize },
+    Particles {
+        num_particles: usize,
+    },
+    Collider {
+        num_vertices: usize,
+        num_triangles: usize,
+    },
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]

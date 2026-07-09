@@ -28,14 +28,17 @@ fn test_file() -> (PathBuf, TempDir) {
     (tmp_dir.path().join("test_input.bin"), tmp_dir)
 }
 
-fn test_header() -> InputHeader {
+fn test_header(num_particles: usize, num_vertices: usize, num_triangles: usize) -> InputHeader {
     let consts = InputConsts::test_input();
     let objects = [
-        ("foo".to_string(), InputObject::Particles),
-        ("bar".to_string(), InputObject::Particles),
+        ("foo".to_string(), InputObject::Particles { num_particles }),
+        ("bar".to_string(), InputObject::Particles { num_particles }),
         (
             "car".to_string(),
-            InputObject::Collider { num_vertices: 100 },
+            InputObject::Collider {
+                num_vertices,
+                num_triangles,
+            },
         ),
     ]
     .into_iter()
@@ -44,11 +47,11 @@ fn test_header() -> InputHeader {
     InputHeader { consts, objects }
 }
 
-fn test_frames() -> Vec<InputFrame> {
+fn test_frames(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Vec<InputFrame> {
     vec![
-        InputFrame::test_input_0(),
-        InputFrame::test_input_1(),
-        InputFrame::test_input_2(),
+        InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
+        InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
+        InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
     ]
 }
 
@@ -66,21 +69,30 @@ fn test_creating_tempdir() {
 #[test]
 fn test_write_start() {
     let (path, _guard) = test_file();
-    InputWriter::new(path, &test_header()).unwrap();
+    InputWriter::new(path, test_header(100, 99, 33)).unwrap();
 }
 
 #[test]
 fn test_write_partial() {
     let (path, _guard) = test_file();
-    let mut writer = InputWriter::new(path, &test_header()).unwrap();
-    for frame in test_frames().iter().take(2) {
+    let mut writer = InputWriter::new(path, test_header(100, 99, 33)).unwrap();
+    for frame in test_frames(100, 99, 33).iter().take(2) {
         writer.record_frame(frame).unwrap();
     }
 }
 
-fn write_full<P: AsRef<Path> + fmt::Debug>(path: P) {
-    let mut writer = InputWriter::new(path, &test_header()).unwrap();
-    for frame in &test_frames() {
+fn write_full<P: AsRef<Path> + fmt::Debug>(
+    path: P,
+    num_particles: usize,
+    num_vertices: usize,
+    num_triangles: usize,
+) {
+    let mut writer = InputWriter::new(
+        path,
+        test_header(num_particles, num_vertices, num_triangles),
+    )
+    .unwrap();
+    for frame in &test_frames(num_particles, num_vertices, num_triangles) {
         writer.record_frame(frame).unwrap();
     }
     writer.flush().unwrap();
@@ -89,44 +101,44 @@ fn write_full<P: AsRef<Path> + fmt::Debug>(path: P) {
 #[test]
 fn test_write_full() {
     let (path, _guard) = test_file();
-    write_full(path);
+    write_full(path, 10, 9, 3);
 }
 
 #[test]
 fn test_read_start() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     InputReader::new(path).unwrap();
 }
 
 #[test]
 fn test_read_header() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     let mut reader = InputReader::new(path).unwrap();
-    assert!(test_header() == reader.read_header().unwrap());
+    assert_eq!(test_header(10, 9, 3), reader.read_header().unwrap());
 }
 
 #[test]
 fn test_read_header_and_random_frames() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     let mut reader = InputReader::new(path).unwrap();
-    assert!(test_header() == reader.read_header().unwrap());
+    assert_eq!(test_header(10, 9, 3), reader.read_header().unwrap());
 
     let mut rng = SmallRng::seed_from_u64(42);
-    let mut frames: Vec<_> = test_frames().into_iter().enumerate().collect();
+    let mut frames: Vec<_> = test_frames(10, 9, 3).into_iter().enumerate().collect();
     frames.shuffle(&mut rng);
 
     for (idx, frame) in frames {
-        assert!(frame == reader.read_frame(idx).unwrap());
+        assert_eq!(frame, reader.read_frame(idx).unwrap());
     }
 }
 
 #[test]
 fn test_wrong_magic_number() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     {
         let mut f = OpenOptions::new().write(true).open(&path).unwrap();
         f.seek(SeekFrom::Start(5)).unwrap();
@@ -143,7 +155,7 @@ fn test_wrong_magic_number() {
 #[test]
 fn test_wrong_version() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     {
         let mut f = OpenOptions::new().write(true).open(&path).unwrap();
         f.seek(SeekFrom::Start(
@@ -165,10 +177,10 @@ fn test_wrong_version() {
 #[test]
 fn test_frame_not_available() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     let mut reader = InputReader::new(path).unwrap();
     assert!(matches!(
-        reader.read_frame(test_frames().len()),
+        reader.read_frame(test_frames(10, 9, 3).len()),
         Err(InputError::FrameNotAvailable { .. },)
     ));
 }
@@ -176,7 +188,7 @@ fn test_frame_not_available() {
 #[test]
 fn test_index_offset_mishap_io() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     {
         let mut f = OpenOptions::new().write(true).open(&path).unwrap();
         f.seek(SeekFrom::End(-8)).unwrap();
@@ -193,7 +205,7 @@ fn test_index_offset_mishap_io() {
 #[test]
 fn test_index_offset_mishap_bincode() {
     let (path, _guard) = test_file();
-    write_full(&path);
+    write_full(&path, 10, 9, 3);
     {
         let mut f = OpenOptions::new().write(true).open(&path).unwrap();
         f.seek(SeekFrom::End(-8)).unwrap();
@@ -204,5 +216,69 @@ fn test_index_offset_mishap_bincode() {
         Err(InputError::OffsetReading(
             InputOffsetReadingError::BincodeError(_)
         ))
+    ));
+}
+
+#[test]
+fn test_length_mismatch() {
+    let (path, _guard) = test_file();
+    let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
+
+    assert!(matches!(
+        writer.record_frame(&InputFrame::test_input_0(1, 2, 3)),
+        Err(InputError::FrameVerifcationError {
+            error: crate::FrameVerifcationError::LengthMismatch { .. },
+            ..
+        }),
+    ));
+}
+
+#[test]
+fn test_collider_missing() {
+    let (path, _guard) = test_file();
+    let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
+    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
+    input_frame.collider_inputs.clear();
+    assert!(matches!(
+        writer.record_frame(&input_frame),
+        Err(InputError::FrameVerifcationError {
+            error: crate::FrameVerifcationError::ColliderInputMissing(_),
+            ..
+        }),
+    ));
+}
+
+#[test]
+fn test_object_changed_type() {
+    let (path, _guard) = test_file();
+    let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
+    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
+    input_frame.particles_inputs.clear();
+    input_frame
+        .collider_inputs
+        .insert("foo".to_string(), Default::default());
+    assert!(matches!(
+        writer.record_frame(&input_frame),
+        Err(InputError::FrameVerifcationError {
+            error: crate::FrameVerifcationError::ObjectChangedType { .. },
+            ..
+        }),
+    ));
+}
+
+#[test]
+fn test_object_not_in_header() {
+    let (path, _guard) = test_file();
+    let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
+    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
+    input_frame
+        .collider_inputs
+        .insert("newfoo".to_string(), Default::default());
+    assert!(matches!(
+        writer.record_frame(&input_frame),
+        Err(InputError::FrameVerifcationError {
+            error: crate::FrameVerifcationError::ObjectNotInHeader { .. },
+            ..
+        }),
     ));
 }

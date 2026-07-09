@@ -9,7 +9,7 @@
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Default)]
 pub struct ParticlesInput {
     pub flags: Vec<u32>,
-    pub transforms: Vec<[f32; 16]>,
+    pub transforms: Vec<[[f32; 4]; 4]>,
     pub sizes: Vec<f32>,
     pub densities: Vec<f32>,
     pub youngs_moduluses: Vec<f32>,
@@ -56,12 +56,12 @@ pub struct ColliderInput {
 
 #[cfg(test)]
 impl ColliderInput {
-    fn random(n: usize, rng: &mut impl rand::Rng) -> Self {
+    fn random(num_vertices: usize, num_triangles: usize, rng: &mut impl rand::Rng) -> Self {
         use rand::RngExt as _;
         Self {
-            vertex_positions: rng.random_iter().take(n).collect(),
-            triangle_indices: rng.random_iter().take(n).collect(),
-            triangle_frictions: rng.random_iter().take(n).collect(),
+            vertex_positions: rng.random_iter().take(num_vertices).collect(),
+            triangle_indices: rng.random_iter().take(num_triangles).collect(),
+            triangle_frictions: rng.random_iter().take(num_triangles).collect(),
         }
     }
 }
@@ -73,36 +73,149 @@ pub struct InputFrame {
     pub collider_inputs: std::collections::BTreeMap<String, ColliderInput>,
 }
 
+macro_rules! check_length {
+    ($name:expr, $expected:expr, $field:expr) => {
+        if $field.len() != $expected {
+            Err(crate::FrameVerifcationError::LengthMismatch {
+                name: $name.clone(),
+                attribute: stringify!($field),
+                found: $field.len(),
+                expected: $expected,
+            })
+        } else {
+            Ok(())
+        }
+    };
+}
+
+impl InputFrame {
+    pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
+        for name in self.particles_inputs.keys() {
+            if !matches!(
+                header.objects.get(name).ok_or(
+                    crate::FrameVerifcationError::ObjectNotInHeader { name: name.clone() }
+                )?,
+                crate::InputObject::Particles { .. }
+            ) {
+                return Err(crate::FrameVerifcationError::ObjectChangedType { name: name.clone() });
+            }
+        }
+        for name in self.collider_inputs.keys() {
+            if !matches!(
+                header.objects.get(name).ok_or(
+                    crate::FrameVerifcationError::ObjectNotInHeader { name: name.clone() }
+                )?,
+                crate::InputObject::Collider { .. }
+            ) {
+                return Err(crate::FrameVerifcationError::ObjectChangedType { name: name.clone() });
+            }
+        }
+
+        for (name, object) in header.objects.iter() {
+            match object {
+                crate::InputObject::Particles { num_particles } => {
+                    let Some(ParticlesInput {
+                        flags,
+                        transforms,
+                        sizes,
+                        densities,
+                        youngs_moduluses,
+                        poissons_ratios,
+                        initial_positions,
+                        initial_velocities,
+                        viscosities_dynamic,
+                        viscosities_bulk,
+                        exponents,
+                        bulk_moduluses,
+                        sand_alphas,
+                        goal_positions,
+                    }) = self.particles_inputs.get(name)
+                    else {
+                        continue;
+                    };
+                    check_length!(name, *num_particles, flags)?;
+                    check_length!(name, *num_particles, transforms)?;
+                    check_length!(name, *num_particles, sizes)?;
+                    check_length!(name, *num_particles, densities)?;
+                    check_length!(name, *num_particles, youngs_moduluses)?;
+                    check_length!(name, *num_particles, poissons_ratios)?;
+                    check_length!(name, *num_particles, initial_positions)?;
+                    check_length!(name, *num_particles, initial_velocities)?;
+                    check_length!(name, *num_particles, viscosities_bulk)?;
+                    check_length!(name, *num_particles, viscosities_dynamic)?;
+                    check_length!(name, *num_particles, exponents)?;
+                    check_length!(name, *num_particles, bulk_moduluses)?;
+                    check_length!(name, *num_particles, sand_alphas)?;
+                    check_length!(name, *num_particles, goal_positions)?;
+                }
+                crate::InputObject::Collider {
+                    num_vertices,
+                    num_triangles,
+                } => {
+                    let ColliderInput {
+                        vertex_positions,
+                        triangle_indices,
+                        triangle_frictions,
+                    } = self.collider_inputs.get(name).ok_or(
+                        crate::FrameVerifcationError::ColliderInputMissing(name.clone()),
+                    )?;
+                    check_length!(name, *num_vertices, vertex_positions)?;
+                    check_length!(name, *num_triangles, triangle_indices)?;
+                    check_length!(name, *num_triangles, triangle_frictions)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 impl InputFrame {
-    pub fn test_input_0() -> Self {
+    pub fn test_input_0(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Self {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(42);
-        let n = 10;
         Self {
             gravity: [0.; 3],
             particles_inputs: [
-                ("foo".to_string(), ParticlesInput::random(n, &mut rng)),
-                ("bar".to_string(), ParticlesInput::random(n, &mut rng)),
+                (
+                    "foo".to_string(),
+                    ParticlesInput::random(num_particles, &mut rng),
+                ),
+                (
+                    "bar".to_string(),
+                    ParticlesInput::random(num_particles, &mut rng),
+                ),
             ]
             .into_iter()
             .collect(),
-            collider_inputs: [("car".to_string(), ColliderInput::random(n, &mut rng))]
-                .into_iter()
-                .collect(),
+            collider_inputs: [(
+                "car".to_string(),
+                ColliderInput::random(num_vertices, num_triangles, &mut rng),
+            )]
+            .into_iter()
+            .collect(),
         }
     }
 
-    pub fn test_input_1() -> Self {
+    pub fn test_input_1(num_particles: usize) -> Self {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(69);
-        let n = 10;
         Self {
             gravity: [0., 0., -10.],
             particles_inputs: [
-                ("foo".to_string(), ParticlesInput::random(n, &mut rng)),
-                ("bar".to_string(), ParticlesInput::random(n, &mut rng)),
-                ("car".to_string(), ParticlesInput::random(n, &mut rng)),
+                (
+                    "foo".to_string(),
+                    ParticlesInput::random(num_particles, &mut rng),
+                ),
+                (
+                    "bar".to_string(),
+                    ParticlesInput::random(num_particles, &mut rng),
+                ),
+                (
+                    "car".to_string(),
+                    ParticlesInput::random(num_particles, &mut rng),
+                ),
             ]
             .into_iter()
             .collect(),

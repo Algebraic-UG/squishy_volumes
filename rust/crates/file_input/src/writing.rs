@@ -19,23 +19,31 @@ use tracing::info;
 use super::{InputError, InputFrame, InputHeader, magic_bytes};
 
 pub struct InputWriter {
+    header: InputHeader,
     writer: BufWriter<File>,
     frame_offsets: Vec<u64>,
 }
 
 impl InputWriter {
-    pub fn new<P: AsRef<Path> + Debug>(path: P, header: &InputHeader) -> Result<Self, InputError> {
+    pub fn new<P: AsRef<Path> + Debug>(path: P, header: InputHeader) -> Result<Self, InputError> {
         info!("Start writing input to {path:?}");
         let mut writer = BufWriter::new(File::create(path)?);
         squishy_volumes_file_util::write_magic_and_version(magic_bytes, &mut writer)?;
-        serialize_into(&mut writer, header)?;
+        serialize_into(&mut writer, &header)?;
         Ok(Self {
+            header,
             writer,
             frame_offsets: Default::default(),
         })
     }
 
     pub fn record_frame(&mut self, frame: &InputFrame) -> Result<(), InputError> {
+        frame
+            .verify(&self.header)
+            .map_err(|error| InputError::FrameVerifcationError {
+                frame: self.frame_offsets.len(),
+                error,
+            })?;
         let current_offset = self.writer.stream_position()?;
         self.frame_offsets.push(current_offset);
         serialize_into(&mut self.writer, frame)?;
@@ -47,6 +55,7 @@ impl InputWriter {
         let Self {
             mut writer,
             frame_offsets,
+            ..
         } = self;
 
         let index_offset = writer.stream_position()?;

@@ -20,6 +20,11 @@ pub enum InputError {
     BincodeError(#[from] bincode::Error),
     #[error("A simple check failed: {0}")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
+    #[error("Frame #{frame} verifcation failed: {error}")]
+    FrameVerifcationError {
+        frame: usize,
+        error: FrameVerifcationError,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -28,4 +33,25 @@ pub enum InputOffsetReadingError {
     IoError(#[from] std::io::Error),
     #[error("Unknown bincode error")]
     BincodeError(#[from] bincode::Error),
+}
+
+#[derive(Error, Debug)]
+pub enum FrameVerifcationError {
+    #[error(
+        "'{name}': Recorded attribute '{attribute}' has length {found} but expected {expected}"
+    )]
+    LengthMismatch {
+        name: String,
+        attribute: &'static str,
+        found: usize,
+        expected: usize,
+    },
+    #[error(
+        "'{0}': Missing collider input, note that collider must be present in all input frames"
+    )]
+    ColliderInputMissing(String),
+    #[error("'{name}': Changed to/from Particles/Collider")]
+    ObjectChangedType { name: String },
+    #[error("'{name}': Was not declared in input header")]
+    ObjectNotInHeader { name: String },
 }
