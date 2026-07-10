@@ -54,8 +54,8 @@ pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host>
     [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
         .into_iter()
         .map(|[youngs_modulus, poissons_ratio]| {
-            let mu = mu(youngs_modulus, poissons_ratio);
-            let lambda = lambda(youngs_modulus, poissons_ratio);
+            let mu = mu(youngs_modulus, poissons_ratio).unwrap();
+            let lambda = lambda(youngs_modulus, poissons_ratio).unwrap();
             Host::Solid(Solid {
                 mu,
                 lambda,

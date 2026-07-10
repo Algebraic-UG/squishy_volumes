@@ -14,76 +14,103 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum EnergyError {
+    #[error("Young's Modulus is negative: {0}")]
+    YoungsModulusOutOfBounds(T),
+    #[error("Poisson's Ratio is not between 0 and 0.5: {0}")]
+    PoissonsRatioOutOfBounds(T),
+    #[error("Exponent is less than 2: {0}")]
+    ExponentOutOfBounds(i32),
+    #[error("Bulk Modulus is negative: {0}")]
+    BulkModulusOutOfBounds(T),
+
     #[error("The position gradient is not invertable")]
     PositionGradientNotInvertable,
     #[error("The position gradient has negative determinant")]
     PositionGradientNonPositive,
 }
 
-pub fn youngs_modulus_in_bounds(value: T) -> bool {
-    value >= 0.
+#[inline]
+pub fn youngs_modulus_in_bounds(value: T) -> Result<(), EnergyError> {
+    if value < 0. {
+        Err(EnergyError::YoungsModulusOutOfBounds(value))
+    } else {
+        Ok(())
+    }
 }
 
-pub fn poissons_ratio_in_bounds(value: T) -> bool {
-    (0. ..0.5).contains(&value)
+#[inline]
+pub fn poissons_ratio_in_bounds(value: T) -> Result<(), EnergyError> {
+    if (0. ..0.5).contains(&value) {
+        Ok(())
+    } else {
+        Err(EnergyError::PoissonsRatioOutOfBounds(value))
+    }
 }
 
 // Wikipedia: Lamé parameters (this is the "second")
-pub fn mu(youngs_modulus: T, poissons_ratio: T) -> T {
-    assert!(youngs_modulus_in_bounds(youngs_modulus));
-    assert!(poissons_ratio_in_bounds(poissons_ratio));
-    youngs_modulus / 2. / (1. + poissons_ratio)
+#[inline]
+pub fn mu(youngs_modulus: T, poissons_ratio: T) -> Result<T, EnergyError> {
+    youngs_modulus_in_bounds(youngs_modulus)?;
+    poissons_ratio_in_bounds(poissons_ratio)?;
+    Ok(youngs_modulus / 2. / (1. + poissons_ratio))
 }
 
 // Wikipedia: Lamé parameters (this is the "first")
-pub fn lambda(youngs_modulus: T, poissons_ratio: T) -> T {
-    assert!(youngs_modulus_in_bounds(youngs_modulus));
-    assert!(poissons_ratio_in_bounds(poissons_ratio));
-    youngs_modulus * poissons_ratio / (1. + poissons_ratio) / (1. - 2. * poissons_ratio)
+#[inline]
+pub fn lambda(youngs_modulus: T, poissons_ratio: T) -> Result<T, EnergyError> {
+    youngs_modulus_in_bounds(youngs_modulus)?;
+    poissons_ratio_in_bounds(poissons_ratio)?;
+    Ok(youngs_modulus * poissons_ratio / (1. + poissons_ratio) / (1. - 2. * poissons_ratio))
 }
 
 // Stable Neo-Hookean Flesh Simulation 3.4 Lamé Reparameterization
-pub fn mu_stable_neo_hookean(youngs_modulus: T, poissons_ratio: T) -> T {
-    let mu = mu(youngs_modulus, poissons_ratio);
+#[inline]
+pub fn mu_stable_neo_hookean(mu: T) -> T {
     4. / 3. * mu
 }
 
 // Stable Neo-Hookean Flesh Simulation 3.4 Lamé Reparameterization
-pub fn lambda_stable_neo_hookean(youngs_modulus: T, poissons_ratio: T) -> T {
-    let mu = mu(youngs_modulus, poissons_ratio);
-    let lambda = lambda(youngs_modulus, poissons_ratio);
+#[inline]
+pub fn lambda_stable_neo_hookean(lambda: T, mu: T) -> T {
     lambda + 5. / 6. * mu
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (B.7)
+#[inline]
 pub fn invariant_2(position_gradient: &Matrix3<T>) -> T {
     position_gradient.norm_squared()
 }
 
+#[inline]
 pub fn invariant_2_by_svd(singular_values: &Vector3<T>) -> T {
     singular_values.norm_squared()
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (B.20)
+#[inline]
 #[allow(clippy::toplevel_ref_arg)]
 pub fn partial_invariant_2_by_position_gradient(position_gradient: &Matrix3<T>) -> Matrix3<T> {
     2. * position_gradient
 }
 
+#[inline]
 pub fn partial_invariant_2_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
     2. * *singular_values
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (B.8)
+#[inline]
 pub fn invariant_3(position_gradient: &Matrix3<T>) -> T {
     position_gradient.determinant()
 }
 
+#[inline]
 pub fn invariant_3_by_svd(singular_values: &Vector3<T>) -> T {
     singular_values.product()
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (B.23)
+#[inline]
 #[allow(clippy::toplevel_ref_arg)]
 pub fn partial_invariant_3_by_position_gradient(position_gradient: &Matrix3<T>) -> Matrix3<T> {
     let c = |i| position_gradient.column(i);
@@ -92,6 +119,7 @@ pub fn partial_invariant_3_by_position_gradient(position_gradient: &Matrix3<T>) 
     ]
 }
 
+#[inline]
 pub fn partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
     Vector3::new(
         singular_values.y * singular_values.z,
@@ -100,6 +128,7 @@ pub fn partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
     )
 }
 
+#[inline]
 pub fn double_partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Matrix3<T> {
     let x = singular_values.x;
     let y = singular_values.y;
@@ -112,6 +141,7 @@ pub fn double_partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Matrix
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (4.24)
+#[inline]
 #[allow(clippy::toplevel_ref_arg)]
 pub fn double_partial_invariant_3_by_position_gradient(
     position_gradient: &Matrix3<T>,
@@ -125,15 +155,18 @@ pub fn double_partial_invariant_3_by_position_gradient(
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (6.9)
+#[inline]
 pub fn elastic_energy_stable_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
     mu / 2. * (invariant_2(position_gradient) - 3.) - mu * (invariant_3(position_gradient) - 1.)
         + lambda / 2. * (invariant_3(position_gradient) - 1.).powi(2)
 }
 
+#[inline]
 pub fn partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu: T) -> T {
     mu / 2.
 }
 
+#[inline]
 pub fn partial_elastic_energy_stable_neo_hookean_by_invariant_3(
     mu: T,
     lambda: T,
@@ -142,6 +175,7 @@ pub fn partial_elastic_energy_stable_neo_hookean_by_invariant_3(
     lambda * (invariant_3 - 1.) - mu
 }
 
+#[inline]
 pub fn first_piola_stress_stable_neo_hookean(
     mu: T,
     lambda: T,
@@ -156,6 +190,7 @@ pub fn first_piola_stress_stable_neo_hookean(
         ) * partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+#[inline]
 pub fn first_piola_stress_stable_neo_hookean_svd(
     mu: T,
     lambda: T,
@@ -175,6 +210,7 @@ pub fn first_piola_stress_stable_neo_hookean_svd(
 }
 
 // The Material Point Method for Simulating Continuum Materials (46)
+#[inline]
 pub fn elastic_energy_neo_hookean_old(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
     mu / 2. * ((position_gradient.transpose() * position_gradient).trace() - 3.)
         - mu * position_gradient.determinant().ln()
@@ -182,6 +218,7 @@ pub fn elastic_energy_neo_hookean_old(mu: T, lambda: T, position_gradient: &Matr
 }
 
 // The Material Point Method for Simulating Continuum Materials (48)
+#[inline]
 pub fn first_piola_stress_neo_hookean_old(
     mu: T,
     lambda: T,
@@ -196,6 +233,7 @@ pub fn first_piola_stress_neo_hookean_old(
 }
 
 // Dynamic Deformables Implementation and Production Practicalities 5.5.1
+#[inline]
 pub fn elastic_energy_neo_hookean_by_invariants(
     mu: T,
     lambda: T,
@@ -207,6 +245,7 @@ pub fn elastic_energy_neo_hookean_by_invariants(
 }
 
 // Dynamic Deformables Implementation and Production Practicalities 5.5.1
+#[inline]
 pub fn elastic_energy_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
     elastic_energy_neo_hookean_by_invariants(
         mu,
@@ -216,6 +255,7 @@ pub fn elastic_energy_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<
     )
 }
 
+#[inline]
 pub fn try_elastic_energy_neo_hookean(
     mu: T,
     lambda: T,
@@ -232,16 +272,19 @@ pub fn try_elastic_energy_neo_hookean(
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (5.51)
+#[inline]
 pub fn partial_elastic_energy_neo_hookean_by_invariant_2(mu: T) -> T {
     mu / 2.
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (5.53)
+#[inline]
 pub fn partial_elastic_energy_neo_hookean_by_invariant_3(mu: T, lambda: T, invariant_3: T) -> T {
     (lambda * invariant_3.ln() - mu) / invariant_3
 }
 
 // Dynamic Deformables Implementation and Production Practicalities (5.53)
+#[inline]
 pub fn double_partial_elastic_energy_neo_hookean_by_invariant_3(
     mu: T,
     lambda: T,
@@ -252,6 +295,7 @@ pub fn double_partial_elastic_energy_neo_hookean_by_invariant_3(
 }
 
 // The Material Point Method for Simulating Continuum Materials (48)
+#[inline]
 pub fn first_piola_stress_neo_hookean(
     mu: T,
     lambda: T,
@@ -266,6 +310,7 @@ pub fn first_piola_stress_neo_hookean(
         ) * partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+#[inline]
 pub fn first_piola_stress_neo_hookean_svd_in_diagonal_space(
     mu: T,
     lambda: T,
@@ -276,6 +321,7 @@ pub fn first_piola_stress_neo_hookean_svd_in_diagonal_space(
             * partial_invariant_3_by_svd(s)
 }
 
+#[inline]
 pub fn second_derivative_neo_hookean_svd_in_diagonal_space(
     mu: T,
     lambda: T,
@@ -292,6 +338,7 @@ pub fn second_derivative_neo_hookean_svd_in_diagonal_space(
             * double_partial_invariant_3_by_svd(s)
 }
 
+#[inline]
 pub fn first_piola_stress_neo_hookean_svd(
     mu: T,
     lambda: T,
@@ -305,6 +352,7 @@ pub fn first_piola_stress_neo_hookean_svd(
 }
 
 // Dynamic Deformables Implementation and Production Practicalities 5.5.1
+#[inline]
 pub fn hessian_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> Matrix9<T> {
     let g = Vector9::from_iterator(
         partial_invariant_3_by_position_gradient(position_gradient)
@@ -321,6 +369,7 @@ pub fn hessian_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> 
 }
 
 // Practical course on computing derivatives in code 5.1
+#[inline]
 pub fn hessian_neo_hookean_svd(
     mu: T,
     lambda: T,
@@ -472,25 +521,37 @@ pub fn hessian_neo_hookean_svd(
     big_uv * singular_space_hessian * big_uv.transpose()
 }
 
-pub fn bulk_modulus_in_bounds(value: T) -> bool {
-    value >= 0.
+#[inline]
+pub fn bulk_modulus_in_bounds(value: T) -> Result<(), EnergyError> {
+    if value < 0. {
+        Err(EnergyError::BulkModulusOutOfBounds(value))
+    } else {
+        Ok(())
+    }
 }
 
-pub fn exponent_in_bounds(value: i32) -> bool {
-    value > 1
+#[inline]
+pub fn exponent_in_bounds(value: i32) -> Result<(), EnergyError> {
+    if value > 1 {
+        Ok(())
+    } else {
+        Err(EnergyError::ExponentOutOfBounds(value))
+    }
 }
 
 // Something like
 // Multi-species simulation of porous sand and water mixtures (11)
 // Weakly compressible SPH for free surface flows (7)
+#[inline]
 pub fn elastic_energy_inviscid_by_invariant(bulk_modulus: T, exponent: i32, invariant_3: T) -> T {
-    assert!(bulk_modulus_in_bounds(bulk_modulus));
-    assert!(exponent_in_bounds(exponent));
+    bulk_modulus_in_bounds(bulk_modulus).unwrap();
+    exponent_in_bounds(exponent).unwrap();
     // https://github.com/Algebraic-UG/squishy_volumes/issues/125
     let at_rest = bulk_modulus * (1. - 1. / (1. - exponent as T));
     bulk_modulus * (invariant_3 - invariant_3.powi(1 - exponent) / (1. - exponent as T)) - at_rest
 }
 
+#[inline]
 pub fn partial_elastic_energy_inviscid_by_invariant_3(
     bulk_modulus: T,
     exponent: i32,
@@ -499,6 +560,7 @@ pub fn partial_elastic_energy_inviscid_by_invariant_3(
     bulk_modulus * (1. - 1. / invariant_3.powi(exponent))
 }
 
+#[inline]
 pub fn double_partial_elastic_energy_inviscid_by_invariant_3(
     bulk_modulus: T,
     exponent: i32,
@@ -507,6 +569,7 @@ pub fn double_partial_elastic_energy_inviscid_by_invariant_3(
     exponent as T * bulk_modulus / invariant_3.powi(exponent + 1)
 }
 
+#[inline]
 pub fn elastic_energy_inviscid(
     bulk_modulus: T,
     exponent: i32,
@@ -515,6 +578,7 @@ pub fn elastic_energy_inviscid(
     elastic_energy_inviscid_by_invariant(bulk_modulus, exponent, invariant_3(position_gradient))
 }
 
+#[inline]
 pub fn first_piola_stress_inviscid(
     bulk_modulus: T,
     exponent: i32,
@@ -527,6 +591,7 @@ pub fn first_piola_stress_inviscid(
     ) * partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+#[inline]
 pub fn first_piola_stress_inviscid_svd(
     bulk_modulus: T,
     exponent: i32,
@@ -542,6 +607,7 @@ pub fn first_piola_stress_inviscid_svd(
 }
 
 // Dynamic Deformables Implementation and Production Practicalities 5.50
+#[inline]
 pub fn hessian_inviscid(
     bulk_modulus: T,
     exponent: i32,
@@ -560,6 +626,7 @@ pub fn hessian_inviscid(
             * double_partial_invariant_3_by_position_gradient(position_gradient)
 }
 
+#[inline]
 pub fn first_piola_stress_inviscid_svd_in_diagonal_space(
     bulk_modulus: T,
     exponent: i32,
@@ -569,6 +636,7 @@ pub fn first_piola_stress_inviscid_svd_in_diagonal_space(
         * partial_invariant_3_by_svd(s)
 }
 
+#[inline]
 pub fn second_derivative_inviscid_svd_in_diagonal_space(
     bulk_modulus: T,
     exponent: i32,
@@ -587,15 +655,18 @@ pub fn second_derivative_inviscid_svd_in_diagonal_space(
         ) * double_partial_invariant_3_by_svd(s)
 }
 
+#[inline]
 pub fn rate_of_strain(velocity_gradient: &Matrix3<T>) -> Matrix3<T> {
     0.5 * (velocity_gradient + velocity_gradient.transpose())
 }
 
+#[inline]
 pub fn velocity_divergence(velocity_gradient: &Matrix3<T>) -> T {
     velocity_gradient.trace()
 }
 
 // Fluid Mechanics, Second Edition, L. D. Landau and E. M. Lifshitz (15.3)
+#[inline]
 pub fn cauchy_stress_general_viscosity(
     dynamic_viscosity: T,
     bulk_viscosity: T,

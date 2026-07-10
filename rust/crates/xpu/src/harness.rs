@@ -9,20 +9,22 @@
 use std::{
     num::NonZero,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex, Weak,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
 #[derive(thiserror::Error, Debug)]
 pub enum HarnessError {
+    #[error("The operation has been canceled.")]
+    Canceled,
     #[error("Can't create new report scope for '{new}', already reporting on '{old}'")]
     AlreadyHasSubReport { old: String, new: String },
     #[error("Something went really wrong and the report mutex is poisoned")]
     ReportMutexPoisoned,
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize)]
 pub struct ReportInfo {
     pub label: String,
     pub completed_steps: usize,
@@ -34,14 +36,55 @@ struct Report {
     sub_report: Weak<Mutex<Report>>,
 }
 
+impl Report {
+    fn new(label: String, steps_to_completion: NonZero<usize>) -> Self {
+        Self {
+            info: ReportInfo {
+                label,
+                completed_steps: 0,
+                steps_to_completion,
+            },
+            sub_report: Weak::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Harness {
     run: Arc<AtomicBool>,
     report: Arc<Mutex<Report>>,
 }
 
 impl Harness {
-    pub fn cancel(&self) -> bool {
+    pub fn new(label: String, steps_to_completion: NonZero<usize>) -> Self {
+        let run = Arc::new(AtomicBool::new(true));
+        let report = Arc::new(Mutex::new(Report::new(label, steps_to_completion)));
+        Self { run, report }
+    }
+
+    pub fn cancel(&self) {
+        self.run.store(false, Ordering::Relaxed);
+    }
+
+    pub fn check(&self) -> Result<(), HarnessError> {
+        if self.is_canceled() {
+            Err(HarnessError::Canceled)
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn is_canceled(&self) -> bool {
         !self.run.load(Ordering::Relaxed)
+    }
+
+    pub fn step_to(&self, completed_steps: usize) -> Result<(), HarnessError> {
+        self.report
+            .lock()
+            .map_err(|_| HarnessError::ReportMutexPoisoned)?
+            .info
+            .completed_steps = completed_steps;
+        Ok(())
     }
 
     pub fn step(&self) -> Result<(), HarnessError> {
@@ -73,14 +116,7 @@ impl Harness {
         }
 
         let run = self.run.clone();
-        let report = Arc::new(Mutex::new(Report {
-            info: ReportInfo {
-                label,
-                completed_steps: 0,
-                steps_to_completion,
-            },
-            sub_report: Weak::new(),
-        }));
+        let report = Arc::new(Mutex::new(Report::new(label, steps_to_completion)));
 
         current_report.sub_report = Arc::downgrade(&report);
 

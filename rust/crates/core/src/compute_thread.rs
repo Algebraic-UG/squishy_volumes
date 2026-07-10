@@ -8,28 +8,21 @@
 
 use std::{
     collections::VecDeque,
-    iter::repeat,
-    mem::take,
     num::NonZero,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, Mutex},
     thread::{JoinHandle, spawn},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
-use nalgebra::{Matrix4x3, Vector4};
 use squishy_volumes_cache::Cache;
-use squishy_volumes_gpu::{
-    Allocation, GpuError, GpuShaderError, GpuStatus, PipelinePart as _, PositionAndColliderBits,
-    ProfileDataCsvWriter, wgpu_profiler,
-};
-use squishy_volumes_util::profile;
-use squishy_volumes_xpu::{Harness, ReportInfo};
+use squishy_volumes_cpu::{CpuRunParameters, CpuState};
+use squishy_volumes_file_input::InputReader;
+use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
 use tracing::info;
 
-use crate::{Error, stats::ComputeStats};
+use crate::{
+    Error, initialization::initialize_io_state, simulation_input_path, stats::ComputeStats,
+};
 
 pub struct ComputeThread {
     stats: Arc<Mutex<Option<ComputeStats>>>,
@@ -63,120 +56,86 @@ impl ComputeThread {
     ) -> Result<Self, Error> {
         info!("starting compute thread");
 
-        let input_reader = InputReader::new(simulation_input_path(cache.directory()))?;
+        let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
+            .map_err(Error::StartInputReading)?;
+        let consts = input_reader
+            .read_header()
+            .map_err(Error::ReadHeader)?
+            .consts;
 
-        let run = Arc::new(AtomicBool::new(true));
-        let report = Report::new(ReportInfo {
-            name: "Simulating Frames".to_string(),
-            completed_steps: next_frame,
-            steps_to_completion: number_of_frames,
-        });
-        let seconds_per_frame = 1. / consts.frames_per_second as f64;
         let stats = Arc::new(Mutex::new(None));
+        let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
+        harness.step_to(next_frame)?;
+
         let thread = {
-            let run = run.clone();
-            let frame_report = report.clone();
             let stats = stats.clone();
-            Some(spawn(move || -> Result<()> {
+            let harness = harness.clone();
+            Some(spawn(move || -> Result<(), Error> {
                 info!("compute thread started");
-                let mut current_state = if next_frame == 0 {
+                let io_state = if next_frame == 0 {
                     info!("creating initial state");
-                    let state = State::new(
-                        run.clone(),
-                        frame_report.clone(),
-                        input_reader.read_header()?,
-                        input_reader.read_frame(0)?,
-                    )?;
-                    cache.store_frame(state.clone())?;
-                    frame_report.step();
+                    let io_state = initialize_io_state(&harness, &mut input_reader)?;
+                    cache
+                        .store_frame(io_state.clone())
+                        .map_err(Error::StoreError)?;
                     next_frame += 1;
-                    state
+                    harness.step()?;
+                    io_state
                 } else {
                     info!("loading checkpoint");
-                    cache.fetch_frame(next_frame - 1)?
+                    cache
+                        .fetch_frame(next_frame - 1)
+                        .map_err(Error::CacheFetch)?
+                        .clone()
                 };
+                harness.check()?;
 
-                let input_interpolation =
-                    InputInterpolation::new(input_reader, &consts, next_frame - 1)?;
-                let mut phase_input = PhaseInput {
-                    consts,
-                    input_interpolation,
-                    time_step,
-                    max_time_step,
-                    time_step_by_velocity: None,
-                    time_step_by_deformation: None,
-                    time_step_by_isolated: None,
-                    time_step_by_sound: None,
-                    time_step_prior: Default::default(),
-                    adaptive_time_steps,
-                    explicit,
-                    next_frame,
+                let mut frame_input =
+                    FrameInput::new(consts.clone(), input_reader, next_frame - 1)?;
+
+                enum ComputeState {
+                    Cpu(CpuState),
+                    Gpu,
+                }
+
+                let mut compute_state = if gpu {
+                    todo!()
+                } else {
+                    ComputeState::Cpu(CpuState::from_io_state(io_state)?)
                 };
-
-                phase_input
-                    .input_interpolation
-                    .load(&phase_input.consts, phase_input.next_frame)?;
-
-                let mut gpu_state = gpu_context
-                    .map(|gpu_context| current_state.to_gpu_state(&mut phase_input, gpu_context))
-                    .transpose()?;
-
-                let mut profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
 
                 let mut frame_times = VecDeque::new();
-                while phase_input.next_frame < number_of_frames.get() {
-                    profile!("frame");
-                    if !run.load(Ordering::Relaxed) {
-                        return Ok(());
-                    }
+                while next_frame < number_of_frames.get() {
+                    harness.check()?;
 
                     let start_compute_frame = Instant::now();
-                    let next_stored_frame_time = phase_input.next_frame as f64 * seconds_per_frame;
-                    let mut substeps = 0;
 
-                    if let Some(gpu_state) = gpu_state.as_mut() {
-                        ComputeFrameGPU {
-                            run: run.clone(),
-                            gpu_state,
-                            current_state: &mut current_state,
-                            next_stored_frame_time,
-                            phase_input: &mut phase_input,
-                            profile_data_csv_writer: &mut profile_data_csv_writer,
-                        }
-                        .run()?;
-                    } else {
-                        ComputeFrameCPU {
-                            run: run.clone(),
-                            frame_report: &frame_report,
-                            seconds_per_frame,
-                            current_state: &mut current_state,
-                            next_stored_frame_time,
-                            phase_input: &mut phase_input,
-                            substeps: &mut substeps,
-                        }
-                        .run()?;
-                    }
+                    frame_input.load(next_frame - 1)?;
 
-                    if !run.load(Ordering::Relaxed) {
-                        return Ok(());
-                    }
+                    let target_time = next_frame as f64 / consts.frames_per_second as f64;
 
-                    frame_report.step();
+                    let io_state = match &mut compute_state {
+                        ComputeState::Cpu(cpu_state) => cpu_state.produce_next_state(
+                            &harness,
+                            &frame_input,
+                            CpuRunParameters {
+                                target_time,
+                                max_time_step,
+                                adaptive_time_steps,
+                                store_grid: true,
+                            },
+                        )?,
+                        ComputeState::Gpu => todo!(),
+                    };
 
-                    cache.store_frame(current_state.clone())?;
-                    info!(
-                        "computed frame {} of {}",
-                        phase_input.next_frame, number_of_frames
-                    );
-                    #[cfg(feature = "profile")]
-                    if next_frame == 1 {
-                        coarse_prof::reset();
-                        info!("profile reset");
-                    }
-                    phase_input.next_frame += 1;
+                    cache.store_frame(io_state).map_err(Error::StoreError)?;
+                    info!("computed frame {} of {}", next_frame, number_of_frames);
+
+                    next_frame += 1;
+                    harness.step()?;
 
                     let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
-                    let remaining_frames = number_of_frames.get() - phase_input.next_frame;
+                    let remaining_frames = number_of_frames.get() - next_frame;
 
                     frame_times.push_back(last_frame_time_sec);
                     if frame_times.len() > 5 {
@@ -189,15 +148,8 @@ impl ComputeThread {
                     *stats.lock().unwrap() = Some(ComputeStats {
                         remaining_time_sec,
                         last_frame_time_sec,
-                        last_frame_substeps: substeps,
+                        last_frame_substeps: 0, // TODO
                     });
-                }
-                #[cfg(feature = "profile")]
-                {
-                    let mut buf = std::io::BufWriter::new(Vec::new());
-                    coarse_prof::write(&mut buf)?;
-                    info!("{}", String::from_utf8(buf.into_inner()?)?);
-                    coarse_prof::reset();
                 }
 
                 info!("done computing {}", number_of_frames.get());
@@ -206,10 +158,104 @@ impl ComputeThread {
             }))
         };
 
+        /*
+                        phase_input
+                            .input_interpolation
+                            .load(&phase_input.consts, phase_input.next_frame)?;
+
+                        let mut gpu_state = gpu_context
+                            .map(|gpu_context| current_state.to_gpu_state(&mut phase_input, gpu_context))
+                            .transpose()?;
+
+                        let mut profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
+
+                        let mut frame_times = VecDeque::new();
+                        while phase_input.next_frame < number_of_frames.get() {
+                            profile!("frame");
+                            if !run.load(Ordering::Relaxed) {
+                                return Ok(());
+                            }
+
+                            let start_compute_frame = Instant::now();
+                            let next_stored_frame_time = phase_input.next_frame as f64 * seconds_per_frame;
+                            let mut substeps = 0;
+
+                            if let Some(gpu_state) = gpu_state.as_mut() {
+                                ComputeFrameGPU {
+                                    run: run.clone(),
+                                    gpu_state,
+                                    current_state: &mut current_state,
+                                    next_stored_frame_time,
+                                    phase_input: &mut phase_input,
+                                    profile_data_csv_writer: &mut profile_data_csv_writer,
+                                }
+                                .run()?;
+                            } else {
+                                ComputeFrameCPU {
+                                    run: run.clone(),
+                                    frame_report: &frame_report,
+                                    seconds_per_frame,
+                                    current_state: &mut current_state,
+                                    next_stored_frame_time,
+                                    phase_input: &mut phase_input,
+                                    substeps: &mut substeps,
+                                }
+                                .run()?;
+                            }
+
+                            if !run.load(Ordering::Relaxed) {
+                                return Ok(());
+                            }
+
+                            frame_report.step();
+
+                            cache.store_frame(current_state.clone())?;
+                            info!(
+                                "computed frame {} of {}",
+                                phase_input.next_frame, number_of_frames
+                            );
+                            #[cfg(feature = "profile")]
+                            if next_frame == 1 {
+                                coarse_prof::reset();
+                                info!("profile reset");
+                            }
+                            phase_input.next_frame += 1;
+
+                            let last_frame_time_sec = start_compute_frame.elapsed().as_secs_f32();
+                            let remaining_frames = number_of_frames.get() - phase_input.next_frame;
+
+                            frame_times.push_back(last_frame_time_sec);
+                            if frame_times.len() > 5 {
+                                frame_times.pop_front();
+                            }
+                            let approx_frame_time =
+                                frame_times.iter().sum::<f32>() / frame_times.len() as f32;
+                            let remaining_time_sec = approx_frame_time * remaining_frames as f32;
+
+                            *stats.lock().unwrap() = Some(ComputeStats {
+                                remaining_time_sec,
+                                last_frame_time_sec,
+                                last_frame_substeps: substeps,
+                            });
+                        }
+                        #[cfg(feature = "profile")]
+                        {
+                            let mut buf = std::io::BufWriter::new(Vec::new());
+                            coarse_prof::write(&mut buf)?;
+                            info!("{}", String::from_utf8(buf.into_inner()?)?);
+                            coarse_prof::reset();
+                        }
+
+                        info!("done computing {}", number_of_frames.get());
+
+                        Ok(())
+                    }))
+                };
+        */
+
         Ok(Self {
             stats,
-            run,
-            report: report.as_store(),
+            harness,
             thread,
         })
     }
@@ -225,12 +271,7 @@ impl ComputeThread {
             return Ok(Default::default());
         };
         if thread.is_finished() {
-            thread
-                .join()
-                .map_err(|_| {
-                    anyhow::anyhow!("Compute Panic, could be out of memory, please consult logs.")
-                })?
-                .context("Compute Fail")?;
+            thread.join().map_err(|_| Error::ComputePanic)??;
             return Ok(Default::default());
         }
         self.thread = Some(thread);
@@ -245,6 +286,8 @@ impl ComputeThread {
             .clone())
     }
 }
+
+/*
 
 struct ComputeFrameGPU<'a> {
     run: Arc<AtomicBool>,
@@ -560,12 +603,14 @@ impl ComputeFrameCPU<'_> {
     }
 }
 
+*/
+
 impl Drop for ComputeThread {
     fn drop(&mut self) {
         let Some(thread) = self.thread.take() else {
             return;
         };
-        self.run.store(false, Ordering::Relaxed);
+        self.harness.cancel();
         // TODO try to get string from error
         if let Err(_) = thread.join() {
             tracing::error!("Compute Panic, could be out of memory, please consult logs.");

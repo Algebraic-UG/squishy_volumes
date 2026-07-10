@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[features]
+profile = [ "squishy_volumes_util/profile" ]
+
 [dependencies]
 nalgebra.workspace = true
 thiserror.workspace = true
@@ -12,9 +15,8 @@ tracing.workspace = true
 rustc-hash.workspace = true
 smallvec.workspace = true
 bytemuck.workspace = true
-strum_macros = "0.26.4"
-strum = { version = "0.26.3", features = ["derive"] }
-
+strum.workspace = true
+strum_macros.workspace = true
 
 squishy_volumes_util.path = "../util"
 squishy_volumes_mesh_util.path = "../mesh_util"

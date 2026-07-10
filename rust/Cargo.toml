@@ -20,7 +20,7 @@ nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand", "bytemuc
 wgpu = "29.0.1"
 wgpu-profiler = "0.27.0"
 pollster = "0.4.0"
-bytemuck = { version = "1.25.0", features = [ "derive", "extern_crate_alloc" ] }
+bytemuck = { version = "1.25.0", features = [ "derive", "extern_crate_alloc", "extern_crate_std" ] }
 rand = { version = "0.10.0", features = ["chacha"] }
 env_logger = "0.11.9"
 bitflags = "2.10.0"
@@ -30,6 +30,9 @@ rayon = "1.10.0"
 rustc-hash = "2.1.1"
 smallvec = { version = "1.15.2", features = ["serde"] }
 itertools = "0.14.0"
+strum_macros = "0.26.4"
+strum = { version = "0.26.3", features = ["derive"] }
+
 
 # TODO: use crate.io's version once the changes from this PR are released
 # https://github.com/wgsl-tooling-wg/wesl-rs/pull/182

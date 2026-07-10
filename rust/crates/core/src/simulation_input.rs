@@ -237,7 +237,7 @@ impl SimulationInputImpl {
         })
     }
 
-    pub fn finish_frame(&mut self) -> Result<(), Error> {
+    pub fn finish_frame_impl(&mut self) -> Result<(), Error> {
         let Some(current_frame) = self.current_frame.take() else {
             return Err(Error::NoFrameStarted);
         };

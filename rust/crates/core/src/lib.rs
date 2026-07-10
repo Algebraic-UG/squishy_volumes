@@ -11,6 +11,7 @@ mod attributes;
 mod compute_thread;
 mod context;
 mod errors;
+mod initialization;
 mod input_bulk;
 mod simulation;
 mod simulation_input;

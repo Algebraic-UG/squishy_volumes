@@ -146,7 +146,7 @@ pub struct CpuRunParameters {
 impl CpuState {
     pub fn produce_next_state(
         &mut self,
-        harness: &mut squishy_volumes_xpu::Harness,
+        harness: &squishy_volumes_xpu::Harness,
         frame_input: &squishy_volumes_xpu::FrameInput,
         CpuRunParameters {
             target_time,
@@ -164,7 +164,7 @@ impl CpuState {
         self.adaptive_time_step_state.max_time_step = max_time_step;
 
         while self.time < target_time {
-            if harness.cancel() {
+            if harness.is_canceled() {
                 return Err(Error::Canceled);
             }
 

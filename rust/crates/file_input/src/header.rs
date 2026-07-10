@@ -68,3 +68,67 @@ pub struct InputHeader {
     pub consts: InputConsts,
     pub objects: std::collections::BTreeMap<String, InputObject>,
 }
+
+impl InputHeader {
+    pub fn total_particles(&self) -> usize {
+        self.objects
+            .values()
+            .map(|object| {
+                if let InputObject::Particles { num_particles } = object {
+                    *num_particles
+                } else {
+                    0
+                }
+            })
+            .sum()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum InputRange {
+    Particles {
+        particle_range: std::ops::Range<usize>,
+    },
+    Collider {
+        vertex_range: std::ops::Range<usize>,
+        triangle_range: std::ops::Range<usize>,
+    },
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct InputRanges {
+    pub objects: std::collections::BTreeMap<String, InputRange>,
+}
+
+impl InputRanges {
+    pub fn new(objects: &std::collections::BTreeMap<String, InputObject>) -> Self {
+        let mut particle_offset = 0;
+        let mut vertex_offset = 0;
+        let mut triangle_offset = 0;
+        objects
+            .iter()
+            .fold(Self::default(), |mut ranges, (name, object)| {
+                let range = match object {
+                    InputObject::Particles { num_particles } => {
+                        particle_offset += num_particles;
+                        InputRange::Particles {
+                            particle_range: particle_offset - num_particles..particle_offset,
+                        }
+                    }
+                    InputObject::Collider {
+                        num_vertices,
+                        num_triangles,
+                    } => {
+                        vertex_offset += num_vertices;
+                        triangle_offset += num_triangles;
+                        InputRange::Collider {
+                            vertex_range: vertex_offset - num_vertices..vertex_offset,
+                            triangle_range: triangle_offset - num_triangles..triangle_offset,
+                        }
+                    }
+                };
+                ranges.objects.insert(name.clone(), range);
+                ranges
+            })
+    }
+}

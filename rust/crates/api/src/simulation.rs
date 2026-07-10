@@ -7,41 +7,21 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
-use crate::T;
 
 pub trait Simulation {
     fn input_header(&self) -> Result<Value>;
 
     fn computing(&self) -> bool;
 
-    fn poll(&mut self) -> Result<Option<Task>>;
+    fn poll(&mut self) -> Result<Value>;
 
-    fn start_compute(&mut self, settings: ComputeSettings) -> Result<()>;
-    fn pause_compute(&mut self);
+    fn start_compute(&mut self, settings: Value) -> Result<()>;
+    fn pause_compute(&mut self) -> Result<()>;
 
     fn available_frames(&self) -> usize;
-    fn available_attributes(&self, frame: usize) -> Result<Vec<Value>>;
-    fn fetch_flat_attribute(&self, frame: usize, attribute: Value) -> Result<Vec<T>>;
+    fn available_attributes(&self) -> Result<Vec<Value>>;
+    fn fetch_flat_attribute_f32(&self, frame: usize, attribute: Value) -> Result<Vec<f32>>;
+    fn fetch_flat_attribute_i32(&self, frame: usize, attribute: Value) -> Result<Vec<i32>>;
     fn stats(&self) -> Result<Value>;
-}
-
-pub struct ComputeSettings {
-    pub time_step: T,
-    pub gpu: bool,
-    pub explicit: bool,
-    pub adaptive_time_steps: bool,
-    pub next_frame: usize,
-    pub number_of_frames: usize,
-    pub max_bytes_on_disk: u64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Task {
-    pub name: String,
-    pub completed_steps: usize,
-    pub steps_to_completion: usize,
-    pub sub_tasks: Vec<Task>,
 }

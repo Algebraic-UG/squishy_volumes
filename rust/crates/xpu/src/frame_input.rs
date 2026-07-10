@@ -169,6 +169,10 @@ impl FrameInput {
         })
     }
 
+    pub fn frame(&self) -> usize {
+        self.frame
+    }
+
     pub fn load(&mut self, frame: usize) -> Result<(), FrameInputError> {
         let prior_frame = self.a.frame;
 

@@ -9,6 +9,7 @@ thiserror.workspace = true
 nalgebra.workspace = true
 bytemuck.workspace = true
 tracing.workspace = true
+serde.workspace = true
 
 squishy_volumes_file_input.path = "../file_input"
 squishy_volumes_file_frame.path = "../file_frame"

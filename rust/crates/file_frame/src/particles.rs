@@ -37,7 +37,7 @@ pub struct ViscosityParameters {
     pub bulk: f32,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Default)]
 pub struct ParticleParameters {
     pub mass: f32,
     pub initial_volume: f32,
@@ -56,6 +56,16 @@ pub enum SpecificParticleParameters {
         exponent: i32,
         bulk_modulus: f32,
     },
+}
+
+impl Default for SpecificParticleParameters {
+    fn default() -> Self {
+        Self::Solid {
+            mu: 0.,
+            lambda: 0.,
+            sand_alpha: None,
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]

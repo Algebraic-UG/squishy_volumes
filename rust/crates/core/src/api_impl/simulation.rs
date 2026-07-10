@@ -15,7 +15,7 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         self.computing_impl()
     }
 
-    fn poll(&mut self) -> anyhow::Result<Option<serde_json::Value>> {
+    fn poll(&mut self) -> anyhow::Result<serde_json::Value> {
         Ok(self.poll_impl()?)
     }
 
@@ -35,12 +35,20 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         Ok(self.available_attributes_impl()?)
     }
 
-    fn fetch_flat_attribute(
+    fn fetch_flat_attribute_f32(
         &self,
         frame: usize,
         attribute: serde_json::Value,
     ) -> anyhow::Result<Vec<f32>> {
-        Ok(self.fetch_flat_attribute_impl(frame, attribute)?)
+        Ok(self.fetch_flat_attribute_f32_impl(frame, attribute)?)
+    }
+
+    fn fetch_flat_attribute_i32(
+        &self,
+        frame: usize,
+        attribute: serde_json::Value,
+    ) -> anyhow::Result<Vec<i32>> {
+        Ok(self.fetch_flat_attribute_i32_impl(frame, attribute)?)
     }
 
     fn stats(&self) -> anyhow::Result<serde_json::Value> {

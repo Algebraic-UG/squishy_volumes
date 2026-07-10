@@ -8,7 +8,6 @@
 
 use std::{collections::BTreeMap, num::NonZero, path::PathBuf, sync::Arc};
 
-use anyhow::{Result, ensure};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_api::Simulation;
@@ -43,16 +42,19 @@ impl SimulationImpl {
             current_frame,
             ..
         }: SimulationInputImpl,
-    ) -> Result<Self> {
+    ) -> Result<Self, Error> {
         info!("Creating new simulation");
-        ensure!(current_frame.is_none(), "Last frame wasn't written");
+        if current_frame.is_some() {
+            return Err(Error::LeftoverInputFrame);
+        }
 
-        input_writer.flush()?;
+        info!("Finalizing input");
+        input_writer.flush().map_err(Error::FinalizingInput)?;
 
         Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
     }
 
-    pub fn load(uuid: String, directory: PathBuf) -> Result<Self> {
+    pub fn load(uuid: String, directory: PathBuf) -> Result<Self, Error> {
         info!("Loading old simulation");
         let directory_lock = DirectoryLock::new(directory.clone(), uuid)?;
         Self::load_with_lock(directory_lock, u64::MAX, false)
@@ -62,20 +64,20 @@ impl SimulationImpl {
         directory_lock: DirectoryLock,
         max_bytes_on_disk: u64,
         clean_up: bool,
-    ) -> Result<Self> {
-        let mut input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))?;
-        let input_header = input_reader.read_header()?;
+    ) -> Result<Self, Error> {
+        let mut input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
+            .map_err(Error::StartInputReading)?;
+        let input_header = input_reader.read_header().map_err(Error::ReadHeader)?;
         let input_ranges = InputRanges::new(&input_header.objects);
         info!(?input_ranges);
 
-        let cache = Arc::new(Cache::new(
-            directory_lock,
-            input_reader.size(),
-            max_bytes_on_disk,
-        )?);
+        let cache = Arc::new(
+            Cache::new(directory_lock, input_reader.size(), max_bytes_on_disk)
+                .map_err(Error::CacheCreation)?,
+        );
 
         if clean_up {
-            cache.drop_frames(0);
+            cache.drop_frames(0).map_err(Error::CacheDropFrames)?;
         }
 
         Ok(Self {
@@ -111,7 +113,7 @@ impl SimulationImpl {
         .map_err(Error::EncodingReport)
     }
 
-    pub fn start_compute_impl(&mut self, compute_settings: Value) -> Result<()> {
+    pub fn start_compute_impl(&mut self, compute_settings: Value) -> Result<(), Error> {
         info!("starting compute");
         let ComputeSettings {
             time_step,
@@ -128,10 +130,12 @@ impl SimulationImpl {
             return Ok(());
         };
 
-        self.pause_compute();
+        self.pause_compute_impl()?;
 
-        self.cache.check()?;
-        self.cache.drop_frames(next_frame)?;
+        self.cache.check().map_err(Error::CacheCheck)?;
+        self.cache
+            .drop_frames(next_frame)
+            .map_err(Error::CacheDropFrames)?;
 
         info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {
@@ -190,7 +194,7 @@ impl SimulationImpl {
         )?)
     }
 
-    fn stats(&self) -> Result<Value> {
+    pub fn stats_impl(&self) -> Result<Value, Error> {
         let state = {
             let mut total_particle_count = 0;
             let per_object_count: BTreeMap<String, usize> = self
@@ -206,7 +210,10 @@ impl SimulationImpl {
                     }
                 })
                 .collect();
-            let grid_node_count = self.cache.grid_node_count()?;
+            let grid_node_count = self
+                .cache
+                .grid_node_count()
+                .map_err(Error::CacheNodeCount)?;
 
             StateStats {
                 total_particle_count,
@@ -228,7 +235,8 @@ impl SimulationImpl {
             state,
             compute,
             bytes_on_disk,
-        })?)
+        })
+        .map_err(Error::EncodingStats)?)
     }
 }
 

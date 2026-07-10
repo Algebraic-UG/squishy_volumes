@@ -98,11 +98,17 @@ impl Cache {
         })
     }
 
+    pub fn directory(&self) -> &std::path::Path {
+        self.directory_lock.directory()
+    }
+
     pub fn available_frames(&self) -> usize {
         self.available_frames.load(Ordering::Relaxed)
     }
 
     pub fn check(&self) -> Result<(), CacheError> {
+        self.directory_lock.check()?;
+
         let mut frames = discover_frames(self.directory_lock.directory())
             .map_err(CacheReadingError::IoError)?
             .1
@@ -203,6 +209,21 @@ impl Cache {
             Ordering::Relaxed,
         );
         Ok(())
+    }
+
+    pub fn grid_node_count(&self) -> Result<Option<usize>, CacheError> {
+        Ok(self
+            .loaded_frame
+            .lock()
+            .map_err(|_| CacheReadingError::LoadedFrameLockPoisoned)?
+            .as_ref()
+            .and_then(|loaded_frame| {
+                loaded_frame
+                    .state
+                    .grid_nodes
+                    .as_ref()
+                    .map(|grid_nodes| grid_nodes.collider_bits.len())
+            }))
     }
 }
 
