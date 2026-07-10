@@ -10,7 +10,7 @@ use anyhow::{Context, Result};
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 use serde_json::from_str;
-use squishy_volumes_api::{InputBulk, T};
+use squishy_volumes_api::InputBulk;
 
 use crate::hot_reloadable::{try_with_context, with_context};
 
@@ -69,7 +69,7 @@ impl SimulationInput {
     pub fn record_input_float<'py>(
         &self,
         meta: &str,
-        bulk: PyReadonlyArray1<'py, T>,
+        bulk: PyReadonlyArray1<'py, f32>,
     ) -> Result<()> {
         try_with_context(|context| {
             context
