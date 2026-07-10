@@ -6,28 +6,20 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod cache;
-
 mod api_impl;
-pub use api_impl::*;
-
+mod attributes;
 mod compute_thread;
-mod directory_lock;
-mod input_file;
-mod input_interpolation;
-pub mod kernels;
-mod phase;
-mod report;
-mod state;
+mod context;
+mod errors;
+mod input_bulk;
+mod simulation;
+mod simulation_input;
 mod stats;
 
-pub use report::{Report, ReportInfo};
+pub use context::*;
+pub use errors::*;
+pub use input_bulk::*;
+pub use simulation::*;
+pub use simulation_input::*;
 
-#[cfg(feature = "profile")]
-use coarse_prof::profile;
-#[cfg(not(feature = "profile"))]
-macro_rules! profile {
-    ($name:expr) => {};
-}
-#[cfg(not(feature = "profile"))]
-use profile;
+pub use api_impl::*;

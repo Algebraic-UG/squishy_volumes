@@ -19,65 +19,51 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, bail};
 use nalgebra::{Matrix4x3, Vector4};
-use squishy_volumes_api::{T, Task};
+use squishy_volumes_cache::Cache;
 use squishy_volumes_gpu::{
     Allocation, GpuError, GpuShaderError, GpuStatus, PipelinePart as _, PositionAndColliderBits,
-    ProfileDataCsvWriter, wgpu, wgpu_profiler,
+    ProfileDataCsvWriter, wgpu_profiler,
 };
-use strum::IntoEnumIterator;
+use squishy_volumes_util::profile;
+use squishy_volumes_xpu::{Harness, ReportInfo};
 use tracing::info;
 
-use crate::{
-    input_file::{InputConsts, InputReader},
-    input_interpolation::InputInterpolation,
-    phase::{Phase, PhaseInput},
-    profile,
-    report::{Report, ReportInfo},
-    state::{BYTES_PER_GRID_NODE, GpuState, State},
-    stats::ComputeStats,
-};
-
-use super::cache::Cache;
+use crate::{Error, stats::ComputeStats};
 
 pub struct ComputeThread {
-    pub stats: Arc<Mutex<Option<ComputeStats>>>,
+    stats: Arc<Mutex<Option<ComputeStats>>>,
 
-    run: Arc<AtomicBool>,
-    report: Report,
-    thread: Option<JoinHandle<Result<()>>>,
+    harness: Harness,
+    thread: Option<JoinHandle<Result<(), Error>>>,
 }
 
 pub struct ComputeThreadSettings {
-    pub consts: InputConsts,
-    pub input_reader: InputReader,
     pub cache: Arc<Cache>,
-    pub time_step: T,
-    pub max_time_step: T,
+
+    pub max_time_step: f32,
+
     pub number_of_frames: NonZero<usize>,
     pub next_frame: usize,
+
+    pub gpu: bool,
     pub adaptive_time_steps: bool,
-    pub explicit: bool,
-    pub gpu_context: Option<squishy_volumes_gpu::GpuContext>,
 }
 
 impl ComputeThread {
     pub fn new(
         ComputeThreadSettings {
-            consts,
-            mut input_reader,
             cache,
-            time_step,
             max_time_step,
             number_of_frames,
             mut next_frame,
             adaptive_time_steps,
-            explicit,
-            gpu_context,
+            gpu,
         }: ComputeThreadSettings,
-    ) -> Result<Self> {
+    ) -> Result<Self, Error> {
         info!("starting compute thread");
+
+        let input_reader = InputReader::new(simulation_input_path(cache.directory()))?;
 
         let run = Arc::new(AtomicBool::new(true));
         let report = Report::new(ReportInfo {
@@ -234,9 +220,9 @@ impl ComputeThread {
             .is_some_and(|thread| !thread.is_finished())
     }
 
-    pub fn poll(&mut self) -> Result<Option<Task>> {
+    pub fn poll(&mut self) -> Result<Vec<ReportInfo>, Error> {
         let Some(thread) = self.thread.take() else {
-            return Ok(None);
+            return Ok(Default::default());
         };
         if thread.is_finished() {
             thread
@@ -245,10 +231,18 @@ impl ComputeThread {
                     anyhow::anyhow!("Compute Panic, could be out of memory, please consult logs.")
                 })?
                 .context("Compute Fail")?;
-            return Ok(None);
+            return Ok(Default::default());
         }
         self.thread = Some(thread);
-        Ok(self.report.clone().into())
+        Ok(self.harness.get_infos()?)
+    }
+
+    pub fn stats(&self) -> Result<Option<ComputeStats>, Error> {
+        Ok(self
+            .stats
+            .lock()
+            .map_err(|_| Error::ComputeStatsMutexPoisoned)?
+            .clone())
     }
 }
 

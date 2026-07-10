@@ -5,43 +5,30 @@ edition = "2024"
 license = "MIT"
 
 [features]
-f64 = [ "squishy_volumes_api/f64" ]
-profile = [ "dep:coarse-prof" ]
+profile = [ "squishy_volumes_cpu/profile", "squishy_volumes_util/profile" ]
 
 [lib]
 crate-type = ["rlib", "dylib"]
 
 [dependencies]
-strum_macros = "0.26.4"
-strum = { version = "0.26.3", features = ["derive"] }
-base64 = "0.22.1"
-tempfile = "3.23.0"
-rand = { version = "0.10.0", features = ["chacha"] }
-
-iter_enumeration.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
 serde.workspace = true
-bincode.workspace = true
 thiserror.workspace = true
-build-info.workspace = true
 nalgebra.workspace = true
-bitflags.workspace = true
-rayon.workspace = true
-rustc-hash.workspace = true
-smallvec.workspace = true
-itertools.workspace = true
+bytemuck.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+iter_enumeration.workspace = true
 
-coarse-prof.workspace = true
-coarse-prof.optional = true
-roots = "0.0.8"
-
-squishy_volumes_util.path = "../util"
 squishy_volumes_api.path = "../api"
+squishy_volumes_xpu.path = "../xpu"
 squishy_volumes_gpu.path = "../gpu"
-small-map = { version = "0.1.5", features = ["serde"] }
-
-[build-dependencies]
-build-info-build.workspace = true
+squishy_volumes_cpu.path = "../cpu"
+squishy_volumes_cache.path = "../cache"
+squishy_volumes_directory_lock.path = "../directory_lock"
+squishy_volumes_file_input.path = "../file_input"
+squishy_volumes_file_frame.path = "../file_frame"
+squishy_volumes_util.path = "../util"
