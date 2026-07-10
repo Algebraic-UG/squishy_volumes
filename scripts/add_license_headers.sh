@@ -78,6 +78,11 @@ cd -
 echo "checking wgsl files"
 cd rust
 git ls-files "*.wgsl" | while read -r file; do
+    # Skip files with an "external" directory component.
+    if [[ "/$file/" == */external/* ]]; then
+        echo "external: $file"
+        continue
+    fi
     echo "checking $file"
     if ! has_header "$file"; then
         echo "Adding header to $file"
