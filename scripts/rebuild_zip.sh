@@ -11,7 +11,7 @@ uv run --with toml scripts/update_lib_version.py
 ./scripts/add_license_headers.sh
 
 cd rust/crates/wrap
-uvx --python 3.11 maturin build --no-default-features --release --out ../../../python/wheels/
+uvx --python 3.11 maturin build --no-default-features --release --out ../../../python/src/squishy_volumes_extension/wheels/
 
 cd -
 uv run --with toml scripts/update_manifest.py
