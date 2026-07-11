@@ -1,5 +1,5 @@
 [project]
-name = "squishy-volumes"
+name = "squishy-volumes-extension"
 version = "0.0.0" # not used
 requires-python = ">=3.11"
 dependencies = []
