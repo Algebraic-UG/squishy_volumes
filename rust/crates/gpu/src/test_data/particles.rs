@@ -8,15 +8,14 @@
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use rand::{RngExt, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_util::{Aabb, lambda, mu};
+use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters, SpecificParticleParameters};
+use squishy_volumes_util::Aabb;
 
-use crate::{PositionAndColliderBits, particle_parameters};
+use crate::PositionAndColliderBits;
 
 pub struct TestParticles {
-    pub particle_masses: Vec<f32>,
-    pub particle_initial_volumes: Vec<f32>,
-    pub particle_flags: Vec<particle_parameters::Flags>,
-    pub particle_parameters: Vec<particle_parameters::Device>,
+    pub particle_flags: Vec<ParticleFlags>,
+    pub particle_parameters: Vec<ParticleParameters>,
     pub particle_goals_start: Vec<Vector4<f32>>,
     pub particle_goals_end: Vec<Vector4<f32>>,
     pub particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
@@ -56,60 +55,56 @@ pub fn test_position_gradients_random(n: usize) -> Vec<Matrix3<f32>> {
     tmp
 }
 
-pub fn test_lame_parameters() -> impl Iterator<Item = particle_parameters::Host> + Clone {
-    use particle_parameters::{Host, Solid};
-
-    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
-        .into_iter()
-        .map(|[youngs_modulus, poissons_ratio]| {
-            let mu = mu(youngs_modulus, poissons_ratio).unwrap();
-            let lambda = lambda(youngs_modulus, poissons_ratio).unwrap();
-            Host::Solid(Solid {
-                mu,
-                lambda,
-                viscosity: None,
-                sand_alpha: None,
-            })
-        })
+pub fn test_lame_parameters<T: rand::Rng>(
+    rng: &mut T,
+) -> impl Iterator<Item = ParticleParameters> + use<'_, T> {
+    squishy_volumes_util::test_lame_parameters().map(|[mu, lambda]| ParticleParameters {
+        mass: rng.random_range(0.1..1.0),
+        initial_volume: rng.random_range(0.1..1.0),
+        viscosity: None,
+        specific: SpecificParticleParameters::Solid {
+            mu,
+            lambda,
+            sand_alpha: None,
+        },
+    })
 }
 
-pub fn test_inviscid_parameters() -> impl Iterator<Item = particle_parameters::Host> + Clone {
-    use particle_parameters::{Fluid, Host};
-
-    [(100., 2), (1000., 2), (100., 7), (1000., 7)]
-        .into_iter()
-        .map(|(bulk_modulus, exponent)| {
-            Host::Fluid(Fluid {
+pub fn test_inviscid_parameters(
+    rng: &mut impl rand::Rng,
+) -> impl Iterator<Item = ParticleParameters> {
+    squishy_volumes_util::test_inviscid_parameters().map(|(bulk_modulus, exponent)| {
+        ParticleParameters {
+            mass: rng.random_range(0.1..1.0),
+            initial_volume: rng.random_range(0.1..1.0),
+            viscosity: None,
+            specific: SpecificParticleParameters::Fluid {
                 exponent,
                 bulk_modulus,
-                viscosity: None,
-            })
-        })
+            },
+        }
+    })
 }
 
 impl TestParticles {
     pub fn new(num_particles: usize, aabb: Aabb<Vector3<f32>>, sampling: ParticleSampling) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(33);
-
-        let particle_masses = (0..num_particles)
-            .map(|_| rng.random_range(0.1..1.0))
-            .collect();
-        let particle_initial_volumes = (0..num_particles)
-            .map(|_| rng.random_range(0.1..1.0))
-            .collect();
-        let particle_parameters_host = test_lame_parameters()
-            .chain(test_inviscid_parameters())
+        let particle_parameters = test_lame_parameters(&mut rng)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .chain(test_inviscid_parameters(&mut rng))
+            .collect::<Vec<_>>()
+            .into_iter()
             .cycle()
             .take(num_particles)
             .collect::<Vec<_>>();
 
-        let particle_flags = particle_parameters_host
+        let particle_flags = particle_parameters
             .iter()
-            .map(Into::into)
-            .collect::<Vec<_>>();
-        let particle_parameters = particle_parameters_host
-            .iter()
-            .map(Into::into)
+            .map(|p| match p.specific {
+                SpecificParticleParameters::Solid { .. } => ParticleFlags::IS_SOLID,
+                SpecificParticleParameters::Fluid { .. } => ParticleFlags::IS_FLUID,
+            })
             .collect::<Vec<_>>();
         let particle_goals_start = vec![Vector4::zeros(); num_particles];
         let particle_goals_end = vec![Vector4::zeros(); num_particles];
@@ -171,8 +166,6 @@ impl TestParticles {
             .collect::<Vec<_>>();
 
         Self {
-            particle_masses,
-            particle_initial_volumes,
             particle_flags,
             particle_parameters,
             particle_goals_start,

@@ -194,11 +194,15 @@ fn kernel_cubic(signed_x: f32) -> f32 {
 }
 
 struct ParticleParameters {
-    a: f32,
-    b: f32,
-    c: f32,
-    d: f32,
-    e: f32,
+    mass: f32,
+    initial_volume: f32,
+    viscosity_dynamic: f32,
+    viscosity_bulk: f32,
+    mu: f32,
+    lambda: f32,
+    sand_alpha: f32,
+    bulk_modulus: f32,
+    exponent: i32,
 }
 
 const IS_SOLID: u32 = 1;
@@ -237,14 +241,14 @@ fn elastic_energy_neo_hookean(
     );
 }
 
-fn elastic_energy_inviscid_by_invariant(bulk_modulus: f32, exponent: f32, invariant_3: f32) -> f32 {
-    let at_rest = bulk_modulus * (1. - 1. / (1. - exponent));
-    return bulk_modulus * (invariant_3 - pow(invariant_3, 1. - exponent) / (1. - exponent)) - at_rest;
+fn elastic_energy_inviscid_by_invariant(bulk_modulus: f32, exponent: i32, invariant_3: f32) -> f32 {
+    let at_rest = bulk_modulus * (1. - 1. / (1. - f32(exponent)));
+    return bulk_modulus * (invariant_3 - pow(invariant_3, 1. - f32(exponent)) / (1. - f32(exponent))) - at_rest;
 }
 
 fn elastic_energy_inviscid(
     bulk_modulus: f32,
-    exponent: f32,
+    exponent: i32,
     position_gradient: mat3x3f,
 ) -> f32 {
     return elastic_energy_inviscid_by_invariant(bulk_modulus, exponent, invariant_3(position_gradient));
@@ -286,15 +290,15 @@ fn first_piola_stress_neo_hookean(
 
 fn partial_elastic_energy_inviscid_by_invariant_3(
     bulk_modulus: f32,
-    exponent: f32,
+    exponent: i32,
     invariant_3: f32,
 ) -> f32 {
-    return bulk_modulus * (1. - 1. / pow(invariant_3, exponent));
+    return bulk_modulus * (1. - 1. / pow(invariant_3, f32(exponent)));
 }
 
 fn first_piola_stress_inviscid(
     bulk_modulus: f32,
-    exponent: f32,
+    exponent: i32,
     position_gradient: mat3x3f,
 ) -> mat3x3f {
     return partial_elastic_energy_inviscid_by_invariant_3(

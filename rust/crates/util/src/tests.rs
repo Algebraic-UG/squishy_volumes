@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::T;
+use crate::{T, test_inviscid_parameters, test_lame_parameters};
 use nalgebra::{Matrix3, SVD, Vector3};
 
 use super::elastic::{
@@ -19,7 +19,7 @@ use super::elastic::{
     first_piola_stress_neo_hookean_svd, first_piola_stress_neo_hookean_svd_in_diagonal_space,
     first_piola_stress_stable_neo_hookean, first_piola_stress_stable_neo_hookean_svd,
     hessian_inviscid, hessian_neo_hookean, hessian_neo_hookean_svd, invariant_2, invariant_3,
-    lambda, mu, partial_elastic_energy_inviscid_by_invariant_3,
+    partial_elastic_energy_inviscid_by_invariant_3,
     partial_elastic_energy_neo_hookean_by_invariant_3, partial_invariant_2_by_position_gradient,
     partial_invariant_2_by_svd, partial_invariant_3_by_position_gradient,
     partial_invariant_3_by_svd, second_derivative_inviscid_svd_in_diagonal_space,
@@ -238,21 +238,6 @@ where
         }
         test(position_gradient);
     }
-}
-
-fn test_lame_parameters() -> impl Iterator<Item = [T; 2]> {
-    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
-        .into_iter()
-        .map(|[youngs_modulus, poissons_ratio]| {
-            [
-                mu(youngs_modulus, poissons_ratio),
-                lambda(youngs_modulus, poissons_ratio),
-            ]
-        })
-}
-
-fn test_inviscid_parameters() -> impl Iterator<Item = (T, i32)> {
-    [(100., 2), (1000., 2), (100., 7), (1000., 7)].into_iter()
 }
 
 #[test]

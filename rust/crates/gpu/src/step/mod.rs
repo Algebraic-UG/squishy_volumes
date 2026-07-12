@@ -12,9 +12,12 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::{Matrix4x3, Vector4};
+use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, compute_triangle_lists, triangles_to_leaf_aabbs,
 };
+
+use crate::particle_parameters::ParticleParametersDevice;
 
 use super::*;
 
@@ -74,8 +77,6 @@ pub struct VariableParticleInput {
 pub struct Input {
     pub gravity: Allocation,
     pub indirect_particles: Allocation,
-    pub particle_masses: Allocation,
-    pub particle_initial_volumes: Allocation,
     pub particle_parameters: Allocation,
 
     pub variable_particle_input: VariableParticleInput,
@@ -98,7 +99,7 @@ pub struct ColliderInputData<'a> {
 
 #[derive(Clone)]
 pub struct VariableParticleInputData<'a> {
-    pub particle_flags: &'a [particle_parameters::Flags],
+    pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_position_gradients: &'a [Matrix4x3<f32>],
     pub particle_velocities: &'a [Vector4<f32>],
@@ -108,9 +109,7 @@ pub struct VariableParticleInputData<'a> {
 #[derive(Clone)]
 pub struct InputData<'a> {
     pub gravity: Vector4<f32>,
-    pub particle_masses: &'a [f32],
-    pub particle_initial_volumes: &'a [f32],
-    pub particle_parameters: &'a [particle_parameters::Device],
+    pub particle_parameters: &'a [ParticleParameters],
 
     pub particle_goals_start: &'a [Vector4<f32>],
     pub particle_goals_end: &'a [Vector4<f32>],
@@ -274,8 +273,6 @@ impl Input {
         }: Settings,
         InputData {
             gravity,
-            particle_masses,
-            particle_initial_volumes,
             particle_parameters,
             particle_goals_start,
             particle_goals_end,
@@ -283,27 +280,28 @@ impl Input {
             collider_input,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        check_length!(particle_masses, particle_initial_volumes)?;
-        check_length!(particle_masses, particle_parameters)?;
+        check_length!(variable_particle_input.particle_flags, particle_parameters)?;
         check_length!(
-            particle_masses,
+            variable_particle_input.particle_flags,
             variable_particle_input.particle_positions_and_collider_bits
         )?;
 
         let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
-            len: particle_masses.len() as u32,
+            len: variable_particle_input.particle_flags.len() as u32,
         });
+
+        let particle_parameters = particle_parameters
+            .iter()
+            .map(Into::into)
+            .collect::<Vec<ParticleParametersDevice>>();
 
         let gravity = Allocation::new(device, "gravity", &[gravity])?;
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
-        let particle_masses = Allocation::new(device, "particle_masses", particle_masses)?;
-        let particle_initial_volumes =
-            Allocation::new(device, "particle_initial_volumes", particle_initial_volumes)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", particle_parameters)?;
+            Allocation::new(device, "particle_parameters", &particle_parameters)?;
 
         let particle_goals_start =
             Allocation::new(device, "particle_goals_start", particle_goals_start)?;
@@ -328,8 +326,6 @@ impl Input {
 
             indirect_particles,
 
-            particle_masses,
-            particle_initial_volumes,
             particle_parameters,
 
             particle_goals_start,
@@ -473,8 +469,6 @@ impl PipelinePart for Step {
         Input {
             gravity,
             indirect_particles,
-            particle_masses,
-            particle_initial_volumes,
             particle_parameters,
             particle_goals_start,
             particle_goals_end,
@@ -593,8 +587,6 @@ impl PipelinePart for Step {
             context,
             encoder,
             prepare_tmp::Input {
-                particle_masses,
-                particle_initial_volumes,
                 particle_flags,
                 particle_parameters,
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),

@@ -10,6 +10,7 @@
 mod test;
 
 use nalgebra::Vector4;
+use squishy_volumes_file_frame::ParticleFlags;
 use std::num::NonZeroU32;
 
 use super::*;
@@ -43,7 +44,7 @@ pub struct Input {
 
 pub struct InputData<'a> {
     pub gravity: Vector4<f32>,
-    pub particle_flags: &'a [particle_parameters::Flags],
+    pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_velocities: &'a [Vector4<f32>],
     pub particle_goals_start: &'a [Vector4<f32>],
@@ -108,7 +109,7 @@ impl PipelinePart for ExternalForce {
                 context,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // gravity
-                    (particle_parameters::Flags::MIN_BINDING_SIZE, false), // particle_flags
+                    (ParticleFlags::MIN_BINDING_SIZE, false),  // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_velocities
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals_start

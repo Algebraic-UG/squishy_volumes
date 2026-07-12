@@ -675,3 +675,18 @@ pub fn cauchy_stress_general_viscosity(
     2. * dynamic_viscosity * rate_of_strain(velocity_gradient)
         + bulk_viscosity * Matrix3::from_diagonal_element(velocity_divergence(velocity_gradient))
 }
+
+pub fn test_lame_parameters() -> impl Iterator<Item = [T; 2]> + Clone {
+    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
+        .into_iter()
+        .map(|[youngs_modulus, poissons_ratio]| {
+            [
+                mu(youngs_modulus, poissons_ratio).unwrap(),
+                lambda(youngs_modulus, poissons_ratio).unwrap(),
+            ]
+        })
+}
+
+pub fn test_inviscid_parameters() -> impl Iterator<Item = (T, i32)> + Clone {
+    [(100., 2), (1000., 2), (100., 7), (1000., 7)].into_iter()
+}

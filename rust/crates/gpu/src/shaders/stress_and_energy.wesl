@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, elastic_energy_neo_hookean, elastic_energy_inviscid, ParticleParameters};
+import super::util::{Indirect, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, elastic_energy_neo_hookean, elastic_energy_inviscid, ParticleParameters, IS_SOLID, IS_FLUID};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
@@ -52,21 +52,31 @@ fn main(
     let flags = particle_flags[global_index];
     let parameters = particle_parameters[global_index];
 
-    if (flags & 1) > 0 {
-        let mu = parameters.a;
-        let lambda = parameters.b;
-
-        stresses[global_index] = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
-        energies[global_index] = elastic_energy_neo_hookean(mu, lambda, position_gradient);
+    if (flags & IS_SOLID) > 0 {
+        stresses[global_index] = first_piola_stress_neo_hookean(
+            parameters.mu,
+            parameters.lambda,
+            position_gradient,
+        );
+        energies[global_index] = elastic_energy_neo_hookean(
+            parameters.mu,
+            parameters.lambda,
+            position_gradient,
+        );
         return;
     }
 
-    if (flags & 2) > 0 {
-        let exponent = parameters.a;
-        let bulk_modulus = parameters.b;
-
-        stresses[global_index] = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);
-        energies[global_index] = elastic_energy_inviscid(bulk_modulus, exponent, position_gradient);
+    if (flags & IS_FLUID) > 0 {
+        stresses[global_index] = first_piola_stress_inviscid(
+            parameters.bulk_modulus,
+            parameters.exponent,
+            position_gradient,
+        );
+        energies[global_index] = elastic_energy_inviscid(
+            parameters.bulk_modulus,
+            parameters.exponent,
+            position_gradient,
+        );
         return;
     }
 }

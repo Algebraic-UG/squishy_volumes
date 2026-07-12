@@ -9,8 +9,6 @@
 use itertools::izip;
 use nalgebra::Vector3;
 
-use crate::particle_parameters::Flags;
-
 use super::*;
 
 fn check(
@@ -37,7 +35,7 @@ fn check(
     )
     .for_each(
         |(flags, PositionAndColliderBits { position, .. }, velocity, goal_start, goal_end)| {
-            if flags.contains(Flags::HAS_GOAL) {
+            if flags.contains(ParticleFlags::HAS_GOAL) {
                 *velocity = ((goal_start * (1. - factor) + goal_end * factor).xyz() - position)
                     .push(0.)
                     / time_step;
@@ -68,10 +66,10 @@ fn simple() {
     ];
 
     let particle_flags = vec![
-        Flags::default(),
-        Flags::default(),
-        Flags::default(),
-        Flags::HAS_GOAL,
+        ParticleFlags::default(),
+        ParticleFlags::default(),
+        ParticleFlags::default(),
+        ParticleFlags::HAS_GOAL,
     ];
     let particle_goals_positions_and_collider_bits = vec![
         PositionAndColliderBits {

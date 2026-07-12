@@ -12,6 +12,9 @@ use std::num::NonZeroU32;
 mod test;
 
 use nalgebra::{Matrix4, Matrix4x3, Vector4};
+use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
+
+use crate::particle_parameters::ParticleParametersDevice;
 
 use super::*;
 
@@ -33,8 +36,6 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
-    pub particle_masses: Allocation,
-    pub particle_initial_volumes: Allocation,
     pub particle_flags: Allocation,
     pub particle_parameters: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
@@ -45,10 +46,8 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
-    pub particle_masses: &'a [f32],
-    pub particle_initial_volumes: &'a [f32],
-    pub particle_flags: &'a [particle_parameters::Flags],
-    pub particle_parameters: &'a [particle_parameters::Device],
+    pub particle_flags: &'a [ParticleFlags],
+    pub particle_parameters: &'a [ParticleParameters],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_position_gradients: &'a [Matrix4x3<f32>],
     pub particle_velocities: &'a [Vector4<f32>],
@@ -59,8 +58,6 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         InputData {
-            particle_masses,
-            particle_initial_volumes,
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -69,20 +66,18 @@ impl Input {
             particle_velocity_gradients,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        check_length!(particle_masses, particle_initial_volumes)?;
-        check_length!(particle_masses, particle_flags)?;
-        check_length!(particle_masses, particle_parameters)?;
-        check_length!(particle_masses, particle_positions_and_collider_bits)?;
-        check_length!(particle_masses, particle_position_gradients)?;
-        check_length!(particle_masses, particle_velocities)?;
-        check_length!(particle_masses, particle_velocity_gradients)?;
+        check_length!(particle_flags, particle_parameters)?;
+        check_length!(particle_flags, particle_positions_and_collider_bits)?;
+        check_length!(particle_flags, particle_position_gradients)?;
+        check_length!(particle_flags, particle_velocities)?;
+        check_length!(particle_flags, particle_velocity_gradients)?;
 
-        let particle_masses = Allocation::new(device, "particle_masses", particle_masses)?;
-        let particle_initial_volumes =
-            Allocation::new(device, "particle_initial_volumes", particle_initial_volumes)?;
+        let particle_parameters: Vec<ParticleParametersDevice> =
+            particle_parameters.iter().map(Into::into).collect();
+
         let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", particle_parameters)?;
+            Allocation::new(device, "particle_parameters", &particle_parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -102,8 +97,6 @@ impl Input {
         )?;
 
         Ok(Self {
-            particle_masses,
-            particle_initial_volumes,
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -138,10 +131,8 @@ impl PipelinePart for PrepareTmp {
             CompiledModuleSettings {
                 context,
                 bind_group_entries: [
-                    (f32::MIN_BINDING_SIZE, false),                         // masses
-                    (f32::MIN_BINDING_SIZE, false),                         // initial_volumes
-                    (particle_parameters::Flags::MIN_BINDING_SIZE, false),  // flags
-                    (particle_parameters::Device::MIN_BINDING_SIZE, false), // parameters
+                    (ParticleFlags::MIN_BINDING_SIZE, false),            // flags
+                    (ParticleParametersDevice::MIN_BINDING_SIZE, false), // parameters
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),        // position_gradients
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // velocities
@@ -169,8 +160,6 @@ impl PipelinePart for PrepareTmp {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            particle_masses,
-            particle_initial_volumes,
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -180,7 +169,7 @@ impl PipelinePart for PrepareTmp {
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
-        let num_particles = particle_masses.len::<f32>();
+        let num_particles = particle_flags.len::<ParticleFlags>();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
@@ -197,8 +186,6 @@ impl PipelinePart for PrepareTmp {
                 encoder,
                 &self.prepare_tmp,
                 [
-                    particle_masses.binding(),
-                    particle_initial_volumes.binding(),
                     particle_flags.binding(),
                     particle_parameters.binding(),
                     particle_positions_and_collider_bits.binding(),

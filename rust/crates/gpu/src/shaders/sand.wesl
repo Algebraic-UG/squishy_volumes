@@ -50,14 +50,10 @@ fn main(
         return;
     }
 
-    let mu = parameters.a;
-    let lambda = parameters.b;
-    let sand_alpha = parameters.e;
-
     particle_position_gradients[global_index] = sand_plasticity(
-        mu,
-        lambda,
-        sand_alpha,
+        parameters.mu,
+        parameters.lambda,
+        parameters.sand_alpha,
         particle_position_gradients[global_index],
     );
 }

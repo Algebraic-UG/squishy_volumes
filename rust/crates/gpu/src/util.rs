@@ -12,6 +12,7 @@ use itertools::izip;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use rustc_hash::FxHashMap;
+use squishy_volumes_file_frame::SpecificParticleParameters;
 use squishy_volumes_mesh_util::{
     DistanceResult, Triangle, distance_to_triangle, segment_distance_result,
 };
@@ -214,9 +215,7 @@ pub fn prepare_tmp_on_cpu(
     grid_node_size: f32,
     time_step: f32,
     prepare_tmp::InputData {
-        particle_masses,
-        particle_initial_volumes,
-        particle_flags,
+        particle_flags: _,
         particle_parameters,
         particle_positions_and_collider_bits,
         particle_position_gradients,
@@ -224,13 +223,9 @@ pub fn prepare_tmp_on_cpu(
         particle_velocity_gradients,
     }: prepare_tmp::InputData,
 ) -> Vec<Matrix4<f32>> {
-    use particle_parameters::{Fluid, Host, Solid};
     let scaling = time_step * 4. / (grid_node_size * grid_node_size);
 
     izip!(
-        particle_masses,
-        particle_initial_volumes,
-        particle_flags,
         particle_parameters,
         particle_positions_and_collider_bits,
         particle_position_gradients,
@@ -239,9 +234,6 @@ pub fn prepare_tmp_on_cpu(
     )
     .map(
         |(
-            mass,
-            initial_volume,
-            flags,
             paramters,
             position_and_collider_bits,
             position_gradient,
@@ -250,30 +242,28 @@ pub fn prepare_tmp_on_cpu(
         )|
          -> Matrix4<f32> {
             let position_gradient: Matrix3<f32> = position_gradient.fixed_view::<3, 3>(0, 0).into();
-            let stress = match Host::from((*flags, *paramters)) {
-                Host::Solid(Solid {
+            let stress = match paramters.specific {
+                SpecificParticleParameters::Solid {
                     mu,
                     lambda,
-                    viscosity: _,  // TODO
                     sand_alpha: _, // TODO
-                }) => first_piola_stress_neo_hookean(mu, lambda, &position_gradient),
-                Host::Fluid(Fluid {
+                } => first_piola_stress_neo_hookean(mu, lambda, &position_gradient),
+                SpecificParticleParameters::Fluid {
                     exponent,
                     bulk_modulus,
-                    viscosity: _, // TODO
-                }) => first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
+                } => first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
             };
 
-            let matrix_part = velocity_gradient.fixed_view::<3, 3>(0, 0) * *mass
-                - stress * position_gradient.transpose() * scaling * *initial_volume;
-            let vector_part = velocity.xyz() * *mass;
+            let matrix_part = velocity_gradient.fixed_view::<3, 3>(0, 0) * paramters.mass
+                - stress * position_gradient.transpose() * scaling * paramters.initial_volume;
+            let vector_part = velocity.xyz() * paramters.mass;
             let position_part = position_and_collider_bits.position / grid_node_size;
 
             Matrix4::from_columns(&[
                 matrix_part.column(0).push(position_part.x),
                 matrix_part.column(1).push(position_part.y),
                 matrix_part.column(2).push(position_part.z),
-                vector_part.push(*mass),
+                vector_part.push(paramters.mass),
             ])
         },
     )

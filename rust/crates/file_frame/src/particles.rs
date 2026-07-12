@@ -31,6 +31,26 @@ bitflags::bitflags! {
     }
 }
 
+impl From<&ParticleParameters> for ParticleFlags {
+    fn from(value: &ParticleParameters) -> Self {
+        (if value.viscosity.is_some() {
+            Self::USE_VISCOSITY
+        } else {
+            Self::default()
+        }) | match value.specific {
+            SpecificParticleParameters::Solid { sand_alpha, .. } => {
+                Self::IS_SOLID
+                    | if sand_alpha.is_some() {
+                        Self::USE_SAND_ALPHA
+                    } else {
+                        Self::default()
+                    }
+            }
+            SpecificParticleParameters::Fluid { .. } => Self::IS_FLUID,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct ViscosityParameters {
     pub dynamic: f32,

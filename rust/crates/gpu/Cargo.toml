@@ -21,7 +21,6 @@ pollster.workspace = true
 bytemuck.workspace = true
 rand.workspace = true
 env_logger.workspace = true
-bitflags.workspace = true
 num.workspace = true
 iter_enumeration.workspace = true
 rustc-hash.workspace = true
@@ -32,5 +31,8 @@ lazy_static = "1.5.0"
 murmur3 = "0.5.2"
 approx = "0.5.1"
 
+squishy_volumes_xpu.path = "../xpu"
+squishy_volumes_file_input.path = "../file_input"
+squishy_volumes_file_frame.path = "../file_frame"
 squishy_volumes_mesh_util.path = "../mesh_util"
 squishy_volumes_util.path = "../util"

@@ -12,6 +12,9 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Matrix4x3;
+use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
+
+use crate::particle_parameters::ParticleParametersDevice;
 
 use super::*;
 
@@ -38,15 +41,19 @@ pub struct Input {
 impl Input {
     pub fn new(
         device: &wgpu::Device,
-        particle_flags: &[particle_parameters::Flags],
-        particle_parameters: &[particle_parameters::Device],
+        particle_flags: &[ParticleFlags],
+        particle_parameters: &[ParticleParameters],
         particle_position_gradients: &[Matrix4x3<f32>],
     ) -> Result<Self, GpuError> {
         check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_position_gradients)?;
+        let particle_parameters = particle_parameters
+            .iter()
+            .map(Into::into)
+            .collect::<Vec<ParticleParametersDevice>>();
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", particle_parameters)?;
+            Allocation::new(device, "particle_parameters", &particle_parameters)?;
         let particle_position_gradients = Allocation::new(
             device,
             "particle_position_gradients",
@@ -81,8 +88,8 @@ impl PipelinePart for Sand {
             CompiledModuleSettings {
                 context,
                 bind_group_entries: [
-                    (particle_parameters::Flags::MIN_BINDING_SIZE, false),
-                    (particle_parameters::Device::MIN_BINDING_SIZE, false),
+                    (ParticleFlags::MIN_BINDING_SIZE, false),
+                    (ParticleParametersDevice::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
@@ -109,19 +116,17 @@ impl PipelinePart for Sand {
         _: Parameters,
     ) -> Result<Output, GpuError> {
         assert_eq!(
-            particle_flags.len::<particle_parameters::Flags>(),
-            particle_parameters.len::<particle_parameters::Device>(),
+            particle_flags.len::<ParticleFlags>(),
+            particle_parameters.len::<ParticleParametersDevice>(),
         );
         assert_eq!(
-            particle_flags.len::<particle_parameters::Flags>(),
+            particle_flags.len::<ParticleFlags>(),
             particle_position_gradients.len::<Matrix4x3<f32>>()
         );
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
-            len: particle_parameters
-                .len::<particle_parameters::Device>()
-                .get() as u32,
+            len: particle_parameters.len::<ParticleParametersDevice>().get() as u32,
         })
         .direct();
 

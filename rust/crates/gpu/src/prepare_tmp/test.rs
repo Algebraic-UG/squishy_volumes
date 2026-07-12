@@ -8,11 +8,11 @@
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
+use squishy_volumes_file_frame::SpecificParticleParameters;
 use squishy_volumes_util::{lambda, mu};
 
-use crate::{
-    particle_parameters::{Flags, Host, Solid},
-    test_data::{test_inviscid_parameters, test_lame_parameters, test_position_gradients_random},
+use crate::test_data::{
+    test_inviscid_parameters, test_lame_parameters, test_position_gradients_random,
 };
 
 use super::*;
@@ -46,16 +46,17 @@ fn test_single_undeformed() {
     check(
         settings,
         InputData {
-            particle_masses: &[1.],
-            particle_initial_volumes: &[1.],
-            particle_flags: &[Flags::IS_SOLID],
-            particle_parameters: &[(&Host::Solid(Solid {
-                mu: mu(1000., 0.3),
-                lambda: lambda(1000., 0.3),
+            particle_flags: &[ParticleFlags::IS_SOLID],
+            particle_parameters: &[ParticleParameters {
+                mass: 1.,
+                initial_volume: 1.,
                 viscosity: None,
-                sand_alpha: None,
-            }))
-                .into()],
+                specific: SpecificParticleParameters::Solid {
+                    mu: mu(1000., 0.3).unwrap(),
+                    lambda: lambda(1000., 0.3).unwrap(),
+                    sand_alpha: None,
+                },
+            }],
             particle_positions_and_collider_bits: &[PositionAndColliderBits {
                 position: Vector3::zeros(),
                 collider_bits: 0,
@@ -97,23 +98,17 @@ fn test_many_random_props() {
         .collect::<Vec<_>>();
 
     let mut rng = ChaCha8Rng::seed_from_u64(42);
-    let masses = (0..n)
-        .map(|_| rng.random_range(0.01..0.05))
-        .collect::<Vec<_>>();
-    let initial_volumes = (0..n)
-        .map(|_| rng.random_range(0.01..0.05))
-        .collect::<Vec<_>>();
 
-    let particle_parameters_host = test_lame_parameters()
-        .chain(test_inviscid_parameters())
+    let particle_parameters = test_lame_parameters(&mut rng)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .chain(test_inviscid_parameters(&mut rng))
+        .collect::<Vec<_>>()
+        .into_iter()
         .cycle()
         .take(n)
         .collect::<Vec<_>>();
-    let particle_flags = particle_parameters_host
-        .iter()
-        .map(Into::into)
-        .collect::<Vec<_>>();
-    let particle_parameters = particle_parameters_host
+    let particle_flags = particle_parameters
         .iter()
         .map(Into::into)
         .collect::<Vec<_>>();
@@ -155,8 +150,6 @@ fn test_many_random_props() {
     check(
         settings,
         InputData {
-            particle_masses: &masses,
-            particle_initial_volumes: &initial_volumes,
             particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,

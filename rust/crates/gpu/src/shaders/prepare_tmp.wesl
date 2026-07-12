@@ -10,33 +10,27 @@ import super::util::{PositionAndColliderBits, get_global_index, first_piola_stre
 import super::sand::sand_plasticity;
 
 @group(0) @binding(0)
-var<storage, read_write> masses: array<f32>;
-
-@group(0) @binding(1)
-var<storage, read_write> initial_volumes: array<f32>;
-
-@group(0) @binding(2)
 var<storage, read_write> flags: array<u32>;
 
-@group(0) @binding(3)
+@group(0) @binding(1)
 var<storage, read_write> parameters: array<ParticleParameters>;
 
-@group(0) @binding(4)
+@group(0) @binding(2)
 var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
 
-@group(0) @binding(5)
+@group(0) @binding(3)
 var<storage, read_write> position_gradients: array<mat3x3f>;
 
-@group(0) @binding(6)
+@group(0) @binding(4)
 var<storage, read_write> velocities: array<vec3f>;
 
-@group(0) @binding(7)
+@group(0) @binding(5)
 var<storage, read_write> velocity_gradients: array<mat3x3f>;
 
-@group(0) @binding(8)
+@group(0) @binding(6)
 var<storage, read_write> tmp: array<mat4x4f>;
 
-@group(0) @binding(9)
+@group(0) @binding(7)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -60,12 +54,10 @@ fn main(
     if global_index == 0 {
         set_shader_id();
     }
-    if global_index >= arrayLength(&masses) {
+    if global_index >= arrayLength(&flags) {
         return;
     }
 
-    let mass = masses[global_index];
-    let initial_volume = initial_volumes[global_index];
     let flag = flags[global_index];
     let parameter = parameters[global_index];
     let position: vec3f = positions_and_collider_bits[global_index].position;
@@ -75,30 +67,30 @@ fn main(
 
     var stress = mat3x3f();
     if (flag & IS_SOLID) > 0 {
-        let mu = parameter.a;
-        let lambda = parameter.b;
         if (flag & USE_SAND_ALPHA) > 0 {
-            let sand_alpha = parameter.e;
-            position_gradient = sand_plasticity(mu, lambda, sand_alpha, position_gradient);
+            position_gradient = sand_plasticity(
+                parameter.mu,
+                parameter.lambda,
+                parameter.sand_alpha,
+                position_gradient,
+            );
             position_gradients[global_index] = position_gradient;
         }
 
-        stress = first_piola_stress_neo_hookean(mu, lambda, position_gradient);
+        stress = first_piola_stress_neo_hookean(parameter.mu, parameter.lambda, position_gradient);
     }
     if (flag & IS_FLUID) > 0 {
-        let exponent = parameter.a;
-        let bulk_modulus = parameter.b;
-        stress = first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient);
+        stress = first_piola_stress_inviscid(parameter.bulk_modulus, parameter.exponent, position_gradient);
     }
 
-    let matrix_part = velocity_gradient * mass - stress * transpose(position_gradient) * scaling * initial_volume;
-    let vector_part = velocity * mass;
+    let matrix_part = velocity_gradient * parameter.mass - stress * transpose(position_gradient) * scaling * parameter.initial_volume;
+    let vector_part = velocity * parameter.mass;
 
     tmp[global_index] = mat4x4f(
         vec4f(matrix_part[0], position.x / GRID_NODE_SIZE),
         vec4f(matrix_part[1], position.y / GRID_NODE_SIZE),
         vec4f(matrix_part[2], position.z / GRID_NODE_SIZE),
-        vec4f(vector_part, mass),
+        vec4f(vector_part, parameter.mass),
     );
 }
 

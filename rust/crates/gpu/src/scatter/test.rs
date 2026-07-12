@@ -112,23 +112,17 @@ fn test_many_random_props() {
         .collect::<Vec<_>>();
 
     let mut rng = ChaCha8Rng::seed_from_u64(42);
-    let masses = (0..n)
-        .map(|_| rng.random_range(0.01..0.05))
-        .collect::<Vec<_>>();
-    let initial_volumes = (0..n)
-        .map(|_| rng.random_range(0.01..0.05))
-        .collect::<Vec<_>>();
 
-    let particle_parameters_host = test_lame_parameters()
-        .chain(test_inviscid_parameters())
+    let particle_parameters = test_lame_parameters(&mut rng)
+        .collect::<Vec<_>>()
+        .into_iter()
+        .chain(test_inviscid_parameters(&mut rng))
+        .collect::<Vec<_>>()
+        .into_iter()
         .cycle()
         .take(n)
         .collect::<Vec<_>>();
-    let particle_flags = particle_parameters_host
-        .iter()
-        .map(Into::into)
-        .collect::<Vec<_>>();
-    let particle_parameters = particle_parameters_host
+    let particle_flags = particle_parameters
         .iter()
         .map(Into::into)
         .collect::<Vec<_>>();
@@ -175,8 +169,6 @@ fn test_many_random_props() {
         grid_node_size,
         time_step,
         prepare_tmp::InputData {
-            particle_masses: &masses,
-            particle_initial_volumes: &initial_volumes,
             particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,

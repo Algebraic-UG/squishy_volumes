@@ -12,6 +12,9 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Matrix4x3;
+use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
+
+use crate::particle_parameters::ParticleParametersDevice;
 
 use super::*;
 
@@ -38,8 +41,8 @@ impl Input {
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
         position_gradients: &[Matrix4x3<f32>],
-        particle_flags: &[particle_parameters::Flags],
-        particle_parameters: &[particle_parameters::Device],
+        particle_flags: &[ParticleFlags],
+        particle_parameters: &[ParticleParameters],
     ) -> Result<Self, GpuError> {
         check_length!(position_gradients, particle_parameters)?;
         let indirect = Indirect::new(DispatchSettings {
@@ -47,11 +50,16 @@ impl Input {
             dispatch_limit,
             len: position_gradients.len() as u32,
         });
+        let particle_parameters = particle_parameters
+            .iter()
+            .map(Into::into)
+            .collect::<Vec<ParticleParametersDevice>>();
+
         let indirect = Allocation::new(device, "indirect", &[indirect])?;
         let position_gradients = Allocation::new(device, "position_gradients", position_gradients)?;
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", particle_parameters)?;
+            Allocation::new(device, "particle_parameters", &particle_parameters)?;
 
         Ok(Self {
             indirect,
@@ -81,8 +89,8 @@ impl PipelinePart for Elastic {
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
-                    (particle_parameters::Flags::MIN_BINDING_SIZE, false),
-                    (particle_parameters::Device::MIN_BINDING_SIZE, false),
+                    (ParticleFlags::MIN_BINDING_SIZE, false),
+                    (ParticleParametersDevice::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
                 ],

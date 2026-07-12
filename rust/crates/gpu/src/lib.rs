@@ -17,12 +17,15 @@ mod compiled_module;
 mod context;
 mod download;
 mod error;
+//mod gpu_state;
 mod indirect;
 mod pipeline_part;
 mod profiler_output;
 mod status;
 mod svd;
 mod util;
+
+//pub use gpu_state::GpuState;
 
 pub mod test_data;
 
