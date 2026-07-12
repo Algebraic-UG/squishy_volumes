@@ -56,6 +56,9 @@ impl CpuState {
             profile!("prepare");
             self.grid_nodes
                 .contributors
+                .drain(self.grid_nodes.map.len()..);
+            self.grid_nodes
+                .contributors
                 .par_iter_mut()
                 .for_each(|v| v.get_mut().unwrap().clear());
             for _ in self.grid_nodes.contributors.len()..self.grid_nodes.map.len() {
