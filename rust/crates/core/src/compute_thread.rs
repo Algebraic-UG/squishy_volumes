@@ -90,8 +90,7 @@ impl ComputeThread {
                 };
                 harness.check()?;
 
-                let mut frame_input =
-                    FrameInput::new(consts.clone(), input_reader, next_frame - 1)?;
+                let mut frame_input = FrameInput::new(input_reader, next_frame - 1)?;
 
                 enum ComputeState {
                     Cpu(CpuState),

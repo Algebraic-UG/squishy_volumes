@@ -41,10 +41,19 @@ pub enum StateInitializationError {
 
     #[error("Failed to read input for state initialization: {0}")]
     InpuError(#[from] squishy_volumes_file_input::InputError),
+
+    #[error("'{name}': missing input for {attribute}")]
+    MissingInput {
+        name: String,
+        attribute: &'static str,
+    },
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone, Copy)]
 pub enum ParticleInvalid {
+    #[error("This setup requires some input for {attribute}")]
+    MissingInput { attribute: &'static str },
+
     #[error("Some flags are set that are not know: {0:b}")]
     UnknownFlagsSet(u32),
 
@@ -53,6 +62,22 @@ pub enum ParticleInvalid {
 
     #[error("Energy error: {0}")]
     EnergyError(#[from] squishy_volumes_util::EnergyError),
+}
+
+macro_rules! object_missing_input {
+    ($name:expr, $attribute:expr) => {
+        $attribute.ok_or(StateInitializationError::MissingInput {
+            name: $name.clone(),
+            attribute: stringify!($attribute),
+        })
+    };
+}
+macro_rules! particle_missing_input {
+    ($name:expr) => {
+        $name.as_ref().ok_or(ParticleInvalid::MissingInput {
+            attribute: stringify!($name),
+        })
+    };
 }
 
 pub fn initialize_io_state(
@@ -114,6 +139,34 @@ pub fn initialize_io_state(
             return Err(StateInitializationError::ObjectTypeMismatch(name.clone()));
         };
 
+        let squishy_volumes_file_input::ParticlesInput {
+            flags: input_flags,
+            transforms: input_transforms,
+            sizes: input_sizes,
+            densities: input_densities,
+            youngs_moduluses: input_youngs_moduluses,
+            poissons_ratios: input_poissons_ratios,
+            initial_positions: input_initial_positions,
+            initial_velocities: input_initial_velocities,
+            viscosities_dynamic: input_viscosities_dynamic,
+            viscosities_bulk: input_viscosities_bulk,
+            exponents: input_exponents,
+            bulk_moduluses: input_bulk_moduluses,
+            sand_alphas: input_sand_alphas,
+            goal_positions: _,
+        } = input;
+        let input_transforms = object_missing_input!(name, input_transforms)?;
+        let input_sizes = object_missing_input!(name, input_sizes)?;
+        let input_densities = object_missing_input!(name, input_densities)?;
+
+        let input_youngs_moduluses = particle_missing_input!(input_youngs_moduluses);
+        let input_poissons_ratios = particle_missing_input!(input_poissons_ratios);
+        let input_viscosities_dynamic = particle_missing_input!(input_viscosities_dynamic);
+        let input_viscosities_bulk = particle_missing_input!(input_viscosities_bulk);
+        let input_exponents = particle_missing_input!(input_exponents);
+        let input_bulk_moduluses = particle_missing_input!(input_bulk_moduluses);
+        let input_sand_alphas = particle_missing_input!(input_sand_alphas);
+
         let squishy_volumes_file_frame::Particles {
             flags,
             parameters,
@@ -127,13 +180,13 @@ pub fn initialize_io_state(
         } = &mut io_state.particles;
 
         flags.as_mut_slice()[particle_range.clone()]
-            .copy_from_slice(bytemuck::cast_slice(&input.flags));
+            .copy_from_slice(bytemuck::cast_slice(&input_flags));
         for (particle_index, parameters) in parameters.as_mut_slice()[particle_range.clone()]
             .iter_mut()
             .enumerate()
         {
             (|| {
-                let flags = input.flags[particle_index];
+                let flags = input_flags[particle_index];
                 let flags = ParticleFlags::from_bits(flags)
                     .ok_or(ParticleInvalid::UnknownFlagsSet(flags))?;
                 if !(flags.contains(ParticleFlags::IS_SOLID)
@@ -143,29 +196,32 @@ pub fn initialize_io_state(
                 }
 
                 parameters.initial_volume =
-                    (input_header.consts.simulation_scale * input.sizes[particle_index]).powi(3);
-                parameters.mass = parameters.initial_volume * input.densities[particle_index];
-                parameters.viscosity =
-                    flags
-                        .contains(ParticleFlags::USE_VISCOSITY)
-                        .then(|| ViscosityParameters {
-                            dynamic: input.viscosities_dynamic[particle_index],
-                            bulk: input.viscosities_bulk[particle_index],
-                        });
+                    (input_header.consts.simulation_scale * input_sizes[particle_index]).powi(3);
+                parameters.mass = parameters.initial_volume * input_densities[particle_index];
+                parameters.viscosity = flags
+                    .contains(ParticleFlags::USE_VISCOSITY)
+                    .then(|| {
+                        Ok::<ViscosityParameters, ParticleInvalid>(ViscosityParameters {
+                            dynamic: input_viscosities_dynamic?[particle_index],
+                            bulk: input_viscosities_bulk?[particle_index],
+                        })
+                    })
+                    .transpose()?;
 
                 parameters.specific = if flags.contains(ParticleFlags::IS_SOLID) {
-                    let youngs_modulus = input.youngs_moduluses[particle_index];
-                    let poisson_ratio = input.poissons_ratios[particle_index];
+                    let youngs_modulus = input_youngs_moduluses?[particle_index];
+                    let poisson_ratio = input_poissons_ratios?[particle_index];
                     SpecificParticleParameters::Solid {
                         mu: mu(youngs_modulus, poisson_ratio)?,
                         lambda: lambda(youngs_modulus, poisson_ratio)?,
                         sand_alpha: flags
                             .contains(ParticleFlags::USE_SAND_ALPHA)
-                            .then(|| input.sand_alphas[particle_index]),
+                            .then(|| Ok::<f32, ParticleInvalid>(input_sand_alphas?[particle_index]))
+                            .transpose()?,
                     }
                 } else {
-                    let exponent = input.exponents[particle_index] as i32;
-                    let bulk_modulus = input.bulk_moduluses[particle_index];
+                    let exponent = input_exponents?[particle_index] as i32;
+                    let bulk_modulus = input_bulk_moduluses?[particle_index];
                     exponent_in_bounds(exponent)?;
                     bulk_modulus_in_bounds(bulk_modulus)?;
                     SpecificParticleParameters::Fluid {
@@ -186,7 +242,7 @@ pub fn initialize_io_state(
         positions.as_mut_slice()[particle_range.clone()]
             .iter_mut()
             .zip(position_gradients.as_mut_slice()[particle_range.clone()].iter_mut())
-            .zip(input.transforms)
+            .zip(input_transforms)
             .for_each(|((position, position_gradient), transform)| {
                 *position_gradient = [
                     [transform[0][0], transform[0][1], transform[0][2]], //
@@ -196,11 +252,14 @@ pub fn initialize_io_state(
                 *position = [transform[3][0], transform[3][1], transform[3][2]];
             });
 
-        velocities.as_mut_slice()[particle_range.clone()]
-            .copy_from_slice(&input.initial_velocities);
-
-        initial_positions.as_mut_slice()[particle_range.clone()]
-            .copy_from_slice(&input.initial_positions);
+        if let Some(input_initial_velocities) = input_initial_velocities {
+            velocities.as_mut_slice()[particle_range.clone()]
+                .copy_from_slice(&input_initial_velocities);
+        }
+        if let Some(input_initial_positions) = input_initial_positions {
+            initial_positions.as_mut_slice()[particle_range.clone()]
+                .copy_from_slice(&input_initial_positions);
+        }
 
         harness.step()?;
     }

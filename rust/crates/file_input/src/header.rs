@@ -97,38 +97,60 @@ pub enum InputRange {
 
 #[derive(Clone, Debug, Default)]
 pub struct InputRanges {
+    pub total_particles: usize,
+    pub total_vertices: usize,
+    pub total_triangles: usize,
     pub objects: std::collections::BTreeMap<String, InputRange>,
 }
 
 impl InputRanges {
     pub fn new(objects: &std::collections::BTreeMap<String, InputObject>) -> Self {
-        let mut particle_offset = 0;
-        let mut vertex_offset = 0;
-        let mut triangle_offset = 0;
         objects
             .iter()
-            .fold(Self::default(), |mut ranges, (name, object)| {
+            .fold(Self::default(), |mut result, (name, object)| {
                 let range = match object {
                     InputObject::Particles { num_particles } => {
-                        particle_offset += num_particles;
+                        result.total_particles += num_particles;
                         InputRange::Particles {
-                            particle_range: particle_offset - num_particles..particle_offset,
+                            particle_range: result.total_particles - num_particles
+                                ..result.total_particles,
                         }
                     }
                     InputObject::Collider {
                         num_vertices,
                         num_triangles,
                     } => {
-                        vertex_offset += num_vertices;
-                        triangle_offset += num_triangles;
+                        result.total_vertices += num_vertices;
+                        result.total_triangles += num_triangles;
                         InputRange::Collider {
-                            vertex_range: vertex_offset - num_vertices..vertex_offset,
-                            triangle_range: triangle_offset - num_triangles..triangle_offset,
+                            vertex_range: result.total_vertices - num_vertices
+                                ..result.total_vertices,
+                            triangle_range: result.total_triangles - num_triangles
+                                ..result.total_triangles,
                         }
                     }
                 };
-                ranges.objects.insert(name.clone(), range);
-                ranges
+                result.objects.insert(name.clone(), range);
+                result
             })
+    }
+
+    pub fn get_particle_range(
+        &self,
+        name: &str,
+    ) -> Result<std::ops::Range<usize>, crate::ObjectError> {
+        if let InputRange::Particles { particle_range } =
+            self.objects
+                .get(name)
+                .ok_or(crate::ObjectError::ObjectNotInHeader {
+                    name: name.to_string(),
+                })?
+        {
+            Ok(particle_range.clone())
+        } else {
+            Err(crate::ObjectError::ObjectChangedType {
+                name: name.to_string(),
+            })
+        }
     }
 }

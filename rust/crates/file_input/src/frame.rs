@@ -9,19 +9,19 @@
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Default)]
 pub struct ParticlesInput {
     pub flags: Vec<u32>,
-    pub transforms: Vec<[[f32; 4]; 4]>,
-    pub sizes: Vec<f32>,
-    pub densities: Vec<f32>,
-    pub youngs_moduluses: Vec<f32>,
-    pub poissons_ratios: Vec<f32>,
-    pub initial_positions: Vec<[f32; 3]>,
-    pub initial_velocities: Vec<[f32; 3]>,
-    pub viscosities_dynamic: Vec<f32>,
-    pub viscosities_bulk: Vec<f32>,
-    pub exponents: Vec<u32>,
-    pub bulk_moduluses: Vec<f32>,
-    pub sand_alphas: Vec<f32>,
-    pub goal_positions: Vec<[f32; 3]>,
+    pub transforms: Option<Vec<[[f32; 4]; 4]>>,
+    pub sizes: Option<Vec<f32>>,
+    pub densities: Option<Vec<f32>>,
+    pub youngs_moduluses: Option<Vec<f32>>,
+    pub poissons_ratios: Option<Vec<f32>>,
+    pub initial_positions: Option<Vec<[f32; 3]>>,
+    pub initial_velocities: Option<Vec<[f32; 3]>>,
+    pub viscosities_dynamic: Option<Vec<f32>>,
+    pub viscosities_bulk: Option<Vec<f32>>,
+    pub exponents: Option<Vec<u32>>,
+    pub bulk_moduluses: Option<Vec<f32>>,
+    pub sand_alphas: Option<Vec<f32>>,
+    pub goal_positions: Option<Vec<[f32; 3]>>,
 }
 
 #[cfg(test)]
@@ -30,19 +30,19 @@ impl ParticlesInput {
         use rand::RngExt as _;
         Self {
             flags: rng.random_iter().take(n).collect(),
-            transforms: rng.random_iter().take(n).collect(),
-            sizes: rng.random_iter().take(n).collect(),
-            densities: rng.random_iter().take(n).collect(),
-            youngs_moduluses: rng.random_iter().take(n).collect(),
-            poissons_ratios: rng.random_iter().take(n).collect(),
-            initial_positions: rng.random_iter().take(n).collect(),
-            initial_velocities: rng.random_iter().take(n).collect(),
-            viscosities_dynamic: rng.random_iter().take(n).collect(),
-            viscosities_bulk: rng.random_iter().take(n).collect(),
-            exponents: rng.random_iter().take(n).collect(),
-            bulk_moduluses: rng.random_iter().take(n).collect(),
-            sand_alphas: rng.random_iter().take(n).collect(),
-            goal_positions: rng.random_iter().take(n).collect(),
+            transforms: Some(rng.random_iter().take(n).collect()),
+            sizes: Some(rng.random_iter().take(n).collect()),
+            densities: Some(rng.random_iter().take(n).collect()),
+            youngs_moduluses: Some(rng.random_iter().take(n).collect()),
+            poissons_ratios: Some(rng.random_iter().take(n).collect()),
+            initial_positions: Some(rng.random_iter().take(n).collect()),
+            initial_velocities: Some(rng.random_iter().take(n).collect()),
+            viscosities_dynamic: Some(rng.random_iter().take(n).collect()),
+            viscosities_bulk: Some(rng.random_iter().take(n).collect()),
+            exponents: Some(rng.random_iter().take(n).collect()),
+            bulk_moduluses: Some(rng.random_iter().take(n).collect()),
+            sand_alphas: Some(rng.random_iter().take(n).collect()),
+            goal_positions: Some(rng.random_iter().take(n).collect()),
         }
     }
 }
@@ -92,22 +92,24 @@ impl InputFrame {
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
         for name in self.particles_inputs.keys() {
             if !matches!(
-                header.objects.get(name).ok_or(
-                    crate::FrameVerifcationError::ObjectNotInHeader { name: name.clone() }
-                )?,
+                header
+                    .objects
+                    .get(name)
+                    .ok_or(crate::ObjectError::ObjectNotInHeader { name: name.clone() })?,
                 crate::InputObject::Particles { .. }
             ) {
-                return Err(crate::FrameVerifcationError::ObjectChangedType { name: name.clone() });
+                Err(crate::ObjectError::ObjectChangedType { name: name.clone() })?;
             }
         }
         for name in self.collider_inputs.keys() {
             if !matches!(
-                header.objects.get(name).ok_or(
-                    crate::FrameVerifcationError::ObjectNotInHeader { name: name.clone() }
-                )?,
+                header
+                    .objects
+                    .get(name)
+                    .ok_or(crate::ObjectError::ObjectNotInHeader { name: name.clone() })?,
                 crate::InputObject::Collider { .. }
             ) {
-                return Err(crate::FrameVerifcationError::ObjectChangedType { name: name.clone() });
+                Err(crate::ObjectError::ObjectChangedType { name: name.clone() })?;
             }
         }
 
@@ -134,19 +136,45 @@ impl InputFrame {
                         continue;
                     };
                     check_length!(name, *num_particles, flags)?;
-                    check_length!(name, *num_particles, transforms)?;
-                    check_length!(name, *num_particles, sizes)?;
-                    check_length!(name, *num_particles, densities)?;
-                    check_length!(name, *num_particles, youngs_moduluses)?;
-                    check_length!(name, *num_particles, poissons_ratios)?;
-                    check_length!(name, *num_particles, initial_positions)?;
-                    check_length!(name, *num_particles, initial_velocities)?;
-                    check_length!(name, *num_particles, viscosities_bulk)?;
-                    check_length!(name, *num_particles, viscosities_dynamic)?;
-                    check_length!(name, *num_particles, exponents)?;
-                    check_length!(name, *num_particles, bulk_moduluses)?;
-                    check_length!(name, *num_particles, sand_alphas)?;
-                    check_length!(name, *num_particles, goal_positions)?;
+                    if let Some(transforms) = transforms {
+                        check_length!(name, *num_particles, transforms)?;
+                    }
+                    if let Some(sizes) = sizes {
+                        check_length!(name, *num_particles, sizes)?;
+                    }
+                    if let Some(densities) = densities {
+                        check_length!(name, *num_particles, densities)?;
+                    }
+                    if let Some(youngs_moduluses) = youngs_moduluses {
+                        check_length!(name, *num_particles, youngs_moduluses)?;
+                    }
+                    if let Some(poissons_ratios) = poissons_ratios {
+                        check_length!(name, *num_particles, poissons_ratios)?;
+                    }
+                    if let Some(initial_positions) = initial_positions {
+                        check_length!(name, *num_particles, initial_positions)?;
+                    }
+                    if let Some(initial_velocities) = initial_velocities {
+                        check_length!(name, *num_particles, initial_velocities)?;
+                    }
+                    if let Some(viscosities_bulk) = viscosities_bulk {
+                        check_length!(name, *num_particles, viscosities_bulk)?;
+                    }
+                    if let Some(viscosities_dynamic) = viscosities_dynamic {
+                        check_length!(name, *num_particles, viscosities_dynamic)?;
+                    }
+                    if let Some(exponents) = exponents {
+                        check_length!(name, *num_particles, exponents)?;
+                    }
+                    if let Some(bulk_moduluses) = bulk_moduluses {
+                        check_length!(name, *num_particles, bulk_moduluses)?;
+                    }
+                    if let Some(sand_alphas) = sand_alphas {
+                        check_length!(name, *num_particles, sand_alphas)?;
+                    }
+                    if let Some(goal_positions) = goal_positions {
+                        check_length!(name, *num_particles, goal_positions)?;
+                    }
                 }
                 crate::InputObject::Collider {
                     num_vertices,

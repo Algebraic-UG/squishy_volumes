@@ -23,12 +23,16 @@ pub enum FrameInputError {
 
     #[error("Something is wrong with the mesh inputs: {0}")]
     MeshError(#[from] squishy_volumes_mesh_util::Error),
+
+    #[error("Object error: {0}")]
+    ObjectError(#[from] squishy_volumes_file_input::ObjectError),
 }
 
 pub struct FrameInput {
     frame: usize,
 
     consts: squishy_volumes_file_input::InputConsts,
+    input_ranges: squishy_volumes_file_input::InputRanges,
 
     input_reader: squishy_volumes_file_input::InputReader,
 
@@ -58,6 +62,7 @@ pub struct InputInterpolationPoint {
 impl InputInterpolationPoint {
     fn new(
         consts: &squishy_volumes_file_input::InputConsts,
+        input_ranges: &squishy_volumes_file_input::InputRanges,
         frame: usize,
         squishy_volumes_file_input::InputFrame {
             gravity,
@@ -67,23 +72,32 @@ impl InputInterpolationPoint {
     ) -> Result<Self, FrameInputError> {
         let gravity = nalgebra::Vector3::from(gravity);
 
-        let mut particle_flags: Vec<squishy_volumes_file_frame::ParticleFlags> = Default::default();
-        let mut particle_goal_positions: Vec<nalgebra::Vector3<f32>> = Default::default();
+        let mut particle_flags: Vec<squishy_volumes_file_frame::ParticleFlags> =
+            vec![Default::default(); input_ranges.total_particles];
+        let mut particle_goal_positions: Vec<nalgebra::Vector3<f32>> =
+            vec![Default::default(); input_ranges.total_particles];
         for (name, input) in particles_inputs.into_iter() {
-            if !input.goal_positions.is_empty() && input.flags.len() != input.goal_positions.len() {
-                tracing::error!(
-                    flags_len = input.flags.len(),
-                    goal_positions_len = input.goal_positions.len()
-                );
-                return Err(FrameInputError::AttributeLengthMismatch {
-                    name,
-                    attribute_a: "Particle Flags".to_string(),
-                    attribute_b: "Particle Goal Positions".to_string(),
-                });
-            }
+            let particle_range = input_ranges.get_particle_range(&name)?;
 
-            particle_flags.extend_from_slice(bytemuck::cast_slice(&input.flags));
-            particle_goal_positions.extend_from_slice(bytemuck::cast_slice(&input.goal_positions));
+            particle_flags.as_mut_slice()[particle_range.clone()]
+                .copy_from_slice(bytemuck::cast_slice(&input.flags));
+
+            if let Some(goal_positions) = input.goal_positions {
+                if input.flags.len() != goal_positions.len() {
+                    tracing::error!(
+                        flags_len = input.flags.len(),
+                        goal_positions_len = goal_positions.len()
+                    );
+                    return Err(FrameInputError::AttributeLengthMismatch {
+                        name,
+                        attribute_a: "Particle Flags".to_string(),
+                        attribute_b: "Particle Goal Positions".to_string(),
+                    });
+                }
+
+                particle_goal_positions.as_mut_slice()[particle_range.clone()]
+                    .copy_from_slice(bytemuck::cast_slice(&goal_positions));
+            }
         }
 
         let mut vertex_positions: Vec<nalgebra::Vector3<f32>> = Default::default();
@@ -131,10 +145,13 @@ impl InputInterpolationPoint {
 
 impl FrameInput {
     pub fn new(
-        consts: squishy_volumes_file_input::InputConsts,
         mut input_reader: squishy_volumes_file_input::InputReader,
         frame: usize,
     ) -> Result<Self, FrameInputError> {
+        let input_header = input_reader.read_header()?;
+        let consts = input_header.consts;
+        let input_ranges = squishy_volumes_file_input::InputRanges::new(&input_header.objects);
+
         let topology = squishy_volumes_mesh_util::Topology::new(
             input_reader
                 .read_frame(0)?
@@ -153,7 +170,14 @@ impl FrameInput {
 
         let mut a = Default::default();
         let mut b = Default::default();
-        load_points(&mut input_reader, &mut a, &mut b, &consts, frame)?;
+        load_points(
+            &mut input_reader,
+            &mut a,
+            &mut b,
+            &consts,
+            &input_ranges,
+            frame,
+        )?;
         let a = a.expect("a missing");
 
         let bvh = update_bvh(&consts, &topology, &a, b.as_ref());
@@ -161,6 +185,7 @@ impl FrameInput {
         Ok(Self {
             frame,
             consts,
+            input_ranges,
             input_reader,
             topology,
             bvh,
@@ -183,6 +208,7 @@ impl FrameInput {
             &mut a,
             &mut self.b,
             &self.consts,
+            &self.input_ranges,
             frame,
         )?;
         self.a = a.expect("a missing");
@@ -237,6 +263,7 @@ fn load_points(
     a: &mut Option<InputInterpolationPoint>,
     b: &mut Option<InputInterpolationPoint>,
     consts: &squishy_volumes_file_input::InputConsts,
+    input_ranges: &squishy_volumes_file_input::InputRanges,
     frame: usize,
 ) -> Result<(), FrameInputError> {
     let max_frame = input_reader.len() - 1;
@@ -257,7 +284,12 @@ fn load_points(
         *a = Some(b);
     } else {
         let input_frame = input_reader.read_frame(frame)?;
-        *a = Some(InputInterpolationPoint::new(consts, frame, input_frame)?);
+        *a = Some(InputInterpolationPoint::new(
+            consts,
+            input_ranges,
+            frame,
+            input_frame,
+        )?);
     }
 
     // might skip b
@@ -268,7 +300,12 @@ fn load_points(
     // load b
     let frame = frame + 1;
     let input_frame = input_reader.read_frame(frame)?;
-    *b = Some(InputInterpolationPoint::new(consts, frame, input_frame)?);
+    *b = Some(InputInterpolationPoint::new(
+        consts,
+        input_ranges,
+        frame,
+        input_frame,
+    )?);
 
     Ok(())
 }

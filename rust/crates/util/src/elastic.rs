@@ -12,7 +12,7 @@ use crate::{
 use nalgebra::{Matrix3, Vector3, stack};
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone, Copy)]
 pub enum EnergyError {
     #[error("Young's Modulus is negative: {0}")]
     YoungsModulusOutOfBounds(T),

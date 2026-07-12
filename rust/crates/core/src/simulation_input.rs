@@ -174,42 +174,45 @@ impl SimulationInputImpl {
                             });
                         }
                         FrameBulkParticles::Transforms => {
-                            ps.transforms = bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec()
+                            ps.transforms =
+                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
                         }
-                        FrameBulkParticles::Sizes => ps.sizes = bulk.as_floats()?.to_vec(),
-                        FrameBulkParticles::Densities => ps.densities = bulk.as_floats()?.to_vec(),
+                        FrameBulkParticles::Sizes => ps.sizes = Some(bulk.as_floats()?.to_vec()),
+                        FrameBulkParticles::Densities => {
+                            ps.densities = Some(bulk.as_floats()?.to_vec())
+                        }
                         FrameBulkParticles::YoungsModuluses => {
-                            ps.youngs_moduluses = bulk.as_floats()?.to_vec()
+                            ps.youngs_moduluses = Some(bulk.as_floats()?.to_vec())
                         }
                         FrameBulkParticles::PoissonsRatios => {
-                            ps.poissons_ratios = bulk.as_floats()?.to_vec()
+                            ps.poissons_ratios = Some(bulk.as_floats()?.to_vec())
                         }
                         FrameBulkParticles::InitialPositions => {
                             ps.initial_positions =
-                                bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec()
+                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
                         }
                         FrameBulkParticles::InitialVelocity => {
                             ps.initial_velocities =
-                                bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec()
+                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
                         }
                         FrameBulkParticles::ViscosityDynamic => {
-                            ps.viscosities_dynamic = bulk.as_floats()?.to_vec()
+                            ps.viscosities_dynamic = Some(bulk.as_floats()?.to_vec())
                         }
                         FrameBulkParticles::ViscosityBulk => {
-                            ps.viscosities_bulk = bulk.as_floats()?.to_vec()
+                            ps.viscosities_bulk = Some(bulk.as_floats()?.to_vec())
                         }
                         FrameBulkParticles::Exponent => {
-                            ps.exponents = bytemuck::try_cast_slice(bulk.as_ints()?)?.to_vec()
+                            ps.exponents = Some(bytemuck::try_cast_slice(bulk.as_ints()?)?.to_vec())
                         }
                         FrameBulkParticles::BulkModulus => {
-                            ps.bulk_moduluses = bulk.as_floats()?.to_vec()
+                            ps.bulk_moduluses = Some(bulk.as_floats()?.to_vec())
                         }
                         FrameBulkParticles::SandAlpha => {
-                            ps.sand_alphas = bulk.as_floats()?.to_vec()
+                            ps.sand_alphas = Some(bulk.as_floats()?.to_vec())
                         }
                         FrameBulkParticles::GoalPositions => {
                             ps.goal_positions =
-                                bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec()
+                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
                         }
                     }
                 }

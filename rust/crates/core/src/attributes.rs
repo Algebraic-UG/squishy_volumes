@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{InputHeader, InputRange, InputRanges};
+use squishy_volumes_file_input::{InputHeader, InputRange, InputRanges, ObjectError};
 use std::iter::empty;
 use thiserror::Error;
 
@@ -16,10 +16,8 @@ use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Error, Debug)]
 pub enum AttributeError {
-    #[error("The object is missing: {0}")]
-    ObjectMissing(String),
-    #[error("The object's type doesn't match: {0}")]
-    ObjectTypeMismatch(String),
+    #[error("Object error: {0}")]
+    ObjectError(#[from] ObjectError),
     #[error("This is not a float attribute: {0}")]
     NotFloatAttribute(String),
     #[error("This is not a int attribute: {0}")]
@@ -98,14 +96,7 @@ pub fn fetch_flat_attribute_f32(
             _ => Err(AttributeError::NotFloatAttribute(format!("{attribute:?}")))?,
         },
         Attribute::Object { name, attribute } => {
-            let InputRange::Particles { particle_range } = input_ranges
-                .objects
-                .get(name)
-                .ok_or(AttributeError::ObjectMissing(name.clone()))?
-                .clone()
-            else {
-                return Err(AttributeError::ObjectTypeMismatch(name.clone()));
-            };
+            let particle_range = input_ranges.get_particle_range(name)?;
 
             match attribute {
                 AttributeParticles::Masses => io_state.particles.parameters.as_slice()
@@ -196,14 +187,8 @@ pub fn fetch_flat_attribute_i32(
             _ => Err(AttributeError::NotIntAttribute(format!("{attribute:?}")))?,
         },
         Attribute::Object { name, attribute } => {
-            let InputRange::Particles { particle_range } = input_ranges
-                .objects
-                .get(name)
-                .ok_or(AttributeError::ObjectMissing(name.clone()))?
-                .clone()
-            else {
-                return Err(AttributeError::ObjectTypeMismatch(name.clone()));
-            };
+            let particle_range = input_ranges.get_particle_range(name)?;
+
             match attribute {
                 AttributeParticles::Flags => {
                     bytemuck::cast_slice(&io_state.particles.flags.as_slice()[particle_range])

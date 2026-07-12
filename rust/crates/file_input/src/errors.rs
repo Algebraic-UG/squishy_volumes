@@ -50,6 +50,12 @@ pub enum FrameVerifcationError {
         "'{0}': Missing collider input, note that collider must be present in all input frames"
     )]
     ColliderInputMissing(String),
+    #[error("Object error: {0}")]
+    ObjectError(#[from] ObjectError),
+}
+
+#[derive(Error, Debug)]
+pub enum ObjectError {
     #[error("'{name}': Changed to/from Particles/Collider")]
     ObjectChangedType { name: String },
     #[error("'{name}': Was not declared in input header")]
