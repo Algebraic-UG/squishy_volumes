@@ -150,7 +150,12 @@ impl SimulationInputImpl {
                             if ps.flags.is_empty() {
                                 ps.flags.resize(slice.len(), Default::default());
                             } else {
-                                if ps.flags.len() == bulk.len() {
+                                if ps.flags.len() != bulk.len() {
+                                    tracing::error!(
+                                        before = ps.flags.len(),
+                                        after = bulk.len(),
+                                        "Falgs' length has changed"
+                                    );
                                     return Err(InputBulkError::FlagsLengthChanged);
                                 }
                             }
