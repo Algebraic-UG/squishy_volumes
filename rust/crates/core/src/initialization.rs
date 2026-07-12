@@ -264,5 +264,7 @@ pub fn initialize_io_state(
         harness.step()?;
     }
 
+    io_state.grid_nodes = Some(Default::default());
+
     Ok(io_state)
 }
