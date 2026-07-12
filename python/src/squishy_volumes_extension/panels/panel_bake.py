@@ -224,10 +224,10 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
 
         if sim.progress is not None:
             for info in sim.progress:
-                name = info["name"]
+                name = info["label"]
                 completed_steps = info["completed_steps"]
                 steps_to_completion = info["steps_to_completion"]
-                layout.progress(
+                self.layout.progress(
                     text=f"{name}: {completed_steps}/{steps_to_completion}",
                     factor=completed_steps / steps_to_completion,
                 )

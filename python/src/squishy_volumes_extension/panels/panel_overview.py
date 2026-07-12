@@ -253,10 +253,11 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 progress_text = f"{simulation.name}: "
                 factor = 0.0
                 if sim is not None:
-                    if sim.progress:
-                        progress_text += sim.progress["name"]
-                        completed_steps = sim.progress["completed_steps"]
-                        steps_to_completion = sim.progress["steps_to_completion"]
+                    if sim.progress is not None and sim.progress:
+                        progress = sim.progress[0]
+                        progress_text += progress["label"]
+                        completed_steps = progress["completed_steps"]
+                        steps_to_completion = progress["steps_to_completion"]
                         progress_text += f" {completed_steps}/{steps_to_completion}"
                         factor = completed_steps / steps_to_completion
                     else:
