@@ -19,14 +19,10 @@
 # types of outputs
 GRID = "GRID"
 PARTICLES = "PARTICLES"
-COLLIDER_SAMPLES = "COLLIDER_SAMPLES"
-INPUT_MESH = "INPUT_MESH"
 
 OUTPUT_TYPES = [
     GRID,
     PARTICLES,
-    COLLIDER_SAMPLES,
-    INPUT_MESH,
 ]
 
 
@@ -35,13 +31,12 @@ SQUISHY_VOLUMES_INSTANCE_COLOR = "squishy_volumes_instance_color"
 SQUISHY_VOLUMES_ELASTIC_ENERGY = "squishy_volumes_elastic_energy"
 SQUISHY_VOLUMES_SIZE = "squishy_volumes_size"
 SQUISHY_VOLUMES_TRANSFORM = "squishy_volumes_transform"
-SQUISHY_VOLUMES_COLLIDER_BITS_A = "squishy_volumes_collider_bits_a"
-SQUISHY_VOLUMES_COLLIDER_BITS_B = "squishy_volumes_collider_bits_b"
+SQUISHY_VOLUMES_COLLIDER_BITS = "squishy_volumes_collider_bits"
 SQUISHY_VOLUMES_INITIAL_POSITION = "squishy_volumes_initial_position"
 SQUISHY_VOLUMES_VELOCITY = "squishy_volumes_velocity"
 SQUISHY_VOLUMES_DISTANCE = "squishy_volumes_distance"
 SQUISHY_VOLUMES_NORMAL = "squishy_volumes_normal"
-SQUISHY_VOLUMES_STATE = "squishy_volumes_state"
+SQUISHY_VOLUMES_FLAGS = "squishy_volumes_flags"
 SQUISHY_VOLUMES_MASS = "squishy_volumes_mass"
 SQUISHY_VOLUMES_PRESSURE = "squishy_volumes_pressure"
 SQUISHY_VOLUMES_REFERENCE_INDEX = "squishy_volumes_reference_index"

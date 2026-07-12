@@ -27,9 +27,7 @@ from ..util import copy_simple_property_group, frame_to_load
 
 from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
-    COLLIDER_SAMPLES,
     GRID,
-    INPUT_MESH,
     PARTICLES,
     OUTPUT_TYPES,
 )
@@ -243,8 +241,6 @@ each frame."""
     def draw_object_attributes(self):
         assert isinstance(self.layout, bpy.types.UILayout)
         output_type = self.output_type  # ty:ignore[unresolved-attribute]
-        if output_type == INPUT_MESH:
-            return
 
         box = self.layout.box()
         box.label(text="These attributes will be loaded each frame.")
@@ -263,8 +259,8 @@ each frame."""
             grid.prop(self, "grid_velocities")
             grid.label(text="FLOAT_VECTOR")
         if output_type == PARTICLES:
-            grid.prop(self, "particle_states")
-            grid.label(text="FLOAT")
+            grid.prop(self, "particle_flags")
+            grid.label(text="INT")
             grid.prop(self, "particle_masses")
             grid.label(text="FLOAT")
             grid.prop(self, "particle_initial_volumes")
@@ -281,11 +277,6 @@ each frame."""
             grid.label(text="FLOAT")
             grid.prop(self, "particle_collider_bits")
             grid.label(text="FLOAT")
-        if output_type == COLLIDER_SAMPLES:
-            grid.prop(self, "collider_normals")
-            grid.label(text="FLOAT_VECTOR")
-            grid.prop(self, "collider_velocities")
-            grid.label(text="FLOAT_VECTOR")
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)

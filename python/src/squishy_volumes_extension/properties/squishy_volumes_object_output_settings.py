@@ -20,10 +20,9 @@ import bpy
 
 from ..magic_consts import (
     SQUISHY_VOLUMES_ELASTIC_ENERGY,
-    SQUISHY_VOLUMES_STATE,
+    SQUISHY_VOLUMES_FLAGS,
     SQUISHY_VOLUMES_TRANSFORM,
-    SQUISHY_VOLUMES_COLLIDER_BITS_A,
-    SQUISHY_VOLUMES_COLLIDER_BITS_B,
+    SQUISHY_VOLUMES_COLLIDER_BITS,
     SQUISHY_VOLUMES_INITIAL_POSITION,
     SQUISHY_VOLUMES_VELOCITY,
     SQUISHY_VOLUMES_DISTANCE,
@@ -42,7 +41,7 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.grid_masses = value
     optional_attributes.grid_velocities = value
 
-    optional_attributes.particle_states = value
+    optional_attributes.particle_flags = value
     optional_attributes.particle_masses = value
     optional_attributes.particle_initial_volumes = value
     optional_attributes.particle_initial_positions = value
@@ -77,7 +76,7 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
 
     grid_collider_bits: bpy.props.BoolProperty(
         name="Collider Bits",
-        description=f"Attribute names: {SQUISHY_VOLUMES_COLLIDER_BITS_A}, {SQUISHY_VOLUMES_COLLIDER_BITS_B}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_BITS}",
         default=True,
         options=set(),
     )  # type: ignore
@@ -110,9 +109,9 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
-    particle_states: bpy.props.BoolProperty(
-        name="States",
-        description=f"Attribute name: {SQUISHY_VOLUMES_STATE}",
+    particle_flags: bpy.props.BoolProperty(
+        name="Flags",
+        description=f"Attribute name: {SQUISHY_VOLUMES_FLAGS}",
         default=False,
         options=set(),
     )  # type: ignore
@@ -168,7 +167,7 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
 
     particle_collider_bits: bpy.props.BoolProperty(
         name="Collider Bits",
-        description=f"Attribute names: {SQUISHY_VOLUMES_COLLIDER_BITS_A}, {SQUISHY_VOLUMES_COLLIDER_BITS_B}",
+        description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_BITS}",
         default=True,
         options=set(),
     )  # type: ignore

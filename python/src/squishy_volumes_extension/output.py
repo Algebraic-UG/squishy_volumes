@@ -29,16 +29,13 @@ from .magic_consts import (
     SQUISHY_VOLUMES_MASS,
     SQUISHY_VOLUMES_NORMAL,
     SQUISHY_VOLUMES_PRESSURE,
-    SQUISHY_VOLUMES_STATE,
+    SQUISHY_VOLUMES_FLAGS,
     SQUISHY_VOLUMES_TRANSFORM,
     SQUISHY_VOLUMES_VELOCITY,
-    COLLIDER_SAMPLES,
     PARTICLES,
     GRID,
-    INPUT_MESH,
     SQUISHY_VOLUMES_SIZE,
-    SQUISHY_VOLUMES_COLLIDER_BITS_A,
-    SQUISHY_VOLUMES_COLLIDER_BITS_B,
+    SQUISHY_VOLUMES_COLLIDER_BITS,
 )
 
 from .nodes import (
@@ -58,9 +55,6 @@ from .bridge import Simulation
 
 def create_default_visualization(obj, uuid):
     output_type = obj.squishy_volumes_object.output_settings.output_type
-    if output_type == INPUT_MESH:
-        return
-
     modifier = obj.modifiers.new("Squishy Volumes Default Visualization", type="NODES")
 
     if output_type == GRID:
@@ -71,9 +65,6 @@ def create_default_visualization(obj, uuid):
         modifier["Socket_12"] = bpy.data.objects.get(
             obj.squishy_volumes_object.output_settings.input_name
         )
-    if output_type == COLLIDER_SAMPLES:
-        modifier.node_group = create_geometry_nodes_surface_samples()
-
     add_drivers(uuid, modifier)
 
 
@@ -94,152 +85,122 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
 def sync_output(sim: Simulation, obj: bpy.types.Object, num_colliders: int, frame: int):
     output_settings = obj.squishy_volumes_object.output_settings  # ty:ignore[unresolved-attribute]
 
-    if output_settings.output_type == INPUT_MESH:
-        raise RuntimeError("Not implemented yet")
-
     if output_settings.output_type == GRID:
-        ffa = lambda attribute: sim.fetch_flat_attribute(
+        ffa_f32 = lambda attribute: sim.fetch_flat_attribute_f32(
+            frame=frame,
+            attribute={"Grid": attribute},
+        )
+        ffa_i32 = lambda attribute: sim.fetch_flat_attribute_i32(
             frame=frame,
             attribute={"Grid": attribute},
         )
 
-        fill_mesh_with_positions(obj.data, ffa("Positions"))
+        fill_mesh_with_positions(obj.data, ffa_f32("Positions"))
         if output_settings.grid_collider_bits:
             add_attribute(
                 obj.data,
-                ffa("ColliderBitsA"),
-                SQUISHY_VOLUMES_COLLIDER_BITS_A,
-                "FLOAT",
-            )
-            add_attribute(
-                obj.data,
-                ffa("ColliderBitsB"),
-                SQUISHY_VOLUMES_COLLIDER_BITS_B,
-                "FLOAT",
+                ffa_i32("ColliderBits"),
+                SQUISHY_VOLUMES_COLLIDER_BITS,
+                "INT",
             )
 
         if output_settings.grid_masses:
             add_attribute(
                 obj.data,
-                ffa("Masses"),
+                ffa_f32("Masses"),
                 SQUISHY_VOLUMES_MASS,
                 "FLOAT",
             )
         if output_settings.grid_velocities:
             add_attribute(
                 obj.data,
-                ffa("Velocities"),
+                ffa_f32("Velocities"),
                 SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
 
     if output_settings.output_type == PARTICLES:
         # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: sim.fetch_flat_attribute(
+        ffa_f32 = lambda attribute: sim.fetch_flat_attribute_f32(
             frame=frame,
             attribute={
                 "Object": {
                     "name": output_settings.input_name,
-                    "attribute": {"Particles": attribute},
+                    "attribute": attribute,
+                }
+            },
+        )
+        ffa_i32 = lambda attribute: sim.fetch_flat_attribute_i32(
+            frame=frame,
+            attribute={
+                "Object": {
+                    "name": output_settings.input_name,
+                    "attribute": attribute,
                 }
             },
         )
 
-        fill_mesh_with_positions(obj.data, ffa("Positions"))
-        if output_settings.particle_states:
+        fill_mesh_with_positions(obj.data, ffa_f32("Positions"))
+        if output_settings.particle_flags:
             add_attribute(
                 obj.data,
-                ffa("States"),
-                SQUISHY_VOLUMES_STATE,
-                "FLOAT",
+                ffa_i32("States"),
+                SQUISHY_VOLUMES_FLAGS,
+                "INT",
             )
         if output_settings.particle_masses:
             add_attribute(
                 obj.data,
-                ffa("Masses"),
-                SQUISHY_VOLUMES_ELASTIC_ENERGY,
+                ffa_f32("Masses"),
+                SQUISHY_VOLUMES_MASS,
                 "FLOAT",
             )
         if output_settings.particle_initial_volumes:
             add_attribute(
                 obj.data,
-                ffa("InitialVolumes"),
+                ffa_f32("InitialVolumes"),
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
         if output_settings.particle_initial_positions:
             add_attribute(
                 obj.data,
-                ffa("InitialPositions"),
+                ffa_f32("InitialPositions"),
                 SQUISHY_VOLUMES_INITIAL_POSITION,
                 "FLOAT_VECTOR",
             )
         if output_settings.particle_velocities:
             add_attribute(
                 obj.data,
-                ffa("Velocities"),
+                ffa_f32("Velocities"),
                 SQUISHY_VOLUMES_VELOCITY,
                 "FLOAT_VECTOR",
             )
         if output_settings.particle_sizes:
             add_attribute(
                 obj.data,
-                ffa("Sizes"),
+                ffa_f32("Sizes"),
                 SQUISHY_VOLUMES_SIZE,
                 "FLOAT",
             )
         if output_settings.particle_transformations:
             add_attribute(
                 obj.data,
-                ffa("Transformations"),
+                ffa_f32("Transformations"),
                 SQUISHY_VOLUMES_TRANSFORM,
                 "FLOAT4X4",
             )
         if output_settings.particle_energies:
             add_attribute(
                 obj.data,
-                ffa("ElasticEnergies"),
+                ffa_f32("ElasticEnergies"),
                 SQUISHY_VOLUMES_ELASTIC_ENERGY,
                 "FLOAT",
             )
         if output_settings.particle_collider_bits:
             add_attribute(
                 obj.data,
-                ffa("ColliderBitsA"),
-                SQUISHY_VOLUMES_COLLIDER_BITS_A,
-                "FLOAT",
-            )
-            add_attribute(
-                obj.data,
-                ffa("ColliderBitsB"),
-                SQUISHY_VOLUMES_COLLIDER_BITS_B,
-                "FLOAT",
-            )
-
-    if output_settings.output_type == COLLIDER_SAMPLES:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa = lambda attribute: sim.fetch_flat_attribute(
-            frame=frame,
-            attribute={
-                "Object": {
-                    "name": output_settings.input_name,
-                    "attribute": {"Collider": attribute},
-                }
-            },
-        )
-
-        fill_mesh_with_positions(obj.data, ffa("Samples"))
-        if output_settings.collider_normals:
-            add_attribute(
-                obj.data,
-                ffa("SampleNormals"),
-                SQUISHY_VOLUMES_NORMAL,
-                "FLOAT_VECTOR",
-            )
-        if output_settings.collider_velocities:
-            add_attribute(
-                obj.data,
-                ffa("SampleVelocities"),
-                SQUISHY_VOLUMES_VELOCITY,
-                "FLOAT_VECTOR",
+                ffa_i32("ColliderBits"),
+                SQUISHY_VOLUMES_COLLIDER_BITS,
+                "INT",
             )

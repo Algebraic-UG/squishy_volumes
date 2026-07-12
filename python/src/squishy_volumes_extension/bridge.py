@@ -159,14 +159,23 @@ class Simulation:
         return self.handle.available_frames()
 
     @hint_at_info
-    def available_attributes(self, *, frame: int) -> list[dict[str, Any]]:
-        return [json.loads(s) for s in self.handle.available_attributes(frame=frame)]
+    def available_attributes(self) -> list[dict[str, Any]]:
+        return [json.loads(s) for s in self.handle.available_attributes()]
 
     @hint_at_info
-    def fetch_flat_attribute(
+    def fetch_flat_attribute_f32(
         self, *, frame: int, attribute: dict[str, Any]
     ) -> numpy.ndarray:
-        return self.handle.fetch_flat_attribute(
+        return self.handle.fetch_flat_attribute_f32(
+            frame=frame,
+            attribute=json.dumps(attribute),
+        )
+
+    @hint_at_info
+    def fetch_flat_attribute_i32(
+        self, *, frame: int, attribute: dict[str, Any]
+    ) -> numpy.ndarray:
+        return self.handle.fetch_flat_attribute_i32(
             frame=frame,
             attribute=json.dumps(attribute),
         )
