@@ -74,25 +74,25 @@ This is most likely only relevant to developers of other extensions.""",
 
 
 def get_confirm_bake_overwrite() -> bool:
-    return bpy.context.preferences.addons.get(
-        __package__
+    return bpy.context.preferences.addons.get(  # ty:ignore[unresolved-attribute]
+        __package__  # ty:ignore[invalid-argument-type]
     ).preferences.confirm_bake_overwrite
 
 
 def get_domain_min() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(__package__).preferences.domain_min
+    return bpy.context.preferences.addons.get(__package__).preferences.domain_min  # ty:ignore[unresolved-attribute, invalid-argument-type]
 
 
 def get_domain_max() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(__package__).preferences.domain_max
+    return bpy.context.preferences.addons.get(__package__).preferences.domain_max  # ty:ignore[unresolved-attribute, invalid-argument-type]
 
 
 def get_print_debug_info() -> bool:
-    return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info
+    return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info  # ty:ignore[unresolved-attribute, invalid-argument-type]
 
 
 def get_max_num_particles() -> int:
-    return bpy.context.preferences.addons.get(__package__).preferences.max_num_particles
+    return bpy.context.preferences.addons.get(__package__).preferences.max_num_particles  # ty:ignore[unresolved-attribute, invalid-argument-type]
 
 
 def register_preferences():

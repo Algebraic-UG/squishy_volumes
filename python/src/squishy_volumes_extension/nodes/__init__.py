@@ -21,8 +21,8 @@ import bpy
 
 from pathlib import Path
 
-from .._vendor.tree_clipper.specific_handlers import BUILT_IN_IMPORTER
-from .._vendor.tree_clipper.import_nodes import (
+from _vendor.tree_clipper.specific_handlers import BUILT_IN_IMPORTER
+from _vendor.tree_clipper.import_nodes import (
     ImportReport,
     ImportIntermediate,
     ImportParameters,
@@ -38,7 +38,7 @@ def _load_tree_clipper(
     intermediate.set_external(iter(externals))
     report = intermediate.import_all(
         ImportParameters(
-            specific_handlers=BUILT_IN_IMPORTER,
+            specific_handlers=BUILT_IN_IMPORTER,  # ty:ignore[invalid-argument-type]
             debug_prints=False,
         )
     )

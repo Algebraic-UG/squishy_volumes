@@ -82,9 +82,9 @@ def update_progress():
 
         if simulation.loaded_frame != frame_to_load(
             simulation,
-            bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
+            bpy.context.scene.frame_current,  # ty:ignore[unresolved-attribute]
         ):
-            sync_simulation(sim, simulation, bpy.context.scene.frame_current)  # ty:ignore[possibly-missing-attribute]
+            sync_simulation(sim, simulation, bpy.context.scene.frame_current)  # ty:ignore[unresolved-attribute]
 
     if should_redraw:
         force_ui_redraw()
@@ -124,11 +124,11 @@ def unregister_progress_update(*_scene):
 
 def register_progress_update_toggle():
     if unregister_progress_update not in bpy.app.handlers.render_init:
-        bpy.app.handlers.render_init.append(unregister_progress_update)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_init.append(unregister_progress_update)
     if register_progress_update not in bpy.app.handlers.render_complete:
-        bpy.app.handlers.render_complete.append(register_progress_update)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_complete.append(register_progress_update)
     if register_progress_update not in bpy.app.handlers.render_cancel:
-        bpy.app.handlers.render_cancel.append(register_progress_update)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_cancel.append(register_progress_update)
     if get_print_debug_info():
         print("Squishy Volumes progress update toggle on render registered.")
 

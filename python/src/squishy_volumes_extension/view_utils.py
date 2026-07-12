@@ -51,7 +51,7 @@ This modifier deletes vertices that are outside of the cuboid."""
             and context.active_object.type == "MESH"
         )
 
-    def invoke(self, context, _):
+    def invoke(self, context, _):  # ty:ignore[invalid-method-override]
         self.empty_name = f"{context.active_object.name} - View"
         return context.window_manager.invoke_props_dialog(self)
 
