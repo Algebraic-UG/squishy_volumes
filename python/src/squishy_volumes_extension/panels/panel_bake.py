@@ -32,15 +32,15 @@ def _start_compute(
     number_of_frames: int,
 ):
     sim.last_error = None
-    sim.start_compute(
-        time_step=simulation.time_step,
-        gpu=simulation.gpu,
-        explicit=simulation.explicit,
-        adaptive_time_steps=simulation.adaptive_time_steps,
-        next_frame=next_frame,
-        number_of_frames=number_of_frames,
-        max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
-    )
+    compute_settings = {
+        "time_step": simulation.time_step,
+        "gpu": simulation.gpu,
+        "adaptive_time_steps": simulation.adaptive_time_steps,
+        "next_frame": next_frame,
+        "number_of_frames": number_of_frames,
+        "max_bytes_on_disk": giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
+    }
+    sim.start_compute(compute_settings=compute_settings)
 
 
 class SCENE_OT_Squishy_Volumes_Bake_Initial_Frame(bpy.types.Operator):
@@ -169,18 +169,6 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
         return {"FINISHED"}
 
 
-def recursive_progress(layout, progress):
-    name = progress["name"]
-    completed_steps = progress["completed_steps"]
-    steps_to_completion = progress["steps_to_completion"]
-    layout.progress(
-        text=f"{name}: {completed_steps}/{steps_to_completion}",
-        factor=completed_steps / steps_to_completion,
-    )
-    for sub in progress["sub_tasks"]:
-        recursive_progress(layout, sub)
-
-
 class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
     bl_label = "Bake"
     bl_space_type = "VIEW_3D"
@@ -235,7 +223,14 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         )
 
         if sim.progress is not None:
-            recursive_progress(self.layout, sim.progress)
+            for info in sim.progress:
+                name = info["name"]
+                completed_steps = info["completed_steps"]
+                steps_to_completion = info["steps_to_completion"]
+                layout.progress(
+                    text=f"{name}: {completed_steps}/{steps_to_completion}",
+                    factor=completed_steps / steps_to_completion,
+                )
 
 
 classes = [

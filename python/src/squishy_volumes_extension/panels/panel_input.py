@@ -63,6 +63,19 @@ from ..nodes import (
 )
 
 
+def _start_compute(sim, simulation):
+    sim.start_compute(
+        compute_settings={
+            "time_step": simulation.time_step,
+            "gpu": simulation.gpu,
+            "adaptive_time_steps": simulation.adaptive_time_steps,
+            "next_frame": 0,
+            "number_of_frames": simulation.bake_frames,
+            "max_bytes_on_disk": giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
+        }
+    )
+
+
 class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
     def filter_items(self, context, data, property):
         return [
@@ -271,15 +284,7 @@ Note that this also discards all computed frames in the cache."""
         sim = Simulation.new()
         if simulation.immediately_start_baking:
             sim.last_error = None
-            sim.start_compute(
-                time_step=simulation.time_step,
-                gpu=simulation.gpu,
-                explicit=simulation.explicit,
-                adaptive_time_steps=simulation.adaptive_time_steps,
-                next_frame=0,
-                number_of_frames=simulation.bake_frames,
-                max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
-            )
+            _start_compute(sim, simulation)
             self.report({"INFO"}, f"Commence baking of {simulation.name}.")
 
         return {"FINISHED"}
@@ -373,15 +378,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
 
         if simulation.immediately_start_baking:
             sim.last_error = None
-            sim.start_compute(
-                time_step=simulation.time_step,
-                gpu=simulation.gpu,
-                explicit=simulation.explicit,
-                adaptive_time_steps=simulation.adaptive_time_steps,
-                next_frame=0,
-                number_of_frames=simulation.bake_frames,
-                max_bytes_on_disk=giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
-            )
+            _start_compute(sim, simulation)
             self.report({"INFO"}, f"Commence baking of {simulation.name}.")
 
         return {"FINISHED"}

@@ -307,7 +307,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 if sim is None:
                     continue
                 stats = sim.stats()
-                loaded_state = stats["loaded_state"]
+                state = stats["state"]
                 compute = stats["compute"]
                 bytes_on_disk = stats["bytes_on_disk"]
 
@@ -317,20 +317,19 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 grid.label(text="Currently used Gigabytes")
                 grid.label(text=f"{bytes_on_disk * 1e-9}")
 
-                if loaded_state is not None:
-                    total_particle_count = loaded_state["total_particle_count"]
-                    total_grid_node_count = loaded_state["total_grid_node_count"]
-                    per_object_count = loaded_state["per_object_count"]
-                    body.label(text="Loaded State Stats")
-                    box = body.box()
-                    grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
-                    grid.label(text="Total particles + samples")
-                    grid.label(text=f"{total_particle_count}")
-                    grid.label(text="Total active grid nodes")
-                    grid.label(text=f"{total_grid_node_count}")
-                    for name, count in per_object_count.items():
-                        grid.label(text=name)
-                        grid.label(text=f"{count}")
+                total_particle_count = state["total_particle_count"]
+                grid_node_count = state["grid_node_count"]
+                per_object_count = state["per_object_count"]
+                body.label(text="Loaded State Stats")
+                box = body.box()
+                grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
+                grid.label(text="Total particles")
+                grid.label(text=f"{total_particle_count}")
+                grid.label(text="Active grid nodes")
+                grid.label(text=f"{grid_node_count}")
+                for name, count in per_object_count.items():
+                    grid.label(text=name)
+                    grid.label(text=f"{count}")
 
                 if compute is not None:
                     body.label(text="Compute Stats")

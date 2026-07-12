@@ -63,9 +63,16 @@ def create_input_header(simulation):
         name = obj.name
         ty = obj.squishy_volumes_object.input_settings.input_type
         if ty == INPUT_TYPE_PARTICLES:
-            objects[name] = ty
+            objects[name] = {
+                INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}
+            }
         if ty == INPUT_TYPE_COLLIDER:
-            objects[name] = {INPUT_TYPE_COLLIDER: {"num_vertices": len(mesh.vertices)}}
+            objects[name] = {
+                INPUT_TYPE_COLLIDER: {
+                    "num_vertices": len(mesh.vertices),
+                    "num_triangles": len(mesh.loop_triangles),
+                }
+            }
 
     return {
         "consts": consts,

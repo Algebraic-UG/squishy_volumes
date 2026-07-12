@@ -144,22 +144,10 @@ class Simulation:
     def start_compute(
         self,
         *,
-        time_step: float,
-        gpu: bool,
-        explicit: bool,
-        adaptive_time_steps: bool,
-        next_frame: int,
-        number_of_frames: int,
-        max_bytes_on_disk: int,
+        compute_settings: dict[str, Any],
     ):
         self.handle.start_compute(
-            time_step=time_step,
-            gpu=gpu,
-            explicit=explicit,
-            adaptive_time_steps=adaptive_time_steps,
-            next_frame=next_frame,
-            number_of_frames=number_of_frames,
-            max_bytes_on_disk=max_bytes_on_disk,
+            compute_settings=json.dumps(compute_settings),
         )
 
     @hint_at_info
