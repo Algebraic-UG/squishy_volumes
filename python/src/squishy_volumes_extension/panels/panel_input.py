@@ -324,7 +324,7 @@ class SCENE_OT_Squishy_Volumes_Write_Input_To_Cache_Modal(bpy.types.Operator):
         context.scene.frame_set(simulation.capture_start_frame)
 
         self._timer = context.window_manager.event_timer_add(
-            time_step=0.01, window=context.window
+            time_step=0, window=context.window
         )
         context.window_manager.progress_begin(0, simulation.capture_frames)
         context.window_manager.modal_handler_add(self)
