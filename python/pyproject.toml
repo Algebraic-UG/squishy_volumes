@@ -23,5 +23,5 @@ dev = [
 vendorize = { git = "https://github.com/mwilliamson/python-vendorize.git", rev = "04d1ae6c636666ea78447134c37e41c082f15190" }
 
 [tool.vendorize]
-target = "_vendor"
+target = "src/squishy_volumes_extension/_vendor"
 packages = ["tree-clipper"]

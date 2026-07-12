@@ -21,8 +21,8 @@ import bpy
 
 from pathlib import Path
 
-from _vendor.tree_clipper.specific_handlers import BUILT_IN_IMPORTER
-from _vendor.tree_clipper.import_nodes import (
+from .._vendor.tree_clipper.specific_handlers import BUILT_IN_IMPORTER
+from .._vendor.tree_clipper.import_nodes import (
     ImportReport,
     ImportIntermediate,
     ImportParameters,
