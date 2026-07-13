@@ -8,6 +8,7 @@
 
 use rand::prelude::*;
 use rand::rngs::ChaCha8Rng;
+use squishy_volumes_xpu::Harness;
 use std::{
     mem::take,
     num::NonZeroU64,
@@ -302,13 +303,22 @@ impl GpuBuffer {
 impl GpuAllocator {
     pub fn new(
         context: &GpuContext,
+        harness: Option<&Harness>,
         size: u64,
         label: &'static str,
         scram: bool,
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, GpuError> {
         let max_buffer_size = context.adapter().limits().max_buffer_size;
         let num_buffer = size.div_ceil(max_buffer_size);
         tracing::info!(label, size, num_buffer, "creating new gpu allocator");
+        let harness = harness
+            .map(|harness| {
+                harness.scope(
+                    format!("Setting up Allocator: {label}"),
+                    (num_buffer as usize).max(1).try_into().unwrap(),
+                )
+            })
+            .transpose()?;
 
         let max_storage_buffer_binding_size =
             context.device().limits().max_storage_buffer_binding_size;
@@ -319,10 +329,19 @@ impl GpuAllocator {
             max_buffer_size,
             max_storage_buffer_binding_size,
             buffers: (0..num_buffer)
-                .map(|i| {
+                .map(|i| -> Result<GpuBuffer, GpuError> {
                     assert!(size > i * max_buffer_size);
                     let size = (size - i * max_buffer_size).min(max_buffer_size);
-                    GpuBuffer::new(context.device(), size, &format!("{label}-{i}"), scram)
+                    if let Some(harness) = harness.as_ref() {
+                        harness.check()?;
+                        harness.step()?;
+                    }
+                    Ok(GpuBuffer::new(
+                        context.device(),
+                        size,
+                        &format!("{label}-{i}"),
+                        scram,
+                    )?)
                 })
                 .collect::<Result<_, _>>()?,
         })

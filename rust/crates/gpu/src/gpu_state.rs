@@ -10,7 +10,7 @@ use std::{num::NonZeroU32, time::Duration};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::IoState;
-use squishy_volumes_xpu::FrameInput;
+use squishy_volumes_xpu::{FrameInput, Harness};
 
 use crate::{
     particle_parameters::ParticleParametersDevice,
@@ -34,11 +34,13 @@ pub const BYTES_PER_GRID_NODE: u64 = 300;
 
 impl GpuState {
     pub fn from_io_state(
+        harness: &Harness,
         frame_input: &FrameInput,
         time_step: f32,
         io_state: IoState,
     ) -> Result<Self, GpuError> {
         tracing::info!("setting up GPU state");
+        let harness = harness.scope("Setting up GPU State".to_string(), 5.try_into().unwrap())?;
 
         let time = io_state.time;
         let consts = frame_input.consts();
@@ -51,14 +53,19 @@ impl GpuState {
         tracing::info!(max_num_grid_nodes, "this is the limit for now");
 
         let mut gpu_context = GpuContext::new()?;
+        harness.check()?;
+        harness.step()?;
 
         tracing::info!("setting up GPU allocators");
         gpu_context.setup_allocator(
+            Some(&harness),
             max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE,
             "main allocator",
             false,
         )?;
         gpu_context.setup_indirect_allocator(2048, "indirect allocator", false)?;
+        harness.check()?;
+        harness.step()?;
 
         let dispatch_limit = gpu_context
             .device()
@@ -79,6 +86,8 @@ impl GpuState {
                 table_tries: 50, // TODO: make configurable?
             },
         );
+        harness.check()?;
+        harness.step()?;
 
         let device = gpu_context.device();
 
@@ -109,6 +118,8 @@ impl GpuState {
             .iter()
             .map(|p| p.push(0.))
             .collect::<Vec<_>>();
+        harness.check()?;
+        harness.step()?;
 
         tracing::info!("creating particle allocations");
 
@@ -144,6 +155,9 @@ impl GpuState {
 
         // TODO: make configurable
         let profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
+
+        harness.check()?;
+        harness.step()?;
 
         Ok(Self {
             time,

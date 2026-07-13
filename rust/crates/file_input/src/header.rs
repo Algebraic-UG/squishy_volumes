@@ -50,6 +50,10 @@ impl InputConsts {
     pub fn forget_distance(&self) -> f32 {
         self.scaled_grid_node_size() * 2.2
     }
+
+    pub fn seconds_per_frame(&self) -> f64 {
+        1. / self.frames_per_second as f64
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]

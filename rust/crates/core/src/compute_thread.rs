@@ -101,6 +101,7 @@ impl ComputeThread {
 
                 let mut compute_state = if gpu {
                     ComputeState::Gpu(GpuState::from_io_state(
+                        &harness,
                         &frame_input,
                         max_time_step,
                         io_state,

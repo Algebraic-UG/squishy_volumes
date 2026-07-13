@@ -8,6 +8,8 @@
 
 use std::{collections::BTreeMap, iter::once, num::NonZeroU32};
 
+use squishy_volumes_xpu::Harness;
+
 use crate::{
     Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
     GpuAllocatorError, GpuError, GpuStatus,
@@ -159,11 +161,12 @@ impl GpuContext {
 
     pub fn setup_allocator(
         &mut self,
+        harness: Option<&Harness>,
         size: u64,
         label: &'static str,
         scram: bool,
-    ) -> Result<(), GpuAllocatorError> {
-        self.allocator = Some(GpuAllocator::new(self, size, label, scram)?);
+    ) -> Result<(), GpuError> {
+        self.allocator = Some(GpuAllocator::new(self, harness, size, label, scram)?);
         Ok(())
     }
 
@@ -185,7 +188,7 @@ impl GpuContext {
         label: &'static str,
         scram: bool,
     ) -> Result<(), GpuError> {
-        self.indirect_allocator = Some(GpuAllocator::new(self, size, label, scram)?);
+        self.indirect_allocator = Some(GpuAllocator::new(self, None, size, label, scram)?);
         Ok(())
     }
 

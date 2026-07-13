@@ -9,7 +9,6 @@
 use std::num::NonZero;
 
 use squishy_volumes_file_frame::{IoState, ParticleFlags};
-use strum::IntoEnumIterator as _;
 
 use super::*;
 
@@ -157,8 +156,9 @@ impl CpuState {
     ) -> Result<squishy_volumes_file_frame::IoState, Error> {
         squishy_volumes_util::profile!("produce_next_state");
         let harness = harness.scope(
-            "Cpu next state".to_string(),
-            NonZero::new(Phase::iter().len()).unwrap(),
+            "Simulation Milliseconds to Next Frame".to_string(),
+            NonZero::new(((1000. * frame_input.consts().seconds_per_frame()) as usize).max(1))
+                .unwrap(),
         )?;
 
         self.adaptive_time_step_state.max_time_step = max_time_step;
@@ -183,7 +183,9 @@ impl CpuState {
             if self.phase == Default::default() {
                 self.time += self.adaptive_time_step_state.allowed_time_step() as f64;
             }
-            harness.step()?;
+            harness.step_to(
+                ((self.time % frame_input.consts().seconds_per_frame()) * 1000.) as usize,
+            )?;
         }
 
         self.to_io_state(store_grid)
