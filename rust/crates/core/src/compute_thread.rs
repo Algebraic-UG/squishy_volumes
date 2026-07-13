@@ -17,7 +17,7 @@ use std::{
 use squishy_volumes_cache::Cache;
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
 use squishy_volumes_file_input::InputReader;
-use squishy_volumes_gpu::GpuState;
+use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
 use tracing::info;
 

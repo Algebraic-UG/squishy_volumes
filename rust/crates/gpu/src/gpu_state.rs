@@ -43,15 +43,10 @@ impl GpuState {
         let time = io_state.time;
         let consts = frame_input.consts();
 
-        let max_num_grid_nodes: NonZeroU32 = if let Some(grid_nodes) = io_state.grid_nodes.as_ref()
-        {
-            (grid_nodes.collider_bits.len() as f64 * 1.1) as u32
-        } else {
-            io_state.particles.flags.len() as u32
-        }
-        .max(1000)
-        .try_into()
-        .unwrap();
+        let max_num_grid_nodes: NonZeroU32 = (io_state.particles.flags.len() as u32)
+            .max(1000)
+            .try_into()
+            .unwrap();
 
         tracing::info!(max_num_grid_nodes, "this is the limit for now");
 
@@ -539,15 +534,22 @@ impl GpuState {
 
             let node_ids = node_ids_and_collider_bits
                 .iter()
+                .take(num_grid_nodes as usize)
                 .map(|node_id_and_collider_bits| node_id_and_collider_bits.node_id.into())
                 .collect();
             let collider_bits = node_ids_and_collider_bits
                 .iter()
+                .take(num_grid_nodes as usize)
                 .map(|node_id_and_collider_bits| node_id_and_collider_bits.collider_bits)
                 .collect();
-            let masses = node_momentums.iter().map(|momentum| momentum.w).collect();
+            let masses = node_momentums
+                .iter()
+                .take(num_grid_nodes as usize)
+                .map(|momentum| momentum.w)
+                .collect();
             let velocites = node_momentums
                 .iter()
+                .take(num_grid_nodes as usize)
                 .map(|momentum| {
                     if momentum.w != 0. {
                         momentum.xyz() / momentum.w
