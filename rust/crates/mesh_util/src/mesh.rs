@@ -141,6 +141,10 @@ impl Topology {
         })
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.triangle_indices.is_empty()
+    }
+
     pub fn vertex_triangle_lists(&self) -> &[SmallVec<[u32; 8]>] {
         &self.vertex_triangle_lists
     }
