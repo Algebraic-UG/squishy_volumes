@@ -6,8 +6,6 @@ license = "MIT"
 
 [build-dependencies]
 wesl.workspace = true
-wgebra = "0.2.0"
-wgcore = "0.2.0"
 
 [dependencies]
 wesl.workspace = true
@@ -26,6 +24,10 @@ iter_enumeration.workspace = true
 rustc-hash.workspace = true
 itertools.workspace = true
 smallvec.workspace = true
+
+# for cyclonedx to add this to the sbom
+# we use a copy of the svd impl in shaders/external
+wgebra = "0.2.0"
 
 lazy_static = "1.5.0"
 murmur3 = "0.5.2"

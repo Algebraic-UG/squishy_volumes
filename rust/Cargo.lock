@@ -4104,7 +4104,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "wesl",
- "wgcore",
  "wgebra",
  "wgpu 29.0.4",
  "wgpu-profiler",
