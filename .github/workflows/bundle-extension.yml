@@ -76,11 +76,11 @@ jobs:
       # =================================================================
       - name: Build Blender extension bundles
         working-directory: python/src/squishy_volumes_extension
-        run: uv run --python 3.11 ../../../blender_ext.py build --split-platforms
+        run: uv run --python 3.13 ../../../blender_ext.py build --split-platforms
 
       - name: Generate index.json for easy updates
         working-directory: python/src/squishy_volumes_extension
-        run: uv run --python 3.11 ../../../blender_ext.py server-generate --repo-dir=./
+        run: uv run --python 3.13 ../../../blender_ext.py server-generate --repo-dir=./
 
       - uses: actions/upload-artifact@v7
         with:
