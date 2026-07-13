@@ -4,7 +4,8 @@ The Material Point Method (MPM) in Blender!
 
 Here you can download ready-to-use releases, report bugs, and get the source code.
 
-Works in Blender 4.5 or newer.
+Works in Blender 5.0 and 5.1.
+(5.2 support coming soon)
 
 ## Where to Get the Extension
 
@@ -89,24 +90,24 @@ See also [rebuild_api.sh](./scripts/rebuild_api.sh).
 
 Remove stale wheels
 ```
-rm python/wheels/*
+rm python/src/squishy_volumes_extension/wheels/*
 ```
 Build new wheel, omit `--no-default-features` for hot reloading.
 ```
 cd rust/crates/wrap
-uvx --python 3.11 maturin build --no-default-features --release --out ../../../python/wheels/
+uvx --python 3.11 maturin build --no-default-features --release --out ../../../python/src/squishy_volumes_extension/wheels/
 ```
 Update manifest to include new wheel.
 ```
 cd -
-uv run --with toml update_manifest.py
+uv run --with toml scripts/update_manifest.py
 ```
 
 ### Extension
 
 This command produces a ready-to-install ZIP file.
 ```
-cd python
+cd python/src/squishy_volumes_extension
 blender --command extension build
 ```
 
@@ -133,9 +134,10 @@ See this helpful [video](https://www.youtube.com/watch?v=zP0s1i9EXeM).
 
 ## Automatic Tests
 
-To run the tests, enable the double precision feature.
+The `step` tests is currently broken.
+See https://github.com/Algebraic-UG/squishy_volumes/issues/190
 
 ```
 cd rust
-cargo test --release --package squishy_volumes_core --features "f64"
+cargo test --release
 ```
