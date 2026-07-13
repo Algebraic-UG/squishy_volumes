@@ -6,43 +6,21 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod cache;
-
 mod api_impl;
-pub use api_impl::*;
-
+mod attributes;
 mod compute_thread;
-mod directory_lock;
-#[allow(unused)]
-mod elastic;
-mod input_file;
-pub mod kernels;
-mod math;
-mod report;
-//mod setup;
-mod input_interpolation;
-mod phase;
-mod rasterization;
-mod state;
+mod context;
+mod errors;
+mod initialization;
+mod input_bulk;
+mod simulation;
+mod simulation_input;
 mod stats;
 
-pub use report::{Report, ReportInfo};
+pub use context::*;
+pub use errors::*;
+pub use input_bulk::*;
+pub use simulation::*;
+pub use simulation_input::*;
 
-// TODO: this might be better somewhere else.
-#[macro_export]
-macro_rules! ensure_err {
-    ($cond:expr, $err:expr $(,)?) => {
-        #[allow(clippy::neg_cmp_op_on_partial_ord)]
-        if !$cond {
-            return Err($err);
-        }
-    };
-}
-#[cfg(feature = "profile")]
-use coarse_prof::profile;
-#[cfg(not(feature = "profile"))]
-macro_rules! profile {
-    ($name:expr) => {};
-}
-#[cfg(not(feature = "profile"))]
-use profile;
+pub use api_impl::*;

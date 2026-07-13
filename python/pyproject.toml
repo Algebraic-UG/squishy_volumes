@@ -1,25 +1,21 @@
 [project]
-name = "squishy-volumes"
+name = "squishy-volumes-extension"
 version = "0.0.0" # not used
-requires-python = ">=3.11"
-dependencies = []
-classifiers = ["Private :: Do Not Upload"]
-
-[dependency-groups]
-dev = [
+requires-python = ">=3.13,<3.14"
+dependencies = [
   "vendorize",
   "pip>=25.3",
   "tree-clipper==0.1.6",
+  "fake-bpy-module>=20251003",
+  "numpy==1.26.4", # should match what blender uses
 ]
+classifiers = ["Private :: Do Not Upload"]
 
 [project.optional-dependencies]
 dev = [
-  "fake-bpy-module>=20251003",
   "ruff>=0.14.10",
   "ty>=0.0.3",
-  "numpy==1.26.4", # should match what blender uses
   "requests==2.32.5",
-  "bpy==5.0.1",
 ]
 
 [tool.uv.sources]
@@ -27,5 +23,5 @@ dev = [
 vendorize = { git = "https://github.com/mwilliamson/python-vendorize.git", rev = "04d1ae6c636666ea78447134c37e41c082f15190" }
 
 [tool.vendorize]
-target = "_vendor"
+target = "src/squishy_volumes_extension/_vendor"
 packages = ["tree-clipper"]

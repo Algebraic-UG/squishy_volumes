@@ -10,9 +10,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Stats {
-    pub loaded_state: Option<StateStats>,
+    pub state: StateStats,
     pub compute: Option<ComputeStats>,
     pub bytes_on_disk: u64,
 }
@@ -20,8 +20,8 @@ pub struct Stats {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct StateStats {
     pub total_particle_count: usize,
-    pub total_grid_node_count: usize,
     pub per_object_count: BTreeMap<String, usize>,
+    pub grid_node_count: Option<usize>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

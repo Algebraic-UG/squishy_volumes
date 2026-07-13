@@ -1,0 +1,22 @@
+{
+    "tasks": [
+        {
+            "label": "Rebuild local for tests",
+            "type": "shell",
+            "command": "./scripts/rebuild_zip.sh"
+        },
+        {
+            "label": "run-python-vendor",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "python-vendorize",
+            ],
+            "problemMatcher": [],
+            "options": {
+                "cwd": "${workspaceFolder}/python"
+            }
+        }
+    ]
+}

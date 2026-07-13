@@ -13,8 +13,3 @@ mod simulation_input;
 pub use context::*;
 pub use simulation::*;
 pub use simulation_input::*;
-
-#[cfg(feature = "f64")]
-pub type T = f64;
-#[cfg(not(feature = "f64"))]
-pub type T = f32;

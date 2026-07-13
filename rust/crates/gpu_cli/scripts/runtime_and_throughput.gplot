@@ -1,0 +1,29 @@
+eos = strlen(data_file)
+if (data_file[eos-3:*] eq ".txt") {
+    name = data_file[1:eos-4]
+} else {
+    name = data_file
+}
+
+set terminal qt
+set title "Runtime and Throughput of ".data_file
+set grid
+
+set xlabel "Element count"
+set ylabel "Time (us)"
+set y2label "Throughput (Elements/ns)"
+
+set xtics rotate by -45
+set ytics nomirror
+set y2tics
+
+set key left top
+
+# Throughput in Elements/ns:
+throughput(x, t_us) = x / t_us / 1000.0
+
+plot \
+    data_file using 1:2 with linespoints lw 2 pt 7 title "Time (us)", \
+    data_file using 1:(throughput($1, $2)) axes x1y2 with linespoints lw 2 pt 5 title "Throughput (Elements/ns)"
+
+pause -1

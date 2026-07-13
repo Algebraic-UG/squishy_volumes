@@ -1,0 +1,9 @@
+[package]
+name = "squishy_volumes_directory_lock"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+tracing.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,14 @@
+{
+    "blender": {
+        "addon.buildTaskName": "run-python-vendor",
+        "additionalArguments": [
+            "--factory-startup"
+        ],
+        "environmentVariables": [
+            "RUST_BACKTRACE=full",
+        ],
+        "addonFolders": [
+            "./python/src/squishy_volumes_extension"
+        ]
+    }
+}

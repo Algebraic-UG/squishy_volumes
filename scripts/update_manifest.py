@@ -6,7 +6,7 @@ scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."
 cargo_toml_path = repo_root / "rust" / "crates" / "wrap" / "Cargo.toml"
 manifest_template_path = scripts_dir / "blender_manifest_template.toml"
-extension_dir = repo_root / "python"
+extension_dir = repo_root / "python" / "src" / "squishy_volumes_extension"
 wheels_dir = extension_dir / "wheels"
 manifest_path = extension_dir / "blender_manifest.toml"
 

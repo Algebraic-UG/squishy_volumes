@@ -10,7 +10,6 @@ use anyhow::{Context, Result};
 use numpy::PyArray1;
 use pyo3::{prelude::*, types::PyList};
 use serde_json::{from_str, to_string};
-use squishy_volumes_api::{ComputeSettings, T};
 
 use crate::hot_reloadable::{try_with_context, with_context};
 
@@ -28,6 +27,7 @@ impl Simulation {
     }
 
     #[staticmethod]
+    #[pyo3(signature = (*, uuid, directory))]
     pub fn load(uuid: String, directory: String) -> Result<Self> {
         try_with_context(move |context| {
             context.load_simulation(uuid.clone(), directory.into())?;
@@ -51,13 +51,14 @@ impl Simulation {
         })
     }
 
-    pub fn poll(&self) -> Result<Option<String>> {
+    pub fn poll(&self) -> Result<String> {
         try_with_context(|context| {
-            Ok(context
-                .get_simulation_mut(&self.0)
-                .with_context(|| format!("No simulation found for {}", self.0))?
-                .poll()?
-                .map(|task| to_string(&task).unwrap()))
+            Ok(to_string(
+                &context
+                    .get_simulation_mut(&self.0)
+                    .with_context(|| format!("No simulation found for {}", self.0))?
+                    .poll()?,
+            )?)
         })
     }
 
@@ -69,27 +70,16 @@ impl Simulation {
         })
     }
 
-    pub fn start_compute(
-        &self,
-        time_step: T,
-        explicit: bool,
-        adaptive_time_steps: bool,
-        next_frame: usize,
-        number_of_frames: usize,
-        max_bytes_on_disk: u64,
-    ) -> Result<()> {
+    #[pyo3(signature = (*, compute_settings))]
+    pub fn start_compute(&self, compute_settings: &str) -> Result<()> {
         try_with_context(|context| {
             context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
-                .start_compute(ComputeSettings {
-                    time_step,
-                    explicit,
-                    adaptive_time_steps,
-                    next_frame,
-                    number_of_frames,
-                    max_bytes_on_disk,
-                })
+                .start_compute(
+                    from_str(compute_settings)
+                        .context("Compute settings string isn't valid json")?,
+                )
         })
     }
 
@@ -98,8 +88,7 @@ impl Simulation {
             context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
-                .pause_compute();
-            Ok(())
+                .pause_compute()
         })
     }
 
@@ -111,16 +100,12 @@ impl Simulation {
         })
     }
 
-    pub fn available_attributes<'py>(
-        &self,
-        py: Python<'py>,
-        frame: usize,
-    ) -> Result<Bound<'py, PyList>> {
+    pub fn available_attributes<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>> {
         try_with_context(|context| {
             let attributes = context
                 .get_simulation(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
-                .available_attributes(frame)?
+                .available_attributes()?
                 .into_iter()
                 .map(|attribute| Ok(to_string(&attribute)?))
                 .collect::<Result<Vec<_>>>()?;
@@ -128,17 +113,37 @@ impl Simulation {
         })
     }
 
-    pub fn fetch_flat_attribute<'py>(
+    #[pyo3(signature = (*, frame, attribute))]
+    pub fn fetch_flat_attribute_f32<'py>(
         &self,
         py: Python<'py>,
         frame: usize,
         attribute: &str,
-    ) -> Result<Bound<'py, PyArray1<T>>> {
+    ) -> Result<Bound<'py, PyArray1<f32>>> {
         try_with_context(|context| {
             let flat_attribute = context
                 .get_simulation(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
-                .fetch_flat_attribute(
+                .fetch_flat_attribute_f32(
+                    frame,
+                    from_str(attribute).context("Attribute string isn't valid json")?,
+                )?;
+            Ok(PyArray1::from_vec(py, flat_attribute))
+        })
+    }
+
+    #[pyo3(signature = (*, frame, attribute))]
+    pub fn fetch_flat_attribute_i32<'py>(
+        &self,
+        py: Python<'py>,
+        frame: usize,
+        attribute: &str,
+    ) -> Result<Bound<'py, PyArray1<i32>>> {
+        try_with_context(|context| {
+            let flat_attribute = context
+                .get_simulation(&self.0)
+                .with_context(|| format!("No simulation found for {}", self.0))?
+                .fetch_flat_attribute_i32(
                     frame,
                     from_str(attribute).context("Attribute string isn't valid json")?,
                 )?;

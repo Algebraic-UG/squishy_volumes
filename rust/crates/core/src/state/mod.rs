@@ -6,26 +6,39 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use anyhow::{Result, bail};
+use nalgebra::{Matrix1x3, Matrix4x3, Vector4, stack};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, iter::once};
+use squishy_volumes_api::T;
+use squishy_volumes_gpu::{
+    Allocation, BoundingVolumeHierarchyAllocations, DispatchSettings, GpuError, Indirect,
+    PipelinePart, PositionAndColliderBits, prefix_sum_on_cpu,
+    step::{VariableParticleInput, VariableParticleInputData},
+    wgpu,
+};
+use std::{collections::BTreeMap, iter::repeat, num::NonZeroU32};
 
 use crate::{
-    input_interpolation::InterpolatedInput, phase::Phase, state::grids::GridCollider,
+    ParticleFlags,
+    phase::{Phase, PhaseInput},
+    profile,
     stats::StateStats,
 };
 
 pub mod attributes;
 pub mod grids;
 pub mod initialization;
+mod interpolated_input;
 pub mod object;
 pub mod particles;
 pub mod util;
 
 use grids::GridMomentum;
+pub use interpolated_input::InterpolatedInput;
 use object::{ObjectCollider, ObjectParticles};
 use particles::Particles;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct State {
     pub time: f64,
     pub phase: Phase,
@@ -36,11 +49,9 @@ pub struct State {
     pub collider_objects: Vec<ObjectCollider>,
 
     pub particles: Particles,
-    pub grid_momentum: GridMomentum,
-    pub grid_collider: GridCollider,
+    pub grid: GridMomentum,
 
-    pub grid_collider_momentums: Vec<GridMomentum>,
-
+    #[serde(skip)]
     pub interpolated_input: Option<InterpolatedInput>,
 }
 
@@ -50,22 +61,32 @@ pub enum ObjectIndex {
     Collider(usize),
 }
 
+pub const BYTES_PER_GRID_NODE: u64 = 300;
+
 impl State {
     pub fn time(&self) -> f64 {
         self.time
     }
 
-    pub fn grid_momentums(&self) -> impl Iterator<Item = &GridMomentum> {
-        once(&self.grid_momentum).chain(self.grid_collider_momentums.iter())
-    }
+    pub fn frame_factor(&self, phase_input: &PhaseInput) -> Result<T> {
+        let frame_time = self.time * phase_input.consts.frames_per_second as f64;
+        assert!(phase_input.next_frame != 0);
 
-    pub fn grid_momentums_mut(&mut self) -> impl Iterator<Item = &mut GridMomentum> {
-        once(&mut self.grid_momentum).chain(self.grid_collider_momentums.iter_mut())
+        if frame_time < (phase_input.next_frame - 1) as f64
+            || frame_time > phase_input.next_frame as f64
+        {
+            bail!(
+                "Mismatch between frame_time {frame_time} and next_frame {}",
+                phase_input.next_frame
+            );
+        }
+
+        Ok((frame_time % 1.) as T)
     }
 
     pub fn stats(&self) -> StateStats {
         let total_particle_count = self.particles.reverse_sort_map.len();
-        let total_grid_node_count = self.grid_momentums().map(|grid| grid.masses.len()).sum();
+        let total_grid_node_count = self.grid.map.len();
         let per_object_count = self
             .name_map
             .iter()
@@ -85,5 +106,320 @@ impl State {
             total_grid_node_count,
             per_object_count,
         }
+    }
+
+    pub fn get_variable_particle_input(
+        &self,
+        phase_input: &PhaseInput,
+        device: &wgpu::Device,
+    ) -> Result<VariableParticleInput, GpuError> {
+        tracing::info!("preparing variable particle data for transfer");
+        let particle_flags: Vec<squishy_volumes_gpu::particle_parameters::Flags> = self
+            .particles
+            .parameters
+            .iter()
+            .map(translate_particle_parameters)
+            .zip(phase_input.input_interpolation.a().particle_flags())
+            .map(|(p, input_flags)| {
+                let mut flags = (&p).into();
+                if input_flags.contains(ParticleFlags::HasGoal) {
+                    flags |= squishy_volumes_gpu::particle_parameters::Flags::HAS_GOAL;
+                }
+                flags
+            })
+            .collect();
+
+        let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = self
+            .particles
+            .positions
+            .iter()
+            .zip(&self.particles.collider_bits)
+            .map(|(&position, &collider_bits)| PositionAndColliderBits {
+                position,
+                collider_bits,
+            })
+            .collect();
+        #[allow(clippy::toplevel_ref_arg)]
+        let particle_position_gradients: Vec<Matrix4x3<f32>> = self
+            .particles
+            .position_gradients
+            .iter()
+            .map(|m| stack![m; Matrix1x3::zeros()])
+            .collect();
+        let particle_velocities: Vec<Vector4<f32>> = self
+            .particles
+            .velocities
+            .iter()
+            .map(|v| v.push(0.))
+            .collect();
+        #[allow(clippy::toplevel_ref_arg)]
+        let particle_velocity_gradients: Vec<Matrix4x3<f32>> = self
+            .particles
+            .velocity_gradients
+            .iter()
+            .map(|m| stack![m; Matrix1x3::zeros()])
+            .collect();
+
+        VariableParticleInput::new(
+            device,
+            VariableParticleInputData {
+                particle_flags: &particle_flags,
+                particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+                particle_position_gradients: &particle_position_gradients,
+                particle_velocities: &particle_velocities,
+                particle_velocity_gradients: &particle_velocity_gradients,
+            },
+        )
+    }
+
+    pub fn get_collider_input(
+        phase_input: &mut PhaseInput,
+        device: &wgpu::Device,
+    ) -> Result<Option<squishy_volumes_gpu::step::ColliderInput>, GpuError> {
+        if phase_input.input_interpolation.topology().is_empty() {
+            return Ok(None);
+        }
+
+        let a = phase_input.input_interpolation.a();
+        let b = phase_input.input_interpolation.b().unwrap_or(a);
+
+        let topology = phase_input.input_interpolation.topology();
+        let num_triangles = topology.triangle_indices().len();
+        let num_vertices = topology.vertex_triangle_lists().len();
+        tracing::info!(num_vertices, num_triangles, "preparing mesh for transfer");
+
+        let vertex_positions_start: Vec<Vector4<f32>> =
+            a.vertex_positions().iter().map(|p| p.push(0.)).collect();
+        let vertex_positions_end: Vec<Vector4<f32>> =
+            b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+
+        let vertex_triangle_lists = topology.vertex_triangle_lists();
+        let vertex_triangle_offsets = prefix_sum_on_cpu(
+            &vertex_triangle_lists
+                .iter()
+                .map(|v| v.len() as u32)
+                .collect::<Vec<_>>(),
+        );
+        let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
+            .iter()
+            .flat_map(|list| list.iter().cloned())
+            .collect();
+        if vertex_triangle_lists.is_empty() {
+            tracing::warn!("all vertices are on open edges");
+            vertex_triangle_lists.push(0);
+        }
+
+        tracing::info!("creating mesh allocations");
+        let vertex_positions_start =
+            Allocation::new(device, "vertex_positions_start", &vertex_positions_start)?;
+        let vertex_positions_end =
+            Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
+        let vertex_triangle_offsets =
+            Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
+        let vertex_triangle_lists =
+            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+
+        let triangle_indices =
+            Allocation::new(device, "triangle_indices", topology.triangle_indices())?;
+        let triangle_collider =
+            Allocation::new(device, "triangle_collider", topology.triangle_collider())?;
+        let triangle_opposites =
+            Allocation::new(device, "triangle_opposites", topology.triangle_opposites())?;
+
+        // TODO: interpolate that
+        let triangle_frictions =
+            Allocation::new(device, "triangle_frictions", a.triangle_frictions())?;
+
+        let num_bvh_levels = phase_input.input_interpolation.bvh().level();
+        let num_bvh_nodes = phase_input.input_interpolation.bvh().nodes().len();
+        tracing::info!(num_bvh_levels, num_bvh_nodes, "creating bvh allocations");
+        let bvh = BoundingVolumeHierarchyAllocations::new(
+            device,
+            phase_input.consts.leaf_size,
+            phase_input.input_interpolation.bvh(),
+        )?;
+
+        Ok(Some(squishy_volumes_gpu::step::ColliderInput {
+            vertex_positions_start,
+            vertex_positions_end,
+            vertex_triangle_offsets,
+            vertex_triangle_lists,
+            triangle_indices,
+            triangle_collider,
+            triangle_opposites,
+            triangle_frictions,
+            bvh,
+        }))
+    }
+
+    pub fn to_gpu_state(
+        &self,
+        phase_input: &mut PhaseInput,
+        mut gpu_context: squishy_volumes_gpu::GpuContext,
+    ) -> Result<GpuState, GpuError> {
+        profile!("to_gpu_state");
+
+        tracing::info!("creating GPU state");
+
+        if self.particles.sort_map.is_empty() {
+            tracing::warn!("can't setup GPU state without particles");
+            return Err(GpuError::NoParticles);
+        }
+
+        let max_num_grid_nodes: NonZeroU32 = (self.particles.sort_map.len().max(1000) as u32)
+            .try_into()
+            .unwrap();
+
+        tracing::info!("setting up GPU allocators");
+        gpu_context.setup_allocator(
+            max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE,
+            "main allocator",
+            false,
+        )?;
+        gpu_context.setup_indirect_allocator(2048, "indirect allocator", false)?;
+
+        let workgroup_size = 64.try_into().unwrap();
+        let dispatch_limit = gpu_context
+            .device()
+            .limits()
+            .max_compute_workgroups_per_dimension
+            .try_into()
+            .unwrap();
+
+        tracing::info!(workgroup_size, dispatch_limit);
+
+        tracing::info!("creating pipeline");
+        let pipeline_part = squishy_volumes_gpu::Step::new(
+            &mut gpu_context,
+            squishy_volumes_gpu::step::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size: phase_input.consts.scaled_grid_node_size(),
+                forget_distance: phase_input.consts.forget_distance(),
+                accept_distance: phase_input.consts.accept_distance(),
+                time_step: phase_input.time_step,
+                table_tries: 50,
+            },
+        );
+
+        let device = gpu_context.device();
+
+        let num_particles = self.particles.sort_map.len();
+        tracing::info!(num_particles, "preparing particles for transfer");
+        let particle_parameters: Vec<squishy_volumes_gpu::particle_parameters::Device> = self
+            .particles
+            .parameters
+            .iter()
+            .map(translate_particle_parameters)
+            .map(|p| (&p).into())
+            .collect();
+        let indirect = Indirect::new(DispatchSettings {
+            workgroup_size,
+            dispatch_limit,
+            len: num_particles as u32,
+        });
+
+        let a = phase_input.input_interpolation.a();
+        let b = phase_input.input_interpolation.b().unwrap_or(a);
+
+        let particle_goals_start = a
+            .particle_goal_positions()
+            .iter()
+            .map(|p| p.push(0.))
+            .chain(repeat(Vector4::zeros()))
+            .take(num_particles)
+            .collect::<Vec<_>>();
+        let particle_goals_end = b
+            .particle_goal_positions()
+            .iter()
+            .map(|p| p.push(0.))
+            .chain(repeat(Vector4::zeros()))
+            .take(num_particles)
+            .collect::<Vec<_>>();
+
+        tracing::info!("creating particle allocations");
+
+        // TODO: interpolate that
+        let gravity = Allocation::new(device, "gravity", &[a.gravity().push(0.)])?;
+
+        let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
+        let particle_masses = Allocation::new(device, "particle_masses", &self.particles.masses)?;
+        let particle_initial_volumes = Allocation::new(
+            device,
+            "particle_initial_volumes",
+            &self.particles.initial_volumes,
+        )?;
+        let particle_parameters =
+            Allocation::new(device, "particle_parameters", &particle_parameters)?;
+
+        let particle_goals_start =
+            Allocation::new(device, "particle_goals_start", &particle_goals_start)?;
+        let particle_goals_end =
+            Allocation::new(device, "particle_goals_end", &particle_goals_end)?;
+
+        let variable_particle_input =
+            self.get_variable_particle_input(phase_input, gpu_context.device())?;
+
+        let collider_input = Self::get_collider_input(phase_input, gpu_context.device())?;
+
+        let next_input = squishy_volumes_gpu::step::Input {
+            gravity,
+            indirect_particles,
+            particle_masses,
+            particle_initial_volumes,
+            particle_parameters,
+
+            particle_goals_start,
+            particle_goals_end,
+
+            variable_particle_input,
+
+            collider_input,
+        };
+
+        Ok(GpuState {
+            gpu_context,
+            pipeline_part,
+            next_input,
+            max_num_grid_nodes,
+        })
+    }
+}
+
+pub struct GpuState {
+    pub gpu_context: squishy_volumes_gpu::GpuContext,
+    pub pipeline_part: squishy_volumes_gpu::Step,
+    pub next_input: squishy_volumes_gpu::step::Input,
+    pub max_num_grid_nodes: NonZeroU32,
+}
+
+pub fn translate_particle_parameters(
+    p: &crate::state::particles::ParticleParameters,
+) -> squishy_volumes_gpu::particle_parameters::Host {
+    match p.clone() {
+        crate::state::particles::ParticleParameters::Solid {
+            mu,
+            lambda,
+            viscosity: _,
+            sand_alpha,
+        } => squishy_volumes_gpu::particle_parameters::Host::Solid(
+            squishy_volumes_gpu::particle_parameters::Solid {
+                mu,
+                lambda,
+                viscosity: None,
+                sand_alpha,
+            },
+        ),
+        crate::state::particles::ParticleParameters::Fluid {
+            exponent,
+            bulk_modulus,
+            viscosity: _,
+        } => squishy_volumes_gpu::particle_parameters::Host::Fluid(
+            squishy_volumes_gpu::particle_parameters::Fluid {
+                exponent,
+                bulk_modulus,
+                viscosity: None,
+            },
+        ),
     }
 }

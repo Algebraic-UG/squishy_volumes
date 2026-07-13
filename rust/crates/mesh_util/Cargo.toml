@@ -1,0 +1,19 @@
+[package]
+name = "squishy_volumes_mesh_util"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dev-dependencies]
+rand.workspace = true
+
+[dependencies]
+nalgebra.workspace = true
+thiserror.workspace = true
+rayon.workspace = true
+tracing.workspace = true
+bytemuck.workspace = true
+rustc-hash.workspace = true
+smallvec.workspace = true
+
+squishy_volumes_util.path = "../util"

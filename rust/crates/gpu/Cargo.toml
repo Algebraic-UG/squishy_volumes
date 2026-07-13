@@ -1,0 +1,40 @@
+[package]
+name = "squishy_volumes_gpu"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[build-dependencies]
+wesl.workspace = true
+
+[dependencies]
+wesl.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+nalgebra.workspace = true
+thiserror.workspace = true
+wgpu.workspace = true
+wgpu-profiler.workspace = true
+pollster.workspace = true
+bytemuck.workspace = true
+rand.workspace = true
+env_logger.workspace = true
+num.workspace = true
+iter_enumeration.workspace = true
+rustc-hash.workspace = true
+itertools.workspace = true
+smallvec.workspace = true
+
+# for cyclonedx to add this to the sbom
+# we use a copy of the svd impl in shaders/external
+wgebra = "0.2.0"
+
+lazy_static = "1.5.0"
+murmur3 = "0.5.2"
+approx = "0.5.1"
+
+squishy_volumes_xpu.path = "../xpu"
+squishy_volumes_file_input.path = "../file_input"
+squishy_volumes_file_frame.path = "../file_frame"
+squishy_volumes_mesh_util.path = "../mesh_util"
+squishy_volumes_util.path = "../util"

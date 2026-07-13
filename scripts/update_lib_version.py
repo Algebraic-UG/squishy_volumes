@@ -6,7 +6,9 @@ scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."
 wrap_dir = repo_root / "rust" / "crates" / "wrap"
 cargo_toml_path = wrap_dir / "Cargo.toml"
-python_shim_path = repo_root / "python" / "shim.py"
+python_shim_path = (
+    repo_root / "python" / "src" / "squishy_volumes_extension" / "shim.py"
+)
 rust_shim_path = wrap_dir / "src" / "shim.rs"
 
 with cargo_toml_path.open("r") as f:

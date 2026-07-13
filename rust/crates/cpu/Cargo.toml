@@ -1,0 +1,24 @@
+[package]
+name = "squishy_volumes_cpu"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+profile = [ "squishy_volumes_util/profile" ]
+
+[dependencies]
+nalgebra.workspace = true
+thiserror.workspace = true
+rayon.workspace = true
+tracing.workspace = true
+rustc-hash.workspace = true
+smallvec.workspace = true
+bytemuck.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+
+squishy_volumes_util.path = "../util"
+squishy_volumes_mesh_util.path = "../mesh_util"
+squishy_volumes_xpu.path = "../xpu"
+squishy_volumes_file_frame.path = "../file_frame"

@@ -1,0 +1,20 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "End-to-end, local",
+            "preLaunchTask": "Rebuild local for tests",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/tests/end_to_end.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--local-json",
+                "./python/index.json"
+            ]
+        }
+    ]
+}

@@ -6,10 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use serde_json::Value;
-
-use crate::T;
 
 pub trait SimulationInput {
     fn start_frame(&mut self, frame_start: Value) -> Result<()>;
@@ -20,61 +18,6 @@ pub trait SimulationInput {
 #[derive(Debug)]
 pub enum InputBulk<'a> {
     Bool(&'a [bool]),
-    Floats(&'a [T]),
+    Floats(&'a [f32]),
     Ints(&'a [i32]),
-}
-
-impl InputBulk<'_> {
-    pub fn len(&self) -> usize {
-        match self {
-            InputBulk::Bool(slice) => slice.len(),
-            InputBulk::Floats(slice) => slice.len(),
-            InputBulk::Ints(slice) => slice.len(),
-        }
-    }
-
-    pub fn as_bools(&self) -> Result<&[bool]> {
-        let InputBulk::Bool(slice) = self else {
-            bail!("input bulk should be bools");
-        };
-        Ok(slice)
-    }
-
-    pub fn as_floats(&self) -> Result<&[T]> {
-        let InputBulk::Floats(slice) = self else {
-            bail!("input bulk should be floats");
-        };
-        Ok(slice)
-    }
-
-    pub fn as_ints(&self) -> Result<&[i32]> {
-        let InputBulk::Ints(slice) = self else {
-            bail!("input bulk should be ints");
-        };
-        Ok(slice)
-    }
-}
-
-impl TryFrom<InputBulk<'_>> for Vec<bool> {
-    type Error = anyhow::Error;
-
-    fn try_from(input_bulk: InputBulk<'_>) -> std::result::Result<Self, Self::Error> {
-        Ok(Self::from(input_bulk.as_bools()?))
-    }
-}
-
-impl TryFrom<InputBulk<'_>> for Vec<T> {
-    type Error = anyhow::Error;
-
-    fn try_from(input_bulk: InputBulk<'_>) -> std::result::Result<Self, Self::Error> {
-        Ok(Self::from(input_bulk.as_floats()?))
-    }
-}
-
-impl TryFrom<InputBulk<'_>> for Vec<i32> {
-    type Error = anyhow::Error;
-
-    fn try_from(input_bulk: InputBulk<'_>) -> std::result::Result<Self, Self::Error> {
-        Ok(Self::from(input_bulk.as_ints()?))
-    }
 }

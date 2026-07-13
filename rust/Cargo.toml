@@ -15,3 +15,28 @@ bincode = "1.3.3"
 build-info = "0.0.41"
 build-info-build = "0.0.41"
 thiserror = "2.0.17"
+clap = { version = "4.5.23", features = ["derive"] }
+nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand", "bytemuck"] }
+wgpu = "29.0.1"
+wgpu-profiler = "0.27.0"
+pollster = "0.4.0"
+bytemuck = { version = "1.25.0", features = [ "derive", "extern_crate_alloc", "extern_crate_std" ] }
+rand = { version = "0.10.0", features = ["chacha"] }
+env_logger = "0.11.9"
+bitflags = "2.10.0"
+num = "0.4.3"
+iter_enumeration = "0.1.0"
+rayon = "1.10.0"
+rustc-hash = "2.1.1"
+smallvec = { version = "1.15.2", features = ["serde"] }
+itertools = "0.14.0"
+strum_macros = "0.26.4"
+strum = { version = "0.26.3", features = ["derive"] }
+
+
+# TODO: use crate.io's version once the changes from this PR are released
+# https://github.com/wgsl-tooling-wg/wesl-rs/pull/182
+#wesl = { version = "0.3.2", features = ["naga-ext"] }
+wesl.git = "ssh://git@github.com/wgsl-tooling-wg/wesl-rs.git"
+wesl.rev = "5b03878f8d6f78aca0318347548d54c6394af2d4"
+wesl.features = ["naga-ext"]

@@ -1,0 +1,16 @@
+[package]
+name = "squishy_volumes_cache"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+serde.workspace = true
+bincode.workspace = true
+bytemuck.workspace = true
+bitflags.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+squishy_volumes_directory_lock.path = "../directory_lock"
+squishy_volumes_file_frame.path = "../file_frame"

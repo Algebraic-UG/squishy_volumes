@@ -17,12 +17,13 @@ use squishy_volumes_api::T;
 use thiserror::Error;
 use tracing::info;
 
+use squishy_volumes_util::{
+    bulk_modulus_in_bounds, exponent_in_bounds, lambda_stable_neo_hookean, mu_stable_neo_hookean,
+    poissons_ratio_in_bounds, youngs_modulus_in_bounds,
+};
+
 use crate::{
     ParticleFlags, Report, ReportInfo,
-    elastic::{
-        bulk_modulus_in_bounds, exponent_in_bounds, lambda_stable_neo_hookean,
-        mu_stable_neo_hookean, poissons_ratio_in_bounds, youngs_modulus_in_bounds,
-    },
     input_file::{InputFrame, InputHeader, InputObject},
     state::{
         ObjectIndex,
@@ -88,12 +89,27 @@ impl State {
             velocities,
             velocity_gradients,
             elastic_energies,
-            collider_insides,
+            collider_bits,
             trial_position_gradients: _,
             action_matrices: _,
         } = &mut particles;
 
-        let mut grid_collider_momentums: Vec<_> = Default::default();
+        if input_header
+            .objects
+            .values()
+            .find(|object| matches!(object, InputObject::Particles))
+            .is_none()
+        {
+            tracing::warn!("No input particle objects");
+        }
+        if input_header
+            .objects
+            .values()
+            .find(|object| matches!(object, InputObject::Collider { .. }))
+            .is_none()
+        {
+            tracing::warn!("No input collider objects");
+        }
 
         for (name, object) in input_header.objects.iter() {
             match object {
@@ -114,7 +130,7 @@ impl State {
                     sort_map.extend(first_index..new_len);
                     reverse_sort_map.extend(first_index..new_len);
                     states.resize(new_len, Default::default());
-                    collider_insides.resize(new_len, Default::default());
+                    collider_bits.resize(new_len, Default::default());
 
                     let (input_positions, input_position_gradients): (
                         Vec<Vector3<T>>,
@@ -253,7 +269,6 @@ impl State {
                     let object_index = ObjectIndex::Collider(collider_objects.len());
                     collider_objects.push(ObjectCollider {});
                     name_map.insert(name.clone(), object_index);
-                    grid_collider_momentums.push(Default::default());
                 }
             }
 
@@ -263,8 +278,7 @@ impl State {
         let time = 0.;
         let phase = Default::default();
 
-        let grid_momentum = Default::default();
-        let grid_collider = Default::default();
+        let grid = Default::default();
 
         Ok(Self {
             time,
@@ -273,9 +287,7 @@ impl State {
             particle_objects,
             collider_objects,
             particles,
-            grid_momentum,
-            grid_collider,
-            grid_collider_momentums,
+            grid,
             interpolated_input: None,
         })
     }
