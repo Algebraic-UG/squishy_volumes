@@ -21,7 +21,7 @@ uvx --python 3.11 maturin build --no-default-features --release --out "${wheels_
 cd -
 uv run --with toml "${scripts_dir}/update_manifest.py"
 
-test -f "${blender_ext_file}" || wget https://raw.githubusercontent.com/blender/blender/refs/tags/v4.5.0/scripts/addons_core/bl_pkg/cli/blender_ext.py --output-document="${blender_ext_file}"
+test -f "${blender_ext_file}" || wget https://raw.githubusercontent.com/blender/blender/refs/tags/v5.0.1/scripts/addons_core/bl_pkg/cli/blender_ext.py --output-document="${blender_ext_file}"
 
 cd "${extension_dir}"
 uv run --python 3.11 "${blender_ext_file}" build
