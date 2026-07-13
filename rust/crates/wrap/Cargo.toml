@@ -15,7 +15,7 @@ name = "squishy_volumes_wrap_0_2_0"
 crate-type = ["cdylib"]
 
 [dependencies]
-numpy = "0.25.0"
+numpy = "0.29.0"
 lazy_static = "1.5.0"
 
 anyhow.workspace = true
@@ -27,7 +27,7 @@ squishy_volumes_api.path = "../api"
 squishy_volumes_hot.path = "../hot"
 
 [dependencies.pyo3]
-version = "0.25.0"
+version = "0.29.0"
 features = ["abi3-py311", "anyhow", "extension-module"]
 
 [dependencies.hot-lib-reloader]
