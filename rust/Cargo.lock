@@ -4881,8 +4881,9 @@ checksum = "a28ac98ddc8b9274cb41bb4d9d4d5c425b6020c50c46f25559911905610b4a88"
 
 [[package]]
 name = "wesl"
-version = "0.3.2"
-source = "git+ssh://git@github.com/wgsl-tooling-wg/wesl-rs.git?rev=5b03878f8d6f78aca0318347548d54c6394af2d4#5b03878f8d6f78aca0318347548d54c6394af2d4"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc3857a39e7220245e4ec1e2f6230e1b5ccd3542545bc1ee5c13d79597e6d193"
 dependencies = [
  "annotate-snippets",
  "derive_more",
@@ -4897,8 +4898,9 @@ dependencies = [
 
 [[package]]
 name = "wesl-macros"
-version = "0.3.2"
-source = "git+ssh://git@github.com/wgsl-tooling-wg/wesl-rs.git?rev=5b03878f8d6f78aca0318347548d54c6394af2d4#5b03878f8d6f78aca0318347548d54c6394af2d4"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8662ee0b2ef199c31f486b869e5272ac364898c09d352483370d37b8c3abf9f9"
 dependencies = [
  "itertools",
  "proc-macro2",
@@ -5238,8 +5240,9 @@ dependencies = [
 
 [[package]]
 name = "wgsl-parse"
-version = "0.3.2"
-source = "git+ssh://git@github.com/wgsl-tooling-wg/wesl-rs.git?rev=5b03878f8d6f78aca0318347548d54c6394af2d4#5b03878f8d6f78aca0318347548d54c6394af2d4"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2141e2425fbb5aefd13e875adc7247e5dc889a3bbbe5a016dd1546211405f89f"
 dependencies = [
  "annotate-snippets",
  "derive_more",
@@ -5254,8 +5257,9 @@ dependencies = [
 
 [[package]]
 name = "wgsl-types"
-version = "0.3.2"
-source = "git+ssh://git@github.com/wgsl-tooling-wg/wesl-rs.git?rev=5b03878f8d6f78aca0318347548d54c6394af2d4#5b03878f8d6f78aca0318347548d54c6394af2d4"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3cf8623d173060d5a9e1465b89954ea42f3ac21af2f533c7975d003f8d82b98"
 dependencies = [
  "half",
  "itertools",
