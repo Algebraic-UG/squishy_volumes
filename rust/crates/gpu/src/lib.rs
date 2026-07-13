@@ -25,7 +25,7 @@ mod status;
 mod svd;
 mod util;
 
-pub use gpu_state::GpuState;
+pub use gpu_state::{GpuRunParameters, GpuState};
 
 pub mod test_data;
 

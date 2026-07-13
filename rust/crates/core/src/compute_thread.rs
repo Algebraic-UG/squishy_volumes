@@ -17,6 +17,7 @@ use std::{
 use squishy_volumes_cache::Cache;
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
 use squishy_volumes_file_input::InputReader;
+use squishy_volumes_gpu::GpuState;
 use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
 use tracing::info;
 
@@ -94,11 +95,15 @@ impl ComputeThread {
 
                 enum ComputeState {
                     Cpu(CpuState),
-                    Gpu,
+                    Gpu(GpuState),
                 }
 
                 let mut compute_state = if gpu {
-                    todo!()
+                    ComputeState::Gpu(GpuState::from_io_state(
+                        &frame_input,
+                        max_time_step,
+                        io_state,
+                    )?)
                 } else {
                     ComputeState::Cpu(CpuState::from_io_state(io_state)?)
                 };
@@ -124,7 +129,14 @@ impl ComputeThread {
                                 store_grid: true,
                             },
                         )?,
-                        ComputeState::Gpu => todo!(),
+                        ComputeState::Gpu(gpu_state) => gpu_state.produce_next_state(
+                            &harness,
+                            &mut frame_input,
+                            GpuRunParameters {
+                                target_time,
+                                store_grid: true,
+                            },
+                        )?,
                     };
 
                     cache.store_frame(io_state).map_err(Error::StoreError)?;

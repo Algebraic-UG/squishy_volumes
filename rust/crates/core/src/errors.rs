@@ -10,6 +10,9 @@ use crate::initialization::StateInitializationError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("Gpu error: {0}")]
+    GpuError(#[from] squishy_volumes_gpu::GpuError),
+
     #[error("Harness error: {0}")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 

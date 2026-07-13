@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::num::NonZeroU32;
+use std::{num::NonZeroU32, time::Duration};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::IoState;
@@ -21,11 +21,13 @@ use super::*;
 
 pub struct GpuState {
     time: f64,
+    time_step: f32,
     gpu_context: GpuContext,
     pipeline_part: Step,
     next_input: step::Input,
     max_num_grid_nodes: NonZeroU32,
-    previous_io_state: IoState,
+    io_state: IoState,
+    profile_data_csv_writer: ProfileDataCsvWriter,
 }
 
 pub const BYTES_PER_GRID_NODE: u64 = 300;
@@ -145,13 +147,18 @@ impl GpuState {
             collider_input,
         };
 
+        // TODO: make configurable
+        let profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
+
         Ok(Self {
             time,
+            time_step,
             gpu_context,
             pipeline_part,
             next_input,
             max_num_grid_nodes,
-            previous_io_state: io_state,
+            io_state,
+            profile_data_csv_writer,
         })
     }
 }
@@ -279,4 +286,286 @@ fn get_collider_input(
         triangle_frictions,
         bvh,
     }))
+}
+
+pub struct GpuRunParameters {
+    pub target_time: f64,
+    pub store_grid: bool,
+}
+
+impl GpuState {
+    pub fn produce_next_state(
+        &mut self,
+        harness: &squishy_volumes_xpu::Harness,
+        frame_input: &mut squishy_volumes_xpu::FrameInput,
+        GpuRunParameters {
+            target_time,
+            store_grid,
+        }: GpuRunParameters,
+    ) -> Result<squishy_volumes_file_frame::IoState, GpuError> {
+        squishy_volumes_util::profile!("produce_next_state");
+
+        if self.time >= target_time {
+            return Ok(self.io_state.clone());
+        }
+        let start_time = self.time;
+
+        let mut encoder = self
+            .gpu_context
+            .device()
+            .create_command_encoder(&Default::default());
+        let mut profiler =
+            wgpu_profiler::GpuProfiler::new(self.gpu_context.device(), Default::default()).unwrap();
+
+        let mut recorded_steps = 0;
+        let output = loop {
+            harness.check()?;
+
+            let scope = profiler.scope("run_step", &mut encoder);
+            let output = self.pipeline_part.record(
+                &mut self.gpu_context,
+                &mut scope.into(),
+                self.next_input.clone(),
+                step::Parameters {
+                    max_num_grid_nodes: self.max_num_grid_nodes,
+                    factor: frame_input.frame_factor(self.time)?,
+                },
+            )?;
+            self.time += self.time_step as f64;
+
+            recorded_steps += 1;
+            if recorded_steps > 10 {
+                tracing::info!("submit");
+                self.gpu_context.queue().submit([encoder.finish()]);
+                encoder = self
+                    .gpu_context
+                    .device()
+                    .create_command_encoder(&Default::default());
+                recorded_steps = 0;
+            }
+
+            if self.time >= target_time {
+                break output;
+            }
+        };
+
+        let downloads = DownloadsToHost::new(
+            &self.gpu_context,
+            [
+                self.gpu_context.status(),
+                output.indirect_nodes,
+                self.next_input
+                    .variable_particle_input
+                    .particle_positions_and_collider_bits
+                    .clone(),
+                self.next_input
+                    .variable_particle_input
+                    .particle_position_gradients
+                    .clone(),
+                self.next_input
+                    .variable_particle_input
+                    .particle_velocities
+                    .clone(),
+            ],
+        );
+        let downloads_grid = store_grid.then(|| {
+            DownloadsToHost::new(
+                &self.gpu_context,
+                [output.node_ids_and_collider_bits, output.node_momentums],
+            )
+        });
+
+        downloads.copy(&mut encoder);
+        if let Some(downloads_grid) = downloads_grid.as_ref() {
+            downloads_grid.copy(&mut encoder);
+        }
+
+        profiler.resolve_queries(&mut encoder);
+
+        tracing::info!("submit final");
+        self.gpu_context.queue().submit([encoder.finish()]);
+
+        let downloads_ready = downloads.prep();
+        let downloads_grid_ready = downloads_grid.as_ref().map(DownloadsToHost::prep);
+        profiler.end_frame().unwrap();
+
+        tracing::info!("prepare next frame input");
+        frame_input.load(frame_input.frame() + 1)?;
+
+        let b = frame_input.b().unwrap_or(frame_input.a());
+
+        let particle_goals_end = b
+            .particle_goal_positions()
+            .iter()
+            .map(|p| p.push(0.))
+            .collect::<Vec<_>>();
+
+        // TODO: this will need something else for when we have culling on GPU
+        self.next_input.variable_particle_input.particle_flags = Allocation::new(
+            self.gpu_context.device(),
+            "particle_flags",
+            b.particle_flags(),
+        )?;
+        self.next_input.particle_goals_start = self.next_input.particle_goals_end.clone();
+        self.next_input.particle_goals_end = Allocation::new(
+            self.gpu_context.device(),
+            "particle_goals_end",
+            &particle_goals_end,
+        )?;
+
+        if let Some(collider_input) = self.next_input.collider_input.as_mut() {
+            let vertex_positions_end: Vec<Vector4<f32>> =
+                b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+            collider_input.vertex_positions_start = collider_input.vertex_positions_end.clone();
+            collider_input.vertex_positions_end = Allocation::new(
+                self.gpu_context.device(),
+                "vertex_positions_end",
+                &vertex_positions_end,
+            )?;
+
+            collider_input.bvh = BoundingVolumeHierarchyAllocations::new(
+                self.gpu_context.device(),
+                frame_input.consts().leaf_size,
+                frame_input.bvh(),
+            )?;
+        }
+
+        tracing::info!("waiting on GPU");
+        loop {
+            match self.gpu_context.device().poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(Duration::from_millis(100)),
+            }) {
+                Ok(_) => break,
+                Err(wgpu::PollError::Timeout) => {
+                    harness.check()?;
+                }
+                error => {
+                    error?;
+                }
+            }
+        }
+
+        // TODO: what if the frame needs to be redone?
+        self.profile_data_csv_writer.write_frame(
+            &self.gpu_context,
+            &mut profiler,
+            frame_input.frame(),
+        )?;
+
+        tracing::info!("download");
+
+        let [
+            status,
+            indirect_nodes_download,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+        ] = downloads_ready.try_into().unwrap();
+
+        let num_grid_nodes = indirect_nodes_download.to_vec::<Indirect>()[0].len;
+        tracing::info!(self.max_num_grid_nodes, num_grid_nodes);
+
+        let mut redo_frame = false;
+        match status.to_vec::<GpuStatus>()[0].to_result(&self.gpu_context) {
+            Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded { reporting_shader })) => {
+                tracing::warn!(
+                    reporting_shader,
+                    "The number of grid nodes is larger than expected."
+                );
+                redo_frame = true;
+            }
+            Err(GpuError::Shader(GpuShaderError::TableTriesExceeded { reporting_shader })) => {
+                tracing::warn!(reporting_shader, "The hash table appears to be too small.");
+                redo_frame = true;
+            }
+            x => x?,
+        };
+        self.gpu_context.reset_status()?;
+
+        if redo_frame {
+            drop(downloads);
+            drop(downloads_grid);
+            self.time = start_time;
+            self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
+            tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
+            frame_input.load(frame_input.frame() - 1)?;
+            self.next_input.collider_input =
+                get_collider_input(self.gpu_context.device(), frame_input)?;
+            self.next_input.variable_particle_input =
+                get_variable_particle_input(self.gpu_context.device(), &self.io_state)?;
+            self.gpu_context.resize_allocator(
+                self.max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE,
+                false,
+            )?;
+            return self.produce_next_state(
+                harness,
+                frame_input,
+                GpuRunParameters {
+                    target_time,
+                    store_grid,
+                },
+            );
+        }
+
+        let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
+            particle_positions_and_collider_bits.to_vec();
+
+        self.io_state.particles.collider_bits = particle_positions_and_collider_bits
+            .iter()
+            .map(|position_and_bits| position_and_bits.collider_bits)
+            .collect();
+        self.io_state.particles.positions = particle_positions_and_collider_bits
+            .into_iter()
+            .map(|position_and_bits| position_and_bits.position.into())
+            .collect();
+        self.io_state.particles.position_gradients = particle_position_gradients
+            .to_vec::<Matrix4x3<f32>>()
+            .into_iter()
+            .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+            .collect();
+        self.io_state.particles.velocities = particle_velocities
+            .to_vec::<Vector4<f32>>()
+            .iter()
+            .map(|v| v.xyz().into())
+            .collect();
+
+        self.io_state.grid_nodes = downloads_grid_ready.map(|downloads_grid_ready| {
+            let [node_ids_and_collider_bits, node_momentums] =
+                downloads_grid_ready.try_into().unwrap();
+            let node_ids_and_collider_bits: Vec<NodeIdAndColliderBits> =
+                node_ids_and_collider_bits.to_vec();
+            let node_momentums: Vec<Vector4<f32>> = node_momentums.to_vec();
+
+            let node_ids = node_ids_and_collider_bits
+                .iter()
+                .map(|node_id_and_collider_bits| node_id_and_collider_bits.node_id.into())
+                .collect();
+            let collider_bits = node_ids_and_collider_bits
+                .iter()
+                .map(|node_id_and_collider_bits| node_id_and_collider_bits.collider_bits)
+                .collect();
+            let masses = node_momentums.iter().map(|momentum| momentum.w).collect();
+            let velocites = node_momentums
+                .iter()
+                .map(|momentum| {
+                    if momentum.w != 0. {
+                        momentum.xyz() / momentum.w
+                    } else {
+                        Vector3::zeros()
+                    }
+                    .into()
+                })
+                .collect();
+
+            squishy_volumes_file_frame::GridNodes {
+                node_ids,
+                collider_bits,
+                masses,
+                velocites,
+            }
+        });
+
+        Ok(self.io_state.clone())
+    }
 }

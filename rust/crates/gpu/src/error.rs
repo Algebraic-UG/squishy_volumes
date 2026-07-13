@@ -8,7 +8,7 @@
 
 use thiserror::Error;
 
-use crate::{GpuAllocatorError, GpuShaderError};
+use crate::{GpuAllocatorError, GpuShaderError, ProfilerError};
 
 #[allow(dead_code)] // fields are read in the error below
 #[derive(Debug, Clone)]
@@ -20,6 +20,18 @@ pub struct ExceedingLimit {
 
 #[derive(Error, Debug)]
 pub enum GpuError {
+    #[error("Csv profiling failed: {0}")]
+    CsvProfilerError(#[from] ProfilerError),
+
+    #[error("Poll error: {0}")]
+    PollError(#[from] wgpu::PollError),
+
+    #[error("Harness error: {0}")]
+    HarnessError(#[from] squishy_volumes_xpu::HarnessError),
+
+    #[error("Frame input error: {0}")]
+    FrameInputError(#[from] squishy_volumes_xpu::FrameInputError),
+
     #[error("No particle input")]
     NoParticles,
 
