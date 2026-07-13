@@ -15,10 +15,10 @@ permissions:
 
 jobs:
   check-version:
-    runs-on: [ubuntu-22.04]
+    runs-on: [ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Get version from Cargo.toml
         working-directory: rust/crates/wrap
@@ -46,9 +46,9 @@ jobs:
 
   release:
     needs: [bundle-extension]
-    runs-on: [ubuntu-22.04]
+    runs-on: [ubuntu-latest]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Clear release directory
         run: rm -rf release
@@ -68,7 +68,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Release
-        uses: softprops/action-gh-release@v2.6.0
+        uses: softprops/action-gh-release@v3
         with:
           draft: ${{ github.event.inputs.draft }}
           prerelease: ${{ github.event.inputs.prerelease }}

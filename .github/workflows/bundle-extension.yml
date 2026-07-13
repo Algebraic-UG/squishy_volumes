@@ -11,7 +11,7 @@ jobs:
   build-linux:
     uses: ./.github/workflows/build-wheel.yml
     with:
-      runs-on: '["ubuntu-22.04"]'
+      runs-on: '["ubuntu-latest"]'
       target-triple: 'x86_64-unknown-linux-gnu'
       artifact-name: 'wheel-linux'
 
@@ -25,17 +25,17 @@ jobs:
   build-macos:
     uses: ./.github/workflows/build-wheel.yml
     with:
-      runs-on: '["macos-14"]'
+      runs-on: '["macos-latest"]'
       target-triple: 'aarch64-apple-darwin'
       artifact-name: 'wheel-macos'
 
   bundle-extension:
-    runs-on: [ubuntu-22.04]
+    runs-on: [ubuntu-latest]
     needs: [build-linux, build-windows, build-macos]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v7.6.0
+      - uses: astral-sh/setup-uv@v8.3.2
 
       - name: Vendorize Tree Clipper
         working-directory: python
@@ -47,17 +47,17 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: wheel-linux
-          path: python/wheels/
+          path: python/src/squishy_volumes_extension/wheels/
 
       - uses: actions/download-artifact@v8
         with:
           name: wheel-windows
-          path: python/wheels/
+          path: python/src/squishy_volumes_extension/wheels/
 
       - uses: actions/download-artifact@v8
         with:
           name: wheel-macos
-          path: python/wheels/
+          path: python/src/squishy_volumes_extension/wheels/
 
       # =================================================================
       # Final preparations
@@ -66,7 +66,7 @@ jobs:
         run: uv run --python 3.11 --with toml scripts/update_manifest.py
 
       - name: Copy license
-        run: cp LICENSE_GPLv3 python/
+        run: cp LICENSE_GPLv3 python/src/squishy_volumes_extension
 
       - name: Get build script
         run: curl https://raw.githubusercontent.com/blender/blender/refs/tags/v5.0.1/scripts/addons_core/bl_pkg/cli/blender_ext.py --output blender_ext.py
@@ -75,16 +75,16 @@ jobs:
       # Bundle and upload
       # =================================================================
       - name: Build Blender extension bundles
-        working-directory: python
-        run: uv run --python 3.11 ../blender_ext.py build --split-platforms
+        working-directory: python/src/squishy_volumes_extension
+        run: uv run --python 3.11 ../../../blender_ext.py build --split-platforms
 
       - name: Generate index.json for easy updates
-        working-directory: python
-        run: uv run --python 3.11 ../blender_ext.py server-generate --repo-dir=./
+        working-directory: python/src/squishy_volumes_extension
+        run: uv run --python 3.11 ../../../blender_ext.py server-generate --repo-dir=./
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: squishy-volumes-extension
           path: |
-            python/index.json
-            python/*.zip
+            python/src/squishy_volumes_extension/index.json
+            python/src/squishy_volumes_extension/*.zip
