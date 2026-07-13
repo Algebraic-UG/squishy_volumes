@@ -523,7 +523,7 @@ mod tests {
         let size = binding_size * 4;
 
         let context = SHARED_CONTEXT.lock().unwrap();
-        let mut allocator = GpuAllocator::new(&context, size, "allocation", true).unwrap();
+        let mut allocator = GpuAllocator::new(&context, None, size, "allocation", true).unwrap();
 
         let _a = allocator.allocate::<u32>("a", aligned).unwrap();
         let _b = allocator.allocate::<u32>("b", aligned).unwrap();
@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn test_buffer_binding_too_large() {
         let context = SHARED_CONTEXT.lock().unwrap();
-        let mut allocator = GpuAllocator::new(&context, 42, "allocation", false).unwrap();
+        let mut allocator = GpuAllocator::new(&context, None, 42, "allocation", false).unwrap();
         assert!(matches!(
             allocator.allocate_raw(
                 "too large",
@@ -572,7 +572,7 @@ mod tests {
         let size = binding_size * 4;
 
         let context = SHARED_CONTEXT.lock().unwrap();
-        let mut allocator = GpuAllocator::new(&context, size, "allocation", false).unwrap();
+        let mut allocator = GpuAllocator::new(&context, None, size, "allocation", false).unwrap();
 
         let _a = allocator.allocate::<u32>("a", aligned).unwrap();
         let _b = allocator.allocate::<u32>("b", aligned).unwrap();

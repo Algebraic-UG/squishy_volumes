@@ -18,7 +18,7 @@ mod phase;
 use adaptive_time_step_state::*;
 use grid_nodes::*;
 use interpolated_input::*;
-use kernels::*;
+pub use kernels::*;
 use particles::*;
 use phase::*;
 
