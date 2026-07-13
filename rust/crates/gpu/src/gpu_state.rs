@@ -317,7 +317,6 @@ impl GpuState {
         if self.time >= target_time {
             return Ok(self.io_state.clone());
         }
-        let start_time = self.time;
 
         let mut encoder = self
             .gpu_context
@@ -495,7 +494,7 @@ impl GpuState {
         if redo_frame {
             drop(downloads);
             drop(downloads_grid);
-            self.time = start_time;
+            self.time = self.io_state.time;
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
             tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
             frame_input.load(frame_input.frame() - 1)?;
@@ -520,6 +519,7 @@ impl GpuState {
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
             particle_positions_and_collider_bits.to_vec();
 
+        self.io_state.time = self.time;
         self.io_state.particles.collider_bits = particle_positions_and_collider_bits
             .iter()
             .map(|position_and_bits| position_and_bits.collider_bits)
