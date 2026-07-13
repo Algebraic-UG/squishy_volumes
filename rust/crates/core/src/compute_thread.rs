@@ -93,6 +93,7 @@ impl ComputeThread {
 
                 let mut frame_input = FrameInput::new(input_reader, next_frame - 1)?;
 
+                #[allow(clippy::large_enum_variant)]
                 enum ComputeState {
                     Cpu(CpuState),
                     Gpu(GpuState),
