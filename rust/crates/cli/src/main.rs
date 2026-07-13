@@ -7,8 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::Result;
-use squishy_volumes_api::{ComputeSettings, Simulation as _, T};
-use squishy_volumes_core::SimulationImpl;
+use squishy_volumes_core::{ComputeSettings, SimulationImpl};
 use std::{
     path::PathBuf,
     sync::{
@@ -30,7 +29,7 @@ struct Cli {
     directory: PathBuf,
 
     #[arg(long, value_name = "TIME_STEP")]
-    time_step: T,
+    time_step: f32,
 
     #[arg(long)]
     gpu: bool,
@@ -66,17 +65,19 @@ fn main() -> Result<()> {
 
     let mut simulation = SimulationImpl::load(Uuid::new_v4().to_string(), directory)?;
 
-    let next_frame = next_frame.unwrap_or(simulation.available_frames());
+    let next_frame = next_frame.unwrap_or(simulation.available_frames_impl());
 
-    simulation.start_compute(ComputeSettings {
-        time_step,
-        gpu,
-        explicit,
-        adaptive_time_steps,
-        next_frame,
-        number_of_frames,
-        max_bytes_on_disk,
-    })?;
+    simulation.start_compute_impl(
+        serde_json::to_value(ComputeSettings {
+            time_step,
+            gpu,
+            adaptive_time_steps,
+            next_frame,
+            number_of_frames,
+            max_bytes_on_disk,
+        })
+        .unwrap(),
+    )?;
 
     let run = Arc::new(AtomicBool::new(true));
     ctrlc::set_handler({
@@ -86,7 +87,7 @@ fn main() -> Result<()> {
         }
     })?;
 
-    while run.load(Ordering::Relaxed) && simulation.poll()?.is_some() {
+    while run.load(Ordering::Relaxed) && simulation.computing_impl() {
         sleep(Duration::from_millis(200));
     }
 

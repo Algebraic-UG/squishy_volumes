@@ -6,4 +6,4 @@ license = "MIT"
 
 [dependencies]
 plotters = "0.3.7"
-squishy_volumes_core.path = "../core"
+squishy_volumes_cpu.path = "../cpu"

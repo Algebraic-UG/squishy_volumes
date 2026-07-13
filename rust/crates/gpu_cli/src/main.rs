@@ -307,8 +307,6 @@ fn main() {
             let input = gpu::prepare_tmp::Input::new(
                 context.device(),
                 gpu::prepare_tmp::InputData {
-                    particle_masses: &test_particles.particle_masses,
-                    particle_initial_volumes: &test_particles.particle_initial_volumes,
                     particle_flags: &test_particles.particle_flags,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_positions_and_collider_bits: &test_particles
@@ -346,8 +344,6 @@ fn main() {
                 grid_node_size,
                 time_step,
                 gpu::prepare_tmp::InputData {
-                    particle_masses: &test_particles.particle_masses,
-                    particle_initial_volumes: &test_particles.particle_initial_volumes,
                     particle_flags: &test_particles.particle_flags,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_positions_and_collider_bits: &test_particles
@@ -521,8 +517,6 @@ fn main() {
                 settings,
                 gpu::step::InputData {
                     gravity,
-                    particle_masses: &test_particles.particle_masses,
-                    particle_initial_volumes: &test_particles.particle_initial_volumes,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_goals_start: &test_particles.particle_goals_start,
                     particle_goals_end: &test_particles.particle_goals_end,
@@ -570,7 +564,7 @@ fn run_pipeline_part<P: PipelinePart>(
 ) {
     tracing::info!("setting up allocator");
     context
-        .setup_allocator(allocator_size, "allocator", true)
+        .setup_allocator(None, allocator_size, "allocator", true)
         .unwrap();
     context
         .setup_indirect_allocator(2048, "indirect allocator", true)

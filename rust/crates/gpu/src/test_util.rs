@@ -20,7 +20,7 @@ lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
         let mut context = GpuContext::new().unwrap();
         context
-            .setup_allocator(10000000, "test allocator", true)
+            .setup_allocator(None, 10000000, "test allocator", true)
             .unwrap();
         context
             .setup_indirect_allocator(2048, "test indirect allocator", true)

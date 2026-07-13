@@ -260,7 +260,9 @@ fn test_object_changed_type() {
     assert!(matches!(
         writer.record_frame(&input_frame),
         Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectChangedType { .. },
+            error: crate::FrameVerifcationError::ObjectError(
+                crate::ObjectError::ObjectChangedType { .. }
+            ),
             ..
         }),
     ));
@@ -277,7 +279,9 @@ fn test_object_not_in_header() {
     assert!(matches!(
         writer.record_frame(&input_frame),
         Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectNotInHeader { .. },
+            error: crate::FrameVerifcationError::ObjectError(
+                crate::ObjectError::ObjectNotInHeader { .. },
+            ),
             ..
         }),
     ));
