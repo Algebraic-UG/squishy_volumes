@@ -138,7 +138,9 @@ fn run(settings: Settings, input_data: InputData, parameters: Parameters) -> Vec
 
     let [particle_velocities, status] = downloads.try_into().unwrap();
 
-    status.to_vec::<GpuStatus>()[0].to_result(&context).unwrap();
+    status.to_vec::<GpuStatus>().unwrap()[0]
+        .to_result(&context)
+        .unwrap();
 
-    particle_velocities.to_vec()
+    particle_velocities.to_vec().unwrap()
 }

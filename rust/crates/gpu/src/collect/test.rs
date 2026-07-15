@@ -266,9 +266,11 @@ fn run(settings: Settings, input_data: InputData) -> OutputData {
     ] = downloads.try_into().unwrap();
 
     OutputData {
-        particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec(),
-        particle_position_gradients: particle_position_gradients.to_vec(),
-        particle_velocities: particle_velocities.to_vec(),
-        particle_velocity_gradients: particle_velocity_gradients.to_vec(),
+        particle_positions_and_collider_bits: particle_positions_and_collider_bits
+            .to_vec()
+            .unwrap(),
+        particle_position_gradients: particle_position_gradients.to_vec().unwrap(),
+        particle_velocities: particle_velocities.to_vec().unwrap(),
+        particle_velocity_gradients: particle_velocity_gradients.to_vec().unwrap(),
     }
 }

@@ -148,8 +148,8 @@ fn run(
     let [vertex_positions, vertex_normals, triangle_normals] = downloads.try_into().unwrap();
 
     (
-        vertex_positions.to_vec(),
-        vertex_normals.to_vec(),
-        triangle_normals.to_vec(),
+        vertex_positions.to_vec().unwrap(),
+        vertex_normals.to_vec().unwrap(),
+        triangle_normals.to_vec().unwrap(),
     )
 }

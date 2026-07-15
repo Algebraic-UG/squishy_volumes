@@ -135,5 +135,5 @@ fn run(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBit
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }

@@ -88,5 +88,5 @@ fn run(settings: Settings, len: u32) -> Vec<Indirect> {
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }

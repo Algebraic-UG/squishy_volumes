@@ -132,7 +132,7 @@ fn run(
 
     let [hashes_node_ids, hashes_node_ids_and_collider_bits] = downloads.try_into().unwrap();
     (
-        hashes_node_ids.to_vec(),
-        hashes_node_ids_and_collider_bits.to_vec(),
+        hashes_node_ids.to_vec().unwrap(),
+        hashes_node_ids_and_collider_bits.to_vec().unwrap(),
     )
 }

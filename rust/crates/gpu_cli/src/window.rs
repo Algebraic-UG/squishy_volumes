@@ -71,6 +71,7 @@ impl<F: FnOnce(&mut GpuContext, &mut wgpu::CommandEncoder)> State<F> {
             height: self.size.height,
             desired_maximum_frame_latency: 2,
             present_mode: wgpu::PresentMode::AutoVsync,
+            color_space: wgpu::SurfaceColorSpace::Auto,
         };
         self.surface
             .configure(self.context.device(), &surface_config);
@@ -140,7 +141,7 @@ impl<F: FnOnce(&mut GpuContext, &mut wgpu::CommandEncoder)> State<F> {
         // Submit the command in the queue to execute
         self.context.queue().submit([encoder.finish()]);
         self.window.pre_present_notify();
-        surface_texture.present();
+        self.context.queue().present(surface_texture);
     }
 }
 

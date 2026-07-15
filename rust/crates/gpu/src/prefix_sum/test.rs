@@ -101,8 +101,8 @@ fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> (Vec<u32>,
 
     let [prefix_sums, total_sum] = downloads.try_into().unwrap();
 
-    let total_sum: Vec<u32> = total_sum.to_vec();
+    let total_sum: Vec<u32> = total_sum.to_vec().unwrap();
     assert!(total_sum.len() == 1);
 
-    (prefix_sums.to_vec(), total_sum[0])
+    (prefix_sums.to_vec().unwrap(), total_sum[0])
 }

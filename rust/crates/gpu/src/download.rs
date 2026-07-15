@@ -45,6 +45,7 @@ pub struct DownloadToHost {
 
 #[derive(Debug)]
 pub struct DownloadToHostReady<'a> {
+    label: &'static str,
     data_slice: wgpu::BufferSlice<'a>,
 }
 
@@ -72,23 +73,41 @@ impl DownloadToHost {
     pub fn prep<'a>(&'a self) -> DownloadToHostReady<'a> {
         let data_slice = self.target.slice(..);
         data_slice.map_async(wgpu::MapMode::Read, |_| {});
-        DownloadToHostReady { data_slice }
+        DownloadToHostReady {
+            label: self.source.label(),
+            data_slice,
+        }
     }
 }
 
 impl DownloadToHostReady<'_> {
-    pub fn map<T, U, F>(&self, f: F) -> Vec<U>
+    pub fn map<T, U, F>(&self, f: F) -> Result<Vec<U>, GpuError>
     where
         T: bytemuck::Pod,
         F: FnMut(&T) -> U,
     {
-        bytemuck::cast_slice::<u8, T>(&self.data_slice.get_mapped_range())
+        Ok(
+            bytemuck::cast_slice::<u8, T>(&self.data_slice.get_mapped_range().map_err(
+                |error| GpuError::MapRangeError {
+                    label: self.label,
+                    error,
+                },
+            )?)
             .iter()
             .map(f)
-            .collect()
+            .collect(),
+        )
     }
 
-    pub fn to_vec<T: bytemuck::Pod>(&self) -> Vec<T> {
-        bytemuck::cast_slice(&self.data_slice.get_mapped_range()).to_vec()
+    pub fn to_vec<T: bytemuck::Pod>(&self) -> Result<Vec<T>, GpuError> {
+        Ok(
+            bytemuck::cast_slice(&self.data_slice.get_mapped_range().map_err(|error| {
+                GpuError::MapRangeError {
+                    label: self.label,
+                    error,
+                }
+            })?)
+            .to_vec(),
+        )
     }
 }

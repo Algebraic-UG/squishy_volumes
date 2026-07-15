@@ -192,7 +192,12 @@ fn run(
 
     let [contributor_offsets, contributors, status] = downloads.try_into().unwrap();
 
-    status.to_vec::<GpuStatus>()[0].to_result(&context).unwrap();
+    status.to_vec::<GpuStatus>().unwrap()[0]
+        .to_result(&context)
+        .unwrap();
 
-    (contributor_offsets.to_vec(), contributors.to_vec())
+    (
+        contributor_offsets.to_vec().unwrap(),
+        contributors.to_vec().unwrap(),
+    )
 }

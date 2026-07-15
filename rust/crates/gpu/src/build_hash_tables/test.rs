@@ -173,8 +173,8 @@ fn run(settings: Settings, node_id_and_collider_bits: &[NodeIdAndColliderBits]) 
     let [hash_table, hash_table_multi, multi_counts] = downloads.try_into().unwrap();
 
     OutputData {
-        hash_table: hash_table.to_vec(),
-        hash_table_multi: hash_table_multi.to_vec(),
-        multi_counts: multi_counts.to_vec(),
+        hash_table: hash_table.to_vec().unwrap(),
+        hash_table_multi: hash_table_multi.to_vec().unwrap(),
+        multi_counts: multi_counts.to_vec().unwrap(),
     }
 }

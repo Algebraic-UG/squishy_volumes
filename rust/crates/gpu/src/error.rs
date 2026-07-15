@@ -20,6 +20,12 @@ pub struct ExceedingLimit {
 
 #[derive(Error, Debug)]
 pub enum GpuError {
+    #[error("Failed to map {label}: {error}")]
+    MapRangeError {
+        label: &'static str,
+        error: wgpu::MapRangeError,
+    },
+
     #[error("Csv profiling failed: {0}")]
     CsvProfilerError(#[from] ProfilerError),
 

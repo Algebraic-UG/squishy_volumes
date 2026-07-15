@@ -90,5 +90,5 @@ fn run(settings: Settings, matrices: &[Matrix4x3<f32>]) -> Vec<Svd> {
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }
