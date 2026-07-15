@@ -33,12 +33,15 @@ pub struct GpuContext {
     indirect_allocator: Option<GpuAllocator>,
 }
 
-fn requirements() -> (wgpu::Features, wgpu::Limits) {
+fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) {
     let mut features = wgpu::Features::empty();
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
     features |= wgpu::Features::TIMESTAMP_QUERY;
-    features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
+
+    if enable_scope_profiling {
+        features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
+    }
 
     let mut limits = wgpu::Limits::downlevel_defaults();
     limits.max_immediate_size = 4;
@@ -75,7 +78,17 @@ impl GpuContext {
             .then_some(())
             .ok_or(GpuError::ComputeNotSupported)?;
 
-        let (required_features, mut required_limits) = requirements();
+        let enable_scope_profiling = adapter
+            .features()
+            .contains(wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS);
+        if !enable_scope_profiling {
+            tracing::warn!(
+                "Missing {:?}, GPU profiling is limited.",
+                wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS
+            )
+        }
+
+        let (required_features, mut required_limits) = requirements(enable_scope_profiling);
         required_limits.max_buffer_size = max_buffer_size;
         required_limits.max_storage_buffer_binding_size = max_storage_buffer_binding_size;
         tracing::info!(

@@ -155,7 +155,7 @@ impl GpuState {
         };
 
         let profile_data_csv_writer = profiling_output_file
-            .map(|path| ProfileDataCsvWriter::new(path))
+            .map(ProfileDataCsvWriter::new)
             .transpose()?;
 
         harness.check()?;
@@ -327,6 +327,7 @@ impl GpuState {
         let mut profiler =
             wgpu_profiler::GpuProfiler::new(self.gpu_context.device(), Default::default()).unwrap();
 
+        let mut times = Vec::new();
         let mut recorded_steps = 0;
         let output = loop {
             harness.check()?;
@@ -341,6 +342,7 @@ impl GpuState {
                     factor: frame_input.frame_factor(self.time)?,
                 },
             )?;
+            times.push(self.time);
             self.time += self.time_step as f64;
 
             recorded_steps += 1;
@@ -456,15 +458,6 @@ impl GpuState {
             }
         }
 
-        // TODO: what if the frame needs to be redone?
-        if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
-            profile_data_csv_writer.write_frame(
-                &self.gpu_context,
-                &mut profiler,
-                frame_input.frame(),
-            )?;
-        }
-
         tracing::info!("download");
 
         let [
@@ -518,6 +511,10 @@ impl GpuState {
                     store_grid,
                 },
             );
+        }
+
+        if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
+            profile_data_csv_writer.write_frame(&self.gpu_context, &mut profiler, &times)?;
         }
 
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
