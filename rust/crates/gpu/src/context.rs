@@ -60,7 +60,7 @@ impl GpuContext {
         if adapter.limits().max_compute_workgroups_per_dimension < u16::MAX as u32 {
             return Err(GpuError::SmallMaxWorkGroupPerDimension);
         }
-        if adapter.get_info().subgroup_min_size != adapter.get_info().subgroup_min_size {
+        if adapter.get_info().subgroup_min_size != adapter.get_info().subgroup_max_size {
             return Err(GpuError::VariableSubgroupSize);
         }
         let subgroup_size = adapter
