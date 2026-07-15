@@ -15,6 +15,7 @@ use std::{
 
 use super::GpuContext;
 
+use iter_enumeration::IntoIterEnum2;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -34,6 +35,9 @@ pub enum ProfilerError {
         labels: Vec<String>,
     },
 
+    #[error("Recorded {steps} steps, but the labels aren't a multiple of that {labels:?}")]
+    NotMultipleOfRecordedSteps { steps: usize, labels: Vec<String> },
+
     #[error("IoError: {0}")]
     IoError(#[from] io::Error),
 }
@@ -42,21 +46,24 @@ fn get_profiling_data(
     context: &GpuContext,
     profiler: &mut wgpu_profiler::GpuProfiler,
 ) -> Result<Vec<(String, Range<f64>)>, ProfilerError> {
-    profiler
+    fn result_to_data(
+        result: wgpu_profiler::GpuTimerQueryResult,
+    ) -> Box<dyn Iterator<Item = (String, Range<f64>)>> {
+        Box::new(
+            if let Some(time) = result.time {
+                std::iter::once((result.label, time)).iter_enum_2a()
+            } else {
+                std::iter::empty().iter_enum_2b()
+            }
+            .chain(result.nested_queries.into_iter().flat_map(result_to_data)),
+        )
+    }
+
+    let frame = profiler
         .process_finished_frame(context.queue().get_timestamp_period())
-        .ok_or(ProfilerError::NoFinishedFrame)?
-        .first()
-        .ok_or(ProfilerError::ResultsEmpty)?
-        .nested_queries
-        .iter()
-        .cloned()
-        .map(|query| {
-            Ok((
-                query.label,
-                query.time.ok_or(ProfilerError::NoTimeRecorded)?,
-            ))
-        })
-        .collect()
+        .ok_or(ProfilerError::NoFinishedFrame)?;
+
+    Ok(frame.into_iter().flat_map(result_to_data).collect())
 }
 
 pub fn profiler_output(
@@ -101,10 +108,40 @@ impl ProfileDataCsvWriter {
         &mut self,
         context: &GpuContext,
         profiler: &mut wgpu_profiler::GpuProfiler,
-        frame: usize,
+        times: &[f64],
     ) -> Result<(), ProfilerError> {
         let profiling_data = get_profiling_data(context, profiler)?;
+        if profiling_data.is_empty() {
+            return Err(ProfilerError::ResultsEmpty);
+        }
 
+        if !profiling_data.len().is_multiple_of(times.len()) {
+            return Err(ProfilerError::NotMultipleOfRecordedSteps {
+                steps: times.len(),
+                labels: profiling_data
+                    .into_iter()
+                    .map(|label_and_range| label_and_range.0)
+                    .collect(),
+            });
+        }
+
+        for (&time, profiling_data) in times
+            .iter()
+            .zip(profiling_data.chunks(profiling_data.len() / times.len()))
+        {
+            self.write_step(time, profiling_data)?;
+        }
+
+        self.writer.flush()?;
+
+        Ok(())
+    }
+
+    fn write_step(
+        &mut self,
+        time: f64,
+        profiling_data: &[(String, Range<f64>)],
+    ) -> Result<(), ProfilerError> {
         let labels: Vec<String> = profiling_data
             .iter()
             .map(|(label, _)| label.clone())
@@ -126,7 +163,7 @@ impl ProfileDataCsvWriter {
             .map(|(_, range)| range.start)
             .ok_or(ProfilerError::ResultsEmpty)?;
 
-        write!(self.writer, "{frame}")?;
+        write!(self.writer, "{time}")?;
         for (_, range) in profiling_data {
             write!(
                 self.writer,
@@ -136,13 +173,12 @@ impl ProfileDataCsvWriter {
             )?;
         }
         writeln!(self.writer)?;
-        self.writer.flush()?;
 
         Ok(())
     }
 
     fn write_header(&mut self, labels: &[String]) -> Result<(), ProfilerError> {
-        write!(self.writer, "frame")?;
+        write!(self.writer, "time")?;
 
         for label in labels {
             let name = gnuplot_name(label);

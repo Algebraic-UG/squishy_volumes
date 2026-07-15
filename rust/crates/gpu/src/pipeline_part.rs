@@ -38,6 +38,7 @@ impl CommandEncoder<'_> {
     pub fn scope<'a>(&'a mut self, label: Option<&'static str>) -> CommandEncoder<'a> {
         match self {
             CommandEncoder::Encoder(command_encoder) => CommandEncoder::Encoder(command_encoder),
+            // Note that this will do nothing without TIMESTAMP_QUERY_INSIDE_ENCODERS
             CommandEncoder::Scoped(scope) => {
                 CommandEncoder::Scoped(scope.scope(label.unwrap_or("unlabled")))
             }
