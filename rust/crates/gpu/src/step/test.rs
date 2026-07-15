@@ -391,15 +391,19 @@ fn run(settings: Settings, data: InputData) -> OutputData {
         status,
     ] = downloads.try_into().unwrap();
 
-    status.to_vec::<GpuStatus>()[0].to_result(&context).unwrap();
+    status.to_vec::<GpuStatus>().unwrap()[0]
+        .to_result(&context)
+        .unwrap();
 
     OutputData {
-        particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec(),
-        particle_position_gradients: particle_position_gradients.to_vec(),
-        particle_velocities: particle_velocities.to_vec(),
-        particle_velocity_gradients: particle_velocity_gradients.to_vec(),
-        indirect_nodes: indirect_nodes.to_vec(),
-        node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec(),
-        node_momentums: node_momentums.to_vec(),
+        particle_positions_and_collider_bits: particle_positions_and_collider_bits
+            .to_vec()
+            .unwrap(),
+        particle_position_gradients: particle_position_gradients.to_vec().unwrap(),
+        particle_velocities: particle_velocities.to_vec().unwrap(),
+        particle_velocity_gradients: particle_velocity_gradients.to_vec().unwrap(),
+        indirect_nodes: indirect_nodes.to_vec().unwrap(),
+        node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec().unwrap(),
+        node_momentums: node_momentums.to_vec().unwrap(),
     }
 }

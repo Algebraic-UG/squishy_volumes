@@ -175,5 +175,5 @@ fn run_elastic(
 
     let [stresses, energies] = downloads.try_into().unwrap();
 
-    (stresses.to_vec(), energies.to_vec())
+    (stresses.to_vec().unwrap(), energies.to_vec().unwrap())
 }

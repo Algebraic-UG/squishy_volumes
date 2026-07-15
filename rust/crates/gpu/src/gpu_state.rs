@@ -471,11 +471,11 @@ impl GpuState {
             particle_velocities,
         ] = downloads_ready.try_into().unwrap();
 
-        let num_grid_nodes = indirect_nodes_download.to_vec::<Indirect>()[0].len;
+        let num_grid_nodes = indirect_nodes_download.to_vec::<Indirect>()?[0].len;
         tracing::info!(self.max_num_grid_nodes, num_grid_nodes);
 
         let mut redo_frame = false;
-        match status.to_vec::<GpuStatus>()[0].to_result(&self.gpu_context) {
+        match status.to_vec::<GpuStatus>()?[0].to_result(&self.gpu_context) {
             Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded { reporting_shader })) => {
                 tracing::warn!(
                     reporting_shader,
@@ -517,7 +517,7 @@ impl GpuState {
         }
 
         let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> =
-            particle_positions_and_collider_bits.to_vec();
+            particle_positions_and_collider_bits.to_vec()?;
 
         self.io_state.time = self.time;
         self.io_state.particles.collider_bits = particle_positions_and_collider_bits
@@ -529,58 +529,60 @@ impl GpuState {
             .map(|position_and_bits| position_and_bits.position.into())
             .collect();
         self.io_state.particles.position_gradients = particle_position_gradients
-            .to_vec::<Matrix4x3<f32>>()
+            .to_vec::<Matrix4x3<f32>>()?
             .into_iter()
             .map(|m| m.fixed_view::<3, 3>(0, 0).into())
             .collect();
         self.io_state.particles.velocities = particle_velocities
-            .to_vec::<Vector4<f32>>()
-            .iter()
+            .to_vec::<Vector4<f32>>()?
+            .into_iter()
             .map(|v| v.xyz().into())
             .collect();
 
-        self.io_state.grid_nodes = downloads_grid_ready.map(|downloads_grid_ready| {
-            let [node_ids_and_collider_bits, node_momentums] =
-                downloads_grid_ready.try_into().unwrap();
-            let node_ids_and_collider_bits: Vec<NodeIdAndColliderBits> =
-                node_ids_and_collider_bits.to_vec();
-            let node_momentums: Vec<Vector4<f32>> = node_momentums.to_vec();
+        self.io_state.grid_nodes = downloads_grid_ready
+            .map(|downloads_grid_ready| {
+                let [node_ids_and_collider_bits, node_momentums] =
+                    downloads_grid_ready.try_into().unwrap();
+                let node_ids_and_collider_bits: Vec<NodeIdAndColliderBits> =
+                    node_ids_and_collider_bits.to_vec()?;
+                let node_momentums: Vec<Vector4<f32>> = node_momentums.to_vec()?;
 
-            let node_ids = node_ids_and_collider_bits
-                .iter()
-                .take(num_grid_nodes as usize)
-                .map(|node_id_and_collider_bits| node_id_and_collider_bits.node_id.into())
-                .collect();
-            let collider_bits = node_ids_and_collider_bits
-                .iter()
-                .take(num_grid_nodes as usize)
-                .map(|node_id_and_collider_bits| node_id_and_collider_bits.collider_bits)
-                .collect();
-            let masses = node_momentums
-                .iter()
-                .take(num_grid_nodes as usize)
-                .map(|momentum| momentum.w)
-                .collect();
-            let velocites = node_momentums
-                .iter()
-                .take(num_grid_nodes as usize)
-                .map(|momentum| {
-                    if momentum.w != 0. {
-                        momentum.xyz() / momentum.w
-                    } else {
-                        Vector3::zeros()
-                    }
-                    .into()
+                let node_ids = node_ids_and_collider_bits
+                    .iter()
+                    .take(num_grid_nodes as usize)
+                    .map(|node_id_and_collider_bits| node_id_and_collider_bits.node_id.into())
+                    .collect();
+                let collider_bits = node_ids_and_collider_bits
+                    .iter()
+                    .take(num_grid_nodes as usize)
+                    .map(|node_id_and_collider_bits| node_id_and_collider_bits.collider_bits)
+                    .collect();
+                let masses = node_momentums
+                    .iter()
+                    .take(num_grid_nodes as usize)
+                    .map(|momentum| momentum.w)
+                    .collect();
+                let velocites = node_momentums
+                    .iter()
+                    .take(num_grid_nodes as usize)
+                    .map(|momentum| {
+                        if momentum.w != 0. {
+                            momentum.xyz() / momentum.w
+                        } else {
+                            Vector3::zeros()
+                        }
+                        .into()
+                    })
+                    .collect();
+
+                Ok::<_, GpuError>(squishy_volumes_file_frame::GridNodes {
+                    node_ids,
+                    collider_bits,
+                    masses,
+                    velocites,
                 })
-                .collect();
-
-            squishy_volumes_file_frame::GridNodes {
-                node_ids,
-                collider_bits,
-                masses,
-                velocites,
-            }
-        });
+            })
+            .transpose()?;
 
         Ok(self.io_state.clone())
     }

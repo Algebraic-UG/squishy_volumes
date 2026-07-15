@@ -148,5 +148,5 @@ fn run_reorder_indices(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }

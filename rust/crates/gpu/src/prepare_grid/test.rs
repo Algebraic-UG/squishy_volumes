@@ -266,14 +266,16 @@ fn run_prepare_grid(
         status,
     ] = downloads.try_into().unwrap();
 
-    status.to_vec::<GpuStatus>()[0].to_result(&context).unwrap();
+    status.to_vec::<GpuStatus>().unwrap()[0]
+        .to_result(&context)
+        .unwrap();
 
     OutputData {
-        indirect_nodes: indirect_nodes.to_vec()[0],
-        hash_table: hash_table.to_vec(),
-        node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec(),
-        hash_table_multi: hash_table_multi.to_vec(),
-        multi_offsets: multi_offsets.to_vec(),
-        multi: multi.to_vec(),
+        indirect_nodes: indirect_nodes.to_vec().unwrap()[0],
+        hash_table: hash_table.to_vec().unwrap(),
+        node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec().unwrap(),
+        hash_table_multi: hash_table_multi.to_vec().unwrap(),
+        multi_offsets: multi_offsets.to_vec().unwrap(),
+        multi: multi.to_vec().unwrap(),
     }
 }

@@ -232,5 +232,5 @@ fn run_subkey_count(
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }

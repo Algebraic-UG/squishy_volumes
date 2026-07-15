@@ -184,5 +184,5 @@ fn run(settings: Settings, input_data: InputData<'_>) -> Vec<Matrix4<f32>> {
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }

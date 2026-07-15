@@ -212,5 +212,5 @@ fn run(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) ->
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    download.to_vec()
+    download.to_vec().unwrap()
 }

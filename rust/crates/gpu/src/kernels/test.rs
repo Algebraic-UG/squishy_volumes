@@ -77,5 +77,9 @@ fn run_kernels(settings: Settings, values: &[f32]) -> (Vec<f32>, Vec<f32>, Vec<f
         .unwrap();
 
     let [linear, quadratic, cubic] = downloads.try_into().unwrap();
-    (linear.to_vec(), quadratic.to_vec(), cubic.to_vec())
+    (
+        linear.to_vec().unwrap(),
+        quadratic.to_vec().unwrap(),
+        cubic.to_vec().unwrap(),
+    )
 }

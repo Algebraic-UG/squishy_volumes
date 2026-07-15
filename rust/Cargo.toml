@@ -17,8 +17,13 @@ build-info-build = "0.0.41"
 thiserror = "2.0.17"
 clap = { version = "4.5.23", features = ["derive"] }
 nalgebra = { version = "0.33.2", features = ["serde-serialize", "rand", "bytemuck"] }
-wgpu = "29.0.1"
-wgpu-profiler = "0.27.0"
+wgpu = "30.0.0"
+
+# This fork has updated wgpu dep to 30
+#wgpu-profiler = "0.27.0"
+wgpu-profiler.git = "ssh://git@github.com/akx/wgpu-profiler.git"
+wgpu-profiler.rev = "6b5992b3fa8627a2516e13aee564b2421b93df91"
+
 pollster = "0.4.0"
 bytemuck = { version = "1.25.0", features = [ "derive", "extern_crate_alloc", "extern_crate_std" ] }
 rand = { version = "0.10.0", features = ["chacha"] }

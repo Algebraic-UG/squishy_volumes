@@ -28,7 +28,7 @@ fn read_back_status() {
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let status: GpuStatus = download.to_vec()[0];
+    let status: GpuStatus = download.to_vec().unwrap()[0];
 
     context.reset_status().unwrap();
 

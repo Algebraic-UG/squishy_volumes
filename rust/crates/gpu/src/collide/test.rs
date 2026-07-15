@@ -420,7 +420,7 @@ fn run(
     let [particle_positions_and_collider_bits, particle_velocities] = downloads.try_into().unwrap();
 
     (
-        particle_positions_and_collider_bits.to_vec(),
-        particle_velocities.to_vec(),
+        particle_positions_and_collider_bits.to_vec().unwrap(),
+        particle_velocities.to_vec().unwrap(),
     )
 }
