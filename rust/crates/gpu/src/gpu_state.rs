@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{num::NonZeroU32, time::Duration};
+use std::{num::NonZeroU32, path::PathBuf, time::Duration};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::IoState;
@@ -27,7 +27,7 @@ pub struct GpuState {
     next_input: step::Input,
     max_num_grid_nodes: NonZeroU32,
     io_state: IoState,
-    profile_data_csv_writer: ProfileDataCsvWriter,
+    profile_data_csv_writer: Option<ProfileDataCsvWriter>,
 }
 
 pub const BYTES_PER_GRID_NODE: u64 = 300;
@@ -38,6 +38,7 @@ impl GpuState {
         frame_input: &FrameInput,
         time_step: f32,
         io_state: IoState,
+        profiling_output_file: Option<PathBuf>,
     ) -> Result<Self, GpuError> {
         tracing::info!("setting up GPU state");
         let harness = harness.scope("Setting up GPU State".to_string(), 5.try_into().unwrap())?;
@@ -153,8 +154,9 @@ impl GpuState {
             collider_input,
         };
 
-        // TODO: make configurable
-        let profile_data_csv_writer = ProfileDataCsvWriter::new("profile.csv")?;
+        let profile_data_csv_writer = profiling_output_file
+            .map(|path| ProfileDataCsvWriter::new(path))
+            .transpose()?;
 
         harness.check()?;
         harness.step()?;
@@ -455,11 +457,13 @@ impl GpuState {
         }
 
         // TODO: what if the frame needs to be redone?
-        self.profile_data_csv_writer.write_frame(
-            &self.gpu_context,
-            &mut profiler,
-            frame_input.frame(),
-        )?;
+        if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
+            profile_data_csv_writer.write_frame(
+                &self.gpu_context,
+                &mut profiler,
+                frame_input.frame(),
+            )?;
+        }
 
         tracing::info!("download");
 

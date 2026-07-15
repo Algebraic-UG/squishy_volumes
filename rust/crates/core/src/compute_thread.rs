@@ -105,6 +105,7 @@ impl ComputeThread {
                         &frame_input,
                         max_time_step,
                         io_state,
+                        Some(cache.directory().join("gpu_profile.csv")),
                     )?)
                 } else {
                     ComputeState::Cpu(CpuState::from_io_state(io_state)?)
