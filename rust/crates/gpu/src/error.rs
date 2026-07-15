@@ -26,6 +26,9 @@ pub enum GpuError {
         error: wgpu::MapRangeError,
     },
 
+    #[error("Exceeding the theorical maximum of grid nodes, most likely encountered a bug.")]
+    MaxGridNodesExceeded,
+
     #[error("Failed to create GPU pipeline: {0}")]
     PipelineCreation(#[from] GpuPipelineCreationError),
 

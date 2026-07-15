@@ -489,6 +489,10 @@ impl GpuState {
         self.gpu_context.reset_status()?;
 
         if redo_frame {
+            if self.max_num_grid_nodes.get() as usize >= self.io_state.particles.flags.len() * 27 {
+                return Err(GpuError::MaxGridNodesExceeded);
+            }
+
             drop(downloads);
             drop(downloads_grid);
             self.time = self.io_state.time;
