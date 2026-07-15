@@ -132,7 +132,7 @@ It is then convenient to temporarily disable syncing for the simulation.""",
         description="""Simulations can use a lot of disk space!
 
 Once it is exceeded, the computation will stop.
-Note that the limit can be violanted by a certain amount
+Note that the limit can be violated by a certain amount
 (about one frame size).
 
 IMPORTANT:
