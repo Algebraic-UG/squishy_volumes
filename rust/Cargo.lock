@@ -2381,7 +2381,7 @@ dependencies = [
 [[package]]
 name = "naga"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "arrayvec",
  "bit-set 0.11.1",
@@ -2406,7 +2406,7 @@ dependencies = [
 [[package]]
 name = "naga-types"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "hashbrown 0.17.1",
  "indexmap",
@@ -4989,7 +4989,7 @@ dependencies = [
 [[package]]
 name = "wgpu"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "arrayvec",
  "bitflags 2.13.0",
@@ -5043,7 +5043,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "arrayvec",
  "bit-set 0.11.1",
@@ -5077,7 +5077,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-apple"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "wgpu-hal 30.0.0",
 ]
@@ -5085,7 +5085,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-emscripten"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "wgpu-hal 30.0.0",
 ]
@@ -5093,7 +5093,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-linux-android-bsd"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "wgpu-hal 30.0.0",
 ]
@@ -5101,7 +5101,7 @@ dependencies = [
 [[package]]
 name = "wgpu-core-deps-windows"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "wgpu-hal 30.0.0",
 ]
@@ -5154,7 +5154,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -5209,7 +5209,7 @@ dependencies = [
 [[package]]
 name = "wgpu-naga-bridge"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "naga 30.0.0",
  "wgpu-types 30.0.0",
@@ -5218,7 +5218,7 @@ dependencies = [
 [[package]]
 name = "wgpu-profiler"
 version = "0.27.0"
-source = "git+ssh://git@github.com/akx/wgpu-profiler.git?rev=6b5992b3fa8627a2516e13aee564b2421b93df91#6b5992b3fa8627a2516e13aee564b2421b93df91"
+source = "git+https://github.com/akx/wgpu-profiler.git?rev=6b5992b3fa8627a2516e13aee564b2421b93df91#6b5992b3fa8627a2516e13aee564b2421b93df91"
 dependencies = [
  "parking_lot",
  "thiserror 2.0.18",
@@ -5239,7 +5239,7 @@ dependencies = [
 [[package]]
 name = "wgpu-types"
 version = "30.0.0"
-source = "git+ssh://git@github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+source = "git+https://github.com/Vollkornaffe/wgpu.git?rev=6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf#6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
 dependencies = [
  "bitflags 2.13.0",
  "bytemuck",

@@ -21,7 +21,7 @@ wgpu = "30.0.0"
 
 # This fork has updated wgpu dep to 30
 #wgpu-profiler = "0.27.0"
-wgpu-profiler.git = "ssh://git@github.com/akx/wgpu-profiler.git"
+wgpu-profiler.git = "https://github.com/akx/wgpu-profiler.git"
 wgpu-profiler.rev = "6b5992b3fa8627a2516e13aee564b2421b93df91"
 
 pollster = "0.4.0"
@@ -42,5 +42,5 @@ wesl = { version = "0.4.0", features = ["naga-ext"] }
 # We need to know the subgroup size on Metal
 # https://github.com/gfx-rs/wgpu/pull/9876
 [patch.crates-io]
-wgpu.git = "ssh://git@github.com/Vollkornaffe/wgpu.git"
+wgpu.git = "https://github.com/Vollkornaffe/wgpu.git"
 wgpu.rev = "6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
