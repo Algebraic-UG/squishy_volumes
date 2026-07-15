@@ -105,7 +105,7 @@ impl PipelinePart for PrepareGrid {
             grid_node_size,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let partition_nodes = PartitionNodes::new(
             context,
             partition_nodes::Settings {
@@ -114,23 +114,23 @@ impl PipelinePart for PrepareGrid {
                 grid_node_size,
                 table_tries,
             },
-        );
+        )?;
 
-        let bits_to_pops = BitsToPops::new(context, bits_to_pops::Settings { workgroup_size });
+        let bits_to_pops = BitsToPops::new(context, bits_to_pops::Settings { workgroup_size })?;
         let prefix_sum = PrefixSum::new(
             context,
             prefix_sum::Settings {
                 workgroup_size,
                 dispatch_limit,
             },
-        );
+        )?;
         let len_to_indirect = LenToIndirect::new(
             context,
             len_to_indirect::Settings {
                 workgroup_size,
                 dispatch_limit,
             },
-        );
+        )?;
         let_compiled_module!(
             build_nodes,
             CompiledModuleSettings {
@@ -155,7 +155,7 @@ impl PipelinePart for PrepareGrid {
                 workgroup_size,
                 table_tries,
             },
-        );
+        )?;
 
         let_compiled_module!(
             fill_multi_map,
@@ -177,7 +177,7 @@ impl PipelinePart for PrepareGrid {
             }
         );
 
-        Self {
+        Ok(Self {
             partition_nodes,
             bits_to_pops,
             prefix_sum,
@@ -188,7 +188,7 @@ impl PipelinePart for PrepareGrid {
 
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

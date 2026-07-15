@@ -143,7 +143,7 @@ impl PipelinePart for Collect {
             time_step,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             collect,
             CompiledModuleSettings {
@@ -167,11 +167,11 @@ impl PipelinePart for Collect {
             }
         );
 
-        Self {
+        Ok(Self {
             collect,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

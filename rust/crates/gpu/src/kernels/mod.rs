@@ -49,7 +49,10 @@ impl PipelinePart for Kernels {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        Settings { workgroup_size }: Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             kernels,
             CompiledModuleSettings {
@@ -65,10 +68,10 @@ impl PipelinePart for Kernels {
             }
         );
 
-        Self {
+        Ok(Self {
             workgroup_size,
             kernels,
-        }
+        })
     }
 
     fn record(

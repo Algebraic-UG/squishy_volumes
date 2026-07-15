@@ -87,7 +87,7 @@ pub fn count_subkeys_on_cpu(
 }
 
 pub fn get_subgroup_size() -> NonZeroU32 {
-    GpuContext::new().unwrap().subgroup_size()
+    GpuContext::new().unwrap().subgroup_size().unwrap()
 }
 
 pub fn sort_on_cpu_by_bits(

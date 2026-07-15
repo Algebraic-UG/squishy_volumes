@@ -128,7 +128,7 @@ impl PipelinePart for MeldGrid {
             workgroup_size,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             meld_grid,
             CompiledModuleSettings {
@@ -149,7 +149,7 @@ impl PipelinePart for MeldGrid {
                 ]
             }
         );
-        Self { meld_grid }
+        Ok(Self { meld_grid })
     }
 
     fn record(

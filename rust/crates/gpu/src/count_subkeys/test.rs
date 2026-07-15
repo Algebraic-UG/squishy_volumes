@@ -213,7 +213,7 @@ fn run_subkey_count(
 
     let input = Input::new(context.device(), settings, indices, keys).unwrap();
 
-    let count_subkeys = CountSubkeys::new(&mut context, settings);
+    let count_subkeys = CountSubkeys::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

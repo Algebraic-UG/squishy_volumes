@@ -178,7 +178,8 @@ fn run_permute_particles(
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), workgroup_size, dispatch_limit, input_data);
-    let permute_particles = PermuteParticles::new(&mut context, Settings { workgroup_size });
+    let permute_particles =
+        PermuteParticles::new(&mut context, Settings { workgroup_size }).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

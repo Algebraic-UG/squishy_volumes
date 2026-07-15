@@ -85,7 +85,7 @@ impl GpuState {
                 time_step,
                 table_tries: 50, // TODO: make configurable?
             },
-        );
+        )?;
         harness.check()?;
         harness.step()?;
 

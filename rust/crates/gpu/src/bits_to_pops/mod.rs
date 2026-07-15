@@ -59,7 +59,10 @@ impl PipelinePart for BitsToPops {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        Settings { workgroup_size }: Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             bits_to_pops,
             CompiledModuleSettings {
@@ -74,7 +77,7 @@ impl PipelinePart for BitsToPops {
             }
         );
 
-        Self { bits_to_pops }
+        Ok(Self { bits_to_pops })
     }
 
     fn record(

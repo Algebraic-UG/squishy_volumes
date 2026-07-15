@@ -158,7 +158,7 @@ impl PipelinePart for Collide {
             accept_distance,
             time_step,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             collide,
             CompiledModuleSettings {
@@ -187,11 +187,11 @@ impl PipelinePart for Collide {
             }
         );
 
-        Self {
+        Ok(Self {
             collide,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

@@ -17,6 +17,12 @@ pub struct CountsIndirect {
     counts_indirect: CompiledModule,
 }
 
+impl CountsIndirect {
+    pub fn counts_indirect(&self) -> &CompiledModule {
+        &self.counts_indirect
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
@@ -67,7 +73,7 @@ impl PipelinePart for CountsIndirect {
             dispatch_limit,
             bit_count,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             counts_indirect,
             CompiledModuleSettings {
@@ -85,7 +91,7 @@ impl PipelinePart for CountsIndirect {
             }
         );
 
-        Self { counts_indirect }
+        Ok(Self { counts_indirect })
     }
 
     fn record(

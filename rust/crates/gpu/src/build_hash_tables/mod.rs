@@ -85,7 +85,7 @@ impl PipelinePart for BuildHashTables {
             workgroup_size,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             build_hash_tables,
             CompiledModuleSettings {
@@ -105,7 +105,7 @@ impl PipelinePart for BuildHashTables {
             }
         );
 
-        Self { build_hash_tables }
+        Ok(Self { build_hash_tables })
     }
 
     fn record(

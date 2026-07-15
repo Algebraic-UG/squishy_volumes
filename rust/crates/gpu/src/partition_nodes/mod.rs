@@ -71,7 +71,7 @@ impl PipelinePart for PartitionNodes {
             grid_node_size,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             partition_nodes,
             CompiledModuleSettings {
@@ -90,12 +90,12 @@ impl PipelinePart for PartitionNodes {
             }
         );
 
-        Self {
+        Ok(Self {
             partition_nodes,
 
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

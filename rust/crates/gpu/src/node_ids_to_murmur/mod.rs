@@ -66,7 +66,10 @@ impl PipelinePart for NodeIdsToMurmur {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        Settings { workgroup_size }: Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             node_ids_to_murmur,
             CompiledModuleSettings {
@@ -82,7 +85,7 @@ impl PipelinePart for NodeIdsToMurmur {
             }
         );
 
-        Self { node_ids_to_murmur }
+        Ok(Self { node_ids_to_murmur })
     }
 
     fn record(

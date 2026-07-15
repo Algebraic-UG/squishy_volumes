@@ -338,7 +338,7 @@ fn run(settings: Settings, data: InputData) -> OutputData {
 
     let variable_particle_input = input.variable_particle_input.clone();
 
-    let step = Step::new(&mut context, settings);
+    let step = Step::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

@@ -22,6 +22,12 @@ pub struct ReorderIndices {
     reorder_indices_with_indices: CompiledModule,
 }
 
+impl ReorderIndices {
+    pub fn reorder_indices(&self) -> &CompiledModule {
+        &self.reorder_indices
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
@@ -89,13 +95,13 @@ impl PipelinePart for ReorderIndices {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, settings: Self::Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        settings: Self::Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let workgroup_size = settings.workgroup_size.get();
         let dispatch_limit = settings.dispatch_limit.get();
         let bit_count = settings.bit_count.get();
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
-        assert!(subgroup_size >= 2u32.pow(bit_count));
 
         let_compiled_module!(
             reorder_indices,
@@ -134,14 +140,42 @@ impl PipelinePart for ReorderIndices {
             }
         );
 
-        Self {
+        if reorder_indices.subgroup_size != reorder_indices_with_indices.subgroup_size {
+            return Err(GpuPipelineCreationError::SubgroupSizeMismatch {
+                a_label: reorder_indices.label.unwrap_or("unlabeled"),
+                a_size: reorder_indices.subgroup_size.get(),
+                b_label: reorder_indices_with_indices.label.unwrap_or("unlabeled"),
+                b_size: reorder_indices_with_indices.subgroup_size.get(),
+            });
+        }
+        let subgroup_size = reorder_indices.subgroup_size.get();
+
+        if !workgroup_size.is_multiple_of(subgroup_size) {
+            return Err(
+                GpuPipelineCreationError::WorkgroupSizeNotMultipleOfSubgroupSize {
+                    label: "Reorder Indices",
+                    workgroup_size,
+                    subgroup_size,
+                },
+            );
+        }
+
+        if subgroup_size < 2u32.pow(bit_count) {
+            return Err(GpuPipelineCreationError::SubgroupSizeTooSmall {
+                label: "Reorder Indices",
+                subgroup_size,
+                needed: 2u32.pow(bit_count),
+            });
+        }
+
+        Ok(Self {
             workgroup_size,
             dispatch_limit,
             subgroup_size,
             bit_count,
             reorder_indices,
             reorder_indices_with_indices,
-        }
+        })
     }
 
     fn record(

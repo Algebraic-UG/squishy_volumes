@@ -209,7 +209,7 @@ fn run_prepare_grid(
         positions_and_collider_bits,
     )
     .unwrap();
-    let prepare_grid = PrepareGrid::new(&mut context, settings);
+    let prepare_grid = PrepareGrid::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

@@ -125,7 +125,7 @@ impl PipelinePart for PrepareTmp {
             grid_node_size,
             time_step,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             prepare_tmp,
             CompiledModuleSettings {
@@ -148,11 +148,11 @@ impl PipelinePart for PrepareTmp {
             }
         );
 
-        Self {
+        Ok(Self {
             prepare_tmp,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

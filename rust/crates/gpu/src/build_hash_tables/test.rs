@@ -146,7 +146,7 @@ fn run(settings: Settings, node_id_and_collider_bits: &[NodeIdAndColliderBits]) 
         node_id_and_collider_bits,
     )
     .unwrap();
-    let build_hash_tables = BuildHashTables::new(&mut context, settings);
+    let build_hash_tables = BuildHashTables::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

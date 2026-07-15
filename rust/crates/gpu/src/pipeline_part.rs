@@ -8,7 +8,7 @@
 
 use std::ops::{Deref, DerefMut};
 
-use crate::{GpuContext, GpuError};
+use crate::{GpuContext, GpuError, GpuPipelineCreationError};
 
 pub enum CommandEncoder<'a> {
     Encoder(&'a mut wgpu::CommandEncoder),
@@ -104,7 +104,12 @@ pub trait PipelinePart {
     type Input;
     type Output;
 
-    fn new(context: &mut GpuContext, settings: Self::Settings) -> Self;
+    fn new(
+        context: &mut GpuContext,
+        settings: Self::Settings,
+    ) -> Result<Self, GpuPipelineCreationError>
+    where
+        Self: Sized;
 
     fn record(
         &self,

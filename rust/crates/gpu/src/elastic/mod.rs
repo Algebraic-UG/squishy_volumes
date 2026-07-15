@@ -81,7 +81,10 @@ impl PipelinePart for Elastic {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, Settings { workgroup_size }: Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        Settings { workgroup_size }: Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             stress_and_energy,
             CompiledModuleSettings {
@@ -99,7 +102,7 @@ impl PipelinePart for Elastic {
             }
         );
 
-        Self { stress_and_energy }
+        Ok(Self { stress_and_energy })
     }
 
     fn record(

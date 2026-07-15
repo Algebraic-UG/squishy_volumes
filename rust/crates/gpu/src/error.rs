@@ -26,6 +26,9 @@ pub enum GpuError {
         error: wgpu::MapRangeError,
     },
 
+    #[error("Failed to create GPU pipeline: {0}")]
+    PipelineCreation(#[from] GpuPipelineCreationError),
+
     #[error("Csv profiling failed: {0}")]
     CsvProfilerError(#[from] ProfilerError),
 
@@ -85,6 +88,36 @@ pub enum GpuError {
 
     #[error("Input to the GPU wasn't valid: {0}")]
     Input(#[from] GpuInputError),
+}
+
+#[derive(Error, Debug)]
+pub enum GpuPipelineCreationError {
+    #[error("Could not determine subgroup size for {label}")]
+    FailedToDetermineSubgroupSize { label: &'static str },
+
+    #[error("Subgroup size mismatch, '{a_label}' has {a_size}, but '{b_label}' has {b_size}")]
+    SubgroupSizeMismatch {
+        a_label: &'static str,
+        a_size: u32,
+        b_label: &'static str,
+        b_size: u32,
+    },
+
+    #[error(
+        "{label}: The workgroup size {workgroup_size} isn't a multiple of the subgroup size {subgroup_size}"
+    )]
+    WorkgroupSizeNotMultipleOfSubgroupSize {
+        label: &'static str,
+        workgroup_size: u32,
+        subgroup_size: u32,
+    },
+
+    #[error("{label}: The subgroup size {subgroup_size} is too small, needed at least {needed}.")]
+    SubgroupSizeTooSmall {
+        label: &'static str,
+        subgroup_size: u32,
+        needed: u32,
+    },
 }
 
 #[derive(Error, Debug)]

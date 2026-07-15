@@ -29,7 +29,7 @@ impl PipelinePart for TestStatus {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, _: Settings) -> Self {
+    fn new(context: &mut GpuContext, _: Settings) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             test_status,
             CompiledModuleSettings {
@@ -40,7 +40,7 @@ impl PipelinePart for TestStatus {
             }
         );
 
-        Self { test_status }
+        Ok(Self { test_status })
     }
 
     fn record(

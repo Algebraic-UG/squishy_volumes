@@ -22,6 +22,12 @@ pub struct CountSubkeys {
     count_subkeys_with_indices: CompiledModule,
 }
 
+impl CountSubkeys {
+    pub fn count_subkeys(&self) -> &CompiledModule {
+        &self.count_subkeys
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
@@ -84,13 +90,13 @@ impl PipelinePart for CountSubkeys {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, settings: Self::Settings) -> Self {
+    fn new(
+        context: &mut GpuContext,
+        settings: Self::Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let workgroup_size = settings.workgroup_size.get();
         let dispatch_limit = settings.dispatch_limit.get();
         let bit_count = settings.bit_count.get();
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
-        assert!(subgroup_size >= 2u32.pow(bit_count));
 
         let_compiled_module!(
             count_subkeys,
@@ -127,14 +133,20 @@ impl PipelinePart for CountSubkeys {
             }
         );
 
-        Self {
+        count_subkeys.check_same_sugroup_size(&count_subkeys_with_indices)?;
+        count_subkeys.check_workgroup_size_multiple_of_subgroup_size(workgroup_size)?;
+        count_subkeys.check_subgroup_size_at_least(2u32.pow(bit_count))?;
+
+        let subgroup_size = count_subkeys.subgroup_size.get();
+
+        Ok(Self {
             workgroup_size,
             dispatch_limit,
             subgroup_size,
             bit_count,
             count_subkeys,
             count_subkeys_with_indices,
-        }
+        })
     }
 
     fn record(

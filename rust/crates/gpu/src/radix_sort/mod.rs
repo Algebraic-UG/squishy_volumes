@@ -93,7 +93,7 @@ impl PipelinePart for RadixSort {
             dispatch_limit,
             bit_count,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let count_subkeys = CountSubkeys::new(
             context,
             count_subkeys::Settings {
@@ -101,7 +101,7 @@ impl PipelinePart for RadixSort {
                 dispatch_limit,
                 bit_count,
             },
-        );
+        )?;
         let counts_indirect = CountsIndirect::new(
             context,
             counts_indirect::Settings {
@@ -109,14 +109,14 @@ impl PipelinePart for RadixSort {
                 dispatch_limit,
                 bit_count,
             },
-        );
+        )?;
         let prefix_sum = PrefixSum::new(
             context,
             prefix_sum::Settings {
                 workgroup_size,
                 dispatch_limit,
             },
-        );
+        )?;
         let reorder_indices = ReorderIndices::new(
             context,
             reorder_indices::Settings {
@@ -124,15 +124,26 @@ impl PipelinePart for RadixSort {
                 dispatch_limit,
                 bit_count,
             },
-        );
+        )?;
 
-        Self {
+        // TODO: this is awkward
+        count_subkeys
+            .count_subkeys()
+            .check_same_sugroup_size(counts_indirect.counts_indirect())?;
+        count_subkeys
+            .count_subkeys()
+            .check_same_sugroup_size(prefix_sum.prepare_indirect())?;
+        count_subkeys
+            .count_subkeys()
+            .check_same_sugroup_size(reorder_indices.reorder_indices())?;
+
+        Ok(Self {
             bit_count: bit_count.get(),
             count_subkeys,
             counts_indirect,
             prefix_sum,
             reorder_indices,
-        }
+        })
     }
 
     fn record(

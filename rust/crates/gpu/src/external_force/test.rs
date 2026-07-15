@@ -118,7 +118,7 @@ fn run(settings: Settings, input_data: InputData, parameters: Parameters) -> Vec
 
     let input = Input::new(context.device(), input_data).unwrap();
     let particle_velocities = input.particle_velocities.clone();
-    let external_force = ExternalForce::new(&mut context, settings);
+    let external_force = ExternalForce::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
