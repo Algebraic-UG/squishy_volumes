@@ -38,3 +38,9 @@ itertools = "0.14.0"
 strum_macros = "0.26.4"
 strum = { version = "0.26.3", features = ["derive"] }
 wesl = { version = "0.4.0", features = ["naga-ext"] }
+
+# We need to know the subgroup size on Metal
+# https://github.com/gfx-rs/wgpu/pull/9876
+[patch.crates-io]
+wgpu.git = "ssh://git@github.com/Vollkornaffe/wgpu.git"
+wgpu.rev = "6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
