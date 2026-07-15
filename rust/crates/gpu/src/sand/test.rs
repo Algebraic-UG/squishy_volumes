@@ -121,7 +121,7 @@ fn run(
     .unwrap();
     let particle_position_gradients = input.particle_position_gradients.clone();
 
-    let test_svd = Sand::new(&mut context, settings);
+    let test_svd = Sand::new(&mut context, settings).unwrap();
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output = test_svd

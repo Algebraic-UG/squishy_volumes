@@ -122,7 +122,7 @@ impl PipelinePart for AnimateMesh {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             move_vertices,
             CompiledModuleSettings {
@@ -166,13 +166,13 @@ impl PipelinePart for AnimateMesh {
             }
         );
 
-        Self {
+        Ok(Self {
             move_vertices,
             compute_triangle_normals,
             compute_vertex_normals,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

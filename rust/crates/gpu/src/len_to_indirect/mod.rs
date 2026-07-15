@@ -54,7 +54,7 @@ impl PipelinePart for LenToIndirect {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             len_to_indirect,
             CompiledModuleSettings {
@@ -71,7 +71,7 @@ impl PipelinePart for LenToIndirect {
             }
         );
 
-        Self { len_to_indirect }
+        Ok(Self { len_to_indirect })
     }
 
     fn record(

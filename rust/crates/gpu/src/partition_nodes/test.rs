@@ -106,7 +106,7 @@ fn run(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBit
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), positions_and_collider_bits).unwrap();
-    let partition_nodes = PartitionNodes::new(&mut context, settings);
+    let partition_nodes = PartitionNodes::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

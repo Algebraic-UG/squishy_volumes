@@ -6,14 +6,18 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{iter, num::NonZeroU64};
+use std::{
+    iter,
+    num::{NonZeroU32, NonZeroU64},
+};
 
-use crate::{AllowedInBinding, GpuContext, GpuStatus};
+use crate::{AllowedInBinding, GpuContext, GpuPipelineCreationError, GpuStatus};
 
 pub struct CompiledModule {
     pub label: Option<&'static str>,
     pub bind_group_layout: wgpu::BindGroupLayout,
     pub compute_pipeline: wgpu::ComputePipeline,
+    pub subgroup_size: NonZeroU32,
 }
 
 pub struct CompiledModuleSettings<'a, BindGroupEntries, Constants> {
@@ -25,7 +29,7 @@ pub struct CompiledModuleSettings<'a, BindGroupEntries, Constants> {
 
 impl CompiledModule {
     pub fn new<BindGroupEntries, Constants>(
-        label: &'static str,
+        label_raw: &'static str,
         shader_module_descriptor: wgpu::ShaderModuleDescriptor,
         CompiledModuleSettings {
             context,
@@ -33,13 +37,13 @@ impl CompiledModule {
             immediate_size,
             constants,
         }: CompiledModuleSettings<BindGroupEntries, Constants>,
-    ) -> Self
+    ) -> Result<Self, GpuPipelineCreationError>
     where
         BindGroupEntries: IntoIterator<Item = (NonZeroU64, bool)>,
         Constants: IntoIterator<Item = (&'static str, f64)>,
     {
-        let shader_id = context.get_shader_id(label);
-        let label = Some(label);
+        let shader_id = context.get_shader_id(label_raw);
+        let label = Some(label_raw);
         let device = context.device();
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label,
@@ -83,10 +87,65 @@ impl CompiledModule {
             cache: None,
         });
 
-        CompiledModule {
+        let subgroup_size = context
+            .subgroup_size()
+            .or_else(|| {
+                compute_pipeline
+                    .get_sub_group_size()
+                    .and_then(|subgroup_size| (subgroup_size as u32).try_into().ok())
+            })
+            .ok_or(GpuPipelineCreationError::FailedToDetermineSubgroupSize { label: label_raw })?;
+
+        Ok(CompiledModule {
             label,
             bind_group_layout,
             compute_pipeline,
+            subgroup_size,
+        })
+    }
+
+    pub fn check_same_sugroup_size(&self, other: &Self) -> Result<(), GpuPipelineCreationError> {
+        if self.subgroup_size != other.subgroup_size {
+            Err(GpuPipelineCreationError::SubgroupSizeMismatch {
+                a_label: self.label.unwrap_or("unlabeled"),
+                a_size: self.subgroup_size.get(),
+                b_label: other.label.unwrap_or("unlabeled"),
+                b_size: other.subgroup_size.get(),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn check_workgroup_size_multiple_of_subgroup_size(
+        &self,
+        workgroup_size: u32,
+    ) -> Result<(), GpuPipelineCreationError> {
+        if !workgroup_size.is_multiple_of(self.subgroup_size.get()) {
+            Err(
+                GpuPipelineCreationError::WorkgroupSizeNotMultipleOfSubgroupSize {
+                    label: self.label.unwrap_or("unlabeled"),
+                    workgroup_size,
+                    subgroup_size: self.subgroup_size.get(),
+                },
+            )
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn check_subgroup_size_at_least(
+        &self,
+        needed: u32,
+    ) -> Result<(), GpuPipelineCreationError> {
+        if self.subgroup_size.get() < needed {
+            Err(GpuPipelineCreationError::SubgroupSizeTooSmall {
+                label: self.label.unwrap_or("unlabeled"),
+                subgroup_size: self.subgroup_size.get(),
+                needed,
+            })
+        } else {
+            Ok(())
         }
     }
 }
@@ -103,6 +162,6 @@ macro_rules! let_compiled_module {
                 ),
             },
             $settings,
-        );
+        )?;
     };
 }

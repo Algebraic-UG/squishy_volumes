@@ -72,7 +72,7 @@ fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> (Vec<u32>,
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, numbers).unwrap();
-    let prefix_sum = PrefixSum::new(&mut context, settings);
+    let prefix_sum = PrefixSum::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

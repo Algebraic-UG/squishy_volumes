@@ -66,7 +66,7 @@ fn run(settings: Settings, len: u32) -> Vec<Indirect> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), len).unwrap();
-    let len_to_indirect = LenToIndirect::new(&mut context, settings);
+    let len_to_indirect = LenToIndirect::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let Output { new_indirect } = len_to_indirect

@@ -60,7 +60,7 @@ impl PipelinePart for TestSvd {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             test_svd,
             CompiledModuleSettings {
@@ -74,11 +74,11 @@ impl PipelinePart for TestSvd {
             }
         );
 
-        Self {
+        Ok(Self {
             test_svd,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

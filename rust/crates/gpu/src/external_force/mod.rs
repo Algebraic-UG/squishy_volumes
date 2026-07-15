@@ -102,7 +102,7 @@ impl PipelinePart for ExternalForce {
             dispatch_limit,
             time_step,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             external_force,
             CompiledModuleSettings {
@@ -123,11 +123,11 @@ impl PipelinePart for ExternalForce {
             }
         );
 
-        Self {
+        Ok(Self {
             external_force,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

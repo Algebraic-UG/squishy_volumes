@@ -105,7 +105,7 @@ impl PipelinePart for Scatter {
             workgroup_size,
             grid_node_size,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             scatter,
             CompiledModuleSettings {
@@ -126,7 +126,7 @@ impl PipelinePart for Scatter {
             }
         );
 
-        Self { scatter }
+        Ok(Self { scatter })
     }
 
     fn record(

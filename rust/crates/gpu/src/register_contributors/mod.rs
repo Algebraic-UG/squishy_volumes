@@ -102,7 +102,7 @@ impl PipelinePart for RegisterContributors {
             grid_node_size,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             count_contributors,
             CompiledModuleSettings {
@@ -128,7 +128,7 @@ impl PipelinePart for RegisterContributors {
                 workgroup_size,
                 dispatch_limit,
             },
-        );
+        )?;
 
         let_compiled_module!(
             register_contributors,
@@ -151,13 +151,13 @@ impl PipelinePart for RegisterContributors {
             }
         );
 
-        Self {
+        Ok(Self {
             count_contributors,
             prefix_sum,
             register_contributors,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(

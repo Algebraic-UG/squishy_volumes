@@ -21,7 +21,7 @@ pub struct GpuContext {
     device: wgpu::Device,
     queue: wgpu::Queue,
 
-    subgroup_size: NonZeroU32,
+    subgroup_size: Option<NonZeroU32>,
 
     status: Allocation,
 
@@ -57,17 +57,16 @@ impl GpuContext {
             pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))?;
         tracing::info!("Running on Adapter: {:#?}", adapter.get_info());
 
-        if adapter.limits().max_compute_workgroups_per_dimension < u16::MAX as u32 {
+        let wgpu::Limits {
+            max_compute_workgroups_per_dimension,
+            max_buffer_size,
+            max_storage_buffer_binding_size,
+            ..
+        } = adapter.limits();
+
+        if max_compute_workgroups_per_dimension < u16::MAX as u32 {
             return Err(GpuError::SmallMaxWorkGroupPerDimension);
         }
-        if adapter.get_info().subgroup_min_size != adapter.get_info().subgroup_min_size {
-            return Err(GpuError::VariableSubgroupSize);
-        }
-        let subgroup_size = adapter
-            .get_info()
-            .subgroup_min_size
-            .try_into()
-            .map_err(|_| GpuError::SubgroupSizeZero)?;
 
         let downlevel_capabilities = adapter.get_downlevel_capabilities();
         downlevel_capabilities
@@ -77,9 +76,8 @@ impl GpuContext {
             .ok_or(GpuError::ComputeNotSupported)?;
 
         let (required_features, mut required_limits) = requirements();
-        required_limits.max_buffer_size = adapter.limits().max_buffer_size;
-        required_limits.max_storage_buffer_binding_size =
-            adapter.limits().max_storage_buffer_binding_size;
+        required_limits.max_buffer_size = max_buffer_size;
+        required_limits.max_storage_buffer_binding_size = max_storage_buffer_binding_size;
         tracing::info!(
             max_buffer_size = required_limits.max_buffer_size,
             max_storage_buffer_binding_size = required_limits.max_storage_buffer_binding_size,
@@ -108,6 +106,28 @@ impl GpuContext {
             .is_empty()
             .then_some(())
             .ok_or(GpuError::ExceedingRequiredLimits(exceeding_limits))?;
+
+        let wgpu::AdapterInfo {
+            subgroup_min_size,
+            subgroup_max_size,
+            ..
+        } = adapter.get_info();
+        let subgroup_size = if subgroup_min_size == subgroup_max_size {
+            Some(
+                adapter
+                    .get_info()
+                    .subgroup_min_size
+                    .try_into()
+                    .map_err(|_| GpuError::SubgroupSizeZero)?,
+            )
+        } else {
+            tracing::warn!(
+                subgroup_min_size,
+                subgroup_max_size,
+                "The subgroup size is variable, this might cause problems."
+            );
+            None
+        };
 
         let (device, queue) =
             pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
@@ -155,7 +175,7 @@ impl GpuContext {
         &self.queue
     }
 
-    pub fn subgroup_size(&self) -> NonZeroU32 {
+    pub fn subgroup_size(&self) -> Option<NonZeroU32> {
         self.subgroup_size
     }
 

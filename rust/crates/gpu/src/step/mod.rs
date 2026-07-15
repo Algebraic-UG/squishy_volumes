@@ -371,14 +371,14 @@ impl PipelinePart for Step {
             time_step,
             table_tries,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let animate_mesh = AnimateMesh::new(
             context,
             animate_mesh::Settings {
                 workgroup_size,
                 dispatch_limit,
             },
-        );
+        )?;
         let external_force = ExternalForce::new(
             context,
             external_force::Settings {
@@ -386,7 +386,7 @@ impl PipelinePart for Step {
                 dispatch_limit,
                 time_step,
             },
-        );
+        )?;
         let collide = Collide::new(
             context,
             collide::Settings {
@@ -396,7 +396,7 @@ impl PipelinePart for Step {
                 accept_distance,
                 time_step,
             },
-        );
+        )?;
         let prepare_grid = PrepareGrid::new(
             context,
             prepare_grid::Settings {
@@ -405,7 +405,7 @@ impl PipelinePart for Step {
                 grid_node_size,
                 table_tries,
             },
-        );
+        )?;
         let register_contributors = RegisterContributors::new(
             context,
             register_contributors::Settings {
@@ -414,7 +414,7 @@ impl PipelinePart for Step {
                 grid_node_size,
                 table_tries,
             },
-        );
+        )?;
         let prepare_tmp = PrepareTmp::new(
             context,
             prepare_tmp::Settings {
@@ -423,21 +423,21 @@ impl PipelinePart for Step {
                 grid_node_size,
                 time_step,
             },
-        );
+        )?;
         let scatter = Scatter::new(
             context,
             scatter::Settings {
                 workgroup_size,
                 grid_node_size,
             },
-        );
+        )?;
         let meld_grid = MeldGrid::new(
             context,
             meld_grid::Settings {
                 workgroup_size,
                 table_tries,
             },
-        );
+        )?;
         let collect = Collect::new(
             context,
             collect::Settings {
@@ -447,9 +447,9 @@ impl PipelinePart for Step {
                 time_step,
                 table_tries,
             },
-        );
+        )?;
 
-        Self {
+        Ok(Self {
             animate_mesh,
             external_force,
             collide,
@@ -459,7 +459,7 @@ impl PipelinePart for Step {
             scatter,
             meld_grid,
             collect,
-        }
+        })
     }
 
     fn record(

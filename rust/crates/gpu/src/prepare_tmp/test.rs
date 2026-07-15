@@ -164,7 +164,7 @@ fn run(settings: Settings, input_data: InputData<'_>) -> Vec<Matrix4<f32>> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), input_data).unwrap();
-    let prepare_tmp = PrepareTmp::new(&mut context, settings);
+    let prepare_tmp = PrepareTmp::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

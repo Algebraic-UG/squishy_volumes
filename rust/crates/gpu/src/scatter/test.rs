@@ -194,7 +194,7 @@ fn run(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) ->
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, dispatch_limit, input_data).unwrap();
-    let scatter = Scatter::new(&mut context, settings);
+    let scatter = Scatter::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

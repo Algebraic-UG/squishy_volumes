@@ -22,7 +22,12 @@ fn check(len: u32) {
 
     let count_len = counts_count(CountsCountArgs {
         workgroup_size: workgroup_size.get(),
-        subgroup_size: SHARED_CONTEXT.lock().unwrap().subgroup_size().get(),
+        subgroup_size: SHARED_CONTEXT
+            .lock()
+            .unwrap()
+            .subgroup_size()
+            .unwrap()
+            .get(),
         dispatch_limit: dispatch_limit.get(),
         counter: 2u32.pow(bit_count.get()),
         len,
@@ -56,7 +61,7 @@ fn run_counts_indirect(settings: Settings, len: u32) -> Vec<Indirect> {
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), settings, len).unwrap();
-    let counts_indirect = CountsIndirect::new(&mut context, settings);
+    let counts_indirect = CountsIndirect::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let Output { indirect_counts } = counts_indirect

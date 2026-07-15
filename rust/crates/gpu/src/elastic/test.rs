@@ -156,7 +156,7 @@ fn run_elastic(
     )
     .unwrap();
 
-    let elastic = Elastic::new(&mut context, settings);
+    let elastic = Elastic::new(&mut context, settings).unwrap();
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output { stresses, energies } = elastic

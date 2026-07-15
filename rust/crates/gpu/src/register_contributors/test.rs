@@ -164,7 +164,7 @@ fn run(
         positions_and_collider_bits,
     )
     .unwrap();
-    let register_contributors = RegisterContributors::new(&mut context, settings);
+    let register_contributors = RegisterContributors::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 

@@ -393,7 +393,7 @@ fn run(
     let mut context = SHARED_CONTEXT.lock().unwrap();
 
     let input = Input::new(context.device(), &settings, input_data).unwrap();
-    let step = Collide::new(&mut context, settings);
+    let step = Collide::new(&mut context, settings).unwrap();
 
     let particle_positions_and_collider_bits = input.particle_positions_and_collider_bits.clone();
     let particle_velocities = input.particle_velocities.clone();

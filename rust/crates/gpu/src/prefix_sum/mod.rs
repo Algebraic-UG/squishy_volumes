@@ -21,6 +21,12 @@ pub struct PrefixSum {
     total_sum: CompiledModule,
 }
 
+impl PrefixSum {
+    pub fn representative_module(&self) -> &CompiledModule {
+        &self.prepare_indirect
+    }
+}
+
 #[derive(Clone, Copy)]
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
@@ -69,11 +75,9 @@ impl PipelinePart for PrefixSum {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, settings: Settings) -> Self {
+    fn new(context: &mut GpuContext, settings: Settings) -> Result<Self, GpuPipelineCreationError> {
         let workgroup_size = settings.workgroup_size.get();
         let dispatch_limit = settings.dispatch_limit.get();
-        let subgroup_size = context.subgroup_size().get();
-        assert!(workgroup_size.is_multiple_of(subgroup_size));
 
         let_compiled_module!(
             prepare_indirect,
@@ -118,6 +122,8 @@ impl PipelinePart for PrefixSum {
             }
         );
 
+        let subgroup_size = prepare_indirect.subgroup_size.get();
+
         let_compiled_module!(
             total_sum,
             CompiledModuleSettings {
@@ -132,13 +138,18 @@ impl PipelinePart for PrefixSum {
             }
         );
 
-        Self {
+        prepare_indirect.check_same_sugroup_size(&build_levels)?;
+        prepare_indirect.check_same_sugroup_size(&fill_final)?;
+        prepare_indirect.check_same_sugroup_size(&total_sum)?;
+        prepare_indirect.check_workgroup_size_multiple_of_subgroup_size(workgroup_size)?;
+
+        Ok(Self {
             subgroup_size,
             prepare_indirect,
             build_levels,
             fill_final,
             total_sum,
-        }
+        })
     }
 
     fn record(

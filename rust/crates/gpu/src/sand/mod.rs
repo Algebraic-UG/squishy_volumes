@@ -82,7 +82,7 @@ impl PipelinePart for Sand {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Self {
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             sand,
             CompiledModuleSettings {
@@ -97,11 +97,11 @@ impl PipelinePart for Sand {
             }
         );
 
-        Self {
+        Ok(Self {
             sand,
             workgroup_size,
             dispatch_limit,
-        }
+        })
     }
 
     fn record(
