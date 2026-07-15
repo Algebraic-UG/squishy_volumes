@@ -373,7 +373,6 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text=f"{last_frame_substeps}")
 
         add_row = layout.row()
-        add_row.alert = not context.scene.squishy_volumes_scene.simulations
         add_row.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
         add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
