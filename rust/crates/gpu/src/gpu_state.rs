@@ -155,7 +155,7 @@ impl GpuState {
         };
 
         let profile_data_csv_writer = profiling_output_file
-            .map(|path| ProfileDataCsvWriter::new(path))
+            .map(ProfileDataCsvWriter::new)
             .transpose()?;
 
         harness.check()?;
