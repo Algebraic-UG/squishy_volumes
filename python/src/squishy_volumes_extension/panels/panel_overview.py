@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import re
 
 import bpy
@@ -56,6 +57,31 @@ from ..util import (
     locked_simulations,
     unloaded_simulations,
 )
+from ..startup import STARTUP_BENCHMARK, setup_startup_simulation
+
+
+class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_startup_simulation"
+    bl_label = "Add Startup Simulation"
+    bl_description = """Start with a prefabricated Squishy Volumes simulation."""
+    bl_options = {"REGISTER", "UNDO"}
+
+    startup_choice: bpy.props.EnumProperty(
+        items=[
+            (STARTUP_BENCHMARK,) * 3,
+        ],  # ty:ignore[invalid-argument-type]
+        name="Chose Startup Simulation",
+        description="Chose one of the startup simulations to set up.",
+        default=STARTUP_BENCHMARK,
+        options=set(),
+    )  # type: ignore
+
+    def execute(self, context):
+        setup_startup_simulation(context, self.startup_choice)
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
 
 
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
@@ -346,7 +372,12 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
 
-        layout.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
+        add_row = layout.row()
+        add_row.alert = not context.scene.squishy_volumes_scene.simulations
+        add_row.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
+        add_row.operator(
+            SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
+        )
 
         if len(context.scene.squishy_volumes_scene.simulations) > 1:
             layout.separator()
@@ -358,6 +389,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
 
 classes = [
+    SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
     SCENE_OT_Squishy_Volumes_Add_Simulation,
     SCENE_OT_Squishy_Volumes_Reload,
     SCENE_OT_Squishy_Volumes_Reload_All,
