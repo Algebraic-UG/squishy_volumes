@@ -126,16 +126,15 @@ impl PipelinePart for RadixSort {
             },
         )?;
 
-        // TODO: this is awkward
         count_subkeys
-            .count_subkeys()
-            .check_same_sugroup_size(counts_indirect.counts_indirect())?;
+            .representative_module()
+            .check_same_sugroup_size(counts_indirect.representative_module())?;
         count_subkeys
-            .count_subkeys()
-            .check_same_sugroup_size(prefix_sum.prepare_indirect())?;
+            .representative_module()
+            .check_same_sugroup_size(prefix_sum.representative_module())?;
         count_subkeys
-            .count_subkeys()
-            .check_same_sugroup_size(reorder_indices.reorder_indices())?;
+            .representative_module()
+            .check_same_sugroup_size(reorder_indices.representative_module())?;
 
         Ok(Self {
             bit_count: bit_count.get(),

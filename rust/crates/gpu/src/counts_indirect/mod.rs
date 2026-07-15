@@ -18,7 +18,7 @@ pub struct CountsIndirect {
 }
 
 impl CountsIndirect {
-    pub fn counts_indirect(&self) -> &CompiledModule {
+    pub fn representative_module(&self) -> &CompiledModule {
         &self.counts_indirect
     }
 }

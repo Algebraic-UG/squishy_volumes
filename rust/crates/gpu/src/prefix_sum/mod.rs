@@ -22,7 +22,7 @@ pub struct PrefixSum {
 }
 
 impl PrefixSum {
-    pub fn prepare_indirect(&self) -> &CompiledModule {
+    pub fn representative_module(&self) -> &CompiledModule {
         &self.prepare_indirect
     }
 }

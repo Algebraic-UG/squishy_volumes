@@ -23,7 +23,7 @@ pub struct ReorderIndices {
 }
 
 impl ReorderIndices {
-    pub fn reorder_indices(&self) -> &CompiledModule {
+    pub fn representative_module(&self) -> &CompiledModule {
         &self.reorder_indices
     }
 }

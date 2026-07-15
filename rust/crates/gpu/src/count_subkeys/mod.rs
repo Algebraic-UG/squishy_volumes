@@ -23,7 +23,7 @@ pub struct CountSubkeys {
 }
 
 impl CountSubkeys {
-    pub fn count_subkeys(&self) -> &CompiledModule {
+    pub fn representative_module(&self) -> &CompiledModule {
         &self.count_subkeys
     }
 }
