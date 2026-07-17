@@ -46,6 +46,7 @@ from .popup import register_popup, unregister_popup
 from .view_utils import register_view_utils, unregister_view_utils
 from .script_utils import register_script_utils, unregister_script_utils
 from .append_hander import register_append_handler, unregister_append_handler
+from .goals import register_goals, unregister_goals
 
 
 bl_info = {
@@ -95,6 +96,7 @@ def register():
     register_blend_file_change_handler()
     register_properties()
     register_panels()
+    register_goals()
     register_handler()
     register_progress_update()
     register_progress_update_toggle()
@@ -112,6 +114,7 @@ def unregister():
     unregister_progress_update_toggle()
     unregister_progress_update()
     unregister_handler()
+    unregister_goals()
     unregister_panels()
     unregister_properties()
     unregister_blend_file_change_handler()

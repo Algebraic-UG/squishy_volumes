@@ -56,7 +56,6 @@ from ..util import (
 )
 from ..nodes import (
     create_geometry_nodes_generate_particles,
-    create_geometry_nodes_generate_goal_positions,
     create_geometry_nodes_generate_collider,
 )
 
@@ -238,44 +237,6 @@ class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
         layout.label(text=item.name)
 
 
-# TODO: re-add goals
-## TODO: this doesn't feel like it's the right place... the whole file has become somewhat bloated
-# class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
-#    bl_idname = "object.squishy_volumes_input_object_add_goals"
-#    bl_label = "Add Goals"
-#    bl_description = """TODO"""
-#    bl_options = {"REGISTER", "UNDO"}
-#
-#    @classmethod
-#    def poll(cls, context):
-#        return get_selected_input_object(context.scene) is not None
-#
-#    def execute(self, context):
-#        obj = get_selected_input_object(context.scene)
-#
-#        node_group = create_geometry_nodes_generate_goal_positions()
-#        modifier = obj.modifiers.new("Squishy Volumes Goals", type="NODES")
-#        modifier.node_group = node_group
-#
-#        bpy.ops.mesh.primitive_ico_sphere_add()
-#        choose = context.active_object
-#        choose.name = f"{obj.name} - Choose"
-#
-#        move = bpy.data.objects.new(f"{obj.name} - Move", None)
-#        context.collection.objects.link(move)
-#
-#        move.parent = choose
-#
-#        modifier["Socket_2"] = choose
-#        modifier["Socket_3"] = move
-#
-#        obj.update_tag()
-#        context.view_layer.update()
-#
-#        self.report({"INFO"}, f"Added goals to {obj.name}.")
-#        return {"FINISHED"}
-
-
 class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
     bl_label = "Input"
     bl_space_type = "VIEW_3D"
@@ -346,21 +307,8 @@ classes = [
     SCENE_OT_Squishy_Volumes_Add_Input_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Input_Object,
     SCENE_UL_Squishy_Volumes_Input_Object_List,
-    # TODO
-    # OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals,
     SCENE_PT_Squishy_Volumes_Input,
 ]
-
-
-# TODO
-# def menu_func_add_goals(self, _context):
-#    self.layout.operator(
-#        OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals.bl_idname,
-#        icon="MODIFIER",
-#    )
-#
-#
-# menu_funcs = [menu_func_add_goals]
 
 
 def register_panel_input():
@@ -368,12 +316,6 @@ def register_panel_input():
         bpy.utils.register_class(cls)
 
 
-#    for menu_func in menu_funcs:
-#        bpy.types.VIEW3D_MT_object.append(menu_func)
-
-
 def unregister_panel_input():
-    #    for menu_func in menu_funcs:
-    #        bpy.types.VIEW3D_MT_object.remove(menu_func)
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
