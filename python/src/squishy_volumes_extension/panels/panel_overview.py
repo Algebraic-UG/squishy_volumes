@@ -55,14 +55,18 @@ from ..startup import STARTUP_BENCHMARK, setup_startup_simulation
 
 class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_startup_simulation"
-    bl_label = "Add Startup Simulation"
+    bl_label = "Add Startup Sim"
     bl_description = """Start with a prefabricated Squishy Volumes simulation."""
     bl_options = {"REGISTER", "UNDO"}
 
     startup_choice: bpy.props.EnumProperty(
         items=[
-            (STARTUP_BENCHMARK,) * 3,
-        ],  # ty:ignore[invalid-argument-type]
+            (
+                STARTUP_BENCHMARK,
+                STARTUP_BENCHMARK + " (setup blocks UI)",
+                "This sets up a million particle scene to benchmark your hardware.",
+            )
+        ],
         name="Chose Startup Simulation",
         description="Chose one of the startup simulations to set up.",
         default=STARTUP_BENCHMARK,

@@ -53,7 +53,7 @@ SIMULATION_INPUT = None
 
 class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_record_input_to_cache"
-    bl_label = "Record"
+    bl_label = "Record Input"
     bl_description = """(Over)Write the cache with the new input.
 
 This writes global settings as well as object specific settings
@@ -146,7 +146,7 @@ Note that this also discards all computed frames in the cache."""
 
 class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_record_input_to_cache_modal"
-    bl_label = "Record Modal"
+    bl_label = "Record Input Modal"
     bl_options = set()
 
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -336,7 +336,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
 
 
 class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
-    bl_label = "Record & Bake"
+    bl_label = "Simulate"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
@@ -355,31 +355,35 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
 
         record_box = self.layout.box()
-        record_box.label(text="Record")
+        record_box.label(text="Record Input")
+
         frame_row = record_box.row()
         frame_row.prop(sim_props, "capture_start_frame")
         frame_row.prop(sim_props, "capture_frames")
 
-        record_row = record_box.row()
-        record_op = record_row.operator(
+        record_op = record_box.operator(
             SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
             icon="FILE_CACHE",
-            text=SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_label + " & Go",
+            text=SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_label + " & Pause",
         )
         record_op.uuid = sim_props.uuid
-        record_op.start_baking = True
-        record_row.operator(
+        record_op.start_baking = False
+
+        record_and_bake_op = self.layout.operator(
             SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
-            icon="FILE_CACHE",
-            text=SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_label,
-        ).uuid = sim_props.uuid
+            icon="PHYSICS",
+            text=SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_label
+            + " & Bake Simulation",
+        )
+        record_and_bake_op.uuid = sim_props.uuid
+        record_and_bake_op.start_baking = True
 
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         if sim_handle is None:
             return
 
         bake_box = self.layout.box()
-        bake_box.label(text="Bake")
+        bake_box.label(text="Bake Simulation")
 
         bake_box.prop(sim_props, "time_step")
         bake_box.prop(sim_props, "gpu")
