@@ -144,45 +144,45 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
         return {"FINISHED"}
 
 
-# TODO
-# class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
-#    bl_idname = "scene.squishy_volumes_reload_all"
-#    bl_label = "Reload All"
-#    bl_description = """Reloads all simulation caches.
-# This is useful when reloading a Blender filer with multiple simulations."""
-#    bl_options = {"REGISTER", "UNDO"}
-#
-#    def execute(self, context):
-#        for simulation in unloaded_simulations(context):
-#            lock_file = Path(simulation.directory) / "lock"
-#            if os.path.exists(lock_file):
-#                os.remove(lock_file)
-#                self.report({"INFO"}, "Removed lock file.")
-#            simulation.has_loaded_frame = False
-#
-#            sim = SimulationHandle.load(
-#                uuid=simulation.uuid, directory=simulation.directory
-#            )
-#
-#            sync_simulation(sim, simulation, context.scene.frame_current)
-#            self.report({"INFO"}, "Reloaded simulation.")
-#
-#        return {"FINISHED"}
-#
-#    def invoke(self, context, event):
-#        if locked_simulations(context):
-#            return context.window_manager.invoke_props_dialog(self)
-#        else:
-#            return self.execute(context)
-#
-#    def draw(self, context):
-#        assert isinstance(self.layout, bpy.types.UILayout)
-#        locked = locked_simulations(context)
-#        if locked:
-#            self.layout.label(text="WARNING: these caches contain lock files:")
-#            for simulation in locked:
-#                self.layout.label(text=f"{simulation.name}")
-#            self.layout.label(text="Confirm to remove them.")
+class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_reload_all"
+    bl_label = "Reload All"
+    bl_description = """Reloads all simulation caches.
+This is useful when reloading a Blender file with multiple simulations."""
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        for sim_obj in unloaded_simulations(context):
+            sim_props = sim_obj.squishy_volumes
+            lock_file = Path(sim_props.directory) / "lock"
+            if os.path.exists(lock_file):
+                os.remove(lock_file)
+                self.report({"INFO"}, "Removed lock file.")
+            sim_props.has_loaded_frame = False
+
+            sim_handle = SimulationHandle.load(
+                uuid=sim_props.uuid, directory=sim_props.directory
+            )
+
+            sync_simulation(sim_props, sim_handle, context.scene.frame_current)
+            self.report({"INFO"}, "Reloaded simulation.")
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        if locked_simulations():
+            return context.window_manager.invoke_props_dialog(self)
+        else:
+            return self.execute(context)
+
+    def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
+        locked = locked_simulations()
+        if locked:
+            self.layout.label(text="WARNING: these caches contain lock files:")
+            for sim_obj in locked:
+                self.layout.label(text=f"{sim_obj.name}")
+            self.layout.label(text="Confirm to remove them.")
 
 
 class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
@@ -263,9 +263,8 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         assert isinstance(self.layout, bpy.types.UILayout)
         layout = self.layout
 
-        # TODO
-        # if len(unloaded_simulations(context)) > 1:
-        #    layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
+        if unloaded_simulations(context):
+            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
         add_row = layout.row()
         add_op = add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
@@ -402,8 +401,7 @@ classes = [
     SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
     SCENE_OT_Squishy_Volumes_Add_Simulation,
     SCENE_OT_Squishy_Volumes_Reload,
-    # TODO
-    # SCENE_OT_Squishy_Volumes_Reload_All,
+    SCENE_OT_Squishy_Volumes_Reload_All,
     SCENE_OT_Squishy_Volumes_Remove_Simulation,
     SCENE_OT_Squishy_Volumes_Remove_Lock_File,
     SCENE_OT_Squishy_Volumes_Show_Message,
