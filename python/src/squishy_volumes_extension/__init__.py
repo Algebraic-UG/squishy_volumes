@@ -27,14 +27,19 @@ from .preferences import (
     unregister_preferences,
     get_print_debug_info,
 )
-from .properties import register_properties, unregister_properties
+from .squishy_volumes_properties import register_properties, unregister_properties
 from .progress_update import (
     register_progress_update,
     register_progress_update_toggle,
     unregister_progress_update,
     unregister_progress_update_toggle,
 )
-from .bridge import Simulation, build_info
+from .bridge import (
+    SimulationHandle,
+    build_info,
+    register_prune_simulation_handles,
+    unregister_prune_simulation_handles,
+)
 from .frame_change import register_handler, unregister_handler
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
@@ -96,9 +101,11 @@ def register():
     register_view_utils()
     register_script_utils()
     register_append_handler()
+    register_prune_simulation_handles()
 
 
 def unregister():
+    unregister_prune_simulation_handles()
     unregister_append_handler()
     unregister_script_utils()
     unregister_view_utils()
@@ -110,7 +117,7 @@ def unregister():
     unregister_blend_file_change_handler()
     unregister_popup()
     unregister_preferences()
-    Simulation.drop_all()
+    SimulationHandle.drop_all()
 
 
 if __name__ == "__main__":

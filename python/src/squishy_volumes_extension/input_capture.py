@@ -19,23 +19,24 @@
 import bpy
 
 import numpy as np
-from .bridge import SimulationInput
-from .properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
-from .properties.squishy_volumes_object import get_input_objects
-from .properties.squishy_volumes_object_input_settings import (
+from .bridge import SimulationInputHandle
+from .squishy_volumes_properties import (
+    Squishy_Volumes_Properties_Simulation,
+    get_input_objects_with_uuid,
+    get_input_objects,
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )
 from .preferences import get_domain_min, get_domain_max, get_max_num_particles
 
 
-def create_input_header(simulation):
+def create_input_header(sim_props):
     scene = bpy.context.scene
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
-    grid_node_size = simulation.grid_node_size
-    simulation_scale = simulation.simulation_scale
-    frames_per_second = simulation.frames_per_second
+    grid_node_size = sim_props.grid_node_size
+    simulation_scale = sim_props.simulation_scale
+    frames_per_second = sim_props.frames_per_second
     domain_min = get_domain_min()
     domain_min = [domain_min[0], domain_min[1], domain_min[2]]
     domain_max = get_domain_max()
@@ -58,19 +59,19 @@ def create_input_header(simulation):
 
     objects = {}
 
-    for obj in get_input_objects(simulation):
-        mesh = obj.evaluated_get(depsgraph).data
-        name = obj.name
-        ty = obj.squishy_volumes_object.input_settings.input_type
+    for input_obj in get_input_objects_with_uuid(sim_props.uuid):
+        mesh = input_obj.evaluated_get(depsgraph).data
+        name = input_obj.name
+        ty = input_obj.squishy_volumes.input_type  # ty:ignore[unresolved-attribute]
         if ty == INPUT_TYPE_PARTICLES:
             objects[name] = {
-                INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}
+                INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}  # ty:ignore[possibly-missing-attribute]
             }
         if ty == INPUT_TYPE_COLLIDER:
             objects[name] = {
                 INPUT_TYPE_COLLIDER: {
-                    "num_vertices": len(mesh.vertices),
-                    "num_triangles": len(mesh.loop_triangles),
+                    "num_vertices": len(mesh.vertices),  # ty:ignore[possibly-missing-attribute]
+                    "num_triangles": len(mesh.loop_triangles),  # ty:ignore[possibly-missing-attribute]
                 }
             }
 
@@ -132,47 +133,47 @@ def triangles_to_numpy_array(
 
 def capture_input_frame(
     *,
-    simulation: Squishy_Volumes_Simulation,
-    simulation_input: SimulationInput,
+    sim_props,
+    sim_input_handle: SimulationInputHandle,
 ):
     gravity = [
-        simulation.gravity[0],
-        simulation.gravity[1],
-        simulation.gravity[2],
+        sim_props.gravity[0],
+        sim_props.gravity[1],
+        sim_props.gravity[2],
     ]
     frame_start = {"gravity": gravity}
 
-    simulation_input.start_frame(frame_start=frame_start)
+    sim_input_handle.start_frame(frame_start=frame_start)
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
-    for obj in get_input_objects(simulation):
-        mesh = obj.evaluated_get(depsgraph).data
-        attributes = mesh.attributes
-        input_type = obj.squishy_volumes_object.input_settings.input_type
+    for input_obj in get_input_objects_with_uuid(sim_props.uuid):
+        mesh = input_obj.evaluated_get(depsgraph).data
+        attributes = mesh.attributes  # ty:ignore[possibly-missing-attribute]
+        input_type = input_obj.squishy_volumes.input_type  # ty:ignore[unresolved-attribute]
 
         def record(
             *, python_name: str | None, rust_name: str, triangle_indices: bool = False
         ):
             meta = {
-                "object_name": obj.name,
+                "object_name": input_obj.name,
                 "captured_attribute": {input_type: rust_name},
             }
             if triangle_indices:
-                bulk = triangles_to_numpy_array(mesh=mesh)
+                bulk = triangles_to_numpy_array(mesh=mesh)  # ty:ignore[invalid-argument-type]
             else:
-                if python_name not in attributes:
+                if python_name not in attributes:  # ty:ignore[unsupported-operator]
                     return
                 bulk = attribute_to_numpy_array(
-                    mesh=mesh,
+                    mesh=mesh,  # ty:ignore[invalid-argument-type]
                     attribute=attributes[python_name],
                 )
             if bulk.dtype == "bool":
-                simulation_input.record_input_bool(meta=meta, bulk=bulk)
+                sim_input_handle.record_input_bool(meta=meta, bulk=bulk)
             elif bulk.dtype == "float32":
-                simulation_input.record_input_float(meta=meta, bulk=bulk)
+                sim_input_handle.record_input_float(meta=meta, bulk=bulk)
             elif bulk.dtype == "int32":
-                simulation_input.record_input_int(meta=meta, bulk=bulk)
+                sim_input_handle.record_input_int(meta=meta, bulk=bulk)
             else:
                 raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
@@ -216,7 +217,7 @@ def capture_input_frame(
             )
 
         if input_type == INPUT_TYPE_COLLIDER:
-            assert len(mesh.polygons) == len(mesh.loop_triangles), (
+            assert len(mesh.polygons) == len(mesh.loop_triangles), (  # ty:ignore[possibly-missing-attribute]
                 "Is the mesh triangulated?"
             )
 
@@ -226,4 +227,4 @@ def capture_input_frame(
                 python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
             )
 
-    simulation_input.finish_frame()
+    sim_input_handle.finish_frame()

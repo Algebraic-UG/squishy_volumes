@@ -20,63 +20,72 @@ import json
 import time
 import bpy
 
-from .nodes.drivers import remove_drivers
 from .popup import with_popup
 from .output import (
     sync_output,
 )
 
 from .preferences import get_print_debug_info
-from .bridge import Simulation
-from .util import frame_to_load
-from .properties.squishy_volumes_object import get_output_objects
-from .properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
-from .properties.squishy_volumes_object_input_settings import INPUT_TYPE_COLLIDER
+from .bridge import SimulationHandle
+from .squishy_volumes_properties import (
+    get_simulation_objects,
+    get_output_objects_with_uuid,
+    Squishy_Volumes_Properties,
+    Squishy_Volumes_Properties_Simulation,
+    INPUT_TYPE_COLLIDER,
+    frame_to_load,
+)
 
 
 def sync(scene):
-    for simulation in scene.squishy_volumes_scene.simulations.values():
-        if not simulation.sync:
+    for sim_obj in get_simulation_objects():
+        sim_props = sim_obj.squishy_volumes
+        if not sim_props.sync:  # ty:ignore[unresolved-attribute]
             # https://github.com/Algebraic-UG/squishy_volumes/issues/175
-            for obj in get_output_objects(simulation):
+            for obj in get_output_objects_with_uuid(
+                sim_props.uuid  # ty:ignore[unresolved-attribute]
+            ):
                 if obj.data is not None:
                     obj.data.update_tag()
             continue
-        sim = Simulation.get(uuid=simulation.uuid)
-        if sim is None:
+        sim_handle = SimulationHandle.get(
+            uuid=sim_props.uuid  # ty:ignore[unresolved-attribute]
+        )
+        if sim_handle is None:
             continue
-        sync_simulation(sim, simulation, scene.frame_current)
+        sync_simulation(
+            sim_props,  # ty:ignore[unresolved-attribute]
+            sim_handle,
+            scene.frame_current,
+        )
 
 
 def sync_simulation(
-    sim: Simulation,
-    simulation: Squishy_Volumes_Simulation,
+    sim_props: Squishy_Volumes_Properties,
+    sim_handle: SimulationHandle,
     frame: int,
 ):
-    frame = frame_to_load(simulation, frame)
+    sim_props.has_loaded_frame = False  # ty:ignore[unresolved-attribute]
 
+    frame = frame_to_load(sim_props, frame)  # ty:ignore[invalid-assignment]
     if frame is None:
         return
 
-    simulation.has_loaded_frame = True
-    simulation.loaded_frame = frame
+    sim_props.has_loaded_frame = True  # ty:ignore[unresolved-attribute]
+    sim_props.loaded_frame = frame  # ty:ignore[unresolved-attribute]
 
-    input_header = sim.input_header()
-    num_colliders = sum(
-        INPUT_TYPE_COLLIDER in obj for obj in input_header["objects"].values()
-    )
+    input_header = sim_handle.input_header()
 
     desynced_objs = []
-    for obj in get_output_objects(simulation):
+    for output_obj in get_output_objects_with_uuid(sim_props.uuid):
         try:
-            sync_output(sim, obj, num_colliders, frame)
+            sync_output(sim_handle, output_obj, frame)
         except RuntimeError as e:
-            desynced_objs.append((obj, e))
+            desynced_objs.append((output_obj, e))
 
     if desynced_objs:
-        for obj, _ in desynced_objs:
-            obj.squishy_volumes_object.simulation_uuid = ""
-            remove_drivers(obj)
+        for output_obj, _ in desynced_objs:
+            output_obj.squishy_volumes.uuid = "broken"
 
         def raise_():
             message = """These output objects could not be synced and
@@ -90,7 +99,7 @@ is now incompatible or gone.)
 
             raise RuntimeError(message)
 
-        with_popup(uuid=simulation.uuid, f=raise_)
+        with_popup(uuid=sim_props.uuid, f=raise_)
 
 
 def frame_change_handler(scene):
@@ -102,7 +111,7 @@ def frame_change_handler(scene):
 
 
 def check_interface_locked(scene):
-    if not scene.render.use_lock_interface and scene.squishy_volumes_scene.simulations:
+    if not scene.render.use_lock_interface and get_simulation_objects():
         scene.render.use_lock_interface = True
         print(
             "Squishy Volumes: Locked interface for rendering. See also https://docs.blender.org/api/master/bpy.app.handlers.html#note-on-altering-data"

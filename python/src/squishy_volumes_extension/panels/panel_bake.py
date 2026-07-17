@@ -19,54 +19,206 @@
 import json
 import bpy
 
-from ..properties.squishy_volumes_scene import get_selected_simulation
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
-from ..bridge import Simulation
-from ..util import giga_f32_to_u64
+from ..squishy_volumes_properties import (
+    get_simulation_object_with_uuid,
+    get_selected_simulation_object,
+    get_selected_simulation_uuid,
+    Squishy_Volumes_Properties_Simulation,
+)
+from ..bridge import SimulationHandle, SimulationInputHandle
+from ..util import giga_f32_to_u64, simulation_input_exists
+from ..input_capture import create_input_header, capture_input_frame
+from ..preferences import get_confirm_bake_overwrite
 
 
 def _start_compute(
-    sim: Simulation,
-    simulation: Squishy_Volumes_Simulation,
+    sim_handle: SimulationHandle,
+    sim_props: Squishy_Volumes_Properties_Simulation,
     next_frame: int,
     number_of_frames: int,
 ):
-    sim.last_error = None
     compute_settings = {
-        "time_step": simulation.time_step,
-        "gpu": simulation.gpu,
-        "adaptive_time_steps": simulation.adaptive_time_steps,
+        "time_step": sim_props.time_step,
+        "gpu": sim_props.gpu,
+        "adaptive_time_steps": sim_props.adaptive_time_steps,
         "next_frame": next_frame,
         "number_of_frames": number_of_frames,
-        "max_bytes_on_disk": giga_f32_to_u64(simulation.max_giga_bytes_on_disk),
+        "max_bytes_on_disk": giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
     }
-    sim.start_compute(compute_settings=compute_settings)
+    sim_handle.start_compute(compute_settings=compute_settings)
 
 
-class SCENE_OT_Squishy_Volumes_Bake_Initial_Frame(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_bake_initial_frame"
-    bl_label = "Create Simulation Sate"
-    bl_description = """Create the initial simulation state from the input (Frame #0).
+SIMULATION_INPUT = None
 
-If the resolution is high, it might take some time.
-It can be canceled.
-Outputs become available as the initial state is created."""
+
+class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_record_input_to_cache"
+    bl_label = "Record"
+    bl_description = """(Over)Write the cache with the new input.
+
+This writes global settings as well as object specific settings
+to the simulation cache.
+
+Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}
 
-    @classmethod
-    def poll(cls, context):
-        simulation = get_selected_simulation(context.scene)
-        if simulation is None:
-            return False
-        sim = Simulation.get(uuid=simulation.uuid)
-        return sim is not None and not sim.computing() and sim.available_frames() == 0
+    uuid: bpy.props.StringProperty()  # type: ignore
+    blocking: bpy.props.BoolProperty(default=False)  # type: ignore
+    start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
 
     def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
-        sim = Simulation.get(uuid=simulation.uuid)
-        assert sim is not None
-        _start_compute(sim=sim, simulation=simulation, next_frame=0, number_of_frames=1)
-        self.report({"INFO"}, f"Creating first frame of {simulation.name}.")
+        bpy.ops.screen.animation_cancel()
+
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props.has_loaded_frame = False
+
+        self.report({"INFO"}, f"Resetting {sim_obj.name}")
+
+        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+        if sim_handle is not None:
+            sim_handle.drop()
+
+        input_header = create_input_header(sim_props)
+
+        self.report({"INFO"}, f"Collected input header for {sim_obj.name}")
+
+        sim_input_handle = SimulationInputHandle.new(
+            uuid=self.uuid,
+            directory=sim_props.directory,
+            input_header=input_header,
+            max_bytes_on_disk=giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
+        )
+
+        self.report({"INFO"}, f"(Re)Created {sim_obj.name}")
+
+        if not self.blocking:
+            global SIMULATION_INPUT
+            SIMULATION_INPUT = sim_input_handle
+            bpy.ops.scene.squishy_volumes_record_input_to_cache_modal(  # ty:ignore[unresolved-attribute]
+                "INVOKE_DEFAULT", uuid=self.uuid, start_baking=self.start_baking
+            )
+            return {"FINISHED"}
+
+        prior_frame = context.scene.frame_current
+        context.scene.frame_set(sim_props.capture_start_frame)
+
+        for i in range(sim_props.capture_frames):
+            capture_input_frame(
+                sim_props=sim_props,
+                sim_input_handle=sim_input_handle,
+            )
+            if i + 1 < sim_props.capture_frames:
+                context.scene.frame_set(context.scene.frame_current + 1)
+
+        context.scene.frame_set(prior_frame)
+
+        sim_handle = SimulationHandle.new()
+        if self.start_baking:
+            _start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
+            self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        if (
+            simulation_input_exists(sim_obj.squishy_volumes.directory)  # ty:ignore[unresolved-attribute]
+            and get_confirm_bake_overwrite()
+        ):
+            return context.window_manager.invoke_props_dialog(self)
+        else:
+            return self.execute(context)
+
+    def draw(self, context):
+        assert isinstance(self.layout, bpy.types.UILayout)
+        sim_handle = SimulationHandle.get(uuid=self.uuid)
+        if sim_handle is None:
+            prior_frames = 0
+        else:
+            prior_frames = sim_handle.available_frames()
+        self.layout.label(text="WARNING: This is a destructive operation!")
+        self.layout.label(
+            text=f"The previously record will be overwritten, including: {prior_frames} frames"
+        )
+
+
+class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_record_input_to_cache_modal"
+    bl_label = "Record Modal"
+    bl_options = set()
+
+    uuid: bpy.props.StringProperty()  # type: ignore
+    start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
+
+    _timer = None
+    prior_frame = None
+
+    def invoke(self, context, event):
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+
+        self.prior_frame = context.scene.frame_current
+        context.scene.frame_set(sim_props.capture_start_frame)
+
+        self._timer = context.window_manager.event_timer_add(
+            time_step=0, window=context.window
+        )
+        context.window_manager.progress_begin(0, sim_props.capture_frames)
+        context.window_manager.modal_handler_add(self)
+
+        return {"RUNNING_MODAL"}
+
+    def modal(self, context, event):
+        global SIMULATION_INPUT
+        assert isinstance(SIMULATION_INPUT, SimulationInputHandle)
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+
+        if event.type in {"RIGHTMOUSE", "ESC"}:
+            context.window_manager.event_timer_remove(self._timer)
+            SIMULATION_INPUT.drop()
+            self.report(
+                {"WARNING"},
+                f"Capture of {sim_obj.name} incomplete due to user cancellation.",
+            )
+            context.scene.frame_set(self.prior_frame)
+            return {"CANCELLED"}
+
+        if event.type != "TIMER":
+            return {"RUNNING_MODAL"}
+
+        captured_frames = context.scene.frame_current - sim_props.capture_start_frame
+        assert captured_frames >= 0
+
+        if captured_frames < sim_props.capture_frames:
+            try:
+                capture_input_frame(
+                    sim_props=sim_props,
+                    sim_input_handle=SIMULATION_INPUT,
+                )
+            except RuntimeError:
+                SIMULATION_INPUT.drop()
+                raise
+
+            context.window_manager.progress_update(captured_frames)
+
+        if captured_frames + 1 < sim_props.capture_frames:
+            context.scene.frame_set(context.scene.frame_current + 1)
+            return {"RUNNING_MODAL"}
+
+        context.scene.frame_set(self.prior_frame)
+        context.window_manager.progress_end()
+
+        self.report({"INFO"}, f"Finished capturing input for {sim_obj.name}")
+
+        SIMULATION_INPUT = None
+        sim_handle = SimulationHandle.new()
+
+        if self.start_baking:
+            _start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
+            self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+
         return {"FINISHED"}
 
 
@@ -80,30 +232,35 @@ either until the desired number of frames is reached
 or cancellation occurs due to user input or error."""
     bl_options = {"REGISTER"}
 
+    uuid: bpy.props.StringProperty()  # type: ignore
+
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context.scene)
-        if simulation is None:
+        sim_obj = get_selected_simulation_object(context.scene)
+        if sim_obj is None:
             return False
-        sim = Simulation.get(uuid=simulation.uuid)
+        uuid = sim_obj.squishy_volumes.uuid  # ty:ignore[unresolved-attribute]
+        sim_obj = get_simulation_object_with_uuid(uuid)
+        sim_handle = SimulationHandle.get(uuid=uuid)
         return (
-            sim is not None
-            and not sim.computing()
-            and sim.available_frames() < simulation.bake_frames
+            sim_handle is not None
+            and not sim_handle.computing()
+            and sim_handle.available_frames() < sim_obj.squishy_volumes.bake_frames  # ty:ignore[unresolved-attribute]
         )
 
     def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
-        sim = Simulation.get(uuid=simulation.uuid)
-        assert sim is not None
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_handle = SimulationHandle.get(uuid=self.uuid)
+        assert sim_handle is not None
         _start_compute(
-            sim=sim,
-            simulation=simulation,
-            next_frame=sim.available_frames(),
-            number_of_frames=simulation.bake_frames,
+            sim_handle=sim_handle,
+            sim_props=sim_props,
+            next_frame=sim_handle.available_frames(),
+            number_of_frames=sim_props.bake_frames,
         )
 
-        self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+        self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
         return {"FINISHED"}
 
 
@@ -120,29 +277,35 @@ Note that this discards already computed frames that
 come after the displayed one."""
     bl_options = {"REGISTER"}
 
+    uuid: bpy.props.StringProperty()  # type: ignore
+
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context.scene)
-        if simulation is None or not simulation.has_loaded_frame:
+        sim_obj = get_selected_simulation_object(context.scene)
+        if sim_obj is None:
             return False
-        sim = Simulation.get(uuid=simulation.uuid)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        if sim_obj is None or not sim_props.has_loaded_frame:
+            return False
+        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         return (
-            sim is not None
-            and not sim.computing()
-            and simulation.loaded_frame + 1 < simulation.bake_frames
+            sim_handle is not None
+            and not sim_handle.computing()
+            and sim_props.loaded_frame + 1 < sim_props.bake_frames
         )
 
     def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
-        sim = Simulation.get(uuid=simulation.uuid)
-        assert sim is not None
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_handle = SimulationHandle.get(uuid=self.uuid)
+        assert sim_handle is not None
         _start_compute(
-            sim=sim,
-            simulation=simulation,
-            next_frame=simulation.loaded_frame + 1,
-            number_of_frames=simulation.bake_frames,
+            sim_handle=sim_handle,
+            sim_props=sim_props,
+            next_frame=sim_props.loaded_frame + 1,
+            number_of_frames=sim_props.bake_frames,
         )
-        self.report({"INFO"}, f"Commence baking of {simulation.name}.")
+        self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
         return {"FINISHED"}
 
 
@@ -152,20 +315,22 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
     bl_description = "Pause the computation of the simulation frames."
     bl_options = {"REGISTER"}
 
+    uuid: bpy.props.StringProperty()  # type: ignore
+
     @classmethod
     def poll(cls, context):
-        simulation = get_selected_simulation(context.scene)
-        if simulation is None:
+        uuid = get_selected_simulation_uuid(context.scene)
+        if uuid is None:
             return False
-        sim = Simulation.get(uuid=simulation.uuid)
-        return sim is not None and sim.computing()
+        sim_handle = SimulationHandle.get(uuid=uuid)
+        return sim_handle is not None and sim_handle.computing()
 
     def execute(self, context):
-        simulation = get_selected_simulation(context.scene)
-        sim = Simulation.get(uuid=simulation.uuid)
-        assert sim is not None
-        sim.pause_compute()
-        self.report({"INFO"}, f"Baking of {simulation.name} paused.")
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_handle = SimulationHandle.get(uuid=self.uuid)
+        assert sim_handle is not None
+        sim_handle.pause_compute()
+        self.report({"INFO"}, f"Baking of {sim_obj.name} paused.")
         return {"FINISHED"}
 
 
@@ -180,61 +345,88 @@ class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
     def poll(cls, context):
         if context.mode != "OBJECT":
             return False
-        simulation = get_selected_simulation(context.scene)
-        return simulation is not None and Simulation.exists(uuid=simulation.uuid)
+        return get_selected_simulation_uuid(context.scene) is not None
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
-        simulation = get_selected_simulation(context.scene)
-        sim = Simulation.get(uuid=simulation.uuid)
-        assert sim is not None
-        if sim.available_frames() == 0:
-            self.layout.operator(
-                SCENE_OT_Squishy_Volumes_Bake_Initial_Frame.bl_idname,
-                icon="PHYSICS",
-            )
-        else:
-            self.layout.prop(simulation, "time_step")
-            self.layout.prop(simulation, "gpu")
-            # TODO: make implicit viable
-            # col.prop(simulation, "explicit")
-            # col.prop(simulation, "debug_mode")
-            self.layout.prop(simulation, "adaptive_time_steps")
-            self.layout.prop(simulation, "bake_frames")
+        sim_obj = get_selected_simulation_object(context.scene)
+        assert sim_obj is not None
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
 
-            row = self.layout.row()
+        record_box = self.layout.box()
+        record_box.label(text="Record")
+        frame_row = record_box.row()
+        frame_row.prop(sim_props, "capture_start_frame")
+        frame_row.prop(sim_props, "capture_frames")
+
+        record_row = record_box.row()
+        record_op = record_row.operator(
+            SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
+            icon="FILE_CACHE",
+            text=SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_label + " & Go",
+        )
+        record_op.uuid = sim_props.uuid
+        record_op.start_baking = True
+        record_row.operator(
+            SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
+            icon="FILE_CACHE",
+            text=SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_label,
+        ).uuid = sim_props.uuid
+
+        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+        if sim_handle is None:
+            return
+
+        bake_box = self.layout.box()
+        bake_box.label(text="Bake")
+
+        bake_box.prop(sim_props, "time_step")
+        bake_box.prop(sim_props, "gpu")
+        # TODO: make implicit viable
+        # col.prop(simulation, "explicit")
+        # col.prop(simulation, "debug_mode")
+
+        # TODO: enable adaptive time steps on gpu
+        adaptive_col = bake_box.column()
+        adaptive_col.enabled = not sim_props.gpu
+        adaptive_col.prop(sim_props, "adaptive_time_steps")
+
+        bake_box.prop(sim_props, "bake_frames")
+
+        row = bake_box.row()
+        row.operator(
+            SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest.bl_idname,
+            icon="PHYSICS",
+        ).uuid = sim_props.uuid
+        if (
+            sim_props.has_loaded_frame
+            and sim_props.loaded_frame + 1 != sim_handle.available_frames()
+        ):
             row.operator(
-                SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest.bl_idname,
+                SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded.bl_idname,
+                text=f"Rebake from #{sim_props.loaded_frame}",
                 icon="PHYSICS",
-            )
-            if (
-                simulation.has_loaded_frame
-                and simulation.loaded_frame + 1 != sim.available_frames()
-            ):
-                row.operator(
-                    SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded.bl_idname,
-                    text=f"Rebake from #{simulation.loaded_frame}",
-                    icon="PHYSICS",
-                )
+            ).uuid = sim_props.uuid
 
-        self.layout.operator(
+        bake_box.operator(
             SCENE_OT_Squishy_Volumes_Bake_Pause.bl_idname,
             icon="CANCEL",
-        )
+        ).uuid = sim_props.uuid
 
-        if sim.progress is not None:
-            for info in sim.progress:
+        if sim_handle.progress is not None:
+            for info in sim_handle.progress:
                 name = info["label"]
                 completed_steps = info["completed_steps"]
                 steps_to_completion = info["steps_to_completion"]
-                self.layout.progress(
+                bake_box.progress(
                     text=f"{name}: {completed_steps}/{steps_to_completion}",
                     factor=completed_steps / steps_to_completion,
                 )
 
 
 classes = [
-    SCENE_OT_Squishy_Volumes_Bake_Initial_Frame,
+    SCENE_OT_Squishy_Volumes_Record_Input_To_Cache,
+    SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal,
     SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest,
     SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded,
     SCENE_OT_Squishy_Volumes_Bake_Pause,

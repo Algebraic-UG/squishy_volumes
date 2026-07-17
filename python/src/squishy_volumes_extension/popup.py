@@ -17,8 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
-from .properties.squishy_volumes_scene import get_simulation_by_uuid
-from .bridge import Simulation
+from .squishy_volumes_properties import get_simulation_object_with_uuid
+from .bridge import SimulationHandle
 
 
 # As far as I know there isn't a way to set operator's properties
@@ -34,7 +34,7 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        sim = Simulation.get(uuid=self.uuid)
+        sim = SimulationHandle.get(uuid=self.uuid)
         assert sim is not None, f"No simulation context for {self.uuid}"
 
         self.report(
@@ -46,13 +46,13 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
 
     def invoke(self, context, event):
         self.uuid = simulation_uuid
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)  # ty:ignore[invalid-argument-type]
+        sim_obj = get_simulation_object_with_uuid(self.uuid)  # ty:ignore[invalid-argument-type]
         return context.window_manager.invoke_props_dialog(
-            self, title=simulation.name, confirm_text="Clear Message"
+            self, title=sim_obj.name, confirm_text="Clear Message"
         )
 
     def draw(self, context):
-        sim = Simulation.get(uuid=self.uuid)
+        sim = SimulationHandle.get(uuid=self.uuid)
         assert sim is not None, f"No simulation context for {self.uuid}"
         for line in sim.last_error.splitlines():
             self.layout.label(text=line)  # ty:ignore[unresolved-attribute]
@@ -88,7 +88,7 @@ def with_popup(*, uuid, f):
         s = f"""{e}
 (Please 'Clear Message' to print to 'Info')"""
 
-        sim = Simulation.get(uuid=uuid)
+        sim = SimulationHandle.get(uuid=uuid)
         assert sim is not None, f"No simulation context for {uuid}"
 
         if sim.last_error != s:

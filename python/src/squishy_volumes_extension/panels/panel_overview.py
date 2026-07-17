@@ -27,141 +27,156 @@ import uuid
 from pathlib import Path
 
 
-from ..bridge import Simulation
+from ..bridge import SimulationHandle
 from ..frame_change import sync_simulation
-from ..nodes.drivers import update_drivers
 from ..popup import popup
 from ..progress_update import cleanup_markers
-from ..properties.squishy_volumes_simulation import (
-    Squishy_Volumes_Simulation,
-    update_name,
+from ..squishy_volumes_properties import (
     update_directory,
-)
-from ..properties.util import (
     add_fields_from,
-)
-from ..properties.squishy_volumes_scene import (
-    get_simulation_by_uuid,
-    get_selected_simulation,
-)
-from ..properties.squishy_volumes_object import (
     get_input_objects,
+    get_simulation_object_with_uuid,
+    get_input_objects_with_uuid,
+    get_output_objects_with_uuid,
     get_output_objects,
-    IO_NONE,
+    get_simulation_objects,
+    TYPE_SIMULATION,
+    TYPE_NONE,
+    locked_simulations,
+    unloaded_simulations,
 )
 from ..util import (
     force_ui_redraw,
-    get_simulation_idx_by_uuid,
     simulation_input_exists,
     simulation_locked,
-    locked_simulations,
-    unloaded_simulations,
 )
 from ..startup import STARTUP_BENCHMARK, setup_startup_simulation
 
 
-class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_add_startup_simulation"
-    bl_label = "Add Startup Simulation"
-    bl_description = """Start with a prefabricated Squishy Volumes simulation."""
-    bl_options = {"REGISTER", "UNDO"}
-
-    startup_choice: bpy.props.EnumProperty(
-        items=[
-            (STARTUP_BENCHMARK,) * 3,
-        ],  # ty:ignore[invalid-argument-type]
-        name="Chose Startup Simulation",
-        description="Chose one of the startup simulations to set up.",
-        default=STARTUP_BENCHMARK,
-        options=set(),
-    )  # type: ignore
-
-    def execute(self, context):
-        setup_startup_simulation(context, self.startup_choice)
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+# TODO
+# class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
+#    bl_idname = "scene.squishy_volumes_add_startup_simulation"
+#    bl_label = "Add Startup Simulation"
+#    bl_description = """Start with a prefabricated Squishy Volumes simulation."""
+#    bl_options = {"REGISTER", "UNDO"}
+#
+#    startup_choice: bpy.props.EnumProperty(
+#        items=[
+#            (STARTUP_BENCHMARK,) * 3,
+#        ],  # ty:ignore[invalid-argument-type]
+#        name="Chose Startup Simulation",
+#        description="Chose one of the startup simulations to set up.",
+#        default=STARTUP_BENCHMARK,
+#        options=set(),
+#    )  # type: ignore
+#
+#    def execute(self, context):
+#        setup_startup_simulation(context, self.startup_choice)
+#        return {"FINISHED"}
+#
+#    def invoke(self, context, event):
+#        return context.window_manager.invoke_props_dialog(self)
 
 
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
-    bl_description = """Create a new Squishy Volumes simulation.
+    bl_description = """Create a new Squishy Volumes simulation object.
 
 There can be multiple simulations at once, but the physics
-are completely separate from each other."""
+are completely separate from each other.
+
+Note that this doesn't create any files yet.
+It just creates the Blender object to track the simulation."""
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        simulations = context.scene.squishy_volumes_scene.simulations
+        sim_obj = bpy.data.objects.new(name="My Simulation", object_data=None)
+        sim_obj.empty_display_type = "CUBE"
+        sim_obj.lock_location = (True,) * 3
+        sim_obj.lock_rotation = (True,) * 3
+        sim_obj.lock_scale = (True,) * 3
 
-        new_simulation = simulations.add()
-        new_simulation.uuid = str(uuid.uuid4())
+        sim_props = sim_obj.squishy_volumes
 
-        update_name(new_simulation, context)
-        update_directory(new_simulation, context)
+        sim_props.type = TYPE_SIMULATION  # ty:ignore[unresolved-attribute]
+        sim_props.uuid = str(uuid.uuid4())  # ty:ignore[unresolved-attribute]
+
+        update_directory(sim_props, context)  # ty:ignore[unresolved-attribute]
 
         force_ui_redraw()
+
+        self.report({"INFO"}, f"Added {sim_obj.name}.")
         return {"FINISHED"}
 
 
 class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_reload"
     bl_label = "Reload"
-    bl_description = "Reloads the cache"
+    bl_description = "Reloads the cache and locks it for this simulation object."
     bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)
-        simulation.has_loaded_frame = False
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        sim = Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
+        sim_obj.squishy_volumes.has_loaded_frame = False  # ty:ignore[unresolved-attribute]
 
-        sync_simulation(sim, simulation, context.scene.frame_current)
+        sim_handle = SimulationHandle.load(
+            uuid=self.uuid,
+            directory=sim_obj.squishy_volumes.directory,  # ty:ignore[unresolved-attribute]
+        )
 
-        self.report({"INFO"}, "Reloaded simulation.")
+        sync_simulation(
+            sim_obj.squishy_volumes,  # ty:ignore[unresolved-attribute]
+            sim_handle,
+            context.scene.frame_current,
+        )
+
+        self.report({"INFO"}, f"Reloaded {sim_obj.name}.")
         return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_reload_all"
-    bl_label = "Reload All"
-    bl_description = """Reloads all simulation caches.
-This is useful when reloading a Blender filer with multiple simulations."""
-    bl_options = {"REGISTER", "UNDO"}
-
-    def execute(self, context):
-        for simulation in unloaded_simulations(context):
-            lock_file = Path(simulation.directory) / "lock"
-            if os.path.exists(lock_file):
-                os.remove(lock_file)
-                self.report({"INFO"}, "Removed lock file.")
-            simulation.has_loaded_frame = False
-
-            sim = Simulation.load(uuid=simulation.uuid, directory=simulation.directory)
-
-            sync_simulation(sim, simulation, context.scene.frame_current)
-            self.report({"INFO"}, "Reloaded simulation.")
-
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        if locked_simulations(context):
-            return context.window_manager.invoke_props_dialog(self)
-        else:
-            return self.execute(context)
-
-    def draw(self, context):
-        assert isinstance(self.layout, bpy.types.UILayout)
-        locked = locked_simulations(context)
-        if locked:
-            self.layout.label(text="WARNING: these caches contain lock files:")
-            for simulation in locked:
-                self.layout.label(text=f"{simulation.name}")
-            self.layout.label(text="Confirm to remove them.")
+# TODO
+# class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
+#    bl_idname = "scene.squishy_volumes_reload_all"
+#    bl_label = "Reload All"
+#    bl_description = """Reloads all simulation caches.
+# This is useful when reloading a Blender filer with multiple simulations."""
+#    bl_options = {"REGISTER", "UNDO"}
+#
+#    def execute(self, context):
+#        for simulation in unloaded_simulations(context):
+#            lock_file = Path(simulation.directory) / "lock"
+#            if os.path.exists(lock_file):
+#                os.remove(lock_file)
+#                self.report({"INFO"}, "Removed lock file.")
+#            simulation.has_loaded_frame = False
+#
+#            sim = SimulationHandle.load(
+#                uuid=simulation.uuid, directory=simulation.directory
+#            )
+#
+#            sync_simulation(sim, simulation, context.scene.frame_current)
+#            self.report({"INFO"}, "Reloaded simulation.")
+#
+#        return {"FINISHED"}
+#
+#    def invoke(self, context, event):
+#        if locked_simulations(context):
+#            return context.window_manager.invoke_props_dialog(self)
+#        else:
+#            return self.execute(context)
+#
+#    def draw(self, context):
+#        assert isinstance(self.layout, bpy.types.UILayout)
+#        locked = locked_simulations(context)
+#        if locked:
+#            self.layout.label(text="WARNING: these caches contain lock files:")
+#            for simulation in locked:
+#                self.layout.label(text=f"{simulation.name}")
+#            self.layout.label(text="Confirm to remove them.")
 
 
 class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
@@ -176,37 +191,18 @@ please use your OS's file browser."""
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)
-        idx = get_simulation_idx_by_uuid(self.uuid)
-        selected_uuid = get_selected_simulation(context.scene).uuid
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        for obj in get_input_objects(simulation):
-            obj.squishy_volumes_object.simulation_uuid = "unassigned"
-            obj.squishy_volumes_object.io = IO_NONE
-        for obj in get_output_objects(simulation):
-            obj.squishy_volumes_object.simulation_uuid = "unassigned"
-            obj.squishy_volumes_object.io = IO_NONE
+        for obj in get_input_objects_with_uuid(self.uuid):
+            obj.squishy_volumes.uuid = "unassigned"  # ty:ignore[unresolved-attribute]
+            obj.squishy_volumes.type = TYPE_NONE  # ty:ignore[unresolved-attribute]
+        for obj in get_output_objects_with_uuid(self.uuid):
+            obj.squishy_volumes.uuid = "unassigned"  # ty:ignore[unresolved-attribute]
+            obj.squishy_volumes.type = TYPE_NONE  # ty:ignore[unresolved-attribute]
 
-        update_drivers(idx)
-        cleanup_markers(simulation)
+        cleanup_markers(sim_obj)
 
-        sim = Simulation.get(uuid=simulation.uuid)
-        if sim is not None:
-            sim.drop()
-
-        simulations = context.scene.squishy_volumes_scene.simulations
-
-        # Note:
-        # This actually invalidates the element!
-        # It's UB to continue using simulation
-        simulations.remove(idx)
-
-        if self.uuid == selected_uuid:
-            if simulations:
-                context.scene.squishy_volumes_scene.selected_simulation = simulations[
-                    0
-                ].uuid
-            self.report({"INFO"}, "Updated simulation selection.")
+        bpy.data.objects.remove(sim_obj)
 
         self.report({"INFO"}, "Removed simulation")
 
@@ -225,13 +221,13 @@ However, the lock file can remain after a crash, in which case it must be delete
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)
-        lock_file = Path(simulation.directory) / "lock"
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        lock_file = Path(sim_obj.squishy_volumes.directory) / "lock"  # ty:ignore[unresolved-attribute]
         if os.path.exists(lock_file):
             os.remove(lock_file)
-            self.report({"INFO"}, "Removed lock file.")
+            self.report({"INFO"}, f"Removed lock file for {sim_obj.name} .")
         else:
-            self.report({"INFO"}, "No lock file present.")
+            self.report({"WARNING"}, f"No lock file present for {sim_obj.name}?")
         return {"FINISHED"}
 
 
@@ -261,79 +257,85 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         assert isinstance(self.layout, bpy.types.UILayout)
         layout = self.layout
 
-        if len(unloaded_simulations(context)) > 1:
-            layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
-        for simulation in context.scene.squishy_volumes_scene.simulations:
+        # TODO
+        # if len(unloaded_simulations(context)) > 1:
+        #    layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
+
+        for sim_obj in get_simulation_objects():
+            sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
             (header, body) = layout.panel(
-                simulation.uuid, default_closed=not simulation_input_exists(simulation)
+                sim_props.uuid,
+                default_closed=not simulation_input_exists(sim_props.directory),
             )
-            sim = Simulation.get(uuid=simulation.uuid)
-            if sim is not None and sim.last_error is not None:
+            sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+            if sim_handle is not None and sim_handle.last_error is not None:
                 col = header.column()
                 col.alert = True
-                col.label(text=f"{simulation.name}: Message")
+                col.label(text=f"{sim_obj.name}: Message")
                 header.operator(
                     SCENE_OT_Squishy_Volumes_Show_Message.bl_idname
-                ).uuid = simulation.uuid
+                ).uuid = sim_props.uuid
             else:
-                progress_text = f"{simulation.name}: "
+                progress_text = f"{sim_obj.name}: "
                 factor = 0.0
-                if sim is not None:
-                    if sim.progress is not None and sim.progress:
-                        progress = sim.progress[0]
+                if sim_handle is not None:
+                    if sim_handle.progress is not None and sim_handle.progress:
+                        progress = sim_handle.progress[0]
                         progress_text += progress["label"]
                         completed_steps = progress["completed_steps"]
                         steps_to_completion = progress["steps_to_completion"]
                         progress_text += f" {completed_steps}/{steps_to_completion}"
                         factor = completed_steps / steps_to_completion
                     else:
-                        computed = sim.available_frames()
-                        if computed == simulation.bake_frames:
+                        computed = sim_handle.available_frames()
+                        if computed == sim_props.bake_frames:
                             progress_text += "Completed: "
                         else:
                             progress_text += "Paused at: "
-                        progress_text += f"{computed}/{simulation.bake_frames}"
-                        factor = computed / simulation.bake_frames
+                        progress_text += f"{computed}/{sim_props.bake_frames}"
+                        factor = computed / sim_props.bake_frames
                 else:
-                    if simulation_locked(simulation):
+                    if simulation_locked(sim_props.directory):
                         progress_text += "Cache Locked!"
-                    elif simulation_input_exists(simulation):
+                    elif simulation_input_exists(sim_props.directory):
                         progress_text += "Cache Unloaded"
                     else:
                         progress_text += "Uninitialized"
                 header.progress(text=progress_text, factor=factor)
 
             if body is not None:
-                body.prop(simulation, "name")
-                body.prop(simulation, "directory")
+                body.prop(sim_obj, "name")
+                body.prop(sim_props, "directory")
 
                 col = body.column()
                 col.enabled = False
-                col.prop(simulation, "uuid")
+                col.prop(sim_props, "uuid")
 
                 col = body.column()
-                col.prop(simulation, "sync")
-                col.prop(simulation, "max_giga_bytes_on_disk")
+                col.prop(sim_props, "sync")
+                col.prop(sim_props, "max_giga_bytes_on_disk")
 
                 row = body.row()
-                if sim is None and simulation_locked(simulation):
+                if sim_handle is None and simulation_locked(sim_props.directory):
                     row.operator(
                         SCENE_OT_Squishy_Volumes_Remove_Lock_File.bl_idname,
                         icon="WARNING_LARGE",
-                    ).uuid = simulation.uuid
-                elif sim is None and simulation_input_exists(simulation):
+                    ).uuid = sim_props.uuid
+                elif sim_handle is None and simulation_input_exists(
+                    sim_props.directory
+                ):
                     row.operator(
                         SCENE_OT_Squishy_Volumes_Reload.bl_idname,
                         icon="FILE_CACHE",
-                    ).uuid = simulation.uuid
+                    ).uuid = sim_props.uuid
                 row.operator(
                     SCENE_OT_Squishy_Volumes_Remove_Simulation.bl_idname,
                     icon="TRASH",
-                ).uuid = simulation.uuid
+                ).uuid = sim_props.uuid
 
-                if sim is None:
+                if sim_handle is None:
                     continue
-                stats = sim.stats()
+                stats = sim_handle.stats()
                 state = stats["state"]
                 compute = stats["compute"]
                 bytes_on_disk = stats["bytes_on_disk"]
@@ -374,24 +376,27 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
         add_row = layout.row()
         add_row.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
-        add_row.operator(
-            SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
-        )
+        # TODO
+        # add_row.operator(
+        #    SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
+        # )
 
-        if len(context.scene.squishy_volumes_scene.simulations) > 1:
+        if len(get_simulation_objects()) > 1:
             layout.separator()
             layout.prop(
-                context.scene.squishy_volumes_scene,
+                context.scene.squishy_volumes,
                 "selected_simulation",
                 text="Select",
             )
 
 
 classes = [
-    SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
+    # TODO
+    # SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
     SCENE_OT_Squishy_Volumes_Add_Simulation,
     SCENE_OT_Squishy_Volumes_Reload,
-    SCENE_OT_Squishy_Volumes_Reload_All,
+    # TODO
+    # SCENE_OT_Squishy_Volumes_Reload_All,
     SCENE_OT_Squishy_Volumes_Remove_Simulation,
     SCENE_OT_Squishy_Volumes_Remove_Lock_File,
     SCENE_OT_Squishy_Volumes_Show_Message,

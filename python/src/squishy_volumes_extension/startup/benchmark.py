@@ -24,12 +24,11 @@ import tempfile
 from pathlib import Path
 
 
-from ..properties.squishy_volumes_simulation import (
-    update_name,
+from ..squishy_volumes_properties import (
     update_directory,
 )
 
-from ..properties.squishy_volumes_object_input_settings import (
+from ..squishy_volumes_properties import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )

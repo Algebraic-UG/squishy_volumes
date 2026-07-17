@@ -21,26 +21,36 @@ import re
 import tempfile
 import bpy
 
-from ..bridge import Simulation
+from ..bridge import SimulationHandle
+
+TYPE_SIMULATION = "Simulation"
 
 
-def duplicate_simulation_name(simulation):
-    simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
-    return any(
-        [
-            simulation.name == other.name
-            for other in simulations
-            if other.uuid != simulation.uuid
-        ]
-    )
+def get_simulation_objects() -> list[bpy.types.Object]:
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.squishy_volumes.type == TYPE_SIMULATION  # ty:ignore[unresolved-attribute]
+    ]
+
+
+def get_simulation_object_with_uuid(uuid: str) -> bpy.types.Object:
+    candidates = [
+        obj
+        for obj in get_simulation_objects()
+        if obj.squishy_volumes.uuid == uuid  # ty:ignore[unresolved-attribute]
+    ]
+    if len(candidates) != 1:
+        print(f"There are {len(candidates)} simulation objects for {uuid}")
+        raise RuntimeError(f"There are {len(candidates)} simulation objects for {uuid}")
+    return candidates[0]
 
 
 def duplicate_simulation_directory(simulation):
-    simulations = bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
     return any(
         [
             simulation.directory == other.directory
-            for other in simulations
+            for other in [obj.squishy_volumes for obj in get_simulation_objects()]  # ty:ignore[unresolved-attribute]
             if other.uuid != simulation.uuid
         ]
     )
@@ -55,13 +65,6 @@ def make_unique(new, existing):
     raise RuntimeError("Failed to make unique")
 
 
-def update_name(self, context):
-    if duplicate_simulation_name(self):
-        self.name = make_unique(
-            self.name, [s.name for s in context.scene.squishy_volumes_scene.simulations]
-        )
-
-
 def update_directory(self, context):
     if self.directory != str(Path(self.directory)):
         self.directory = str(Path(self.directory))
@@ -70,38 +73,25 @@ def update_directory(self, context):
     if duplicate_simulation_directory(self):
         self.directory = make_unique(
             self.directory,
-            [s.directory for s in context.scene.squishy_volumes_scene.simulations],
+            [
+                obj.squishy_volumes.directory  # ty:ignore[unresolved-attribute]
+                for obj in bpy.data.objects
+                if obj.squishy_volumes.type == TYPE_SIMULATION  # ty:ignore[unresolved-attribute]
+            ],
         )
         return  # we'll re-enter anyway
 
-    sim = Simulation.get(uuid=self.uuid)
+    sim = SimulationHandle.get(uuid=self.uuid)
     if sim is not None:
         sim.drop()
 
 
-class Squishy_Volumes_Simulation(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty(
-        name="Name",
-        description="It is just the name without any semantic implications.",
-        default="My Simulation",
-        update=update_name,
-    )  # type: ignore
-
+class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
     # ----------------------------------------------------------------
     # Updated in regular intervals
     # ----------------------------------------------------------------
     progress_json_string: bpy.props.StringProperty()  # type: ignore
     last_exception: bpy.props.StringProperty()  # type: ignore
-
-    # ----------------------------------------------------------------
-    # Ties to native context and disc
-    # ----------------------------------------------------------------
-    uuid: bpy.props.StringProperty(
-        name="UUID",
-        description="Readonly identifier that is used to reference this simulation.",
-        default="unassigned",
-        options=set(),
-    )  # type: ignore
 
     directory: bpy.props.StringProperty(
         name="Cache",
@@ -203,7 +193,7 @@ you can set this to 100.""",
     # setup for capturing animation data
     # ----------------------------------------------------------------
     capture_start_frame: bpy.props.IntProperty(
-        name="Capture Start Frame",
+        name="Start",
         description="""The start of the input objects' evaluation.
 
 You need to override the cache to manifest changes.""",
@@ -211,7 +201,7 @@ You need to override the cache to manifest changes.""",
         options=set(),
     )  # type: ignore
     capture_frames: bpy.props.IntProperty(
-        name="Capture Frames",
+        name="Frames",
         description="""The number of frames for which the input objects are evaluated.
 
 You need to override the cache to manifest changes.""",
@@ -264,7 +254,9 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
         name="Adaptive Time Steps",
         description="""Automatically determine a good 'Time Step'.
 The manually set value is chosen if it is smaller than
-the automatic one.""",
+the automatic one.
+
+TODO: Not yet available on GPU""",
         default=True,
         options=set(),
     )  # type: ignore
