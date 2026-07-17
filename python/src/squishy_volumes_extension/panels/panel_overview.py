@@ -53,29 +53,28 @@ from ..util import (
 from ..startup import STARTUP_BENCHMARK, setup_startup_simulation
 
 
-# TODO
-# class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
-#    bl_idname = "scene.squishy_volumes_add_startup_simulation"
-#    bl_label = "Add Startup Simulation"
-#    bl_description = """Start with a prefabricated Squishy Volumes simulation."""
-#    bl_options = {"REGISTER", "UNDO"}
-#
-#    startup_choice: bpy.props.EnumProperty(
-#        items=[
-#            (STARTUP_BENCHMARK,) * 3,
-#        ],  # ty:ignore[invalid-argument-type]
-#        name="Chose Startup Simulation",
-#        description="Chose one of the startup simulations to set up.",
-#        default=STARTUP_BENCHMARK,
-#        options=set(),
-#    )  # type: ignore
-#
-#    def execute(self, context):
-#        setup_startup_simulation(context, self.startup_choice)
-#        return {"FINISHED"}
-#
-#    def invoke(self, context, event):
-#        return context.window_manager.invoke_props_dialog(self)
+class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_startup_simulation"
+    bl_label = "Add Startup Simulation"
+    bl_description = """Start with a prefabricated Squishy Volumes simulation."""
+    bl_options = {"REGISTER", "UNDO"}
+
+    startup_choice: bpy.props.EnumProperty(
+        items=[
+            (STARTUP_BENCHMARK,) * 3,
+        ],  # ty:ignore[invalid-argument-type]
+        name="Chose Startup Simulation",
+        description="Chose one of the startup simulations to set up.",
+        default=STARTUP_BENCHMARK,
+        options=set(),
+    )  # type: ignore
+
+    def execute(self, context):
+        setup_startup_simulation(context, self.startup_choice)
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
 
 
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
@@ -90,19 +89,22 @@ Note that this doesn't create any files yet.
 It just creates the Blender object to track the simulation."""
     bl_options = {"REGISTER", "UNDO"}
 
+    name: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()  # type: ignore
+
     def execute(self, context):
-        sim_obj = bpy.data.objects.new(name="My Simulation", object_data=None)
+        sim_obj = bpy.data.objects.new(name=self.name, object_data=None)
         sim_obj.empty_display_type = "CUBE"
         sim_obj.lock_location = (True,) * 3
         sim_obj.lock_rotation = (True,) * 3
         sim_obj.lock_scale = (True,) * 3
 
-        sim_props = sim_obj.squishy_volumes
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
 
-        sim_props.type = TYPE_SIMULATION  # ty:ignore[unresolved-attribute]
-        sim_props.uuid = str(uuid.uuid4())  # ty:ignore[unresolved-attribute]
+        sim_props.type = TYPE_SIMULATION
+        sim_props.uuid = self.uuid
 
-        update_directory(sim_props, context)  # ty:ignore[unresolved-attribute]
+        update_directory(sim_props, context)
 
         force_ui_redraw()
 
@@ -375,11 +377,14 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text=f"{last_frame_substeps}")
 
         add_row = layout.row()
-        add_row.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
-        # TODO
-        # add_row.operator(
-        #    SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
-        # )
+        add_op = add_row.operator(
+            SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
+        )
+        add_op.name = "My Simulation"
+        add_op.uuid = str(uuid.uuid4())
+        add_row.operator(
+            SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
+        )
 
         if len(get_simulation_objects()) > 1:
             layout.separator()
@@ -391,8 +396,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
 
 classes = [
-    # TODO
-    # SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
+    SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
     SCENE_OT_Squishy_Volumes_Add_Simulation,
     SCENE_OT_Squishy_Volumes_Reload,
     # TODO

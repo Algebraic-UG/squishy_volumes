@@ -125,6 +125,7 @@ Note that this also discards all computed frames in the cache."""
         if (
             simulation_input_exists(sim_obj.squishy_volumes.directory)  # ty:ignore[unresolved-attribute]
             and get_confirm_bake_overwrite()
+            and not self.blocking  # implies script usage
         ):
             return context.window_manager.invoke_props_dialog(self)
         else:
@@ -335,7 +336,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
 
 
 class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
-    bl_label = "Bake"
+    bl_label = "Record & Bake"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"

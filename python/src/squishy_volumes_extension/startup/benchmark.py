@@ -31,7 +31,11 @@ from ..squishy_volumes_properties import (
 from ..squishy_volumes_properties import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
+    get_simulation_object_with_uuid,
+    get_input_objects_with_uuid,
 )
+
+from ..magic_consts import PARTICLES
 
 from ..util import simulation_locked
 
@@ -39,103 +43,81 @@ STARTUP_BENCHMARK = "Benchmark"
 
 
 def setup_startup_benchmark(context: bpy.types.Context):
-    bpy.ops.scene.squishy_volumes_add_simulation("INVOKE_DEFAULT")  # ty: ignore[unresolved-attribute]
-
-    simulation = context.scene.squishy_volumes_scene.simulations[-1]
-
-    simulation.name = STARTUP_BENCHMARK
-    simulation.directory = str(
-        Path(tempfile.gettempdir()) / f"squishy_volumes_{STARTUP_BENCHMARK}"
+    sim_uuid = str(uuid.uuid4())
+    bpy.ops.scene.squishy_volumes_add_simulation(  # ty:ignore[unresolved-attribute]
+        "INVOKE_DEFAULT", name=STARTUP_BENCHMARK, uuid=sim_uuid
     )
 
-    simulation.grid_node_size = 0.1
-    simulation.time_step = 0.001
-    simulation.capture_frames = 1
-    simulation.bake_frames = 60
-    simulation.immediately_start_baking = False
+    sim_obj = get_simulation_object_with_uuid(sim_uuid)
+    sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
 
-    input_particles = []
-    input_collider = []
+    sim_props.grid_node_size = 0.1
+    sim_props.time_step = 0.001
+    sim_props.capture_frames = 1
+    sim_props.bake_frames = 60
 
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    def add_particles(obj: bpy.types.Object):
+        obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes.add_default_generation = True  # ty:ignore[unresolved-attribute]
+        bpy.ops.scene.squishy_volumes_add_input_object(  # ty:ignore[unresolved-attribute]
+            "INVOKE_DEFAULT",
+            uuid=sim_uuid,
+            name=obj.name,
+        )
+        obj.hide_set(True)
+
+    def add_collider(obj):
+        obj.squishy_volumes.input_type = INPUT_TYPE_COLLIDER
+        obj.squishy_volumes.add_default_generation = True
+        bpy.ops.scene.squishy_volumes_add_input_object(  # ty:ignore[unresolved-attribute]
+            "INVOKE_DEFAULT",
+            uuid=sim_uuid,
+            name=obj.name,
+        )
+
+    def add_monekey(location, rotation):
+        bpy.ops.mesh.primitive_monkey_add(
+            size=4,
+            enter_editmode=False,
+            align="WORLD",
+            location=location,
+            scale=(1, 1, 1),
+            rotation=rotation,
+        )
+        add_particles(context.active_object)  # ty:ignore[invalid-argument-type]
+
+    add_monekey(
         location=(-2, -2, 0),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(-2, 2, 0),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(2, 2, 0),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(2, -2, 0),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(-2, -2, 4),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(-2, 2, 4),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(2, 2, 4),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
-    input_particles.append(context.active_object.name)
-
-    bpy.ops.mesh.primitive_monkey_add(
-        size=4,
-        enter_editmode=False,
-        align="WORLD",
+    add_monekey(
         location=(2, -2, 4),
-        scale=(1, 1, 1),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
-    input_particles.append(context.active_object.name)
 
     bpy.ops.mesh.primitive_cone_add(
         radius1=2,
@@ -145,7 +127,7 @@ def setup_startup_benchmark(context: bpy.types.Context):
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    input_collider.append(context.active_object.name)
+    add_collider(context.active_object)
 
     bpy.ops.mesh.primitive_torus_add(
         align="WORLD",
@@ -154,7 +136,7 @@ def setup_startup_benchmark(context: bpy.types.Context):
         major_radius=4,
         minor_radius=1,
     )
-    input_collider.append(context.active_object.name)
+    add_collider(context.active_object)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -163,29 +145,38 @@ def setup_startup_benchmark(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=100,
     )
-    input_collider.append(context.active_object.name)
+    add_collider(context.active_object)
 
-    for name in input_particles:
-        obj = bpy.data.objects[name]
-        obj.squishy_volumes_object.input_settings.input_type = INPUT_TYPE_PARTICLES
-        obj.select_set(True)
-
-    for name in input_collider:
-        obj = bpy.data.objects[name]
-        obj.squishy_volumes_object.input_settings.input_type = INPUT_TYPE_COLLIDER
-        obj.select_set(True)
-
-    bpy.ops.scene.squishy_volumes_add_input_objects()
-    bpy.ops.scene.squishy_volumes_write_input_to_cache(  # ty:ignore[unresolved-attribute]
-        uuid=simulation.uuid, blocking=True
+    bpy.ops.scene.squishy_volumes_record_input_to_cache(  # ty:ignore[unresolved-attribute]
+        "INVOKE_DEFAULT",
+        uuid=sim_uuid,
+        blocking=True,
+        start_baking=False,
     )
 
-    for name in input_particles:
-        bpy.ops.scene.squishy_volumes_add_output_objects(
-            uuid=simulation.uuid,
-            called_from_script=True,
-            input_name=name,
+    for input_obj in get_input_objects_with_uuid(sim_uuid):
+        if input_obj.squishy_volumes.input_type != INPUT_TYPE_PARTICLES:  # ty:ignore[unresolved-attribute]
+            continue
+        bpy.ops.scene.squishy_volumes_add_output_object(  # ty:ignore[unresolved-attribute]
+            "INVOKE_DEFAULT",
+            uuid=sim_uuid,
+            input_name=input_obj.name,
+            output_name=f"{input_obj.name} - Output",
+            add_default_visualization=True,
+            output_type=PARTICLES,
+            grid_collider_bits=False,
+            grid_masses=False,
+            grid_velocities=False,
+            particle_flags=False,
+            particle_masses=False,
+            particle_initial_volumes=False,
+            particle_initial_positions=True,
+            particle_velocities=False,
+            particle_sizes=True,
+            particle_transformations=True,
+            particle_energies=False,
+            particle_collider_bits=False,
         )
-
-    simulation.immediately_start_baking = True
-    bpy.ops.scene.squishy_volumes_bake_start_from_latest()
+    bpy.ops.scene.squishy_volumes_bake_start_from_latest(  # ty:ignore[unresolved-attribute]
+        "INVOKE_DEFAULT", uuid=sim_uuid
+    )

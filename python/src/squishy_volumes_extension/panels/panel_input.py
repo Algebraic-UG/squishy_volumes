@@ -203,9 +203,9 @@ Note that this does not delete the object or remove the input modifier."""
 
     def execute(self, context):
         input_obj = bpy.data.objects[self.name]
-        input_obj.squishy_volumes.uuid = "unassigned"  # ty:ignore[unresolved-attribute]
-        input_obj.squishy_volumes.type = TYPE_NONE  # ty:ignore[unresolved-attribute]
-        self.report({"INFO"}, f"Removed {input_obj.name} from inputs.")  # ty:ignore[unresolved-reference]
+        input_obj.squishy_volumes.uuid = "unassigned"
+        input_obj.squishy_volumes.type = TYPE_NONE
+        self.report({"INFO"}, f"Removed {input_obj.name} from inputs.")
         return {"FINISHED"}
 
 
