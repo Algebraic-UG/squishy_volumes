@@ -346,8 +346,8 @@ Note that this does not delete the object."""
 
     def execute(self, context):
         output_obj = bpy.data.objects[self.name]
-        output_obj.squishy_volumes.uuid = "unassigned"  # ty:ignore[unresolved-attribute]
-        output_obj.squishy_volumes.type = TYPE_NONE  # ty:ignore[unresolved-attribute]
+        output_obj.squishy_volumes.uuid = "unassigned"
+        output_obj.squishy_volumes.type = TYPE_NONE
         self.report(
             {"INFO"},
             f"Removed {output_obj.name} from output objects.",

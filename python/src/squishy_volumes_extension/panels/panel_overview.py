@@ -266,6 +266,15 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         # TODO
         # if len(unloaded_simulations(context)) > 1:
         #    layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
+        add_row = layout.row()
+        add_op = add_row.operator(
+            SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
+        )
+        add_op.name = "My Simulation"
+        add_op.uuid = str(uuid.uuid4())
+        add_row.operator(
+            SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
+        )
 
         for sim_obj in get_simulation_objects():
             sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
@@ -379,16 +388,6 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text=f"{last_frame_time_sec:0.5f}")
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
-
-        add_row = layout.row()
-        add_op = add_row.operator(
-            SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
-        )
-        add_op.name = "My Simulation"
-        add_op.uuid = str(uuid.uuid4())
-        add_row.operator(
-            SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
-        )
 
         if len(get_simulation_objects()) > 1:
             layout.separator()
