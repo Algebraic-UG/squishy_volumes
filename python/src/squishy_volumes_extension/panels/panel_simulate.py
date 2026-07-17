@@ -335,7 +335,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class SCENE_PT_Squishy_Volumes_Bake(bpy.types.Panel):
+class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
     bl_label = "Simulate"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -435,15 +435,15 @@ classes = [
     SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest,
     SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded,
     SCENE_OT_Squishy_Volumes_Bake_Pause,
-    SCENE_PT_Squishy_Volumes_Bake,
+    SCENE_PT_Squishy_Volumes_Simulate,
 ]
 
 
-def register_panel_bake():
+def register_panel_simulate():
     for cls in classes:
         bpy.utils.register_class(cls)
 
 
-def unregister_panel_bake():
+def unregister_panel_simulate():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
