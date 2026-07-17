@@ -19,14 +19,14 @@
 from ..preferences import get_print_debug_info
 from .panel_overview import register_panel_overview, unregister_panel_overview
 from .panel_input import register_panel_input, unregister_panel_input
-from .panel_bake import register_panel_bake, unregister_panel_bake
+from .panel_simulate import register_panel_simulate, unregister_panel_simulate
 from .panel_output import register_panel_output, unregister_panel_output
 
 
 def register_panels():
     register_panel_overview()
     register_panel_input()
-    register_panel_bake()
+    register_panel_simulate()
     register_panel_output()
     if get_print_debug_info():
         print("Squishy Volumes panels registered.")
@@ -34,7 +34,7 @@ def register_panels():
 
 def unregister_panels():
     unregister_panel_output()
-    unregister_panel_bake()
+    unregister_panel_simulate()
     unregister_panel_input()
     unregister_panel_overview()
     if get_print_debug_info():

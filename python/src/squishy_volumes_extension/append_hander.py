@@ -20,7 +20,7 @@ import bpy
 
 from bpy.app.handlers import persistent
 
-from .properties.squishy_volumes_object import IO_NONE
+from .squishy_volumes_properties import TYPE_NONE
 from .preferences import get_print_debug_info
 
 # See also
@@ -34,8 +34,8 @@ def fix_appended_data(context):
         if not isinstance(obj, bpy.types.Object):
             continue
 
-        obj.squishy_volumes_object.simulation_uuid = "unassigned"
-        obj.squishy_volumes_object.io = IO_NONE
+        obj.squishy_volumes.uuid = "unassigned"
+        obj.squishy_volumes.type = TYPE_NONE
 
 
 def register_append_handler():

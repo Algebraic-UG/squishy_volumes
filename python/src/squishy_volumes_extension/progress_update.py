@@ -21,8 +21,9 @@ import bpy
 from .preferences import get_print_debug_info
 from .popup import with_popup
 from .frame_change import sync_simulation
-from .bridge import Simulation
-from .util import add_or_update_marker, force_ui_redraw, remove_marker, frame_to_load
+from .bridge import SimulationHandle
+from .util import add_or_update_marker, force_ui_redraw, remove_marker
+from .squishy_volumes_properties import frame_to_load, get_simulation_objects
 
 
 PROGRESS_INTERVAL = 0.25
@@ -30,61 +31,63 @@ PROGRESS_INTERVAL = 0.25
 
 def update_progress():
     should_redraw = False
-    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():  # ty:ignore[unresolved-attribute]
-        cleanup_markers(simulation)
+    for sim_obj in get_simulation_objects():
+        cleanup_markers(sim_obj)
 
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
         add_or_update_marker(
-            f"{simulation.name} Capture Start", simulation.capture_start_frame
+            f"{sim_obj.name} Capture Start",
+            sim_props.capture_start_frame,
         )
         add_or_update_marker(
-            f"{simulation.name} Capture End",
-            simulation.capture_start_frame + simulation.capture_frames - 1,
+            f"{sim_obj.name} Capture End",
+            sim_props.capture_start_frame + sim_props.capture_frames - 1,
         )
 
-        if not simulation.sync:
+        if not sim_props.sync:
             continue
 
-        sim = Simulation.get(uuid=simulation.uuid)
-        if sim is None:
+        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+        if sim_handle is None:
             continue
 
-        if sim.last_error is not None:
+        if sim_handle.last_error is not None:
             continue
 
-        progess = sim.progress
+        progess = sim_handle.progress
 
         def poll_and_true():
-            sim.poll()
+            sim_handle.poll()
             return True
 
-        if not with_popup(uuid=simulation.uuid, f=poll_and_true):
+        if not with_popup(uuid=sim_props.uuid, f=poll_and_true):
             continue
 
-        if progess != sim.progress:
+        if progess != sim_handle.progress:
             should_redraw = True
 
         add_or_update_marker(
-            f"{simulation.name} Bake Start",
-            simulation.display_start_frame,
+            f"{sim_obj.name} Bake Start",
+            sim_props.display_start_frame,
         )
 
-        computed_frames = sim.available_frames()
+        computed_frames = sim_handle.available_frames()
         if computed_frames == 0:
             continue
 
-        latest_frame = simulation.display_start_frame + computed_frames - 1
-        end_frame = simulation.display_start_frame + simulation.bake_frames - 1
+        latest_frame = sim_props.display_start_frame + computed_frames - 1
+        end_frame = sim_props.display_start_frame + sim_props.bake_frames - 1
         if latest_frame != end_frame:
-            add_or_update_marker(f"{simulation.name} Bake Latest", latest_frame)
-            add_or_update_marker(f"{simulation.name} Bake End", end_frame)
+            add_or_update_marker(f"{sim_obj.name} Bake Latest", latest_frame)
+            add_or_update_marker(f"{sim_obj.name} Bake End", end_frame)
         else:
-            add_or_update_marker(f"{simulation.name} Bake Latest & End", end_frame)
+            add_or_update_marker(f"{sim_obj.name} Bake Latest & End", end_frame)
 
-        if simulation.loaded_frame != frame_to_load(
-            simulation,
-            bpy.context.scene.frame_current,  # ty:ignore[unresolved-attribute]
+        if sim_props.loaded_frame != frame_to_load(
+            sim_props,
+            bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
         ):
-            sync_simulation(sim, simulation, bpy.context.scene.frame_current)  # ty:ignore[unresolved-attribute]
+            sync_simulation(sim_props, sim_handle, bpy.context.scene.frame_current)  # ty:ignore[possibly-missing-attribute]
 
     if should_redraw:
         force_ui_redraw()
@@ -92,13 +95,13 @@ def update_progress():
     return PROGRESS_INTERVAL
 
 
-def cleanup_markers(simulation):
-    remove_marker(f"{simulation.name} Capture Start")
-    remove_marker(f"{simulation.name} Capture End")
-    remove_marker(f"{simulation.name} Bake Start")
-    remove_marker(f"{simulation.name} Bake Latest")
-    remove_marker(f"{simulation.name} Bake End")
-    remove_marker(f"{simulation.name} Bake Latest & End")
+def cleanup_markers(sim_obj: bpy.types.Object):
+    remove_marker(f"{sim_obj.name} Capture Start")
+    remove_marker(f"{sim_obj.name} Capture End")
+    remove_marker(f"{sim_obj.name} Bake Start")
+    remove_marker(f"{sim_obj.name} Bake Latest")
+    remove_marker(f"{sim_obj.name} Bake End")
+    remove_marker(f"{sim_obj.name} Bake Latest & End")
 
 
 def is_updating():
@@ -113,8 +116,8 @@ def register_progress_update(*_scene):
 
 
 def unregister_progress_update(*_scene):
-    for simulation in bpy.context.scene.squishy_volumes_scene.simulations.values():  # ty:ignore[unresolved-attribute]
-        cleanup_markers(simulation)
+    for sim_obj in get_simulation_objects():  # ty:ignore[unresolved-attribute]
+        cleanup_markers(sim_obj)
 
     if bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.unregister(update_progress)

@@ -51,11 +51,8 @@ def optional_attributes_set_all(optional_attributes, value):
     optional_attributes.particle_energies = value
     optional_attributes.particle_collider_bits = value
 
-    optional_attributes.collider_normals = value
-    optional_attributes.collider_velocities = value
 
-
-class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
+class Squishy_Volumes_Properties_Output(bpy.types.PropertyGroup):
     output_type: bpy.props.EnumProperty(
         name="Output Type",
         description="Depending on this, different attributes are synchronizable.",
@@ -168,20 +165,6 @@ class Squishy_Volumes_Object_Output_Settings(bpy.types.PropertyGroup):
     particle_collider_bits: bpy.props.BoolProperty(
         name="Collider Bits",
         description=f"Attribute name: {SQUISHY_VOLUMES_COLLIDER_BITS}",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    collider_normals: bpy.props.BoolProperty(
-        name="Normals",
-        description=f"Attribute name: {SQUISHY_VOLUMES_NORMAL}",
-        default=True,
-        options=set(),
-    )  # type: ignore
-
-    collider_velocities: bpy.props.BoolProperty(
-        name="Velocities",
-        description=f"Attribute name: {SQUISHY_VOLUMES_VELOCITY}",
         default=True,
         options=set(),
     )  # type: ignore

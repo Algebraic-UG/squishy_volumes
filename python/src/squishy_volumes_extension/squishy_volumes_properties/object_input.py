@@ -22,7 +22,7 @@ INPUT_TYPE_PARTICLES = "Particles"
 INPUT_TYPE_COLLIDER = "Collider"
 
 
-class Squishy_Volumes_Object_Input_Settings(bpy.types.PropertyGroup):
+class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
     input_type: bpy.props.EnumProperty(
         items=[
             (INPUT_TYPE_PARTICLES,) * 3,

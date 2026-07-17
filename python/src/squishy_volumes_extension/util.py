@@ -26,7 +26,7 @@ from pathlib import Path
 
 import numpy as np  # ty:ignore[unresolved-import]
 
-from .bridge import Simulation
+from .bridge import SimulationHandle
 
 
 def remove_marker(marker_name):
@@ -111,34 +111,18 @@ def attribute_to_base64(collection, attribute_name, dtype, per_count):
     )
 
 
-# TODO: pass the scene
-def get_simulation_idx_by_uuid(uuid):
-    return [
-        idx
-        for idx, simulation in enumerate(
-            bpy.context.scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
-        )
-        if simulation.uuid == uuid
-    ][0]
-
-
-# TODO: pass the scene
-
-DEBUG_VISUALS = "Squishy Volumes Debug Visuals"
-
-
 def force_ui_redraw():
     for area in bpy.context.window.screen.areas:
         if area.type == "VIEW_3D":
             area.tag_redraw()
 
 
-def simulation_locked(simulation):
-    return os.path.exists(Path(simulation.directory) / "lock")
+def simulation_locked(directory: str):
+    return os.path.exists(Path(directory) / "lock")
 
 
-def simulation_input_exists(simulation):
-    return os.path.exists(Path(simulation.directory) / "simulation_input.bin")
+def simulation_input_exists(directory: str):
+    return os.path.exists(Path(directory) / "simulation_input.bin")
 
 
 def fix_quaternion_order(quaternion):
@@ -179,40 +163,6 @@ def local_bounding_box(obj: bpy.types.Object):
     return mathutils.Vector((min_x, min_y, min_z)), mathutils.Vector(
         (max_x, max_y, max_z)
     )
-
-
-def frame_to_load(simulation, frame):
-    frame = frame - simulation.display_start_frame
-
-    sim = Simulation.get(uuid=simulation.uuid)
-    assert sim is not None
-
-    simulated_frames = sim.available_frames()
-    if simulated_frames < 1:
-        return None
-    max_frame = min(simulation.bake_frames, simulated_frames - 1)
-
-    # clamping is more practical than not loading anything
-    frame = max(0, min(max_frame, frame))
-
-    return frame
-
-
-def locked_simulations(context):
-    return [
-        simulation
-        for simulation in context.scene.squishy_volumes_scene.simulations
-        if not Simulation.exists(uuid=simulation.uuid) and simulation_locked(simulation)
-    ]
-
-
-def unloaded_simulations(context):
-    return [
-        simulation
-        for simulation in context.scene.squishy_volumes_scene.simulations
-        if not Simulation.exists(uuid=simulation.uuid)
-        and simulation_input_exists(simulation)
-    ]
 
 
 def obj_by_index(index):

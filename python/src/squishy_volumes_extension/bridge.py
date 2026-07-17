@@ -15,13 +15,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import bpy
+from bpy.app.handlers import persistent
+
 
 import json
 import numpy
 from typing import Any, Self
 
 from .shim import *
+from .preferences import get_print_debug_info
 from .hint_at_info import *
 
 
@@ -30,21 +34,7 @@ def build_info() -> dict[str, Any]:
     return json.loads(squishy_volumes_wrap.build_info_as_json())
 
 
-def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
-    attribute = mesh.attributes.get(attribute_name)
-    if attribute is None:
-        attribute = mesh.attributes.new(
-            name=attribute_name, type=attribute_type, domain=domain
-        )
-    if attribute_type == "FLOAT_VECTOR":
-        attribute.data.foreach_set("vector", array)
-    elif attribute_type == "FLOAT_COLOR":
-        attribute.data.foreach_set("color", array)
-    else:
-        attribute.data.foreach_set("value", array)
-
-
-class SimulationInput:
+class SimulationInputHandle:
     def __init__(self, *, handle: squishy_volumes_wrap.SimulationInput):
         self.handle = handle
 
@@ -57,7 +47,7 @@ class SimulationInput:
         input_header: dict[str, Any],
         max_bytes_on_disk: int,
     ) -> Self:
-        return SimulationInput(
+        return SimulationInputHandle(
             handle=squishy_volumes_wrap.SimulationInput.new(
                 uuid=uuid,
                 directory=directory,
@@ -91,10 +81,10 @@ class SimulationInput:
         self.handle.drop()
 
 
-_simulations: dict[str, "Simulation"] = {}
+_simulations: dict[str, "SimulationHandle"] = {}
 
 
-class Simulation:
+class SimulationHandle:
     def __init__(self, *, handle: squishy_volumes_wrap.Simulation):
         _simulations[handle.uuid()] = self
         self.handle = handle
@@ -112,12 +102,12 @@ class Simulation:
     @hint_at_info
     @staticmethod
     def new() -> Self:
-        return Simulation(handle=squishy_volumes_wrap.Simulation.new())  # ty:ignore[invalid-return-type]
+        return SimulationHandle(handle=squishy_volumes_wrap.Simulation.new())  # ty:ignore[invalid-return-type]
 
     @hint_at_info
     @staticmethod
     def load(*, uuid: str, directory: str) -> Self:
-        return Simulation(
+        return SimulationHandle(
             handle=squishy_volumes_wrap.Simulation.load(
                 uuid=uuid,
                 directory=directory,
@@ -194,3 +184,30 @@ class Simulation:
     def drop_all():
         for simulation in _simulations.values():
             simulation.handle.drop()
+
+
+# simulation objects can be deleted through uncontrolled means, for example, undo
+@persistent
+def prune_simulation_handles(scene):
+    live_uuids = [
+        obj.squishy_volumes.uuid
+        for obj in bpy.data.objects
+        if obj.squishy_volumes.type == "Simulation"
+    ]
+    to_drop = [uuid for uuid in _simulations.keys() if uuid not in live_uuids]
+    for uuid in to_drop:
+        _simulations[uuid].drop()
+
+
+def register_prune_simulation_handles():
+    if prune_simulation_handles not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(prune_simulation_handles)
+    if get_print_debug_info():
+        print("Squishy Volumes prune simulation handles registered.")
+
+
+def unregister_prune_simulation_handles():
+    if prune_simulation_handles in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(prune_simulation_handles)
+    if get_print_debug_info():
+        print("Squishy Volumes prune simulation handles unregistered.")

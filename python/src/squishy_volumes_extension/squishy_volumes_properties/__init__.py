@@ -18,39 +18,48 @@
 
 import bpy
 
+from ..bridge import SimulationHandle
 from ..preferences import get_print_debug_info
-from .squishy_volumes_object import Squishy_Volumes_Object
-from .squishy_volumes_scene import (
-    Squishy_Volumes_Scene,
-    unsubscribe_from_selection,
-    subscribe_to_selection,
-)
-from .squishy_volumes_simulation import Squishy_Volumes_Simulation
-from .squishy_volumes_object_input_settings import (
-    Squishy_Volumes_Object_Input_Settings,
-)
-from .squishy_volumes_object_output_settings import (
-    Squishy_Volumes_Object_Output_Settings,
-)
+
+from .object import *
+from .scene import *
+
+
+def frame_to_load(props: Squishy_Volumes_Properties, frame: int) -> int | None:
+    frame = frame - props.display_start_frame  # ty:ignore[unresolved-attribute]
+
+    sim = SimulationHandle.get(uuid=props.uuid)
+    if sim is None:
+        return None
+
+    simulated_frames = sim.available_frames()
+    if simulated_frames < 1:
+        return None
+    max_frame = min(props.bake_frames, simulated_frames - 1)  # ty:ignore[unresolved-attribute]
+
+    # clamping is more practical than not loading anything
+    frame = max(0, min(max_frame, frame))
+
+    return frame
 
 
 classes = [
-    Squishy_Volumes_Simulation,
-    Squishy_Volumes_Scene,
-    Squishy_Volumes_Object_Input_Settings,
-    Squishy_Volumes_Object_Output_Settings,
-    Squishy_Volumes_Object,
+    Squishy_Volumes_Properties_Simulation,
+    Squishy_Volumes_Properties_Scene,
+    Squishy_Volumes_Properties_Input,
+    Squishy_Volumes_Properties_Output,
+    Squishy_Volumes_Properties,
 ]
 
 
 def register_properties():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.squishy_volumes_object = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
-        type=Squishy_Volumes_Object
+    bpy.types.Object.squishy_volumes = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
+        type=Squishy_Volumes_Properties
     )
-    bpy.types.Scene.squishy_volumes_scene = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
-        type=Squishy_Volumes_Scene
+    bpy.types.Scene.squishy_volumes = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
+        type=Squishy_Volumes_Properties_Scene
     )
     subscribe_to_selection()
 
@@ -60,8 +69,8 @@ def register_properties():
 
 def unregister_properties():
     unsubscribe_from_selection()
-    del bpy.types.Scene.squishy_volumes_scene  # ty:ignore[unresolved-attribute]
-    del bpy.types.Object.squishy_volumes_object  # ty:ignore[unresolved-attribute]
+    del bpy.types.Scene.squishy_volumes  # ty:ignore[unresolved-attribute]
+    del bpy.types.Object.squishy_volumes  # ty:ignore[unresolved-attribute]
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
     if get_print_debug_info():

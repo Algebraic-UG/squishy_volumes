@@ -23,9 +23,8 @@ from typing import Any
 
 
 from ..frame_change import sync_simulation
-from ..util import copy_simple_property_group, frame_to_load
+from ..util import copy_simple_property_group
 
-from ..nodes.drivers import remove_drivers
 from ..magic_consts import (
     GRID,
     PARTICLES,
@@ -33,31 +32,25 @@ from ..magic_consts import (
 )
 
 
-from ..properties.squishy_volumes_object_input_settings import (
+from ..squishy_volumes_properties import (
+    get_selected_simulation_uuid,
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
-)
-from ..properties.squishy_volumes_object import (
     get_output_objects,
-    IO_OUTPUT,
-)
-from ..properties.squishy_volumes_scene import (
-    get_selected_simulation,
-    get_simulation_by_uuid,
+    TYPE_OUTPUT,
+    TYPE_NONE,
+    get_output_objects_with_uuid,
+    get_selected_simulation_object,
     get_selected_output_object,
-)
-from ..properties.squishy_volumes_object_output_settings import (
-    Squishy_Volumes_Object_Output_Settings,
-)
-from ..properties.squishy_volumes_simulation import Squishy_Volumes_Simulation
-from ..properties.util import (
+    Squishy_Volumes_Properties_Output,
     add_fields_from,
+    get_simulation_object_with_uuid,
 )
 from ..output import (
     create_default_visualization,
     sync_output,
 )
-from ..bridge import Simulation
+from ..bridge import SimulationHandle
 
 
 class Squishy_Volumes_New_Output_Object(bpy.types.PropertyGroup):
@@ -102,7 +95,50 @@ def update_select_action(self, context):
             output.select = False
 
 
-@add_fields_from(Squishy_Volumes_Object_Output_Settings)
+@add_fields_from(Squishy_Volumes_Properties_Output)
+class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_output_object"
+    bl_label = "Add Output Object"
+    bl_options = {"REGISTER", "UNDO"}
+
+    uuid: bpy.props.StringProperty()  # type: ignore
+
+    output_name: bpy.props.StringProperty()  # type: ignore
+    add_default_visualization: bpy.props.BoolProperty()  # type:ignore
+
+    def execute(self, context):
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+
+        if self.output_type != GRID:  # ty:ignore[unresolved-attribute]
+            if self.input_name not in bpy.data.objects:  # ty:ignore[unresolved-attribute]
+                self.report(
+                    {"WARNING"},
+                    f"Couldn't find input object '{self.input_name}', skinning might not work.",  # ty:ignore[unresolved-attribute]
+                )
+
+        output_obj = bpy.data.objects.new(
+            self.output_name, bpy.data.meshes.new(self.output_name)
+        )
+        context.collection.objects.link(output_obj)
+
+        output_props = output_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        output_props.type = TYPE_OUTPUT
+        output_props.uuid = self.uuid
+
+        copy_simple_property_group(self, output_props)
+
+        if self.add_default_visualization:
+            create_default_visualization(sim_obj, output_obj)
+
+        self.report(
+            {"INFO"},
+            f"Added {output_obj.name} to output objects of {sim_obj.name}.",
+        )
+
+        return {"FINISHED"}
+
+
+@add_fields_from(Squishy_Volumes_Properties_Output)
 class SCENE_OT_Squishy_Volumes_Add_Output_Objects(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_output_objects"
     bl_label = "Add Output Objects"
@@ -119,8 +155,6 @@ each frame."""
     bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
-
-    called_from_script: bpy.props.BoolProperty(default=False)  # type: ignore
 
     particle_outputs: bpy.props.CollectionProperty(
         type=Squishy_Volumes_New_Output_Object
@@ -145,58 +179,61 @@ each frame."""
     )  # type:ignore
 
     def execute(self, context):
-        simulation = get_simulation_by_uuid(context.scene, self.uuid)
-        assert isinstance(simulation, Squishy_Volumes_Simulation)
-
-        def create_output_obj(*, output_name: str, input_name: str | None):
-            obj = bpy.data.objects.new(output_name, bpy.data.meshes.new(output_name))
-            context.collection.objects.link(obj)
-
-            obj.squishy_volumes_object.io = IO_OUTPUT
-            obj.squishy_volumes_object.simulation_uuid = self.uuid
-
-            output_settings = obj.squishy_volumes_object.output_settings
-            copy_simple_property_group(self, output_settings)
-
-            if input_name is not None:
-                output_settings.input_name = input_name
-                if input_name not in bpy.data.objects:
-                    self.report(
-                        {"WARNING"},
-                        f"Couldn't find input object '{input_name}', skinning might not work.",
-                    )
-
-            if self.add_default_visualization:
-                create_default_visualization(obj, self.uuid)
-
-            self.report(
-                {"INFO"},
-                f"Added {obj.name} to output objects of {simulation.name}.",
-            )
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
 
         if self.output_type == GRID:  # ty:ignore[unresolved-attribute]
-            create_output_obj(output_name="Grid - Output", input_name=None)
+            bpy.ops.scene.squishy_volumes_add_output_object(  # ty:ignore[unresolved-attribute]
+                "INVOKE_DEFAULT",
+                uuid=self.uuid,
+                input_name="",
+                output_name="Grid - Output",
+                add_default_visualization=self.add_default_visualization,
+                output_type=self.output_type,  # ty:ignore[unresolved-attribute]
+                grid_collider_bits=self.grid_collider_bits,  # ty:ignore[unresolved-attribute]
+                grid_masses=self.grid_masses,  # ty:ignore[unresolved-attribute]
+                grid_velocities=self.grid_velocities,  # ty:ignore[unresolved-attribute]
+                particle_flags=self.particle_flags,  # ty:ignore[unresolved-attribute]
+                particle_masses=self.particle_masses,  # ty:ignore[unresolved-attribute]
+                particle_initial_volumes=self.particle_initial_volumes,  # ty:ignore[unresolved-attribute]
+                particle_initial_positions=self.particle_initial_positions,  # ty:ignore[unresolved-attribute]
+                particle_velocities=self.particle_velocities,  # ty:ignore[unresolved-attribute]
+                particle_sizes=self.particle_sizes,  # ty:ignore[unresolved-attribute]
+                particle_transformations=self.particle_transformations,  # ty:ignore[unresolved-attribute]
+                particle_energies=self.particle_energies,  # ty:ignore[unresolved-attribute]
+                particle_collider_bits=self.particle_collider_bits,  # ty:ignore[unresolved-attribute]
+            )
 
         if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
-            if self.called_from_script:
-                create_output_obj(
-                    output_name=self.input_name + "- Output",  # ty:ignore[unresolved-attribute]
-                    input_name=self.input_name,  # ty:ignore[unresolved-attribute]
-                )
-
             for output in self.particle_outputs:
                 if not output.select:
                     continue
-                create_output_obj(
-                    output_name=output.output_name,
+
+                bpy.ops.scene.squishy_volumes_add_output_object(  # ty:ignore[unresolved-attribute]
+                    "INVOKE_DEFAULT",
+                    uuid=self.uuid,
                     input_name=output.input_name,
+                    output_name=output.output_name,
+                    add_default_visualization=self.add_default_visualization,
+                    output_type=self.output_type,  # ty:ignore[unresolved-attribute]
+                    grid_collider_bits=self.grid_collider_bits,  # ty:ignore[unresolved-attribute]
+                    grid_masses=self.grid_masses,  # ty:ignore[unresolved-attribute]
+                    grid_velocities=self.grid_velocities,  # ty:ignore[unresolved-attribute]
+                    particle_flags=self.particle_flags,  # ty:ignore[unresolved-attribute]
+                    particle_masses=self.particle_masses,  # ty:ignore[unresolved-attribute]
+                    particle_initial_volumes=self.particle_initial_volumes,  # ty:ignore[unresolved-attribute]
+                    particle_initial_positions=self.particle_initial_positions,  # ty:ignore[unresolved-attribute]
+                    particle_velocities=self.particle_velocities,  # ty:ignore[unresolved-attribute]
+                    particle_sizes=self.particle_sizes,  # ty:ignore[unresolved-attribute]
+                    particle_transformations=self.particle_transformations,  # ty:ignore[unresolved-attribute]
+                    particle_energies=self.particle_energies,  # ty:ignore[unresolved-attribute]
+                    particle_collider_bits=self.particle_collider_bits,  # ty:ignore[unresolved-attribute]
                 )
 
-        sim = Simulation.get(uuid=self.uuid)
-        if sim is not None:
+        sim_handle = SimulationHandle.get(uuid=self.uuid)
+        if sim_handle is not None:
             sync_simulation(
-                sim=sim,
-                simulation=simulation,
+                sim_props=sim_obj.squishy_volumes,  # ty:ignore[unresolved-attribute]
+                sim_handle=sim_handle,
                 frame=context.scene.frame_current,
             )
 
@@ -205,10 +242,10 @@ each frame."""
     def invoke(self, context, event):
         self.particle_outputs.clear()
         self.collider_outputs.clear()
-        sim = Simulation.get(uuid=self.uuid)
-        if sim is None:
+        sim_handle = SimulationHandle.get(uuid=self.uuid)
+        if sim_handle is None:
             return {"CANCELLED"}
-        input_header = sim.input_header()
+        input_header = sim_handle.input_header()
         for name, obj in input_header["objects"].items():
             if INPUT_TYPE_PARTICLES in obj:
                 output = self.particle_outputs.add()
@@ -305,32 +342,26 @@ class OBJECT_OT_Squishy_Volumes_Remove_Output_Object(bpy.types.Operator):
 Note that this does not delete the object."""
     bl_options = {"REGISTER", "UNDO"}
 
-    @classmethod
-    def poll(cls, context):
-        return (
-            context.mode == "OBJECT"
-            and get_selected_output_object(context.scene) is not None
-        )
+    name: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        obj = get_selected_output_object(context.scene)
-        obj.squishy_volumes_object.simulation_uuid = ""
-        remove_drivers(obj)
-
+        output_obj = bpy.data.objects[self.name]
+        output_obj.squishy_volumes.uuid = "unassigned"
+        output_obj.squishy_volumes.type = TYPE_NONE
         self.report(
             {"INFO"},
-            f"Removed {obj.name} from output objects.",
+            f"Removed {output_obj.name} from output objects.",
         )
         return {"FINISHED"}
 
 
 class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
     def filter_items(self, context, data, property):
-        simulation = get_selected_simulation(context.scene)
-        if simulation is None:
+        uuid = get_selected_simulation_uuid(context.scene)
+        if uuid is None:
             return [0] * len(bpy.data.objects), []
 
-        output_objects = get_output_objects(simulation)
+        output_objects = get_output_objects_with_uuid(uuid)
         return [
             self.bitflag_filter_item if obj in output_objects else 0
             for obj in bpy.data.objects
@@ -364,18 +395,19 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         if context.mode != "OBJECT":
             return False
 
-        simulation = get_selected_simulation(context.scene)
-        return simulation is not None and Simulation.exists(uuid=simulation.uuid)
+        uuid = get_selected_simulation_uuid(context.scene)
+        return uuid is not None and SimulationHandle.exists(uuid=uuid)
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
-        simulation = get_selected_simulation(context.scene)
-        self.layout.prop(simulation, "display_start_frame")
+        sim_obj = get_selected_simulation_object(context.scene)
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        self.layout.prop(sim_props, "display_start_frame")
 
         col = self.layout.column()
-        if simulation.has_loaded_frame:
+        if sim_props.has_loaded_frame:
             col.enabled = False
-            col.prop(simulation, "loaded_frame")
+            col.prop(sim_props, "loaded_frame")
         else:
             col.label(text="No frame loaded")
 
@@ -385,7 +417,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             "",
             bpy.data,
             "objects",
-            context.scene.squishy_volumes_scene,
+            context.scene.squishy_volumes,
             "selected_output_object",
         )
         list_controls = row.column(align=True)
@@ -393,18 +425,29 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             SCENE_OT_Squishy_Volumes_Add_Output_Objects.bl_idname,
             text="",
             icon="ADD",
-        )
-        add_op.uuid = simulation.uuid
-        list_controls.operator(
-            OBJECT_OT_Squishy_Volumes_Remove_Output_Object.bl_idname,
-            text="",
-            icon="REMOVE",
-        )
+        ).uuid = sim_props.uuid
+
+        remove = list_controls.column()
+        remove_obj = get_selected_output_object(context.scene)
+        if remove_obj is None:
+            remove.enabled = False
+            remove.operator(
+                OBJECT_OT_Squishy_Volumes_Remove_Output_Object.bl_idname,
+                text="",
+                icon="REMOVE",
+            )
+        else:
+            remove.operator(
+                OBJECT_OT_Squishy_Volumes_Remove_Output_Object.bl_idname,
+                text="",
+                icon="REMOVE",
+            ).name = remove_obj.name
 
 
 classes = [
     Squishy_Volumes_New_Output_Object,
     SCENE_UL_Squishy_Volumes_New_Output_Object_List,
+    SCENE_OT_Squishy_Volumes_Add_Output_Object,
     SCENE_OT_Squishy_Volumes_Add_Output_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Output_Object,
     SCENE_UL_Squishy_Volumes_Output_Object_List,

@@ -19,65 +19,61 @@
 import bpy
 
 from ..util import obj_by_index
-
-from .squishy_volumes_simulation import Squishy_Volumes_Simulation
-from .squishy_volumes_object import (
-    IO_INPUT,
-    IO_OUTPUT,
-    get_input_objects,
+from .object import (
+    get_simulation_objects,
+    TYPE_INPUT,
+    TYPE_OUTPUT,
+    get_simulation_object_with_uuid,
 )
 
 
-def get_simulation_by_uuid(scene: bpy.types.Scene, uuid: str):
-    for simulation in scene.squishy_volumes_scene.simulations:  # ty:ignore[unresolved-attribute]
-        if simulation.uuid == uuid:
-            return simulation
-    raise RuntimeError(f"There is no simulation with UUID {uuid}")
-
-
-def get_selected_simulation(scene: bpy.types.Scene):
-    simulations = scene.squishy_volumes_scene.simulations  # ty:ignore[unresolved-attribute]
-    if not simulations:
+def get_selected_simulation_uuid(scene: bpy.types.Scene) -> str | None:
+    sim_objs = get_simulation_objects()
+    if not sim_objs:
         return None
 
-    if len(simulations) == 1:
-        return simulations[0]
+    if len(sim_objs) == 1:
+        return sim_objs[0].squishy_volumes.uuid
 
-    selected_uuid = scene.squishy_volumes_scene.selected_simulation  # ty:ignore[unresolved-attribute]
+    return scene.squishy_volumes.selected_simulation  # ty:ignore[unresolved-attribute]
+
+
+def get_selected_simulation_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
+    selected_uuid = get_selected_simulation_uuid(scene)
     if selected_uuid is None:
         return None
+    return get_simulation_object_with_uuid(selected_uuid)
 
-    return get_simulation_by_uuid(scene, selected_uuid)
 
-
-def _verify_selected_object(obj: bpy.types.Object, scene: bpy.types.Scene):
-    simulation = get_selected_simulation(scene)
+def _verify_selected_object(
+    obj: bpy.types.Object, scene: bpy.types.Scene
+) -> bpy.types.Object | None:
+    uuid = get_selected_simulation_uuid(scene)
     if (
-        simulation is None
-        or obj.squishy_volumes_object.simulation_uuid != simulation.uuid  # ty:ignore[unresolved-attribute]
+        uuid is None or obj.squishy_volumes.uuid != uuid  # ty:ignore[unresolved-attribute]
     ):
         return None
     return obj
 
 
-def get_selected_input_object(scene: bpy.types.Scene):
-    obj = obj_by_index(scene.squishy_volumes_scene.selected_input_object)  # ty:ignore[unresolved-attribute]
-    if obj is None or obj.squishy_volumes_object.io != IO_INPUT:
+def get_selected_input_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
+    obj = obj_by_index(scene.squishy_volumes.selected_input_object)  # ty:ignore[unresolved-attribute]
+    if obj is None or obj.squishy_volumes.type != TYPE_INPUT:
         return None
     return _verify_selected_object(obj, scene)
 
 
-def get_selected_output_object(scene: bpy.types.Scene):
-    obj = obj_by_index(scene.squishy_volumes_scene.selected_output_object)  # ty:ignore[unresolved-attribute]
-    if obj is None or obj.squishy_volumes_object.io != IO_OUTPUT:
+def get_selected_output_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
+    obj = obj_by_index(scene.squishy_volumes.selected_output_object)  # ty:ignore[unresolved-attribute]
+    if obj is None or obj.squishy_volumes.type != TYPE_OUTPUT:
         return None
     return _verify_selected_object(obj, scene)
 
 
 def _selectable_simulations(_, context):
     return [
-        (simulation.uuid, simulation.name, "")
-        for simulation in context.scene.squishy_volumes_scene.simulations
+        (sim_obj.squishy_volumes.uuid, sim_obj.name, "")  # ty:ignore[unresolved-attribute]
+        for sim_obj in get_simulation_objects()
     ]
 
 
@@ -99,16 +95,16 @@ def _on_active_change():
         i for i, other in enumerate(bpy.data.objects) if other.name == obj.name
     )
 
-    scene = bpy.context.scene.squishy_volumes_scene  # ty:ignore[unresolved-attribute]
+    scene = bpy.context.scene.squishy_volumes  # ty:ignore[unresolved-attribute]
 
     if (
-        obj.squishy_volumes_object.io == IO_INPUT  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes.type == TYPE_INPUT  # ty:ignore[unresolved-attribute]
         and scene.selected_input_object != index
     ):
         scene.selected_input_object = index
 
     if (
-        obj.squishy_volumes_object.io == IO_OUTPUT  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes.type == TYPE_OUTPUT  # ty:ignore[unresolved-attribute]
         and scene.selected_output_object != index
     ):
         scene.selected_output_object = index
@@ -133,13 +129,7 @@ def unsubscribe_from_selection():
 subscribe_to_selection()
 
 
-class Squishy_Volumes_Scene(bpy.types.PropertyGroup):
-    simulations: bpy.props.CollectionProperty(
-        type=Squishy_Volumes_Simulation,
-        name="Simulations",
-        description="Squishy Volumes Simluations that can receive inputs and produce outputs.",
-        options=set(),
-    )  # type: ignore
+class Squishy_Volumes_Properties_Scene(bpy.types.PropertyGroup):
     selected_simulation: bpy.props.EnumProperty(
         items=_selectable_simulations,
         name="Selected Simulation",
