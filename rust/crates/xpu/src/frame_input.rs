@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use squishy_volumes_file_input::InputError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
     #[error("Wanted to interpolate from {frame_low}, but {frame} is loaded")]
@@ -152,21 +154,21 @@ impl FrameInput {
         let consts = input_header.consts;
         let input_ranges = squishy_volumes_file_input::InputRanges::new(&input_header.objects);
 
-        let topology = squishy_volumes_mesh_util::Topology::new(
-            input_reader
-                .read_frame(0)?
-                .collider_inputs
-                .iter()
-                .enumerate()
-                .map(|(collider, (name, collider_input))| {
-                    squishy_volumes_mesh_util::TopologyInput {
-                        name,
-                        collider: collider as u32,
-                        num_vertices: collider_input.vertex_positions.len() as u32,
-                        triangle_indices: bytemuck::cast_slice(&collider_input.triangle_indices),
-                    }
-                }),
-        )?;
+        let collider_inputs = input_reader.read_frame(0)?.collider_inputs;
+        // This shouldn't happen, maybe if someone messed with the serialization?
+        if collider_inputs.len() > 16 {
+            Err(InputError::TooManyColliders)?
+        }
+
+        let topology =
+            squishy_volumes_mesh_util::Topology::new(collider_inputs.iter().enumerate().map(
+                |(collider, (name, collider_input))| squishy_volumes_mesh_util::TopologyInput {
+                    name,
+                    collider: collider as u32,
+                    num_vertices: collider_input.vertex_positions.len() as u32,
+                    triangle_indices: bytemuck::cast_slice(&collider_input.triangle_indices),
+                },
+            ))?;
 
         let mut a = Default::default();
         let mut b = Default::default();
