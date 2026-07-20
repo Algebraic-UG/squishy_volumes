@@ -87,6 +87,9 @@ pub fn fetch_flat_attribute_f32(
     io_state: &IoState,
     attribute: &Attribute,
 ) -> Result<Vec<f32>, AttributeError> {
+    let scale = input_header.consts.simulation_scale;
+    let inv_scale = 1. / scale;
+
     Ok(match attribute {
         Attribute::Const(attribute) => match attribute {
             AttributeConst::GridNodeSize => vec![input_header.consts.scaled_grid_node_size()],
@@ -107,12 +110,14 @@ pub fn fetch_flat_attribute_f32(
                 AttributeParticles::InitialVolumes => io_state.particles.parameters.as_slice()
                     [particle_range]
                     .iter()
-                    .map(|parameters| parameters.initial_volume)
+                    .map(|parameters| parameters.initial_volume * scale.powi(3))
                     .collect(),
-                AttributeParticles::Positions => {
-                    bytemuck::cast_slice(&io_state.particles.positions.as_slice()[particle_range])
-                        .to_vec()
-                }
+                AttributeParticles::Positions => bytemuck::cast_slice::<_, f32>(
+                    &io_state.particles.positions.as_slice()[particle_range],
+                )
+                .iter()
+                .map(|&p| p * scale)
+                .collect(),
                 AttributeParticles::InitialPositions => bytemuck::cast_slice(
                     &io_state.particles.initial_positions.as_slice()[particle_range],
                 )
@@ -131,21 +136,32 @@ pub fn fetch_flat_attribute_f32(
                 AttributeParticles::Sizes => io_state.particles.parameters.as_slice()
                     [particle_range]
                     .iter()
-                    .map(|parameters| parameters.initial_volume.powf(1. / 3.))
+                    .map(|parameters| parameters.initial_volume.powf(1. / 3.) * scale)
                     .collect(),
                 AttributeParticles::Transformations => io_state.particles.positions.as_slice()
                     [particle_range.clone()]
                 .iter()
                 .zip(io_state.particles.position_gradients.as_slice()[particle_range].iter())
                 .flat_map(|(position, position_gradient)| {
-                    let [[m00, m01, m02], [m10, m11, m12], [m20, m21, m22]] =
-                        position_gradient.clone();
-                    let [m30, m31, m32] = position.clone();
+                    let [[m00, m01, m02], [m10, m11, m12], [m20, m21, m22]] = *position_gradient;
+                    let [m30, m31, m32] = *position;
                     [
-                        m00, m01, m02, 0., //
-                        m10, m11, m12, 0., //
-                        m20, m21, m22, 0., //
-                        m30, m31, m32, 1.,
+                        m00,
+                        m01,
+                        m02,
+                        0.,
+                        m10,
+                        m11,
+                        m12,
+                        0.,
+                        m20,
+                        m21,
+                        m22,
+                        0.,
+                        scale * m30,
+                        scale * m31,
+                        scale * m32,
+                        1.,
                     ]
                 })
                 .collect(),
@@ -165,7 +181,7 @@ pub fn fetch_flat_attribute_f32(
                     .flat_map(|node_id| {
                         node_id
                             .into_iter()
-                            .map(|c| *c as f32 * input_header.consts.scaled_grid_node_size())
+                            .map(|c| *c as f32 * input_header.consts.unscaled_grid_node_size())
                     })
                     .collect(),
                 AttributeGrid::Velocities => bytemuck::cast_slice(&grid_nodes.velocites).to_vec(),

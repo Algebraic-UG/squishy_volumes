@@ -90,6 +90,9 @@ pub fn initialize_io_state(
     };
     let input_ranges = InputRanges::new(&input_header.objects);
 
+    let scale = input_header.consts.simulation_scale;
+    let inv_scale = 1. / scale;
+
     harness.check()?;
     let mut io_state = IoState::default();
     {
@@ -195,8 +198,7 @@ pub fn initialize_io_state(
                     return Err(ParticleInvalid::SolidXorFluid);
                 }
 
-                parameters.initial_volume =
-                    (input_header.consts.simulation_scale * input_sizes[particle_index]).powi(3);
+                parameters.initial_volume = (inv_scale * input_sizes[particle_index]).powi(3);
                 parameters.mass = parameters.initial_volume * input_densities[particle_index];
                 parameters.viscosity = flags
                     .contains(ParticleFlags::USE_VISCOSITY)
@@ -249,7 +251,11 @@ pub fn initialize_io_state(
                     [transform[1][0], transform[1][1], transform[1][2]], //
                     [transform[2][0], transform[2][1], transform[2][2]], //
                 ];
-                *position = [transform[3][0], transform[3][1], transform[3][2]];
+                *position = [
+                    inv_scale * transform[3][0],
+                    inv_scale * transform[3][1],
+                    inv_scale * transform[3][2],
+                ];
             });
 
         if let Some(input_initial_velocities) = input_initial_velocities {
