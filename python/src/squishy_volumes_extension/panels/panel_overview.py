@@ -50,31 +50,31 @@ from ..util import (
     simulation_input_exists,
     simulation_locked,
 )
-from ..startup import STARTUP_BENCHMARK, setup_startup_simulation
+from ..example import EXAMPLE_BENCHMARK, setup_example_simulation
 
 
-class SCENE_OT_Squishy_Volumes_Add_Startup_Simulation(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_add_startup_simulation"
-    bl_label = "Add Startup Sim"
+class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_add_example_simulation"
+    bl_label = "Example Setup"
     bl_description = """Start with a prefabricated Squishy Volumes simulation."""
     bl_options = {"REGISTER", "UNDO"}
 
     startup_choice: bpy.props.EnumProperty(
         items=[
             (
-                STARTUP_BENCHMARK,
-                STARTUP_BENCHMARK + " (setup blocks UI)",
+                EXAMPLE_BENCHMARK,
+                EXAMPLE_BENCHMARK + " (setup blocks UI)",
                 "This sets up a million particle scene to benchmark your hardware.",
             )
         ],
-        name="Chose Startup Simulation",
-        description="Chose one of the startup simulations to set up.",
-        default=STARTUP_BENCHMARK,
+        name="Chose Example Simulation",
+        description="Chose one of the example simulations to set up.",
+        default=EXAMPLE_BENCHMARK,
         options=set(),
     )  # type: ignore
 
     def execute(self, context):
-        setup_startup_simulation(context, self.startup_choice)
+        setup_example_simulation(context, self.startup_choice)
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -272,7 +272,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         add_op.name = "My Simulation"
         add_op.uuid = str(uuid.uuid4())
         add_row.operator(
-            SCENE_OT_Squishy_Volumes_Add_Startup_Simulation.bl_idname, icon="ADD"
+            SCENE_OT_Squishy_Volumes_Add_Example_Simulation.bl_idname, icon="ADD"
         )
 
         for sim_obj in get_simulation_objects():
@@ -398,7 +398,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
 
 classes = [
-    SCENE_OT_Squishy_Volumes_Add_Startup_Simulation,
+    SCENE_OT_Squishy_Volumes_Add_Example_Simulation,
     SCENE_OT_Squishy_Volumes_Add_Simulation,
     SCENE_OT_Squishy_Volumes_Reload,
     SCENE_OT_Squishy_Volumes_Reload_All,

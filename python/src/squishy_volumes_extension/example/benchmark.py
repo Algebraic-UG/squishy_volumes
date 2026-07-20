@@ -39,13 +39,13 @@ from ..magic_consts import PARTICLES
 
 from ..util import simulation_locked
 
-STARTUP_BENCHMARK = "Benchmark"
+EXAMPLE_BENCHMARK = "Benchmark"
 
 
-def setup_startup_benchmark(context: bpy.types.Context):
+def setup_example_benchmark(context: bpy.types.Context):
     sim_uuid = str(uuid.uuid4())
     bpy.ops.scene.squishy_volumes_add_simulation(  # ty:ignore[unresolved-attribute]
-        "INVOKE_DEFAULT", name=STARTUP_BENCHMARK, uuid=sim_uuid
+        "INVOKE_DEFAULT", name=EXAMPLE_BENCHMARK, uuid=sim_uuid
     )
 
     sim_obj = get_simulation_object_with_uuid(sim_uuid)
