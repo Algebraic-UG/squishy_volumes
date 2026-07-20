@@ -53,6 +53,7 @@ pub mod count_subkeys;
 pub mod counts_indirect;
 pub mod elastic;
 pub mod external_force;
+pub mod fluid;
 pub mod kernels;
 pub mod len_to_indirect;
 pub mod meld_grid;

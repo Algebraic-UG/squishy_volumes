@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, stack};
+use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, stack};
 use squishy_volumes_file_frame::SpecificParticleParameters;
 
 use crate::test_data::test_position_gradients_random;
@@ -38,34 +38,14 @@ fn check(
         .iter()
         .zip(&mut cpu_particle_position_gradients)
         .for_each(|(parameters, position_gradient)| {
-            let SpecificParticleParameters::Solid {
-                mu,
-                lambda,
-                sand_alpha: Some(sand_alpha),
-            } = parameters.specific
-            else {
+            let SpecificParticleParameters::Fluid { .. } = parameters.specific else {
                 return;
             };
 
             let mut svd = position_gradient.svd(true, true);
-            let e = svd.singular_values.map(f32::ln);
-            let e_tr = e.sum();
-            let e_hat = e - Vector3::repeat(e_tr / 3.);
-            let e_hat_norm = e_hat.norm();
-            if mu > 0. && e_tr < 0. && e_hat_norm > 0. {
-                if e_hat_norm != 0. {
-                    let delta_gamma =
-                        e_hat_norm + (3. * lambda + 2. * mu) / 2. / mu * e_tr * sand_alpha;
-                    if delta_gamma > 0. {
-                        let big_h = e - delta_gamma / e_hat_norm * e_hat;
-                        svd.singular_values = big_h.map(f32::exp);
-
-                        *position_gradient = svd.recompose().unwrap();
-                    }
-                }
-            } else {
-                *position_gradient = svd.u.unwrap() * svd.v_t.unwrap();
-            }
+            svd.singular_values
+                .fill(svd.singular_values.product().powf(1. / 3.));
+            *position_gradient = svd.recompose().unwrap();
         });
 
     for (cpu, gpu) in cpu_particle_position_gradients
@@ -82,17 +62,16 @@ fn check(
 fn random() {
     let n = 1000;
     check(
-        &squishy_volumes_util::test_lame_parameters()
+        &squishy_volumes_util::test_inviscid_parameters()
             .cycle()
             .take(n)
-            .map(|[mu, lambda]| ParticleParameters {
+            .map(|(bulk_modulus, exponent)| ParticleParameters {
                 mass: 1.,
                 initial_volume: 1.,
                 viscosity: None,
-                specific: SpecificParticleParameters::Solid {
-                    mu,
-                    lambda,
-                    sand_alpha: Some(0.3),
+                specific: SpecificParticleParameters::Fluid {
+                    bulk_modulus,
+                    exponent,
                 },
             })
             .collect::<Vec<_>>(),
@@ -121,10 +100,10 @@ fn run(
     .unwrap();
     let particle_position_gradients = input.particle_position_gradients.clone();
 
-    let sand = Sand::new(&mut context, settings).unwrap();
+    let fluid = Fluid::new(&mut context, settings).unwrap();
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
-    let Output = sand
+    let Output = fluid
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
