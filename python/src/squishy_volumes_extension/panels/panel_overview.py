@@ -50,7 +50,7 @@ from ..util import (
     simulation_input_exists,
     simulation_locked,
 )
-from ..example import EXAMPLE_BENCHMARK, setup_example_simulation
+from ..example import EXAMPLE_BOING_BLOCK, EXAMPLE_BENCHMARK, setup_example_simulation
 
 
 class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(bpy.types.Operator):
@@ -62,14 +62,20 @@ class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(bpy.types.Operator):
     startup_choice: bpy.props.EnumProperty(
         items=[
             (
+                EXAMPLE_BOING_BLOCK,
+                EXAMPLE_BOING_BLOCK,
+                "Just a simple elastic cube falling.",
+            ),
+            (
                 EXAMPLE_BENCHMARK,
-                EXAMPLE_BENCHMARK + " (setup blocks UI)",
-                "This sets up a million particle scene to benchmark your hardware.",
-            )
+                EXAMPLE_BENCHMARK,
+                """This sets up a million particle scene to benchmark your hardware.
+The UI will be blocked for a few seconds.""",
+            ),
         ],
         name="Chose Example Simulation",
         description="Chose one of the example simulations to set up.",
-        default=EXAMPLE_BENCHMARK,
+        default=EXAMPLE_BOING_BLOCK,
         options=set(),
     )  # type: ignore
 
