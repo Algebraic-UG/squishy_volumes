@@ -103,6 +103,10 @@ It just creates the Blender object to track the simulation."""
         sim_obj.lock_rotation = (True,) * 3
         sim_obj.lock_scale = (True,) * 3
 
+        # It won't persist otherwise.
+        # https://github.com/Algebraic-UG/squishy_volumes/issues/247
+        sim_obj.use_fake_user = True
+
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
 
         sim_props.type = TYPE_SIMULATION
