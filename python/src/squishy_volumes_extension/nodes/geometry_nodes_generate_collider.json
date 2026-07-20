@@ -1,6 +1,6 @@
 {
     "blender_version": "5.0.1",
-    "tree_clipper_version": "0.1.6",
+    "tree_clipper_version": "0.1.7",
     "node_trees": [
         {
             "id": 0,
@@ -89,7 +89,7 @@
                                             "subtype": "FACTOR",
                                             "default_value": 0.30000001192092896,
                                             "min_value": 0.0,
-                                            "max_value": 2.0
+                                            "max_value": 1.0
                                         }
                                     }
                                 ]
