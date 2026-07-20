@@ -17,9 +17,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .benchmark import EXAMPLE_BENCHMARK, setup_example_benchmark
+from .boing_block import EXAMPLE_BOING_BLOCK, setup_example_boing_block
 
 
 def setup_example_simulation(context, choice):
+    if choice == EXAMPLE_BOING_BLOCK:
+        return setup_example_boing_block(context)
     if choice == EXAMPLE_BENCHMARK:
         return setup_example_benchmark(context)
     raise RuntimeError(f"Unknown example simulation: {choice}")
