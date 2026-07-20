@@ -275,6 +275,11 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
             SCENE_OT_Squishy_Volumes_Add_Example_Simulation.bl_idname, icon="ADD"
         )
 
+        if not get_simulation_objects():
+            return
+
+        layout.separator()
+
         for sim_obj in get_simulation_objects():
             sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
             (header, body) = layout.panel(
@@ -388,8 +393,9 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
 
+        layout.separator()
+
         if len(get_simulation_objects()) > 1:
-            layout.separator()
             layout.prop(
                 context.scene.squishy_volumes,
                 "selected_simulation",

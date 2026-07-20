@@ -369,6 +369,8 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         record_op.uuid = sim_props.uuid
         record_op.start_baking = False
 
+        self.layout.separator()
+
         record_and_bake_op = self.layout.operator(
             SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
             icon="PHYSICS",
@@ -377,6 +379,8 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         )
         record_and_bake_op.uuid = sim_props.uuid
         record_and_bake_op.start_baking = True
+
+        self.layout.separator()
 
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         if sim_handle is None:
