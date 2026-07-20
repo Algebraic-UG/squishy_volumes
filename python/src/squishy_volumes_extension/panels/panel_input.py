@@ -280,7 +280,9 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             "selected_input_object",
         )
         list_controls = row.column(align=True)
-        list_controls.operator(
+        add_input_col = list_controls.column()
+        add_input_col.alert = not get_input_objects_with_uuid(sim_props.uuid)
+        add_input_col.operator(
             SCENE_OT_Squishy_Volumes_Add_Input_Objects.bl_idname,
             text="",
             icon="ADD",
