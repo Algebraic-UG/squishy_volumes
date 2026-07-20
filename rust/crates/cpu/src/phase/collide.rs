@@ -166,11 +166,20 @@ impl CpuState {
                     }
 
                     if distance > NORMALIZATION_EPS {
-                        let to_p_normalized = to_p / distance;
-                        let tangential =
-                            *velocity - to_p_normalized * velocity.dot(&to_p_normalized);
-                        *velocity -=
-                            tangential * (distance * triangle_frictions[closest_triangle]).min(1.);
+                        let contact_normal = to_p / distance;
+
+                        let tangential_velocity =
+                            *velocity - contact_normal * velocity.dot(&contact_normal);
+                        let tangential_velocity_norm = tangential_velocity.norm();
+                        if tangential_velocity_norm > NORMALIZATION_EPS {
+                            let tangent = tangential_velocity / tangential_velocity_norm;
+
+                            let friction_impulse = tangent
+                                * (triangle_frictions[closest_triangle] * distance / time_step)
+                                    .min(tangential_velocity_norm);
+
+                            *velocity -= friction_impulse;
+                        }
                     }
 
                     *velocity -= to_p / time_step;

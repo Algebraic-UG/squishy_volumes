@@ -197,9 +197,18 @@ fn main(
         }
 
         if distance > NORMALIZATION_EPS {
-            let to_p_normalized = to_p / distance;
-            let tangential = velocity - to_p_normalized * dot(velocity, to_p_normalized);
-            velocity -= tangential * min(distance * triangle_frictions[closest_triangle], 1.);
+            let contact_normal = to_p / distance;
+            let tangential_velocity = velocity - contact_normal * dot(velocity, contact_normal);
+
+            let tangential_velocity_norm = length(tangential_velocity);
+            if tangential_velocity_norm > NORMALIZATION_EPS {
+                let tangent = tangential_velocity / tangential_velocity_norm;
+
+                let friction_impulse = tangent
+                    * min((triangle_frictions[closest_triangle] * distance / TIME_STEP), tangential_velocity_norm);
+
+                velocity -= friction_impulse;
+            }
         }
 
         velocity -= to_p / TIME_STEP;
