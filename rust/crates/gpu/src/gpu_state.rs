@@ -425,6 +425,13 @@ impl GpuState {
             &particle_goals_end,
         )?;
 
+        // TODO: interpolate
+        self.next_input.gravity = Allocation::new(
+            self.gpu_context.device(),
+            "gravity",
+            &[frame_input.a().gravity().push(0.)],
+        )?;
+
         if let Some(collider_input) = self.next_input.collider_input.as_mut() {
             let vertex_positions_end: Vec<Vector4<f32>> =
                 b.vertex_positions().iter().map(|p| p.push(0.)).collect();
@@ -499,6 +506,11 @@ impl GpuState {
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
             tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
             frame_input.load(frame_input.frame() - 1)?;
+            self.next_input.gravity = Allocation::new(
+                self.gpu_context.device(),
+                "gravity",
+                &[frame_input.a().gravity().push(0.)],
+            )?;
             self.next_input.collider_input =
                 get_collider_input(self.gpu_context.device(), frame_input)?;
             self.next_input.variable_particle_input =
