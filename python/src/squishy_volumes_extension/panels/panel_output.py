@@ -290,7 +290,7 @@ each frame."""
         grid.label(text="Type")
         if output_type == GRID:
             grid.prop(self, "grid_collider_bits")
-            grid.label(text="FLOAT")
+            grid.label(text="INT")
             grid.prop(self, "grid_masses")
             grid.label(text="FLOAT")
             grid.prop(self, "grid_velocities")
@@ -313,7 +313,7 @@ each frame."""
             grid.prop(self, "particle_energies")
             grid.label(text="FLOAT")
             grid.prop(self, "particle_collider_bits")
-            grid.label(text="FLOAT")
+            grid.label(text="INT")
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
