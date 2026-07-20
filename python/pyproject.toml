@@ -5,7 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "vendorize",
   "pip>=25.3",
-  "tree-clipper==0.1.6",
+  "tree-clipper==0.1.8",
   "fake-bpy-module>=20251003",
   "numpy==1.26.4", # should match what blender uses
 ]
