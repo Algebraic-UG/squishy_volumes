@@ -8,6 +8,7 @@
 
 import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA};
 import super::sand::sand_plasticity;
+import super::fluid::fluid_plasticity;
 
 @group(0) @binding(0)
 var<storage, read_write> flags: array<u32>;
@@ -80,6 +81,8 @@ fn main(
         stress = first_piola_stress_neo_hookean(parameter.mu, parameter.lambda, position_gradient);
     }
     if (flag & IS_FLUID) > 0 {
+        position_gradient = fluid_plasticity(position_gradient);
+        position_gradients[global_index] = position_gradient;
         stress = first_piola_stress_inviscid(parameter.bulk_modulus, parameter.exponent, position_gradient);
     }
 
