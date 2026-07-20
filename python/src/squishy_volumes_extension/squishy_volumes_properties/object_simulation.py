@@ -174,7 +174,6 @@ you can set this to 100.""",
         default=1.0,
         min=0.001,
         max=1000.0,
-        precision=6,
         options=set(),  # can't be animated
     )  # type: ignore
 

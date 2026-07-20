@@ -154,7 +154,9 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
 class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_input_objects"
     bl_label = "Add Input Objects"
-    bl_description = """TODO"""
+    bl_description = (
+        """Add the selected objects to the input list of this simulation."""
+    )
     bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore

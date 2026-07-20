@@ -23,6 +23,7 @@ from ..squishy_volumes_properties import (
     get_simulation_object_with_uuid,
     get_selected_simulation_object,
     get_selected_simulation_uuid,
+    get_input_objects_with_uuid,
     Squishy_Volumes_Properties_Simulation,
 )
 from ..bridge import SimulationHandle, SimulationInputHandle
@@ -66,9 +67,8 @@ Note that this also discards all computed frames in the cache."""
     blocking: bpy.props.BoolProperty(default=False)  # type: ignore
     start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
 
-    def execute(self, context):
-        bpy.ops.screen.animation_cancel()
-
+    def execute(self, context: bpy.types.Context):
+        assert context.scene is not None
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
         sim_props.has_loaded_frame = False
@@ -101,6 +101,12 @@ Note that this also discards all computed frames in the cache."""
             return {"FINISHED"}
 
         prior_frame = context.scene.frame_current
+        animation_was_playing = False
+        if context.screen is not None:
+            animation_was_playing = context.screen.is_animation_playing
+
+        bpy.ops.screen.animation_cancel()
+
         context.scene.frame_set(sim_props.capture_start_frame)
 
         for i in range(sim_props.capture_frames):
@@ -112,6 +118,8 @@ Note that this also discards all computed frames in the cache."""
                 context.scene.frame_set(context.scene.frame_current + 1)
 
         context.scene.frame_set(prior_frame)
+        if animation_was_playing:
+            bpy.ops.screen.animation_play()
 
         sim_handle = SimulationHandle.new()
         if self.start_baking:
@@ -154,12 +162,17 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
 
     _timer = None
     prior_frame = None
+    animation_was_playing = False
 
     def invoke(self, context, event):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
 
         self.prior_frame = context.scene.frame_current
+        if context.screen is not None:
+            self.animation_was_playing = context.screen.is_animation_playing
+        bpy.ops.screen.animation_cancel()
+
         context.scene.frame_set(sim_props.capture_start_frame)
 
         self._timer = context.window_manager.event_timer_add(
@@ -184,7 +197,9 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
                 f"Capture of {sim_obj.name} incomplete due to user cancellation.",
             )
             context.scene.frame_set(self.prior_frame)
-            return {"CANCELLED"}
+            if self.animation_was_playing:
+                bpy.ops.screen.animation_play()
+            return {"FINISHED"}
 
         if event.type != "TIMER":
             return {"RUNNING_MODAL"}
@@ -209,6 +224,9 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
             return {"RUNNING_MODAL"}
 
         context.scene.frame_set(self.prior_frame)
+        if self.animation_was_playing:
+            bpy.ops.screen.animation_play()
+
         context.window_manager.progress_end()
 
         self.report({"INFO"}, f"Finished capturing input for {sim_obj.name}")
@@ -346,7 +364,10 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
     def poll(cls, context):
         if context.mode != "OBJECT":
             return False
-        return get_selected_simulation_uuid(context.scene) is not None
+        uuid = get_selected_simulation_uuid(context.scene)
+        return uuid is not None and (
+            SimulationHandle.exists(uuid=uuid) or get_input_objects_with_uuid(uuid)
+        )
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
@@ -369,6 +390,8 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         record_op.uuid = sim_props.uuid
         record_op.start_baking = False
 
+        self.layout.separator()
+
         record_and_bake_op = self.layout.operator(
             SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
             icon="PHYSICS",
@@ -377,6 +400,8 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         )
         record_and_bake_op.uuid = sim_props.uuid
         record_and_bake_op.start_baking = True
+
+        self.layout.separator()
 
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         if sim_handle is None:

@@ -16,10 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .benchmark import STARTUP_BENCHMARK, setup_startup_benchmark
+from .benchmark import EXAMPLE_BENCHMARK, setup_example_benchmark
 
 
-def setup_startup_simulation(context, choice):
-    if choice == STARTUP_BENCHMARK:
-        return setup_startup_benchmark(context)
-    raise RuntimeError(f"Unknown startup simulation: {choice}")
+def setup_example_simulation(context, choice):
+    if choice == EXAMPLE_BENCHMARK:
+        return setup_example_benchmark(context)
+    raise RuntimeError(f"Unknown example simulation: {choice}")
