@@ -37,6 +37,7 @@
 //
 // 8 Index length bytes: so one can jump to the start of the index (not handled by serde!)
 
+mod collider_inputs;
 mod common;
 mod frame;
 mod header;
@@ -51,6 +52,7 @@ use common::*;
 mod errors;
 pub use errors::*;
 
+pub use collider_inputs::*;
 pub use frame::*;
 pub use header::*;
 

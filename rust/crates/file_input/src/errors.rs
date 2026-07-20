@@ -25,6 +25,8 @@ pub enum InputError {
         frame: usize,
         error: FrameVerifcationError,
     },
+    #[error("Too many different colliders.")]
+    TooManyColliders,
 }
 
 #[derive(Error, Debug)]

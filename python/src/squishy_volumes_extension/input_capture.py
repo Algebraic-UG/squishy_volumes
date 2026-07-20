@@ -59,6 +59,7 @@ def create_input_header(sim_props):
 
     objects = {}
 
+    collider_inputs = 0
     for input_obj in get_input_objects_with_uuid(sim_props.uuid):
         mesh = input_obj.evaluated_get(depsgraph).data
         name = input_obj.name
@@ -68,12 +69,24 @@ def create_input_header(sim_props):
                 INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}  # ty:ignore[possibly-missing-attribute]
             }
         if ty == INPUT_TYPE_COLLIDER:
+            collider_inputs += 1
             objects[name] = {
                 INPUT_TYPE_COLLIDER: {
                     "num_vertices": len(mesh.vertices),  # ty:ignore[possibly-missing-attribute]
                     "num_triangles": len(mesh.loop_triangles),  # ty:ignore[possibly-missing-attribute]
                 }
             }
+
+    if collider_inputs > 16:
+        raise RuntimeError(f"""
+
+More than 16 colliders (you have {collider_inputs})
+
+Please consider joining some of them in a single object,
+or reduce the number of collider objects in other ways.
+
+A current technical limitation prevents more separate objects,
+let us know if you need more.""")
 
     return {
         "consts": consts,

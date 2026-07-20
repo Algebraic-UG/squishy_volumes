@@ -219,7 +219,7 @@ impl SimulationInputImpl {
                 BulkAttribute::Collider(captured_attribute) => {
                     let cs = current_frame
                         .collider_inputs
-                        .entry(object_name.clone())
+                        .entry(object_name.clone())?
                         .or_default();
                     match captured_attribute {
                         FrameBulkCollider::VertexPositions => {
