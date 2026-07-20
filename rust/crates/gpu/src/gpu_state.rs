@@ -248,14 +248,10 @@ fn get_collider_input(
             .map(|v| v.len() as u32)
             .collect::<Vec<_>>(),
     );
-    let mut vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
+    let vertex_triangle_lists: Vec<u32> = vertex_triangle_lists
         .iter()
         .flat_map(|list| list.iter().cloned())
         .collect();
-    if vertex_triangle_lists.is_empty() {
-        tracing::warn!("all vertices are on open edges");
-        vertex_triangle_lists.push(0);
-    }
 
     tracing::info!("creating mesh allocations");
     let vertex_positions_start =
@@ -264,8 +260,16 @@ fn get_collider_input(
         Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
     let vertex_triangle_offsets =
         Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
-    let vertex_triangle_lists =
-        Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+    let vertex_triangle_lists = if vertex_triangle_lists.is_empty() {
+        tracing::warn!("all vertices are on open edges");
+        None
+    } else {
+        Some(Allocation::new(
+            device,
+            "vertex_triangle_lists",
+            &vertex_triangle_lists,
+        )?)
+    };
 
     let triangle_indices =
         Allocation::new(device, "triangle_indices", topology.triangle_indices())?;

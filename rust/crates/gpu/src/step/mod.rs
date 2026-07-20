@@ -54,7 +54,8 @@ pub struct ColliderInput {
     pub vertex_positions_start: Allocation,
     pub vertex_positions_end: Allocation,
     pub vertex_triangle_offsets: Allocation,
-    pub vertex_triangle_lists: Allocation,
+
+    pub vertex_triangle_lists: Option<Allocation>,
 
     pub triangle_indices: Allocation,
     pub triangle_collider: Allocation,
@@ -162,13 +163,10 @@ impl ColliderInput {
                 .map(|v| v.len() as u32)
                 .collect::<Vec<_>>(),
         );
-        let mut vertex_triangle_lists = vertex_triangle_lists
+        let vertex_triangle_lists = vertex_triangle_lists
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        if vertex_triangle_lists.is_empty() {
-            vertex_triangle_lists.push(0);
-        }
 
         let make_aabbs = |positions: &[Vector4<f32>]| {
             triangles_to_leaf_aabbs(
@@ -192,8 +190,9 @@ impl ColliderInput {
             Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
         let vertex_triangle_offsets =
             Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
-        let vertex_triangle_lists =
-            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+        let vertex_triangle_lists = (!vertex_triangle_lists.is_empty())
+            .then(|| Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists))
+            .transpose()?;
 
         let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
         let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider)?;
