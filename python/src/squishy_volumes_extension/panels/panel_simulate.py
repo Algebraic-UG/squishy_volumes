@@ -23,6 +23,7 @@ from ..squishy_volumes_properties import (
     get_simulation_object_with_uuid,
     get_selected_simulation_object,
     get_selected_simulation_uuid,
+    get_input_objects_with_uuid,
     Squishy_Volumes_Properties_Simulation,
 )
 from ..bridge import SimulationHandle, SimulationInputHandle
@@ -66,9 +67,8 @@ Note that this also discards all computed frames in the cache."""
     blocking: bpy.props.BoolProperty(default=False)  # type: ignore
     start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
 
-    def execute(self, context):
-        bpy.ops.screen.animation_cancel()
-
+    def execute(self, context: bpy.types.Context):
+        assert context.scene is not None
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
         sim_props.has_loaded_frame = False
@@ -346,7 +346,10 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
     def poll(cls, context):
         if context.mode != "OBJECT":
             return False
-        return get_selected_simulation_uuid(context.scene) is not None
+        uuid = get_selected_simulation_uuid(context.scene)
+        return uuid is not None and (
+            SimulationHandle.exists(uuid=uuid) or get_input_objects_with_uuid(uuid)
+        )
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
