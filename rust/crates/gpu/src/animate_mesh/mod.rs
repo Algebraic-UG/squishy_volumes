@@ -39,7 +39,7 @@ pub struct Input {
     pub vertex_positions_start: Allocation,
     pub vertex_positions_end: Allocation,
     pub vertex_triangle_offsets: Allocation,
-    pub vertex_triangle_lists: Allocation,
+    pub vertex_triangle_lists: Option<Allocation>,
     pub triangle_indices: Allocation,
 }
 
@@ -75,13 +75,10 @@ impl Input {
                 .map(|v| v.len() as u32)
                 .collect::<Vec<_>>(),
         );
-        let mut vertex_triangle_lists = vertex_triangle_lists
+        let vertex_triangle_lists = vertex_triangle_lists
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        if vertex_triangle_lists.is_empty() {
-            vertex_triangle_lists.push(0);
-        }
 
         let vertex_positions_start =
             Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
@@ -89,8 +86,9 @@ impl Input {
             Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
         let vertex_triangle_offsets =
             Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
-        let vertex_triangle_lists =
-            Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists)?;
+        let vertex_triangle_lists = (!vertex_triangle_lists.is_empty())
+            .then(|| Allocation::new(device, "vertex_triangle_lists", &vertex_triangle_lists))
+            .transpose()?;
 
         let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
 
@@ -241,7 +239,7 @@ impl PipelinePart for AnimateMesh {
                 .dispatch_workgroups(x, y, z);
         }
 
-        {
+        if let Some(vertex_triangle_lists) = vertex_triangle_lists.as_ref() {
             let [x, y, z] = Indirect::new(DispatchSettings {
                 workgroup_size: self.workgroup_size,
                 dispatch_limit: self.dispatch_limit,
@@ -261,6 +259,12 @@ impl PipelinePart for AnimateMesh {
                     ],
                 )
                 .dispatch_workgroups(x, y, z);
+        } else {
+            encoder.scope(Some("zero_vertex_normals")).clear_buffer(
+                vertex_normals.buffer(),
+                vertex_normals.offset(),
+                Some(vertex_normals.size().get()),
+            );
         }
 
         Ok(Output {

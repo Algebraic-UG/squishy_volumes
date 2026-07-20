@@ -43,7 +43,10 @@ fn main(
     }
 
     let triangle_start = vertex_triangle_offsets[global_index];
-    let triangle_end = vertex_triangle_offsets[global_index + 1];
+    var triangle_end = arrayLength(&vertex_triangle_lists);
+    if global_index + 1 < arrayLength(&vertex_triangle_offsets) {
+        triangle_end = vertex_triangle_offsets[global_index + 1];
+    }
 
     var normal = vec3f(0.);
     for (var lookup = triangle_start; lookup < triangle_end; lookup++) {

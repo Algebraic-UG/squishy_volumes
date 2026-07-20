@@ -189,9 +189,6 @@ pub fn compute_triangle_lists(
                 triangles.clear();
             }
         });
-    // this is so that range calculation via prefix sum can be used
-    // TODO: maybe that should happen at the place of use, then
-    vertex_to_triangles.push(Default::default());
     vertex_to_triangles
 }
 
