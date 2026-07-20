@@ -47,30 +47,11 @@ impl ParticlesInput {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Default)]
-pub struct ColliderInput {
-    pub vertex_positions: Vec<[f32; 3]>,
-    pub triangle_indices: Vec<[u32; 3]>,
-    pub triangle_frictions: Vec<f32>,
-}
-
-#[cfg(test)]
-impl ColliderInput {
-    fn random(num_vertices: usize, num_triangles: usize, rng: &mut impl rand::Rng) -> Self {
-        use rand::RngExt as _;
-        Self {
-            vertex_positions: rng.random_iter().take(num_vertices).collect(),
-            triangle_indices: rng.random_iter().take(num_triangles).collect(),
-            triangle_frictions: rng.random_iter().take(num_triangles).collect(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct InputFrame {
     pub gravity: [f32; 3],
     pub particles_inputs: std::collections::BTreeMap<String, ParticlesInput>,
-    pub collider_inputs: std::collections::BTreeMap<String, ColliderInput>,
+    pub collider_inputs: crate::ColliderInputs,
 }
 
 macro_rules! check_length {
@@ -180,7 +161,7 @@ impl InputFrame {
                     num_vertices,
                     num_triangles,
                 } => {
-                    let ColliderInput {
+                    let crate::ColliderInput {
                         vertex_positions,
                         triangle_indices,
                         triangle_frictions,

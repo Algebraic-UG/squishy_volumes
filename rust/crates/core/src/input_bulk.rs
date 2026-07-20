@@ -22,6 +22,9 @@ pub enum InputBulkError {
 
     #[error("Failed to cast sclice: {0}")]
     CastSlice(#[from] bytemuck::PodCastError),
+
+    #[error("Input Error: {0}")]
+    InputError(#[from] squishy_volumes_file_input::InputError),
 }
 
 pub trait InputBulkExt {
