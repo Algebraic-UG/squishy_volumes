@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{InputHeader, InputRange, InputRanges, ObjectError};
+use squishy_volumes_file_input::{InputHeader, InputRanges, ObjectError};
 use std::iter::empty;
 use thiserror::Error;
 
@@ -88,7 +88,6 @@ pub fn fetch_flat_attribute_f32(
     attribute: &Attribute,
 ) -> Result<Vec<f32>, AttributeError> {
     let scale = input_header.consts.simulation_scale;
-    let inv_scale = 1. / scale;
 
     Ok(match attribute {
         Attribute::Const(attribute) => match attribute {
@@ -180,7 +179,7 @@ pub fn fetch_flat_attribute_f32(
                     .iter()
                     .flat_map(|node_id| {
                         node_id
-                            .into_iter()
+                            .iter()
                             .map(|c| *c as f32 * input_header.consts.unscaled_grid_node_size())
                     })
                     .collect(),

@@ -11,7 +11,6 @@ mod errors;
 mod store_thread;
 mod util;
 
-use cache::*;
 use store_thread::*;
 use util::*;
 

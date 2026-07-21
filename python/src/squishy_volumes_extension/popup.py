@@ -46,16 +46,17 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
 
     def invoke(self, context, event):
         self.uuid = simulation_uuid
-        sim_obj = get_simulation_object_with_uuid(self.uuid)  # ty:ignore[invalid-argument-type]
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
         return context.window_manager.invoke_props_dialog(
             self, title=sim_obj.name, confirm_text="Clear Message"
         )
 
     def draw(self, context):
+        assert self.layout is not None
         sim = SimulationHandle.get(uuid=self.uuid)
         assert sim is not None, f"No simulation context for {self.uuid}"
         for line in sim.last_error.splitlines():
-            self.layout.label(text=line)  # ty:ignore[unresolved-attribute]
+            self.layout.label(text=line)
 
 
 classes = [

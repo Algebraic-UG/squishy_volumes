@@ -38,7 +38,7 @@ impl From<&squishy_volumes_file_frame::ParticleParameters> for ParticleParameter
             specific,
         }: &squishy_volumes_file_frame::ParticleParameters,
     ) -> Self {
-        match specific.clone() {
+        match *specific {
             squishy_volumes_file_frame::SpecificParticleParameters::Solid {
                 mu,
                 lambda,

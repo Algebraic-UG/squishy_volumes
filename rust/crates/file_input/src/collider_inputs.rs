@@ -26,7 +26,7 @@ impl std::ops::Deref for ColliderInputs {
 
 #[cfg(test)]
 impl ColliderInput {
-    fn random(num_vertices: usize, num_triangles: usize, rng: &mut impl rand::Rng) -> Self {
+    pub fn random(num_vertices: usize, num_triangles: usize, rng: &mut impl rand::Rng) -> Self {
         use rand::RngExt as _;
         Self {
             vertex_positions: rng.random_iter().take(num_vertices).collect(),
@@ -52,6 +52,40 @@ impl ColliderInputs {
             Err(crate::InputError::TooManyColliders)
         } else {
             Ok(entry)
+        }
+    }
+
+    pub fn insert(
+        &mut self,
+        key: String,
+        value: ColliderInput,
+    ) -> Result<Option<ColliderInput>, crate::InputError> {
+        Ok(match self.entry(key)? {
+            std::collections::btree_map::Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(value);
+                None
+            }
+            std::collections::btree_map::Entry::Occupied(mut occupied_entry) => {
+                Some(occupied_entry.insert(value))
+            }
+        })
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+}
+
+impl TryFrom<std::collections::BTreeMap<String, ColliderInput>> for ColliderInputs {
+    type Error = crate::InputError;
+
+    fn try_from(
+        value: std::collections::BTreeMap<String, ColliderInput>,
+    ) -> Result<Self, Self::Error> {
+        if value.len() > 16 {
+            Err(crate::InputError::TooManyColliders)
+        } else {
+            Ok(Self(value))
         }
     }
 }

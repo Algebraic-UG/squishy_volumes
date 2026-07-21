@@ -256,7 +256,8 @@ fn test_object_changed_type() {
     input_frame.particles_inputs.clear();
     input_frame
         .collider_inputs
-        .insert("foo".to_string(), Default::default());
+        .insert("foo".to_string(), Default::default())
+        .unwrap();
     assert!(matches!(
         writer.record_frame(&input_frame),
         Err(InputError::FrameVerifcationError {
@@ -275,7 +276,8 @@ fn test_object_not_in_header() {
     let mut input_frame = InputFrame::test_input_0(10, 9, 3);
     input_frame
         .collider_inputs
-        .insert("newfoo".to_string(), Default::default());
+        .insert("newfoo".to_string(), Default::default())
+        .unwrap();
     assert!(matches!(
         writer.record_frame(&input_frame),
         Err(InputError::FrameVerifcationError {

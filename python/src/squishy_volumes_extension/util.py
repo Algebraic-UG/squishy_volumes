@@ -24,18 +24,20 @@ import base64
 import os
 from pathlib import Path
 
-import numpy as np  # ty:ignore[unresolved-import]
+import numpy as np
 
 from .bridge import SimulationHandle
 
 
 def remove_marker(marker_name):
+    assert bpy.context.scene is not None
     marker = bpy.context.scene.timeline_markers.get(marker_name)
     if marker is not None:
         bpy.context.scene.timeline_markers.remove(marker)
 
 
 def add_or_update_marker(marker_name, frame):
+    assert bpy.context.scene is not None
     # Check if the marker with the given name already exists
     marker = bpy.context.scene.timeline_markers.get(marker_name)
 
@@ -112,6 +114,7 @@ def attribute_to_base64(collection, attribute_name, dtype, per_count):
 
 
 def force_ui_redraw():
+    assert bpy.context.window is not None
     for area in bpy.context.window.screen.areas:
         if area.type == "VIEW_3D":
             area.tag_redraw()
@@ -129,14 +132,6 @@ def fix_quaternion_order(quaternion):
     return [quaternion[3], quaternion[0], quaternion[1], quaternion[2]]
 
 
-def dialog_info(message):
-    bpy.context.window_manager.invoke_confirm(
-        lambda self, _: self.layout.label(text=message),
-        title="Squishy Volumes Info",
-        icon="INFO",
-    )
-
-
 # https://blenderartists.org/t/duplicating-pointerproperty-propertygroup-and-collectionproperty/1419096/2?
 def copy_simple_property_group(source, target):
     if not hasattr(target, "__annotations__"):
@@ -152,6 +147,7 @@ def local_bounding_box(obj: bpy.types.Object):
     if obj.type != "MESH":
         raise TypeError(f"Object {obj.name!r} is not a mesh")
 
+    assert isinstance(obj.data, bpy.types.Mesh)
     verts = obj.data.vertices
     min_x = min(v.co.x for v in verts)
     max_x = max(v.co.x for v in verts)
