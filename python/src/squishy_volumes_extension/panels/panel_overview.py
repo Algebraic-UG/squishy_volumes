@@ -20,6 +20,7 @@ import re
 
 import bpy
 
+import datetime
 
 import json
 import os
@@ -372,8 +373,8 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 body.label(text="Misc. Stats")
                 box = body.box()
                 grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
-                grid.label(text="Currently used Gigabytes")
-                grid.label(text=f"{bytes_on_disk * 1e-9}")
+                grid.label(text="Currently used")
+                grid.label(text=f"{bytes_on_disk * 1e-9:.2f} GB")
 
                 total_particle_count = state["total_particle_count"]
                 grid_node_count = state["grid_node_count"]
@@ -396,10 +397,12 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     last_frame_time_sec = compute["last_frame_time_sec"]
                     last_frame_substeps = compute["last_frame_substeps"]
                     grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
-                    grid.label(text="Approx. remaining time (sec)")
-                    grid.label(text=f"{remaining_time_sec:0.2f}")
-                    grid.label(text="Last frame time (sec)")
-                    grid.label(text=f"{last_frame_time_sec:0.5f}")
+                    grid.label(text="Approx. remaining time")
+                    grid.label(
+                        text=str(datetime.timedelta(seconds=round(remaining_time_sec)))
+                    )
+                    grid.label(text="Last frame time")
+                    grid.label(text=f"{last_frame_time_sec:0.2f} sec")
                     grid.label(text="Last frame substeps")
                     grid.label(text=f"{last_frame_substeps}")
 
