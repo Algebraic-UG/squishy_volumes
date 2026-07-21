@@ -182,6 +182,8 @@ impl InputFrame {
 #[cfg(test)]
 impl InputFrame {
     pub fn test_input_0(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Self {
+        use std::collections::BTreeMap;
+
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(42);
         Self {
@@ -200,10 +202,12 @@ impl InputFrame {
             .collect(),
             collider_inputs: [(
                 "car".to_string(),
-                ColliderInput::random(num_vertices, num_triangles, &mut rng),
+                crate::ColliderInput::random(num_vertices, num_triangles, &mut rng),
             )]
             .into_iter()
-            .collect(),
+            .collect::<BTreeMap<_, _>>()
+            .try_into()
+            .unwrap(),
         }
     }
 
