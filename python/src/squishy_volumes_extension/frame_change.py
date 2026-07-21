@@ -39,22 +39,18 @@ from .squishy_volumes_properties import (
 
 def sync(scene):
     for sim_obj in get_simulation_objects():
-        sim_props = sim_obj.squishy_volumes
-        if not sim_props.sync:  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        if not sim_props.sync:
             # https://github.com/Algebraic-UG/squishy_volumes/issues/175
-            for obj in get_output_objects_with_uuid(
-                sim_props.uuid  # ty:ignore[unresolved-attribute]
-            ):
+            for obj in get_output_objects_with_uuid(sim_props.uuid):
                 if obj.data is not None:
                     obj.data.update_tag()
             continue
-        sim_handle = SimulationHandle.get(
-            uuid=sim_props.uuid  # ty:ignore[unresolved-attribute]
-        )
+        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         if sim_handle is None:
             continue
         sync_simulation(
-            sim_props,  # ty:ignore[unresolved-attribute]
+            sim_props,
             sim_handle,
             scene.frame_current,
         )

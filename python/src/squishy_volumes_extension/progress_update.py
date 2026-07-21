@@ -116,7 +116,7 @@ def register_progress_update(*_scene):
 
 
 def unregister_progress_update(*_scene):
-    for sim_obj in get_simulation_objects():  # ty:ignore[unresolved-attribute]
+    for sim_obj in get_simulation_objects():
         cleanup_markers(sim_obj)
 
     if bpy.app.timers.is_registered(update_progress):
@@ -127,11 +127,11 @@ def unregister_progress_update(*_scene):
 
 def register_progress_update_toggle():
     if unregister_progress_update not in bpy.app.handlers.render_init:
-        bpy.app.handlers.render_init.append(unregister_progress_update)
+        bpy.app.handlers.render_init.append(unregister_progress_update)  # ty:ignore[invalid-argument-type]
     if register_progress_update not in bpy.app.handlers.render_complete:
-        bpy.app.handlers.render_complete.append(register_progress_update)
+        bpy.app.handlers.render_complete.append(register_progress_update)  # ty:ignore[invalid-argument-type]
     if register_progress_update not in bpy.app.handlers.render_cancel:
-        bpy.app.handlers.render_cancel.append(register_progress_update)
+        bpy.app.handlers.render_cancel.append(register_progress_update)  # ty:ignore[invalid-argument-type]
     if get_print_debug_info():
         print("Squishy Volumes progress update toggle on render registered.")
 
