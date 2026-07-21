@@ -29,12 +29,20 @@ class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
             (INPUT_TYPE_COLLIDER,) * 3,
         ],  # ty:ignore[invalid-argument-type]
         name="Type",
-        description="""TODO""",
+        description=f"""Simulation type of the object:
+{INPUT_TYPE_PARTICLES}: point clouds that will be simulated, solid, fluid, etc.
+{INPUT_TYPE_COLLIDER}:  passive (animated) mesh that is 100% user controlled.""",
         default=INPUT_TYPE_PARTICLES,
         options=set(),
     )  # type: ignore
     add_default_generation: bpy.props.BoolProperty(
         name="Add Default Generation",
-        description="""TODO""",
+        description=f"""Add default generating Geometry Nodes?
+
+Squishy Volumes needs certain attributes on the input objects.
+The default generation creates them.
+
+It does not matter how the attributes are created, you can customize this.
+For example: half solid, half fluid, or something like this.""",
         default=True,
     )  # type:ignore
