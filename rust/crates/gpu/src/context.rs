@@ -51,6 +51,16 @@ fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) 
 }
 
 impl GpuContext {
+    pub fn available_gpus() -> Vec<String> {
+        let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+        instance_descriptor.backends = wgpu::Backends::PRIMARY;
+        let instance = wgpu::Instance::new(instance_descriptor);
+        pollster::block_on(instance.enumerate_adapters(wgpu::Backends::PRIMARY))
+            .into_iter()
+            .map(|adapter| adapter.get_info().name)
+            .collect()
+    }
+
     pub fn new() -> Result<Self, GpuError> {
         let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
         instance_descriptor.backends = wgpu::Backends::PRIMARY;

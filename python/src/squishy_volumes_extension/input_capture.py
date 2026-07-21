@@ -27,7 +27,7 @@ from .squishy_volumes_properties import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )
-from .preferences import get_domain_min, get_domain_max
+from .get_preferences import get_domain_min, get_domain_max
 
 
 def create_input_header(sim_props):

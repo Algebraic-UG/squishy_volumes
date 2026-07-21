@@ -18,7 +18,7 @@
 
 import bpy
 
-from .preferences import get_print_debug_info
+from .get_preferences import get_print_debug_info
 from .popup import with_popup
 from .frame_change import sync_simulation
 from .bridge import SimulationHandle

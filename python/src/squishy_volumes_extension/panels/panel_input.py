@@ -20,7 +20,7 @@ import bpy
 
 from typing import Any
 
-from ..preferences import get_confirm_bake_overwrite
+from ..get_preferences import get_confirm_bake_overwrite
 from ..nodes.drivers import add_drivers
 
 from ..squishy_volumes_properties import (

@@ -25,13 +25,18 @@ import numpy
 from typing import Any, Self
 
 from .shim import *
-from .preferences import get_print_debug_info
+from .get_preferences import get_print_debug_info
 from .hint_at_info import *
 
 
 @hint_at_info
 def build_info() -> dict[str, Any]:
     return json.loads(squishy_volumes_wrap.build_info_as_json())
+
+
+@hint_at_info
+def available_gpus() -> list[str]:
+    return squishy_volumes_wrap.available_gpus()
 
 
 class SimulationInputHandle:

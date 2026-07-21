@@ -29,7 +29,7 @@ from ..squishy_volumes_properties import (
 from ..bridge import SimulationHandle, SimulationInputHandle
 from ..util import giga_f32_to_u64, simulation_input_exists
 from ..input_capture import create_input_header, capture_input_frame
-from ..preferences import get_confirm_bake_overwrite
+from ..get_preferences import get_confirm_bake_overwrite
 
 
 def _start_compute(

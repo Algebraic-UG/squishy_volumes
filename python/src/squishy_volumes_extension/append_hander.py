@@ -21,7 +21,7 @@ import bpy
 from bpy.app.handlers import persistent
 
 from .squishy_volumes_properties import TYPE_NONE
-from .preferences import get_print_debug_info
+from .get_preferences import get_print_debug_info
 
 # See also
 # https://github.com/Algebraic-UG/squishy_volumes/issues/171

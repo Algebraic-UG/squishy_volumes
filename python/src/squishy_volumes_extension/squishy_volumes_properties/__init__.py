@@ -19,7 +19,7 @@
 import bpy
 
 from ..bridge import SimulationHandle
-from ..preferences import get_print_debug_info
+from ..get_preferences import get_print_debug_info
 
 from .object import *
 from .scene import *
