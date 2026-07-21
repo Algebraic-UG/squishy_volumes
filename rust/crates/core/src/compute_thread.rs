@@ -18,6 +18,7 @@ use squishy_volumes_cache::Cache;
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
 use squishy_volumes_file_input::InputReader;
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
+use squishy_volumes_util::panic_payload_to_string;
 use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
 use tracing::info;
 
@@ -285,7 +286,9 @@ impl ComputeThread {
             return Ok(Default::default());
         };
         if thread.is_finished() {
-            thread.join().map_err(|_| Error::ComputePanic)??;
+            thread
+                .join()
+                .map_err(|e| Error::ComputePanic(panic_payload_to_string(e)))??;
             return Ok(Default::default());
         }
         self.thread = Some(thread);
@@ -625,9 +628,8 @@ impl Drop for ComputeThread {
             return;
         };
         self.harness.cancel();
-        // TODO try to get string from error
-        if let Err(_) = thread.join() {
-            tracing::error!("Compute Panic, could be out of memory, please consult logs.");
+        if let Err(e) = thread.join() {
+            tracing::error!(payload = panic_payload_to_string(e), "Compute Panic");
         }
     }
 }

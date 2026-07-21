@@ -97,6 +97,6 @@ pub enum Error {
     #[error("Failed to store frame: {0}")]
     StoreError(squishy_volumes_cache::CacheError),
 
-    #[error("Something went really wrong and the compute thread paniced")]
-    ComputePanic,
+    #[error("Something went really wrong and the compute thread paniced: {0}")]
+    ComputePanic(String),
 }
