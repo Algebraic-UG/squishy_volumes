@@ -109,7 +109,9 @@ def _can_add(obj: bpy.types.ID) -> bool:
 class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_input_object"
     bl_label = "Add Input Object"
-    bl_description = """TODO"""
+    bl_description = (
+        "Adds the object with the given name to the input list of the simulation"
+    )
     bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -154,9 +156,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
 class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_input_objects"
     bl_label = "Add Input Objects"
-    bl_description = (
-        """Add the selected objects to the input list of this simulation."""
-    )
+    bl_description = "Adds the *selected* objects to the input list of the simulation."
     bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -280,7 +280,9 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             "selected_input_object",
         )
         list_controls = row.column(align=True)
-        list_controls.operator(
+        add_input_col = list_controls.column()
+        add_input_col.alert = not get_input_objects_with_uuid(sim_props.uuid)
+        add_input_col.operator(
             SCENE_OT_Squishy_Volumes_Add_Input_Objects.bl_idname,
             text="",
             icon="ADD",

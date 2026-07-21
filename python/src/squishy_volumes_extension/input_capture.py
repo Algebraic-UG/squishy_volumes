@@ -27,7 +27,7 @@ from .squishy_volumes_properties import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )
-from .preferences import get_domain_min, get_domain_max, get_max_num_particles
+from .preferences import get_domain_min, get_domain_max
 
 
 def create_input_header(sim_props):
@@ -42,8 +42,6 @@ def create_input_header(sim_props):
     domain_max = get_domain_max()
     domain_max = [domain_max[0], domain_max[1], domain_max[2]]
 
-    max_num_particles = get_max_num_particles()
-
     consts = {
         # TODO: add to preferences?
         "leaf_size": grid_node_size * 2.0,
@@ -54,7 +52,6 @@ def create_input_header(sim_props):
         "frames_per_second": frames_per_second,
         "domain_min": domain_min,
         "domain_max": domain_max,
-        "max_num_particles": max_num_particles,
     }
 
     objects = {}

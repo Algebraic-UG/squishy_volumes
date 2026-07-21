@@ -25,8 +25,18 @@ from .nodes import create_geometry_nodes_generate_goal_positions
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_input_object_add_goals"
-    bl_label = "Add Goals"
-    bl_description = """TODO"""
+    bl_label = "Add Goal Control Objects"
+    bl_description = """This adds two objects and a modifier to control particles:
+A 'choose' and a 'move' object, and the 'set goals' modifier.
+
+The choose object is a mesh object to choose affected particles.
+It can be any mesh and the chosen particles are the ones inside the mesh.
+
+The move object is an empty object that moves the chosen particles.
+Both objects can be animated!
+
+The modifier causes the simulation to record the resulting 'goal' positions
+and forces particles to move towards them."""
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod

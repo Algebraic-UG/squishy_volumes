@@ -11,7 +11,6 @@ pub struct InputConsts {
     grid_node_size: f32,
     pub leaf_size: f32,
     pub leaf_threshold: u32,
-    pub max_num_particles: u32,
     pub simulation_scale: f32,
     pub frames_per_second: u32,
     pub domain_min: [f32; 3],
@@ -24,7 +23,6 @@ impl InputConsts {
         Self {
             leaf_size: 1.,
             leaf_threshold: 16,
-            max_num_particles: 10000000,
             grid_node_size: 0.5,
             simulation_scale: 1.,
             frames_per_second: 24,

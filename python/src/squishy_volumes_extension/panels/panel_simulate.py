@@ -412,9 +412,6 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
 
         bake_box.prop(sim_props, "time_step")
         bake_box.prop(sim_props, "gpu")
-        # TODO: make implicit viable
-        # col.prop(simulation, "explicit")
-        # col.prop(simulation, "debug_mode")
 
         # TODO: enable adaptive time steps on gpu
         adaptive_col = bake_box.column()

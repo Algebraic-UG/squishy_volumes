@@ -421,7 +421,9 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
             "selected_output_object",
         )
         list_controls = row.column(align=True)
-        add_op = list_controls.operator(
+        add_output_col = list_controls.column()
+        add_output_col.alert = not get_output_objects_with_uuid(sim_props.uuid)
+        add_op = add_output_col.operator(
             SCENE_OT_Squishy_Volumes_Add_Output_Objects.bl_idname,
             text="",
             icon="ADD",

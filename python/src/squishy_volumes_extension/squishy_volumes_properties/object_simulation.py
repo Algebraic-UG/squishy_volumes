@@ -231,13 +231,7 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
     )  # type: ignore
     gpu: bpy.props.BoolProperty(
         name="GPU",
-        description="""TODO""",
-        default=True,
-        options=set(),
-    )  # type: ignore
-    explicit: bpy.props.BoolProperty(
-        name="Explicit",
-        description="""TODO""",
+        description="Run the simulation on your GPU!",
         default=True,
         options=set(),
     )  # type: ignore
