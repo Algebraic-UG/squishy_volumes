@@ -35,9 +35,6 @@ struct Cli {
     gpu: bool,
 
     #[arg(long)]
-    explicit: bool,
-
-    #[arg(long)]
     adaptive_time_steps: bool,
 
     #[arg(long, value_name = "NUMBER_OF_FRAMES")]
@@ -56,7 +53,6 @@ fn main() -> Result<()> {
         directory,
         time_step,
         gpu,
-        explicit,
         adaptive_time_steps,
         next_frame,
         number_of_frames,

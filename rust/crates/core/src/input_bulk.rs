@@ -28,6 +28,9 @@ pub enum InputBulkError {
 }
 
 pub trait InputBulkExt {
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     fn len(&self) -> usize;
     fn as_bools(&self) -> Result<&[bool], InputBulkError>;
     fn as_floats(&self) -> Result<&[f32], InputBulkError>;

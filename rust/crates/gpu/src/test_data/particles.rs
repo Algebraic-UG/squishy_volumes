@@ -131,6 +131,7 @@ impl TestParticles {
             }
         };
 
+        #[allow(clippy::toplevel_ref_arg)]
         let particle_position_gradients = test_position_gradients_random(num_particles)
             .into_iter()
             .map(|m| stack![m; Matrix1x3::zeros()])
@@ -146,6 +147,7 @@ impl TestParticles {
                 )
             })
             .collect::<Vec<_>>();
+        #[allow(clippy::toplevel_ref_arg)]
         let particle_velocity_gradients = (0..num_particles)
             .map(|_| {
                 stack![

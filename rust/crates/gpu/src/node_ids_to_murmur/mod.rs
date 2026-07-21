@@ -44,7 +44,7 @@ impl Input {
         let node_ids_and_collider_bits = Allocation::new(
             device,
             "node_ids_and_collider_bits",
-            &node_ids_and_collider_bits,
+            node_ids_and_collider_bits,
         )?;
         let indirect = Allocation::new(device, "indirect", &[indirect])?;
 

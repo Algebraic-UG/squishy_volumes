@@ -49,7 +49,7 @@ impl CpuState {
                             continue;
                         }
                         if !collider_bits::compatible(
-                            &collider_bits,
+                            collider_bits,
                             &self.grid_nodes.keys[other].collider_bits,
                         ) {
                             continue;

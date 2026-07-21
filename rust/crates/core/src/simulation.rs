@@ -10,7 +10,6 @@ use std::{collections::BTreeMap, num::NonZero, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value, to_value};
-use squishy_volumes_api::Simulation;
 use squishy_volumes_cache::Cache;
 use squishy_volumes_directory_lock::DirectoryLock;
 use squishy_volumes_file_input::{InputHeader, InputObject, InputRanges, InputReader};
@@ -231,12 +230,12 @@ impl SimulationImpl {
 
         let bytes_on_disk = self.cache.current_bytes_on_disk();
 
-        Ok(to_value(Stats {
+        to_value(Stats {
             state,
             compute,
             bytes_on_disk,
         })
-        .map_err(Error::EncodingStats)?)
+        .map_err(Error::EncodingStats)
     }
 }
 
