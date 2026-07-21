@@ -32,7 +32,6 @@ and makes them available in the addon preferences."""
 
     def execute(self, context):
         global _DETECTED_GPUS
-        print(available_gpus())
         _DETECTED_GPUS = available_gpus()
         return {"FINISHED"}
 

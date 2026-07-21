@@ -34,6 +34,7 @@ pub const BYTES_PER_GRID_NODE: u64 = 300;
 
 impl GpuState {
     pub fn from_io_state(
+        gpu: String,
         harness: &Harness,
         frame_input: &FrameInput,
         time_step: f32,
@@ -53,7 +54,7 @@ impl GpuState {
 
         tracing::info!(max_num_grid_nodes, "this is the limit for now");
 
-        let mut gpu_context = GpuContext::new()?;
+        let mut gpu_context = GpuContext::new(Some(gpu))?;
         harness.check()?;
         harness.step()?;
 

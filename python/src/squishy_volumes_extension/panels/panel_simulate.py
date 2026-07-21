@@ -40,7 +40,7 @@ def _start_compute(
 ):
     compute_settings = {
         "time_step": sim_props.time_step,
-        "gpu": sim_props.gpu,
+        "gpu": None if sim_props.compute_device == "CPU" else sim_props.compute_device,
         "adaptive_time_steps": sim_props.adaptive_time_steps,
         "next_frame": next_frame,
         "number_of_frames": number_of_frames,
@@ -411,11 +411,11 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         bake_box.label(text="Bake Simulation")
 
         bake_box.prop(sim_props, "time_step")
-        bake_box.prop(sim_props, "gpu")
+        bake_box.prop(sim_props, "compute_device")
 
         # TODO: enable adaptive time steps on gpu
         adaptive_col = bake_box.column()
-        adaptive_col.enabled = not sim_props.gpu
+        adaptive_col.enabled = sim_props.compute_device == "CPU"
         adaptive_col.prop(sim_props, "adaptive_time_steps")
 
         bake_box.prop(sim_props, "bake_frames")

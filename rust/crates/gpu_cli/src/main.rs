@@ -89,7 +89,7 @@ fn main() {
     let table_tries = 50;
     let max_num_grid_nodes = generate.try_into().unwrap();
 
-    let mut context = GpuContext::new().unwrap();
+    let mut context = GpuContext::new(None).unwrap();
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
     match task {
         Task::Sum => {

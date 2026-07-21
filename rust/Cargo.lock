@@ -3998,6 +3998,7 @@ dependencies = [
  "serde_json",
  "squishy_volumes_api",
  "squishy_volumes_core",
+ "squishy_volumes_gpu",
  "tracing",
  "tracing-subscriber",
  "uuid",

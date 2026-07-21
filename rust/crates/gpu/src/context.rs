@@ -61,13 +61,22 @@ impl GpuContext {
             .collect()
     }
 
-    pub fn new() -> Result<Self, GpuError> {
+    pub fn new(gpu: Option<String>) -> Result<Self, GpuError> {
         let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
         instance_descriptor.backends = wgpu::Backends::PRIMARY;
 
         let instance = wgpu::Instance::new(instance_descriptor);
-        let adapter =
-            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))?;
+        let adapter = if let Some(requested) = gpu {
+            pollster::block_on(instance.enumerate_adapters(wgpu::Backends::PRIMARY))
+                .into_iter()
+                .find(|adapter| adapter.get_info().name == requested)
+                .ok_or(GpuError::AdapterNotFound {
+                    requested,
+                    available: Self::available_gpus(),
+                })?
+        } else {
+            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))?
+        };
         tracing::info!("Running on Adapter: {:#?}", adapter.get_info());
 
         let wgpu::Limits {

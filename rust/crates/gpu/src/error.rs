@@ -20,6 +20,12 @@ pub struct ExceedingLimit {
 
 #[derive(Error, Debug)]
 pub enum GpuError {
+    #[error("Failed to find adapter '{requested}' (available are: {available:?})")]
+    AdapterNotFound {
+        requested: String,
+        available: Vec<String>,
+    },
+
     #[error("Failed to map {label}: {error}")]
     MapRangeError {
         label: &'static str,

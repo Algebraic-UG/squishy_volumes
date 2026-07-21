@@ -11,6 +11,7 @@ profile = [ "squishy_volumes_core/profile", "dep:coarse-prof" ]
 plotters = "0.3.7"
 squishy_volumes_api.path = "../api"
 squishy_volumes_core.path = "../core"
+squishy_volumes_gpu.path = "../gpu"
 ctrlc = "3.4.5"
 
 clap.workspace = true

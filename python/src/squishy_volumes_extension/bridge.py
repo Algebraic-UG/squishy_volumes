@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import platform
 import bpy
 from bpy.app.handlers import persistent
 
@@ -37,6 +38,11 @@ def build_info() -> dict[str, Any]:
 @hint_at_info
 def available_gpus() -> list[str]:
     return squishy_volumes_wrap.available_gpus()
+
+
+DETECTED_DEVICES = [("CPU", f"CPU ({platform.processor()})", "")] + [
+    (gpu, gpu, "") for gpu in available_gpus()
+]
 
 
 class SimulationInputHandle:

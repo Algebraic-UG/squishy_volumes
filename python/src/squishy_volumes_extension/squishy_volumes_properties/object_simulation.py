@@ -16,12 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import platform
 from pathlib import Path
 import re
 import tempfile
 import bpy
 
-from ..bridge import SimulationHandle
+from ..bridge import SimulationHandle, DETECTED_DEVICES
 
 TYPE_SIMULATION = "Simulation"
 
@@ -229,12 +230,14 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
         precision=5,
         options=set(),
     )  # type: ignore
-    gpu: bpy.props.BoolProperty(
-        name="GPU",
-        description="Run the simulation on your GPU!",
-        default=True,
+
+    compute_device: bpy.props.EnumProperty(
+        items=DETECTED_DEVICES,
+        name="Device",
+        description="Select the device you want Squishy Volumes to simulate on.",
         options=set(),
     )  # type: ignore
+
     adaptive_time_steps: bpy.props.BoolProperty(
         name="Adaptive Time Steps",
         description="""Automatically determine a good 'Time Step'.
