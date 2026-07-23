@@ -38,8 +38,11 @@ fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) 
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
     features |= wgpu::Features::TIMESTAMP_QUERY;
-    features |= wgpu::Features::PASSTHROUGH_SHADERS;
-    features |= wgpu::Features::SUBGROUP_SIZE_CONTROL;
+    #[cfg(not(target_os = "macos"))]
+    {
+        features |= wgpu::Features::PASSTHROUGH_SHADERS;
+        features |= wgpu::Features::SUBGROUP_SIZE_CONTROL;
+    }
 
     if enable_scope_profiling {
         features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
