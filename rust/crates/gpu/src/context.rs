@@ -54,22 +54,17 @@ fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) 
 
 impl GpuContext {
     pub fn available_gpus() -> Vec<String> {
-        let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
-        instance_descriptor.backends = wgpu::Backends::PRIMARY;
-        let instance = wgpu::Instance::new(instance_descriptor);
-        pollster::block_on(instance.enumerate_adapters(wgpu::Backends::PRIMARY))
+        Self::available_adapters()
             .into_iter()
             .map(|adapter| adapter.get_info().name)
             .collect()
     }
 
     pub fn new(gpu: Option<String>) -> Result<Self, GpuError> {
-        let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
-        instance_descriptor.backends = wgpu::Backends::PRIMARY;
-
-        let instance = wgpu::Instance::new(instance_descriptor);
+        let instance = Self::new_instance();
         let adapter = if let Some(requested) = gpu {
-            pollster::block_on(instance.enumerate_adapters(wgpu::Backends::PRIMARY))
+            tracing::info!(requested, "Requested specific GPU");
+            Self::available_adapters()
                 .into_iter()
                 .find(|adapter| adapter.get_info().name == requested)
                 .ok_or(GpuError::AdapterNotFound {
@@ -302,5 +297,19 @@ impl GpuContext {
 
     pub fn get_shader_label(&self, id: u32) -> Option<&'static str> {
         self.shader_id_to_label.get(&id).cloned()
+    }
+
+    fn supported_backends() -> wgpu::Backends {
+        wgpu::Backends::VULKAN | wgpu::Backends::METAL
+    }
+
+    fn new_instance() -> wgpu::Instance {
+        let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+        instance_descriptor.backends = Self::supported_backends();
+        wgpu::Instance::new(instance_descriptor)
+    }
+
+    fn available_adapters() -> Vec<wgpu::Adapter> {
+        pollster::block_on(Self::new_instance().enumerate_adapters(Self::supported_backends()))
     }
 }
