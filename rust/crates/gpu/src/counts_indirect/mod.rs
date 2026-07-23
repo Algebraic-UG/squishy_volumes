@@ -78,14 +78,15 @@ impl PipelinePart for CountsIndirect {
             counts_indirect,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("DISPATCH_LIMIT", dispatch_limit.get() as f64),
+                    ("DISPATCH_WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("BIT_COUNT", bit_count.get() as f64),
                 ],
             }

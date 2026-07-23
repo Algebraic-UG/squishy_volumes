@@ -97,16 +97,17 @@ impl PipelinePart for ReorderIndices {
 
     fn new(
         context: &mut GpuContext,
-        settings: Self::Settings,
+        Self::Settings {
+            workgroup_size,
+            dispatch_limit,
+            bit_count,
+        }: Self::Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
-        let workgroup_size = settings.workgroup_size.get();
-        let dispatch_limit = settings.dispatch_limit.get();
-        let bit_count = settings.bit_count.get();
-
         let_compiled_module!(
             reorder_indices,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
@@ -114,10 +115,7 @@ impl PipelinePart for ReorderIndices {
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("BIT_COUNT", bit_count as f64),
-                ],
+                constants: [("BIT_COUNT", bit_count.get() as f64),],
             }
         );
 
@@ -125,6 +123,7 @@ impl PipelinePart for ReorderIndices {
             reorder_indices_with_indices,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
@@ -133,10 +132,7 @@ impl PipelinePart for ReorderIndices {
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("BIT_COUNT", bit_count as f64),
-                ],
+                constants: [("BIT_COUNT", bit_count.get() as f64),],
             }
         );
 
@@ -150,29 +146,29 @@ impl PipelinePart for ReorderIndices {
         }
         let subgroup_size = reorder_indices.subgroup_size.get();
 
-        if !workgroup_size.is_multiple_of(subgroup_size) {
+        if !workgroup_size.get().is_multiple_of(subgroup_size) {
             return Err(
                 GpuPipelineCreationError::WorkgroupSizeNotMultipleOfSubgroupSize {
                     label: "Reorder Indices",
-                    workgroup_size,
+                    workgroup_size: workgroup_size.get(),
                     subgroup_size,
                 },
             );
         }
 
-        if subgroup_size < 2u32.pow(bit_count) {
+        if subgroup_size < 2u32.pow(bit_count.get()) {
             return Err(GpuPipelineCreationError::SubgroupSizeTooSmall {
                 label: "Reorder Indices",
                 subgroup_size,
-                needed: 2u32.pow(bit_count),
+                needed: 2u32.pow(bit_count.get()),
             });
         }
 
         Ok(Self {
-            workgroup_size,
-            dispatch_limit,
+            workgroup_size: workgroup_size.get(),
+            dispatch_limit: dispatch_limit.get(),
             subgroup_size,
-            bit_count,
+            bit_count: bit_count.get(),
             reorder_indices,
             reorder_indices_with_indices,
         })

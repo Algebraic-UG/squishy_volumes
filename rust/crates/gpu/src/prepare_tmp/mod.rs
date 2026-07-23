@@ -130,6 +130,7 @@ impl PipelinePart for PrepareTmp {
             prepare_tmp,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (ParticleFlags::MIN_BINDING_SIZE, false),            // flags
                     (ParticleParametersDevice::MIN_BINDING_SIZE, false), // parameters
@@ -141,7 +142,6 @@ impl PipelinePart for PrepareTmp {
                 ],
                 immediate_size: 0,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
                     ("TIME_STEP", time_step as f64),
                 ]

@@ -75,23 +75,24 @@ impl PipelinePart for PrefixSum {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, settings: Settings) -> Result<Self, GpuPipelineCreationError> {
-        let workgroup_size = settings.workgroup_size.get();
-        let dispatch_limit = settings.dispatch_limit.get();
-
+    fn new(
+        context: &mut GpuContext,
+        Settings {
+            workgroup_size,
+            dispatch_limit,
+        }: Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             prepare_indirect,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, false),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("DISPATCH_LIMIT", dispatch_limit as f64),
-                ],
+                constants: [("DISPATCH_LIMIT", dispatch_limit.get() as f64),],
             }
         );
 
@@ -99,12 +100,13 @@ impl PipelinePart for PrefixSum {
             build_levels,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
-                constants: [("WORKGROUP_SIZE", workgroup_size as f64)],
+                constants: [],
             }
         );
 
@@ -112,13 +114,14 @@ impl PipelinePart for PrefixSum {
             fill_final,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false)
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size as f64)],
+                constants: [],
             }
         );
 
@@ -128,20 +131,21 @@ impl PipelinePart for PrefixSum {
             total_sum,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false)
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", subgroup_size as f64)],
+                constants: [],
             }
         );
 
         prepare_indirect.check_same_sugroup_size(&build_levels)?;
         prepare_indirect.check_same_sugroup_size(&fill_final)?;
         prepare_indirect.check_same_sugroup_size(&total_sum)?;
-        prepare_indirect.check_workgroup_size_multiple_of_subgroup_size(workgroup_size)?;
+        prepare_indirect.check_workgroup_size_multiple_of_subgroup_size(workgroup_size.get())?;
 
         Ok(Self {
             subgroup_size,

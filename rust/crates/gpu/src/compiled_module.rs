@@ -22,6 +22,7 @@ pub struct CompiledModule {
 
 pub struct CompiledModuleSettings<'a, BindGroupEntries, Constants> {
     pub context: &'a mut GpuContext,
+    pub workgroup_size: NonZeroU32,
     pub bind_group_entries: BindGroupEntries,
     pub immediate_size: u32,
     pub constants: Constants,
@@ -33,6 +34,7 @@ impl CompiledModule {
         wgsl_source: &'static str,
         CompiledModuleSettings {
             context,
+            workgroup_size,
             bind_group_entries,
             immediate_size,
             constants,
@@ -121,8 +123,7 @@ impl CompiledModule {
             .unwrap();
             let spirv = Some(spv_words.as_slice().into());
 
-            // TODO: pass in from outside
-            let workgroup_size = (64, 1, 1);
+            let workgroup_size = (workgroup_size.get(), 1, 1);
 
             // This is what this is all about
             subgroup_size = context

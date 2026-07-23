@@ -110,6 +110,7 @@ impl PipelinePart for Scatter {
             scatter,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),               // indirect
                     (u32::MIN_BINDING_SIZE, false),                   // contributor_offsets
@@ -119,10 +120,7 @@ impl PipelinePart for Scatter {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),        // node_momentums
                 ],
                 immediate_size: 0,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
-                    ("GRID_NODE_SIZE", grid_node_size as f64),
-                ]
+                constants: [("GRID_NODE_SIZE", grid_node_size as f64),]
             }
         );
 

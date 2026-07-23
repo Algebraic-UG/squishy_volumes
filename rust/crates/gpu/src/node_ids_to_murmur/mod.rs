@@ -74,6 +74,7 @@ impl PipelinePart for NodeIdsToMurmur {
             node_ids_to_murmur,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
@@ -81,7 +82,7 @@ impl PipelinePart for NodeIdsToMurmur {
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+                constants: []
             }
         );
 

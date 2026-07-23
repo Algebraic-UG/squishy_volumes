@@ -20,13 +20,20 @@ var<storage, read_write> status: atomic<u32>;
 var<immediate> limit: u32;
 
 override DISPATCH_LIMIT: u32;
+override DISPATCH_WORKGROUP_SIZE: u32;
+
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
 
-@compute @workgroup_size(1)
+@compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
+    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(subgroup_size) subgroup_size: u32,
 ) {
+    if any(global_invocation_id != vec3(0)) {
+        return;
+    }
+
     if is_error() {
         new_indirect.x = 0;
         new_indirect.y = 0;
@@ -44,7 +51,7 @@ fn main(
         return;
     }
 
-    let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, WORKGROUP_SIZE, len);
+    let dispatch_xzy = find_dispatch_xyz(DISPATCH_LIMIT, DISPATCH_WORKGROUP_SIZE, len);
     new_indirect.x = dispatch_xzy.x;
     new_indirect.y = dispatch_xzy.y;
     new_indirect.z = dispatch_xzy.z;

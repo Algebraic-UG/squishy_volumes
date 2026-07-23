@@ -90,6 +90,7 @@ impl PipelinePart for BuildHashTables {
             build_hash_tables,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
@@ -98,10 +99,7 @@ impl PipelinePart for BuildHashTables {
                     (AtomicU32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
-                    ("TABLE_TRIES", table_tries as f64),
-                ]
+                constants: [("TABLE_TRIES", table_tries as f64),]
             }
         );
 

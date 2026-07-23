@@ -11,7 +11,13 @@ use super::*;
 #[test]
 fn read_back_status() {
     let mut context = SHARED_CONTEXT.lock().unwrap();
-    let test_status = TestStatus::new(&mut context, Settings).unwrap();
+    let test_status = TestStatus::new(
+        &mut context,
+        Settings {
+            workgroup_size: 64.try_into().unwrap(),
+        },
+    )
+    .unwrap();
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output = test_status
