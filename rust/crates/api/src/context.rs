@@ -13,6 +13,8 @@ use std::path::PathBuf;
 use crate::{Simulation, SimulationInput};
 
 pub trait Context: Send + Sync {
+    fn available_gpus(&self) -> Vec<String>;
+
     fn new_simulation_input(
         &mut self,
         uuid: String,

@@ -25,8 +25,8 @@ import bpy
 from .preferences import (
     register_preferences,
     unregister_preferences,
-    get_print_debug_info,
 )
+from .get_preferences import get_print_debug_info
 from .squishy_volumes_properties import register_properties, unregister_properties
 from .progress_update import (
     register_progress_update,

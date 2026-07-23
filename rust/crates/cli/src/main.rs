@@ -63,6 +63,13 @@ fn main() -> Result<()> {
 
     let next_frame = next_frame.unwrap_or(simulation.available_frames_impl());
 
+    let gpu = gpu.then(|| {
+        squishy_volumes_gpu::GpuContext::available_gpus()
+            .first()
+            .cloned()
+            .expect("No gpus found")
+    });
+
     simulation.start_compute_impl(
         serde_json::to_value(ComputeSettings {
             time_step,

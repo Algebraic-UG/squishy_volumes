@@ -242,7 +242,7 @@ impl SimulationImpl {
 #[derive(Serialize, Deserialize)]
 pub struct ComputeSettings {
     pub time_step: f32,
-    pub gpu: bool,
+    pub gpu: Option<String>,
     pub adaptive_time_steps: bool,
     pub next_frame: usize,
     pub number_of_frames: usize,

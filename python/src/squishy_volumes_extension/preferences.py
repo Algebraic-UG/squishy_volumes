@@ -17,11 +17,38 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
-import mathutils
+
+from .bridge import available_gpus
+
+_DETECTED_GPUS = []
+
+
+class SCENE_OT_Squishy_Volumes_Scan_GPUs(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_scan_gpus"
+    bl_label = "Scan For GPUs"
+    bl_description = """Detects the GPUs on your system
+and makes them available in the addon preferences."""
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        global _DETECTED_GPUS
+        _DETECTED_GPUS = available_gpus()
+        return {"FINISHED"}
+
+
+def _get_detected_gpus(_preferences, _context):
+    return [(gpu, gpu, gpu) for gpu in _DETECTED_GPUS]
 
 
 class SquishyVolumesPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
+
+    gpu: bpy.props.EnumProperty(
+        items=_get_detected_gpus,
+        name="GPU for Compute",
+        description="This GPU is used by Squishy Volumes to run your simulations.",
+        options=set(),
+    )  # type: ignore
 
     confirm_bake_overwrite: bpy.props.BoolProperty(
         name="Confirm Overwrite",
@@ -58,33 +85,19 @@ This is most likely only relevant to developers of other extensions.""",
     )  # type: ignore
 
     def draw(self, context: bpy.types.Context) -> None:
+        self.layout.operator(SCENE_OT_Squishy_Volumes_Scan_GPUs.bl_idname)
+        self.layout.prop(self, "gpu")
         self.layout.prop(self, "confirm_bake_overwrite")
         self.layout.prop(self, "domain_min")
         self.layout.prop(self, "domain_max")
         self.layout.prop(self, "print_debug_info")
 
 
-def get_confirm_bake_overwrite() -> bool:
-    return bpy.context.preferences.addons.get(  # ty:ignore[unresolved-attribute]
-        __package__  # ty:ignore[invalid-argument-type]
-    ).preferences.confirm_bake_overwrite
-
-
-def get_domain_min() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(__package__).preferences.domain_min  # ty:ignore[unresolved-attribute, invalid-argument-type]
-
-
-def get_domain_max() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(__package__).preferences.domain_max  # ty:ignore[unresolved-attribute, invalid-argument-type]
-
-
-def get_print_debug_info() -> bool:
-    return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info  # ty:ignore[unresolved-attribute, invalid-argument-type]
-
-
 def register_preferences():
+    bpy.utils.register_class(SCENE_OT_Squishy_Volumes_Scan_GPUs)
     bpy.utils.register_class(SquishyVolumesPreferences)
 
 
 def unregister_preferences():
     bpy.utils.unregister_class(SquishyVolumesPreferences)
+    bpy.utils.unregister_class(SCENE_OT_Squishy_Volumes_Scan_GPUs)
