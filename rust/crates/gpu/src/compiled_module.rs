@@ -43,11 +43,21 @@ impl CompiledModule {
     where
         BindGroupEntries: IntoIterator<Item = (NonZeroU64, bool)>,
         Constants: IntoIterator<Item = (&'static str, f64)>,
+        <Constants as IntoIterator>::IntoIter: Clone,
     {
         let shader_id = context.get_shader_id(label_raw);
-        let constants = constants
-            .into_iter()
-            .chain(iter::once(("SHADER_ID", shader_id as f64)));
+        let constants = constants.into_iter().chain([
+            ("SHADER_ID", shader_id as f64),
+            ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+        ]);
+        {
+            let mut constant_names = std::collections::BTreeSet::default();
+            for (name, _) in constants.clone() {
+                if !constant_names.insert(name) {
+                    return Err(GpuPipelineCreationError::PipelineDuplicateConstant(name));
+                }
+            }
+        }
         let label = Some(label_raw);
         let device = context.device();
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
