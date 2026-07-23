@@ -83,6 +83,9 @@ impl CompiledModule {
         let subgroup_size: NonZeroU32;
         let compute_pipeline;
         if fix_subgroup_size {
+            // with the current state of wgpu the only way to fix the subgroup size is to go via passthrough shaders.
+            // So we do the transpiling to spir-v now
+
             let module = wgpu::naga::front::wgsl::parse_str(wgsl_source).unwrap();
 
             // XXX: Compare with the ones we check in GpuContext cration
@@ -95,6 +98,7 @@ impl CompiledModule {
             .validate(&module)
             .unwrap();
 
+            // we have to do this because naga doesn't support transpiling overrides from wgsl to spir-v
             let (module, module_info) = wgpu::naga::back::pipeline_constants::process_overrides(
                 &module,
                 &module_info,
