@@ -43,4 +43,4 @@ wesl = { version = "0.4.0", features = ["naga-ext"] }
 # https://github.com/gfx-rs/wgpu/pull/9876
 [patch.crates-io]
 wgpu.git = "https://github.com/Vollkornaffe/wgpu.git"
-wgpu.rev = "6dfafde0788f6f7d6c097aa0d0e188cd16d01cbf"
+wgpu.rev = "ef5c491923d4f5419ce9c8c18b1b490c56383834"

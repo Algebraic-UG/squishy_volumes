@@ -12,9 +12,17 @@ import super::util::TABLE_TRIES_EXCEEDED;
 var<storage, read_write> status: atomic<u32>;
 
 override SHADER_ID: u32;
+override WORKGROUP_SIZE: u32;
 
-@compute @workgroup_size(1)
-fn main() {
+@compute @workgroup_size(WORKGROUP_SIZE)
+fn main(
+    @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
+    @builtin(subgroup_size) subgroup_size: u32,
+) {
+    if any(global_invocation_id != vec3(0)) {
+        return;
+    }
+
     if is_error() {
         return;
     }

@@ -163,6 +163,7 @@ impl PipelinePart for Collide {
             collide,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), //particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //particle_velocities
@@ -179,7 +180,6 @@ impl PipelinePart for Collide {
                 ],
                 immediate_size: 0,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("FORGET_DISTANCE", forget_distance as f64),
                     ("ACCEPT_DISTANCE", accept_distance as f64),
                     ("TIME_STEP", time_step as f64),

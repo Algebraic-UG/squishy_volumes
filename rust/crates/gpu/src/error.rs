@@ -127,6 +127,12 @@ pub enum GpuPipelineCreationError {
         subgroup_size: u32,
         needed: u32,
     },
+
+    #[error("Failed to set pipeline constants: {0}")]
+    PipelineConstantError(#[from] wgpu::naga::back::pipeline_constants::PipelineConstantError),
+
+    #[error("Duplicate constant: {0}")]
+    PipelineDuplicateConstant(&'static str),
 }
 
 #[derive(Error, Debug)]

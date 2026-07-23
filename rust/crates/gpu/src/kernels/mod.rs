@@ -57,6 +57,7 @@ impl PipelinePart for Kernels {
             kernels,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (f32::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
@@ -64,7 +65,7 @@ impl PipelinePart for Kernels {
                     (f32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),],
+                constants: [],
             }
         );
 

@@ -125,13 +125,14 @@ impl PipelinePart for AnimateMesh {
             move_vertices,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_start
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_end
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions
                 ],
                 immediate_size: 4,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
+                constants: [],
             }
         );
 
@@ -139,13 +140,14 @@ impl PipelinePart for AnimateMesh {
             compute_triangle_normals,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_start
                     (Triangle::MIN_BINDING_SIZE, false),       // triangle_indices
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // triangle_normals
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
+                constants: [],
             }
         );
 
@@ -153,6 +155,7 @@ impl PipelinePart for AnimateMesh {
             compute_vertex_normals,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, false),            // vertex_triangle_offsets
                     (u32::MIN_BINDING_SIZE, false),            // vertex_triangle_lists
@@ -160,7 +163,7 @@ impl PipelinePart for AnimateMesh {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // triangle_normals
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64),]
+                constants: [],
             }
         );
 

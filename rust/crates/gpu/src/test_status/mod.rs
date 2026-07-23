@@ -9,13 +9,17 @@
 #[cfg(test)]
 mod test;
 
+use std::num::NonZeroU32;
+
 use super::*;
 
 pub struct TestStatus {
     test_status: CompiledModule,
 }
 
-pub struct Settings;
+pub struct Settings {
+    pub workgroup_size: NonZeroU32,
+}
 
 pub struct Parameters;
 
@@ -29,11 +33,15 @@ impl PipelinePart for TestStatus {
     type Input = Input;
     type Output = Output;
 
-    fn new(context: &mut GpuContext, _: Settings) -> Result<Self, GpuPipelineCreationError> {
+    fn new(
+        context: &mut GpuContext,
+        Settings { workgroup_size }: Settings,
+    ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
             test_status,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [],
                 immediate_size: 0,
                 constants: [],

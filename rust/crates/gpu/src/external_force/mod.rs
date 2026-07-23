@@ -107,6 +107,7 @@ impl PipelinePart for ExternalForce {
             external_force,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // gravity
                     (ParticleFlags::MIN_BINDING_SIZE, false),  // particle_flags
@@ -116,10 +117,7 @@ impl PipelinePart for ExternalForce {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals_end
                 ],
                 immediate_size: 4,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
-                    ("TIME_STEP", time_step as f64),
-                ]
+                constants: [("TIME_STEP", time_step as f64),]
             }
         );
 

@@ -87,13 +87,14 @@ impl PipelinePart for Sand {
             sand,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (ParticleFlags::MIN_BINDING_SIZE, false),
                     (ParticleParametersDevice::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+                constants: []
             }
         );
 

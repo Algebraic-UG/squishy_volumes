@@ -59,13 +59,14 @@ impl PipelinePart for LenToIndirect {
             len_to_indirect,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, true),
                     (Indirect::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
+                    ("DISPATCH_WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("DISPATCH_LIMIT", dispatch_limit.get() as f64),
                 ],
             }
