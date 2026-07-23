@@ -30,7 +30,7 @@ pub struct CompiledModuleSettings<'a, BindGroupEntries, Constants> {
 impl CompiledModule {
     pub fn new<BindGroupEntries, Constants>(
         label_raw: &'static str,
-        shader_module_descriptor: wgpu::ShaderModuleDescriptor,
+        wgsl_source: &'static str,
         CompiledModuleSettings {
             context,
             bind_group_entries,
@@ -43,6 +43,9 @@ impl CompiledModule {
         Constants: IntoIterator<Item = (&'static str, f64)>,
     {
         let shader_id = context.get_shader_id(label_raw);
+        let constants = constants
+            .into_iter()
+            .chain(iter::once(("SHADER_ID", shader_id as f64)));
         let label = Some(label_raw);
         let device = context.device();
         let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -66,35 +69,115 @@ impl CompiledModule {
                 .collect::<Vec<_>>(),
         });
 
-        let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label,
-            layout: Some(
-                &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label,
-                    bind_group_layouts: &[Some(&bind_group_layout)],
-                    immediate_size,
-                }),
-            ),
-            module: &device.create_shader_module(shader_module_descriptor),
-            entry_point: Some("main"),
-            compilation_options: wgpu::PipelineCompilationOptions {
-                constants: &constants
-                    .into_iter()
-                    .chain(iter::once(("SHADER_ID", shader_id as f64)))
-                    .collect::<Vec<_>>(),
-                ..Default::default()
-            },
-            cache: None,
-        });
+        let layout = Some(
+            &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label,
+                bind_group_layouts: &[Some(&bind_group_layout)],
+                immediate_size,
+            }),
+        );
+        // TODO: only do this if we're not on Metal
+        let fix_subgroup_size = true;
 
-        let subgroup_size = context
-            .subgroup_size()
-            .or_else(|| {
-                compute_pipeline
-                    .get_sub_group_size()
-                    .and_then(|subgroup_size| (subgroup_size as u32).try_into().ok())
-            })
-            .ok_or(GpuPipelineCreationError::FailedToDetermineSubgroupSize { label: label_raw })?;
+        let subgroup_size: NonZeroU32;
+        let compute_pipeline;
+        if fix_subgroup_size {
+            let module = wgpu::naga::front::wgsl::parse_str(wgsl_source).unwrap();
+
+            // XXX: Compare with the ones we check in GpuContext cration
+            let capabilities = wgpu::naga::valid::Capabilities::IMMEDIATES
+                | wgpu::naga::valid::Capabilities::SUBGROUP;
+            let module_info = wgpu::naga::valid::Validator::new(
+                wgpu::naga::valid::ValidationFlags::all(),
+                capabilities,
+            )
+            .validate(&module)
+            .unwrap();
+
+            let (module, module_info) = wgpu::naga::back::pipeline_constants::process_overrides(
+                &module,
+                &module_info,
+                None,
+                &constants.map(|(s, f)| (s.to_string(), f)).collect(),
+            )?;
+
+            let options = wgpu::naga::back::spv::Options::default();
+            let pipeline_options = wgpu::naga::back::spv::PipelineOptions {
+                entry_point: "main".to_string(),
+                shader_stage: wgpu::naga::ShaderStage::Compute,
+            };
+
+            let spv_words = wgpu::naga::back::spv::write_vec(
+                &module,
+                &module_info,
+                &options,
+                Some(&pipeline_options),
+            )
+            .unwrap();
+            let spirv = Some(spv_words.as_slice().into());
+
+            // TODO: pass in from outside
+            let workgroup_size = (64, 1, 1);
+
+            // This is what this is all about
+            subgroup_size = context
+                .adapter()
+                .get_info()
+                .subgroup_max_size
+                .try_into()
+                .unwrap();
+            let subgroup_size = wgpu::SubgroupSize::Fixed(subgroup_size.get());
+
+            let entry_points = vec![wgpu::PassthroughShaderEntryPoint {
+                name: "main".into(),
+                workgroup_size,
+                subgroup_size,
+            }]
+            .into();
+            let module_descriptor = wgpu::ShaderModuleDescriptorPassthrough {
+                label,
+                entry_points,
+                spirv,
+                ..Default::default()
+            };
+            let module = unsafe { device.create_shader_module_passthrough(module_descriptor) };
+            compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label,
+                layout,
+                module: &module,
+                entry_point: Some("main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                cache: None,
+            });
+        } else {
+            let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label,
+                source: wgpu::ShaderSource::Wgsl(wgsl_source.into()),
+            });
+
+            compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label,
+                layout,
+                module: &module,
+                entry_point: Some("main"),
+                compilation_options: wgpu::PipelineCompilationOptions {
+                    constants: &constants.collect::<Vec<_>>(),
+                    ..Default::default()
+                },
+                cache: None,
+            });
+
+            subgroup_size = context
+                .subgroup_size()
+                .or_else(|| {
+                    compute_pipeline
+                        .get_sub_group_size()
+                        .and_then(|subgroup_size| (subgroup_size as u32).try_into().ok())
+                })
+                .ok_or(GpuPipelineCreationError::FailedToDetermineSubgroupSize {
+                    label: label_raw,
+                })?;
+        };
 
         Ok(CompiledModule {
             label,
@@ -155,12 +238,7 @@ macro_rules! let_compiled_module {
     ($name:ident, $settings:expr) => {
         let $name = CompiledModule::new(
             stringify!($name),
-            wgpu::ShaderModuleDescriptor {
-                label: Some(stringify!($name)),
-                source: wgpu::ShaderSource::Wgsl(
-                    include_str!(concat!(env!("OUT_DIR"), "/", stringify!($name), ".wgsl")).into(),
-                ),
-            },
+            include_str!(concat!(env!("OUT_DIR"), "/", stringify!($name), ".wgsl")),
             $settings,
         )?;
     };

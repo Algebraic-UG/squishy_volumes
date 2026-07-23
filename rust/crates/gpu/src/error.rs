@@ -127,6 +127,9 @@ pub enum GpuPipelineCreationError {
         subgroup_size: u32,
         needed: u32,
     },
+
+    #[error("Failed to set pipeline constants: {0}")]
+    PipelineConstantError(#[from] wgpu::naga::back::pipeline_constants::PipelineConstantError),
 }
 
 #[derive(Error, Debug)]

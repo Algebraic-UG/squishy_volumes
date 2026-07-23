@@ -38,6 +38,8 @@ fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) 
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
     features |= wgpu::Features::TIMESTAMP_QUERY;
+    features |= wgpu::Features::PASSTHROUGH_SHADERS;
+    features |= wgpu::Features::SUBGROUP_SIZE_CONTROL;
 
     if enable_scope_profiling {
         features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
@@ -166,7 +168,7 @@ impl GpuContext {
                 label: None,
                 required_features,
                 required_limits,
-                experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                experimental_features: unsafe { wgpu::ExperimentalFeatures::enabled() },
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
                 trace: wgpu::Trace::Off,
             }))?;
