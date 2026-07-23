@@ -76,8 +76,9 @@ impl CompiledModule {
                 immediate_size,
             }),
         );
-        // TODO: only do this if we're not on Metal
-        let fix_subgroup_size = true;
+
+        let fix_subgroup_size = context.subgroup_size().is_none()
+            && context.adapter().get_info().backend == wgpu::Backend::Vulkan;
 
         let subgroup_size: NonZeroU32;
         let compute_pipeline;
