@@ -41,7 +41,7 @@ pub struct ComputeThreadSettings {
     pub number_of_frames: NonZero<usize>,
     pub next_frame: usize,
 
-    pub gpu: bool,
+    pub gpu: Option<String>,
     pub adaptive_time_steps: bool,
 }
 
@@ -100,8 +100,9 @@ impl ComputeThread {
                     Gpu(GpuState),
                 }
 
-                let mut compute_state = if gpu {
+                let mut compute_state = if let Some(gpu) = gpu {
                     ComputeState::Gpu(GpuState::from_io_state(
+                        gpu,
                         &harness,
                         &frame_input,
                         max_time_step,

@@ -89,6 +89,7 @@ impl PipelinePart for Elastic {
             stress_and_energy,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
@@ -98,7 +99,7 @@ impl PipelinePart for Elastic {
                     (f32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
-                constants: [("WORKGROUP_SIZE", workgroup_size.get() as f64)]
+                constants: []
             }
         );
 

@@ -38,6 +38,11 @@ fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) 
     features |= wgpu::Features::SUBGROUP;
     features |= wgpu::Features::IMMEDIATES;
     features |= wgpu::Features::TIMESTAMP_QUERY;
+    #[cfg(not(target_os = "macos"))]
+    {
+        features |= wgpu::Features::PASSTHROUGH_SHADERS;
+        features |= wgpu::Features::SUBGROUP_SIZE_CONTROL;
+    }
 
     if enable_scope_profiling {
         features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS;
@@ -51,13 +56,27 @@ fn requirements(enable_scope_profiling: bool) -> (wgpu::Features, wgpu::Limits) 
 }
 
 impl GpuContext {
-    pub fn new() -> Result<Self, GpuError> {
-        let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
-        instance_descriptor.backends = wgpu::Backends::PRIMARY;
+    pub fn available_gpus() -> Vec<String> {
+        Self::available_adapters()
+            .into_iter()
+            .map(|adapter| adapter.get_info().name)
+            .collect()
+    }
 
-        let instance = wgpu::Instance::new(instance_descriptor);
-        let adapter =
-            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))?;
+    pub fn new(gpu: Option<String>) -> Result<Self, GpuError> {
+        let instance = Self::new_instance();
+        let adapter = if let Some(requested) = gpu {
+            tracing::info!(requested, "Requested specific GPU");
+            Self::available_adapters()
+                .into_iter()
+                .find(|adapter| adapter.get_info().name == requested)
+                .ok_or(GpuError::AdapterNotFound {
+                    requested,
+                    available: Self::available_gpus(),
+                })?
+        } else {
+            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))?
+        };
         tracing::info!("Running on Adapter: {:#?}", adapter.get_info());
 
         let wgpu::Limits {
@@ -147,7 +166,7 @@ impl GpuContext {
                 label: None,
                 required_features,
                 required_limits,
-                experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                experimental_features: unsafe { wgpu::ExperimentalFeatures::enabled() },
                 memory_hints: wgpu::MemoryHints::MemoryUsage,
                 trace: wgpu::Trace::Off,
             }))?;
@@ -281,5 +300,19 @@ impl GpuContext {
 
     pub fn get_shader_label(&self, id: u32) -> Option<&'static str> {
         self.shader_id_to_label.get(&id).cloned()
+    }
+
+    fn supported_backends() -> wgpu::Backends {
+        wgpu::Backends::VULKAN | wgpu::Backends::METAL
+    }
+
+    fn new_instance() -> wgpu::Instance {
+        let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+        instance_descriptor.backends = Self::supported_backends();
+        wgpu::Instance::new(instance_descriptor)
+    }
+
+    fn available_adapters() -> Vec<wgpu::Adapter> {
+        pollster::block_on(Self::new_instance().enumerate_adapters(Self::supported_backends()))
     }
 }

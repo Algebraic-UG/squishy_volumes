@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from ..preferences import get_print_debug_info
+from ..get_preferences import get_print_debug_info
 from .panel_overview import register_panel_overview, unregister_panel_overview
 from .panel_input import register_panel_input, unregister_panel_input
 from .panel_simulate import register_panel_simulate, unregister_panel_simulate

@@ -19,7 +19,7 @@ use hot_reloadable::{initialize, CombinedBuildInfo};
 use hot_reloadable::handle_reload;
 
 mod api_use;
-use crate::api_use::{simulation::Simulation, simulation_input::SimulationInput};
+use crate::api_use::{available_gpus, simulation::Simulation, simulation_input::SimulationInput};
 
 fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize();
@@ -28,6 +28,7 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     handle_reload();
 
     m.add_function(wrap_pyfunction!(build_info_as_json, m)?)?;
+    m.add_function(wrap_pyfunction!(available_gpus, m)?)?;
 
     m.add_class::<Simulation>()?;
     m.add_class::<SimulationInput>()?;

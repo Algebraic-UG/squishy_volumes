@@ -148,6 +148,7 @@ impl PipelinePart for Collect {
             collect,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, false),                     // hash_table
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits
@@ -159,7 +160,6 @@ impl PipelinePart for Collect {
                 ],
                 immediate_size: 0,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
                     ("TIME_STEP", time_step as f64),
                     ("TABLE_TRIES", table_tries as f64),

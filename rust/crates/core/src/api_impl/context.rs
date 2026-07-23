@@ -7,6 +7,10 @@
 // https://opensource.org/licenses/MIT.
 
 impl squishy_volumes_api::Context for crate::ContextImpl {
+    fn available_gpus(&self) -> Vec<String> {
+        squishy_volumes_gpu::GpuContext::available_gpus()
+    }
+
     fn new_simulation_input(
         &mut self,
         uuid: String,

@@ -16,6 +16,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-# This file is generated to alleviate https://github.com/Algebraic-UG/squishy_volumes/issues/83
+import bpy
+import mathutils
 
-import squishy_volumes_wrap_0_3_0_alpha as squishy_volumes_wrap
+
+def get_confirm_bake_overwrite() -> bool:
+    return bpy.context.preferences.addons.get(
+        __package__
+    ).preferences.confirm_bake_overwrite
+
+
+def get_domain_min() -> mathutils.Vector:
+    return bpy.context.preferences.addons.get(__package__).preferences.domain_min
+
+
+def get_domain_max() -> mathutils.Vector:
+    return bpy.context.preferences.addons.get(__package__).preferences.domain_max
+
+
+def get_print_debug_info() -> bool:
+    return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info

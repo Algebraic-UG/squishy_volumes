@@ -22,12 +22,7 @@ fn check(len: u32) {
 
     let count_len = counts_count(CountsCountArgs {
         workgroup_size: workgroup_size.get(),
-        subgroup_size: SHARED_CONTEXT
-            .lock()
-            .unwrap()
-            .subgroup_size()
-            .unwrap()
-            .get(),
+        subgroup_size: get_subgroup_size().get(),
         dispatch_limit: dispatch_limit.get(),
         counter: 2u32.pow(bit_count.get()),
         len,

@@ -107,6 +107,7 @@ impl PipelinePart for RegisterContributors {
             count_contributors,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
@@ -115,7 +116,6 @@ impl PipelinePart for RegisterContributors {
                 ],
                 immediate_size: 0,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
                     ("TABLE_TRIES", table_tries as f64),
                 ]
@@ -134,6 +134,7 @@ impl PipelinePart for RegisterContributors {
             register_contributors,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
@@ -144,7 +145,6 @@ impl PipelinePart for RegisterContributors {
                 ],
                 immediate_size: 0,
                 constants: [
-                    ("WORKGROUP_SIZE", workgroup_size.get() as f64),
                     ("GRID_NODE_SIZE", grid_node_size as f64),
                     ("TABLE_TRIES", table_tries as f64),
                 ]

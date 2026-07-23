@@ -92,26 +92,27 @@ impl PipelinePart for CountSubkeys {
 
     fn new(
         context: &mut GpuContext,
-        settings: Self::Settings,
+        Self::Settings {
+            workgroup_size,
+            dispatch_limit,
+            bit_count,
+        }: Self::Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
-        let workgroup_size = settings.workgroup_size.get();
-        let dispatch_limit = settings.dispatch_limit.get();
-        let bit_count = settings.bit_count.get();
+        let dispatch_limit = dispatch_limit.get();
+        let bit_count = bit_count.get();
 
         let_compiled_module!(
             count_subkeys,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("BIT_COUNT", bit_count as f64),
-                ],
+                constants: [("BIT_COUNT", bit_count as f64),],
             }
         );
 
@@ -119,6 +120,7 @@ impl PipelinePart for CountSubkeys {
             count_subkeys_with_indices,
             CompiledModuleSettings {
                 context,
+                workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),
                     (u32::MIN_BINDING_SIZE, false),
@@ -126,12 +128,11 @@ impl PipelinePart for CountSubkeys {
                     (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 4,
-                constants: [
-                    ("WORKGROUP_SIZE", workgroup_size as f64),
-                    ("BIT_COUNT", bit_count as f64),
-                ],
+                constants: [("BIT_COUNT", bit_count as f64),],
             }
         );
+
+        let workgroup_size = workgroup_size.get();
 
         count_subkeys.check_same_sugroup_size(&count_subkeys_with_indices)?;
         count_subkeys.check_workgroup_size_multiple_of_subgroup_size(workgroup_size)?;

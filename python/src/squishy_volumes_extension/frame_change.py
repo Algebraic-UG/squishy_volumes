@@ -25,7 +25,7 @@ from .output import (
     sync_output,
 )
 
-from .preferences import get_print_debug_info
+from .get_preferences import get_print_debug_info
 from .bridge import SimulationHandle
 from .squishy_volumes_properties import (
     get_simulation_objects,

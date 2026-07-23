@@ -18,7 +18,7 @@ use lazy_static::lazy_static;
 use nalgebra::{Matrix3, Vector3, Vector4};
 lazy_static! {
     pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
-        let mut context = GpuContext::new().unwrap();
+        let mut context = GpuContext::new(None).unwrap();
         context
             .setup_allocator(None, 10000000, "test allocator", true)
             .unwrap();
@@ -87,7 +87,7 @@ pub fn count_subkeys_on_cpu(
 }
 
 pub fn get_subgroup_size() -> NonZeroU32 {
-    GpuContext::new().unwrap().subgroup_size().unwrap()
+    GpuContext::new(None).unwrap().subgroup_size().unwrap()
 }
 
 pub fn sort_on_cpu_by_bits(
