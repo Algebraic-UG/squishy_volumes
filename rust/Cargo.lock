@@ -4096,7 +4096,7 @@ dependencies = [
 
 [[package]]
 name = "squishy_volumes_file_util"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "build-info",
  "build-info-build",
@@ -4200,7 +4200,7 @@ dependencies = [
 
 [[package]]
 name = "squishy_volumes_wrap"
-version = "0.3.0-beta"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "build-info",
@@ -4212,6 +4212,7 @@ dependencies = [
  "serde",
  "serde_json",
  "squishy_volumes_api",
+ "squishy_volumes_file_util",
  "squishy_volumes_hot",
 ]
 
