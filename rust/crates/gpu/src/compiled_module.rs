@@ -204,7 +204,20 @@ macro_rules! let_compiled_module {
         )?;
     };
 }
+#[cfg(target_os = "macos")]
+fn compute_pipeline_with_fixed_subgroup_size(
+    _context: &mut GpuContext,
+    _label: Option<&str>,
+    _layout: Option<&wgpu::PipelineLayout>,
+    _wgsl_source: &str,
+    _workgroup_size: NonZeroU32,
+    _subgroup_size: NonZeroU32,
+    _constants: impl Iterator<Item = (&'static str, f64)>,
+) -> Result<wgpu::ComputePipeline, GpuPipelineCreationError> {
+    panic!();
+}
 
+#[cfg(not(target_os = "macos"))]
 fn compute_pipeline_with_fixed_subgroup_size(
     context: &mut GpuContext,
     label: Option<&str>,
@@ -214,80 +227,69 @@ fn compute_pipeline_with_fixed_subgroup_size(
     subgroup_size: NonZeroU32,
     constants: impl Iterator<Item = (&'static str, f64)>,
 ) -> Result<wgpu::ComputePipeline, GpuPipelineCreationError> {
-    #[cfg(target_os = "macos")]
-    panic!();
-    #[cfg(not(target_os = "macos"))]
-    {
-        // with the current state of wgpu the only way to fix the subgroup size is to go via passthrough shaders.
-        // So we do the transpiling to spir-v now
+    // with the current state of wgpu the only way to fix the subgroup size is to go via passthrough shaders.
+    // So we do the transpiling to spir-v now
 
-        let module = wgpu::naga::front::wgsl::parse_str(wgsl_source).unwrap();
+    let module = wgpu::naga::front::wgsl::parse_str(wgsl_source).unwrap();
 
-        // XXX: Compare with the ones we check in GpuContext cration
-        let capabilities =
-            wgpu::naga::valid::Capabilities::IMMEDIATES | wgpu::naga::valid::Capabilities::SUBGROUP;
-        let module_info = wgpu::naga::valid::Validator::new(
-            wgpu::naga::valid::ValidationFlags::all(),
-            capabilities,
-        )
-        .validate(&module)
-        .unwrap();
+    // XXX: Compare with the ones we check in GpuContext cration
+    let capabilities =
+        wgpu::naga::valid::Capabilities::IMMEDIATES | wgpu::naga::valid::Capabilities::SUBGROUP;
+    let module_info =
+        wgpu::naga::valid::Validator::new(wgpu::naga::valid::ValidationFlags::all(), capabilities)
+            .validate(&module)
+            .unwrap();
 
-        // we have to do this because naga doesn't support transpiling overrides from wgsl to spir-v
-        let (module, module_info) = wgpu::naga::back::pipeline_constants::process_overrides(
-            &module,
-            &module_info,
-            None,
-            &constants.map(|(s, f)| (s.to_string(), f)).collect(),
-        )?;
+    // we have to do this because naga doesn't support transpiling overrides from wgsl to spir-v
+    let (module, module_info) = wgpu::naga::back::pipeline_constants::process_overrides(
+        &module,
+        &module_info,
+        None,
+        &constants.map(|(s, f)| (s.to_string(), f)).collect(),
+    )?;
 
-        let options = wgpu::naga::back::spv::Options::default();
-        let pipeline_options = wgpu::naga::back::spv::PipelineOptions {
-            entry_point: "main".to_string(),
-            shader_stage: wgpu::naga::ShaderStage::Compute,
-        };
+    let options = wgpu::naga::back::spv::Options::default();
+    let pipeline_options = wgpu::naga::back::spv::PipelineOptions {
+        entry_point: "main".to_string(),
+        shader_stage: wgpu::naga::ShaderStage::Compute,
+    };
 
-        let spv_words = wgpu::naga::back::spv::write_vec(
-            &module,
-            &module_info,
-            &options,
-            Some(&pipeline_options),
-        )
-        .unwrap();
-        let spirv = Some(spv_words.as_slice().into());
+    let spv_words =
+        wgpu::naga::back::spv::write_vec(&module, &module_info, &options, Some(&pipeline_options))
+            .unwrap();
+    let spirv = Some(spv_words.as_slice().into());
 
-        let workgroup_size = (workgroup_size.get(), 1, 1);
+    let workgroup_size = (workgroup_size.get(), 1, 1);
 
-        // This is what this is all about
-        let subgroup_size = wgpu::SubgroupSize::Fixed(subgroup_size.get());
+    // This is what this is all about
+    let subgroup_size = wgpu::SubgroupSize::Fixed(subgroup_size.get());
 
-        let entry_points = vec![wgpu::PassthroughShaderEntryPoint {
-            name: "main".into(),
-            workgroup_size,
-            subgroup_size,
-        }]
-        .into();
-        let module_descriptor = wgpu::ShaderModuleDescriptorPassthrough {
-            label,
-            entry_points,
-            spirv,
-            ..Default::default()
-        };
-        let module = unsafe {
-            context
-                .device()
-                .create_shader_module_passthrough(module_descriptor)
-        };
-
-        Ok(context
+    let entry_points = vec![wgpu::PassthroughShaderEntryPoint {
+        name: "main".into(),
+        workgroup_size,
+        subgroup_size,
+    }]
+    .into();
+    let module_descriptor = wgpu::ShaderModuleDescriptorPassthrough {
+        label,
+        entry_points,
+        spirv,
+        ..Default::default()
+    };
+    let module = unsafe {
+        context
             .device()
-            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label,
-                layout,
-                module: &module,
-                entry_point: Some("main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            }))
-    }
+            .create_shader_module_passthrough(module_descriptor)
+    };
+
+    Ok(context
+        .device()
+        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label,
+            layout,
+            module: &module,
+            entry_point: Some("main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        }))
 }
