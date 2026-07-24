@@ -10,6 +10,7 @@ use pyo3::prelude::*;
 use serde_json::to_string;
 
 mod shim;
+mod tests;
 pub use shim::*;
 
 mod hot_reloadable;

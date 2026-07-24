@@ -25,6 +25,7 @@ build-info.workspace = true
 
 squishy_volumes_api.path = "../api"
 squishy_volumes_hot.path = "../hot"
+squishy_volumes_file_util.path = "../file_util"
 
 [dependencies.pyo3]
 version = "0.29.0"
