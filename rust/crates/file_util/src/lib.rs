@@ -30,7 +30,7 @@ pub const DATA_OFFSET: usize = MAGIC_LEN + VERSION_LEN;
 
 build_info::build_info!(fn build_info);
 
-fn version_string() -> String {
+pub fn version_string() -> String {
     build_info().crate_info.version.to_string()
 }
 
