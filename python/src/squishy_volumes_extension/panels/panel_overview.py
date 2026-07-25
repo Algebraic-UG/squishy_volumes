@@ -138,8 +138,6 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        sim_obj.squishy_volumes.has_loaded_frame = False  # ty:ignore[unresolved-attribute]
-
         sim_handle = SimulationHandle.load(
             uuid=self.uuid,
             directory=sim_obj.squishy_volumes.directory,  # ty:ignore[unresolved-attribute]
@@ -169,7 +167,6 @@ This is useful when reloading a Blender file with multiple simulations."""
             if os.path.exists(lock_file):
                 os.remove(lock_file)
                 self.report({"INFO"}, "Removed lock file.")
-            sim_props.has_loaded_frame = False
 
             sim_handle = SimulationHandle.load(
                 uuid=sim_props.uuid, directory=sim_props.directory

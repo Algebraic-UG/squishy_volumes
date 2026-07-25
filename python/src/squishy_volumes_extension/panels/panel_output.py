@@ -405,9 +405,9 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         self.layout.prop(sim_props, "display_start_frame")
 
         col = self.layout.column()
-        if sim_props.has_loaded_frame:
-            col.enabled = False
-            col.prop(sim_props, "loaded_frame")
+        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+        if sim_handle is not None and sim_handle.loaded_frame is not None:
+            col.label(text=f"Loaded Frame: {sim_handle.loaded_frame}")
         else:
             col.label(text="No frame loaded")
 

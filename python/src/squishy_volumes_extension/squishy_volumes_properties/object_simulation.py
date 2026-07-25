@@ -248,14 +248,6 @@ TODO: Not yet available on GPU""",
         default=True,
         options=set(),
     )  # type: ignore
-    has_loaded_frame: bpy.props.BoolProperty(default=False)  # type: ignore
-    loaded_frame: bpy.props.IntProperty(
-        name="Loaded Simulation Frame",
-        description="""The index of the currently displayed simulation frame.
-Baking can restart from it.""",
-        default=-1,
-        options=set(),
-    )  # type: ignore
     bake_frames: bpy.props.IntProperty(
         name="Bake Frames",
         description="""The number of frames that should be baked.
