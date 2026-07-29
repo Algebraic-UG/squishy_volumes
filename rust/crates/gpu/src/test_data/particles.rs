@@ -55,6 +55,31 @@ pub fn test_position_gradients_random(n: usize) -> Vec<Matrix3<f32>> {
     tmp
 }
 
+pub fn test_velocity_gradients_random(n: usize) -> Vec<Matrix4x3<f32>> {
+    use rand::prelude::*;
+    use rand::rngs::ChaCha8Rng;
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+
+    (0..n)
+        .map(|_| {
+            stack![
+                Matrix3::new(
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                    rng.random_range(-1.0..1.),
+                );
+                Matrix1x3::zeros()
+            ]
+        })
+        .collect()
+}
+
 pub fn test_lame_parameters<T: rand::Rng>(
     rng: &mut T,
 ) -> impl Iterator<Item = ParticleParameters> + use<'_, T> {
@@ -147,25 +172,7 @@ impl TestParticles {
                 )
             })
             .collect::<Vec<_>>();
-        #[allow(clippy::toplevel_ref_arg)]
-        let particle_velocity_gradients = (0..num_particles)
-            .map(|_| {
-                stack![
-                    Matrix3::new(
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                        rng.random_range(-1.0..1.),
-                    );
-                    Matrix1x3::zeros()
-                ]
-            })
-            .collect::<Vec<_>>();
+        let particle_velocity_gradients = test_velocity_gradients_random(num_particles);
 
         Self {
             particle_flags,

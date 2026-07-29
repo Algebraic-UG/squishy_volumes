@@ -690,3 +690,7 @@ pub fn test_lame_parameters() -> impl Iterator<Item = [T; 2]> + Clone {
 pub fn test_inviscid_parameters() -> impl Iterator<Item = (T, i32)> + Clone {
     [(100., 2), (1000., 2), (100., 7), (1000., 7)].into_iter()
 }
+
+pub fn test_viscosity_parameters() -> impl Iterator<Item = [T; 2]> + Clone {
+    (0..8).flat_map(|i| (0..8).map(move |j| [i as T, j as T]))
+}

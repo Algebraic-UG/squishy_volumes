@@ -71,6 +71,7 @@ pub mod scatter;
 pub mod step;
 pub mod test_status;
 pub mod test_svd;
+pub mod viscosity;
 
 pub use animate_mesh::AnimateMesh;
 pub use bits_to_pops::BitsToPops;
@@ -96,6 +97,7 @@ pub use scatter::Scatter;
 pub use step::Step;
 pub use test_status::TestStatus;
 pub use test_svd::TestSvd;
+pub use viscosity::Viscosity;
 
 #[cfg(test)]
 mod test_util;
