@@ -101,6 +101,7 @@ class SimulationHandle:
         self.handle = handle
         self.last_error = None
         self.progress = None
+        self.loaded_frame = None
 
     @staticmethod
     def exists(*, uuid: str) -> bool:
@@ -167,19 +168,23 @@ class SimulationHandle:
     def fetch_flat_attribute_f32(
         self, *, frame: int, attribute: dict[str, Any]
     ) -> numpy.ndarray:
-        return self.handle.fetch_flat_attribute_f32(
+        data= self.handle.fetch_flat_attribute_f32(
             frame=frame,
             attribute=json.dumps(attribute),
         )
+        self.loaded_frame = frame
+        return data
 
     @hint_at_info
     def fetch_flat_attribute_i32(
         self, *, frame: int, attribute: dict[str, Any]
     ) -> numpy.ndarray:
-        return self.handle.fetch_flat_attribute_i32(
+        data = self.handle.fetch_flat_attribute_i32(
             frame=frame,
             attribute=json.dumps(attribute),
         )
+        self.loaded_frame = frame
+        return data
 
     @hint_at_info
     def stats(self) -> dict[str, Any]:

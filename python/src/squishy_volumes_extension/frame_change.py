@@ -61,16 +61,9 @@ def sync_simulation(
     sim_handle: SimulationHandle,
     frame: int,
 ):
-    sim_props.has_loaded_frame = False  # ty:ignore[unresolved-attribute]
-
     frame = frame_to_load(sim_props, frame)  # ty:ignore[invalid-assignment]
     if frame is None:
         return
-
-    sim_props.has_loaded_frame = True  # ty:ignore[unresolved-attribute]
-    sim_props.loaded_frame = frame  # ty:ignore[unresolved-attribute]
-
-    input_header = sim_handle.input_header()
 
     desynced_objs = []
     for output_obj in get_output_objects_with_uuid(sim_props.uuid):

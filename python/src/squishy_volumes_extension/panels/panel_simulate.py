@@ -71,7 +71,6 @@ Note that this also discards all computed frames in the cache."""
         assert context.scene is not None
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
-        sim_props.has_loaded_frame = False
 
         self.report({"INFO"}, f"Resetting {sim_obj.name}")
 
@@ -304,13 +303,14 @@ come after the displayed one."""
         if sim_obj is None:
             return False
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
-        if sim_obj is None or not sim_props.has_loaded_frame:
+        if sim_obj is None:
             return False
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         return (
             sim_handle is not None
             and not sim_handle.computing()
-            and sim_props.loaded_frame + 1 < sim_props.bake_frames
+            and sim_handle.loaded_frame is not None
+            and sim_handle.loaded_frame + 1 < sim_props.bake_frames
         )
 
     def execute(self, context):
@@ -318,10 +318,11 @@ come after the displayed one."""
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         assert sim_handle is not None
+        assert sim_handle.loaded_frame is not None
         _start_compute(
             sim_handle=sim_handle,
             sim_props=sim_props,
-            next_frame=sim_props.loaded_frame + 1,
+            next_frame=sim_handle.loaded_frame + 1,
             number_of_frames=sim_props.bake_frames,
         )
         self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
@@ -426,12 +427,12 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
             icon="PHYSICS",
         ).uuid = sim_props.uuid
         if (
-            sim_props.has_loaded_frame
-            and sim_props.loaded_frame + 1 != sim_handle.available_frames()
+            sim_handle.loaded_frame is not None
+            and sim_handle.loaded_frame + 1 != sim_handle.available_frames()
         ):
             row.operator(
                 SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded.bl_idname,
-                text=f"Rebake from #{sim_props.loaded_frame}",
+                text=f"Rebake from #{sim_handle.loaded_frame}",
                 icon="PHYSICS",
             ).uuid = sim_props.uuid
 

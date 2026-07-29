@@ -83,7 +83,7 @@ def update_progress():
         else:
             add_or_update_marker(f"{sim_obj.name} Bake Latest & End", end_frame)
 
-        if sim_props.loaded_frame != frame_to_load(
+        if sim_handle.loaded_frame != frame_to_load(
             sim_props,
             bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
         ):
