@@ -1,4 +1,9 @@
-# [0.3.1] - 2026-07-25
+# [0.3.2] - 2026-07-29
 
-This release patches a bug that caused the progress update loop to break.
-In that case, the simulation output is still synced on frame change, but not otherwise.
+The most prominent change is that Blender 5.2 is now supported!
+
+## Feature
+- Adapted to the Blender 5.2 modifier API change
+
+## Fixed
+- GPU now takes viscosity into account
