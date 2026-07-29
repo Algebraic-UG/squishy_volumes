@@ -16,12 +16,23 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import bpy
+
 
 def add_drivers(sim_obj, modifier):
     tree = modifier.node_group.interface.items_tree
     if "Grid Node Size" in tree:
         identifier = tree["Grid Node Size"].identifier
-        driver = modifier.driver_add(f'["{identifier}"]').driver
+
+        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
+            driver = modifier.driver_add(f'["{identifier}"]').driver
+        else:
+            driver = (
+                getattr(modifier.properties.inputs, identifier)
+                .driver_add("value")
+                .driver
+            )
+
         driver.expression = "grid_node_size"
         var = driver.variables.new()
         var.name = "grid_node_size"

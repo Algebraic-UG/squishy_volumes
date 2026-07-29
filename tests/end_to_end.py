@@ -112,8 +112,12 @@ if __name__ == "__main__":
 
     bpy.ops.scene.squishy_volumes_add_input_objects()  # ty:ignore[unresolved-attribute]
 
-    sphere.modifiers["Squishy Volumes Input"]["Socket_8"] = 3
-    sphere.modifiers["Squishy Volumes Input"].node_group.interface_update(bpy.context)
+    if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
+        sphere.modifiers["Squishy Volumes Input"]["Socket_8"] = 3
+    else:
+        sphere.modifiers["Squishy Volumes Input"].properties.inputs.Socket_8.value = 3  # ty:ignore[unresolved-attribute]
+
+    sphere.modifiers["Squishy Volumes Input"].node_group.interface_update(bpy.context)  # ty:ignore[unresolved-attribute]
 
     bpy.ops.scene.squishy_volumes_write_input_to_cache(blocking=True)  # ty:ignore[unresolved-attribute]
 
