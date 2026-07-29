@@ -64,8 +64,15 @@ def create_default_visualization(sim_obj, output_obj):
         modifier.node_group = create_geometry_nodes_grid()
     if output_props.output_type == PARTICLES:
         modifier.node_group = create_geometry_nodes_particles()
-        modifier["Socket_9"] = create_material_display_uvw()
-        modifier["Socket_12"] = bpy.data.objects.get(output_props.input_name)
+        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
+            modifier["Socket_9"] = create_material_display_uvw()
+            modifier["Socket_12"] = bpy.data.objects.get(output_props.input_name)
+        else:
+            modifier.properties.inputs.Socket_9.value = create_material_display_uvw()
+            modifier.properties.inputs.Socket_12.value = bpy.data.objects.get(
+                output_props.input_name
+            )
+
     add_drivers(sim_obj, modifier)
 
 

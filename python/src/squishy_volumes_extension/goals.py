@@ -60,8 +60,12 @@ and forces particles to move towards them."""
 
         move.parent = choose
 
-        modifier["Socket_2"] = choose
-        modifier["Socket_3"] = move
+        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
+            modifier["Socket_2"] = choose
+            modifier["Socket_3"] = move
+        else:
+            modifier.properties.inputs.Socket_2.value = choose  # ty:ignore[unresolved-attribute]
+            modifier.properties.inputs.Socket_3.value = move  # ty:ignore[unresolved-attribute]
 
         obj.update_tag()
         context.view_layer.update()

@@ -78,7 +78,11 @@ This modifier deletes vertices that are outside of the cuboid."""
 
         modifier = obj.modifiers.new("Squishy Volumes Restrict View", type="NODES")
         modifier.node_group = create_geometry_nodes_restrict_view()
-        modifier["Socket_2"] = empty
+
+        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
+            modifier["Socket_2"] = empty
+        else:
+            modifier.properties.inputs.Socket_2.value = empty
 
         obj.modifiers.move(len(obj.modifiers) - 1, 0)
 
