@@ -1,3 +1,5 @@
+<center><img src="logo_with_text.svg" alt="The Squishy Volumes logo"></center>
+
 # Squishy Volumes
 
 The Material Point Method (MPM) in Blender!
