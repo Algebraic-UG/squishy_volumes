@@ -200,6 +200,7 @@ class SimulationHandle:
     def drop_all():
         for simulation in _simulations.values():
             simulation.handle.drop()
+        _simulations.clear()
 
 
 # simulation objects can be deleted through uncontrolled means, for example, undo
