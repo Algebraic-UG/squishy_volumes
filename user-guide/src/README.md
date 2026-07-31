@@ -4,7 +4,7 @@
 
 This is the official Squishy Volumes 0.3.2 user guide.
 
-You're likely looking for [Getting Started](./getting_started/index.html).
+You are likely looking for [Getting Started](./getting_started/index.html).
 
 ## What is Squishy Volumes?
 
@@ -13,18 +13,16 @@ Squishy Volumes is an [open source](https://github.com/Algebraic-UG/squishy_volu
 > [!IMPORTANT]
 > The Squishy Volumes extension currently requires Blender 5.0, 5.1, or 5.2.
 
-Squishy Volumes is not implemented in Blender's [Geometry Nodes](https://docs.blender.org/manual/en/latest/modeling/geometry_nodes/index.html). It is written in a combination of [Python](https://www.python.org/) for the Blender integration, [Rust](https://rust-lang.org/) for the core logic, and [WGSL](https://www.w3.org/TR/WGSL/) for the compute shaders.
-
-Geometry Nodes are used for customizable input generation and output visualization.
-
-<u>Squishy Volumes is GPU-accelerated!</u>
+Squishy Volumes is physically based and allows for realistic simulations of a wide range of materials.
+It is written in a combination of [Python](https://www.python.org/) for the Blender integration, [Rust](https://rust-lang.org/) for the core logic, and [WGSL](https://www.w3.org/TR/WGSL/) for the compute shaders.
+Squishy Volumes utilizes [Geometry Nodes](https://docs.blender.org/manual/en/latest/modeling/geometry_nodes/index.html) for customizable input generation and output visualization.
 
 You can run Squishy Volumes on:
 - Linux
 - Windows
-- MacOS
+- macOS
 
-And all major GPUs are supported:
+Squishy Volumes can use your GPU! It runs <u>significantly faster</u> compared to the CPU, and all major GPU vendors are supported:
 - NVIDIA
 - AMD
 - Apple Silicon
