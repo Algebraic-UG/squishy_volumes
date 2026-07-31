@@ -1,0 +1,7 @@
+[book]
+title = "Squishy Volumes User Guide"
+authors = ["Vollkornaffe"]
+language = "en"
+
+[output.html]
+additional-js = ["outlined.js"]
