@@ -168,7 +168,7 @@ class SimulationHandle:
     def fetch_flat_attribute_f32(
         self, *, frame: int, attribute: dict[str, Any]
     ) -> numpy.ndarray:
-        data= self.handle.fetch_flat_attribute_f32(
+        data = self.handle.fetch_flat_attribute_f32(
             frame=frame,
             attribute=json.dumps(attribute),
         )
