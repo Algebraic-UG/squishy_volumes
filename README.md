@@ -4,8 +4,7 @@ The Material Point Method (MPM) in Blender!
 
 Here you can download ready-to-use releases, report bugs, and get the source code.
 
-Works in Blender 5.0 and 5.1.
-(5.2 support coming soon)
+Works in Blender 5.0, 5.1., and 5.2.
 
 ## Where to Get the Extension
 
@@ -16,25 +15,7 @@ You can either
 
 ## How to Use the Extension
 
-### Install in Blender
-
-Either drag & drop the extension ZIP file directly into Blender and enable it via the pop-up dialog.
-
-Or from within Blender, click through these:
-
-Edit -> Preferences -> Add-ons -> Top right arrow down (drop-down) -> Install from Disk -> select ZIP.
-
-### Create Your First Simulation
-
-TODO: Textual User Guide
-
-TODO: Link Tutorial Video
-
-### All the Features
-
-TODO: Link to Book
-
-TODO: Link Video Series
+Please refer to the [Squishy Volumes User Guide](https://squishy-volumes-docs.algebraic.games/index.html).
 
 ## Licensing
 
