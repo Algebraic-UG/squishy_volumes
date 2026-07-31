@@ -67,6 +67,9 @@ def sync_simulation(
 
     desynced_objs = []
     for output_obj in get_output_objects_with_uuid(sim_props.uuid):
+        if output_obj.mode == "EDIT":
+            print(f"Skipping sync for object in edit mode: {output_obj.name}")
+            continue
         try:
             sync_output(sim_handle, output_obj, frame)
         except RuntimeError as e:
