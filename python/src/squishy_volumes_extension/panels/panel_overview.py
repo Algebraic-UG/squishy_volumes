@@ -85,7 +85,7 @@ The UI will be blocked for a few seconds.""",
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self, width=500)
+        return context.window_manager.invoke_props_dialog(self, width=400)
 
 
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
