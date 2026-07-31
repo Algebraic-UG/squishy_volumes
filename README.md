@@ -15,25 +15,7 @@ You can either
 
 ## How to Use the Extension
 
-### Install in Blender
-
-Either drag & drop the extension ZIP file directly into Blender and enable it via the pop-up dialog.
-
-Or from within Blender, click through these:
-
-Edit -> Preferences -> Add-ons -> Top right arrow down (drop-down) -> Install from Disk -> select ZIP.
-
-### Create Your First Simulation
-
-TODO: Textual User Guide
-
-TODO: Link Tutorial Video
-
-### All the Features
-
-TODO: Link to Book
-
-TODO: Link Video Series
+Please refer to the [Squishy Volumes User Guide](https://squishy-volumes-docs.algebraic.games/index.html).
 
 ## Licensing
 
