@@ -22,14 +22,27 @@ pub enum GpuShaderError {
     TableEntryMissing { reporting_shader: &'static str },
     #[error("{reporting_shader} exceeded indirect limit")]
     IndirectLimitExceeded { reporting_shader: &'static str },
+    #[error("{reporting_shader} found a particle too close to inversion.")]
+    ParticleCloseToInverted { reporting_shader: &'static str },
+    #[error("{reporting_shader} unknown error: {error}")]
+    UnknownError {
+        reporting_shader: &'static str,
+        error: u32,
+    },
 }
 
 const TABLE_TRIES_EXCEEDED: u32 = 1;
 const TABLE_ENTRY_MISSING: u32 = 2;
 const INDIRECT_LIMIT_EXCEEDED: u32 = 4;
+const PARTICLE_CLOSE_TO_INVERTED: u32 = 8;
 
 impl GpuStatus {
     pub fn to_result(&self, context: &GpuContext) -> Result<(), GpuError> {
+        let error = self.0 & 0xFFFF;
+        if error == 0 {
+            return Ok(());
+        }
+
         let shader_id = self.0 >> 16;
 
         let Some(reporting_shader) = context.get_shader_label(shader_id) else {
@@ -48,7 +61,18 @@ impl GpuStatus {
             Err(GpuShaderError::IndirectLimitExceeded { reporting_shader })?;
         }
 
-        Ok(())
+        if self.0 & INDIRECT_LIMIT_EXCEEDED != 0 {
+            Err(GpuShaderError::IndirectLimitExceeded { reporting_shader })?;
+        }
+
+        if self.0 & PARTICLE_CLOSE_TO_INVERTED != 0 {
+            Err(GpuShaderError::ParticleCloseToInverted { reporting_shader })?;
+        }
+
+        Err(GpuShaderError::UnknownError {
+            reporting_shader,
+            error,
+        })?
     }
 }
 

@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED};
 import super::sand::sand_plasticity;
 import super::fluid::fluid_plasticity;
 import super::viscosity::cauchy_stress_general_viscosity;
@@ -66,6 +66,11 @@ fn main(
     var position_gradient = position_gradients[global_index];
     let velocity = velocities[global_index];
     let velocity_gradient = velocity_gradients[global_index];
+
+    if determinant(position_gradient) < INVERSE_EPS {
+        atomicOr(&status, PARTICLE_CLOSE_TO_INVERTED);
+        return;
+    }
 
     var stress = mat3x3f();
     if (flag & IS_SOLID) > 0 {

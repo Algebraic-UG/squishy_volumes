@@ -311,6 +311,7 @@ fn first_piola_stress_inviscid(
 const F32_MAX: f32 = 3.4028234663852886e38f;
 const U32_MAX: u32 = ~0u;
 const NORMALIZATION_EPS: f32 = 1e-5;
+const INVERSE_EPS: f32 = 1e-3;
 
 struct Triangle {
     a: u32,
@@ -348,6 +349,7 @@ struct NodeIdAndColliderBits {
 const TABLE_TRIES_EXCEEDED: u32 = 1;
 const TABLE_ENTRY_MISSING: u32 = 2;
 const INDIRECT_LIMIT_EXCEEDED: u32 = 4;
+const PARTICLE_CLOSE_TO_INVERTED: u32 = 8;
 
 fn trace(m: mat3x3f) -> f32 {
     return m[0].x + m[1].y + m[2].z;
