@@ -10,9 +10,10 @@ use std::io::Write as _;
 
 #[derive(thiserror::Error, Debug)]
 pub enum DirectoryLockingError {
-    #[error("Failed to create dir '{directory}': {error:?}")]
+    #[error("Failed to create dir '{directory}'")]
     DirCreation {
         directory: std::path::PathBuf,
+        #[source]
         error: std::io::Error,
     },
     #[error(
@@ -24,7 +25,7 @@ or the lock is a remnant of a prior crash and you must delete it (sorry)."
     AlreadyLocked(std::path::PathBuf),
     #[error("The cache lock's UUID has changed from {was} to {is}.")]
     UuidChanged { was: String, is: String },
-    #[error("Unknown io error: {0}")]
+    #[error("Unknown io error")]
     IoError(#[from] std::io::Error),
 }
 

@@ -10,22 +10,23 @@ use crate::initialization::StateInitializationError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("Gpu error: {0}")]
+    #[error("Gpu error")]
     GpuError(#[from] squishy_volumes_gpu::GpuError),
 
-    #[error("Harness error: {0}")]
+    #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("Frame input error: {0}")]
+    #[error("Frame input error")]
     FrameInputError(#[from] squishy_volumes_xpu::FrameInputError),
 
-    #[error("Cpu compute error: {0}")]
+    #[error("Cpu compute error")]
     CpuCompute(#[from] squishy_volumes_cpu::Error),
 
-    #[error("'{object_name}': Failed to interpret input bulk '{attribute}': {error}")]
+    #[error("'{object_name}': Failed to interpret input bulk '{attribute}'")]
     InputBulkError {
         object_name: String,
         attribute: String,
+        #[source]
         error: crate::InputBulkError,
     },
 
@@ -36,55 +37,55 @@ pub enum Error {
     MissingInput,
     #[error("No frame has started for recording")]
     NoFrameStarted,
-    #[error("Failed to lock directory: {0}")]
+    #[error("Failed to lock directory")]
     DirectoryLockingError(#[from] squishy_volumes_directory_lock::DirectoryLockingError),
 
-    #[error("Failed to start input recording: {0}")]
-    StartInputWriting(squishy_volumes_file_input::InputError),
-    #[error("Failed to record frame: {0}")]
-    RecordFrame(squishy_volumes_file_input::InputError),
-    #[error("Failed to finalize input: {0}")]
-    FinalizingInput(squishy_volumes_file_input::InputError),
-    #[error("Failed to query size: {0}")]
-    QuerySize(squishy_volumes_file_input::InputError),
-    #[error("Failed to start input reading: {0}")]
-    StartInputReading(squishy_volumes_file_input::InputError),
-    #[error("Failed to read input header: {0}")]
-    ReadHeader(squishy_volumes_file_input::InputError),
+    #[error("Failed to start input recording")]
+    StartInputWriting(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to record frame")]
+    RecordFrame(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to finalize input")]
+    FinalizingInput(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to query size")]
+    QuerySize(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to start input reading")]
+    StartInputReading(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to read input header")]
+    ReadHeader(#[source] squishy_volumes_file_input::InputError),
 
-    #[error("Failed to encode input header: {0}")]
-    EncodingInputHeader(serde_json::Error),
-    #[error("Failed to encode poll report: {0}")]
-    EncodingReport(serde_json::Error),
-    #[error("Failed to encode attribute: {0}")]
-    EncodingAttribute(serde_json::Error),
-    #[error("Failed to encode stats: {0}")]
-    EncodingStats(serde_json::Error),
+    #[error("Failed to encode input header")]
+    EncodingInputHeader(#[source] serde_json::Error),
+    #[error("Failed to encode poll report")]
+    EncodingReport(#[source] serde_json::Error),
+    #[error("Failed to encode attribute")]
+    EncodingAttribute(#[source] serde_json::Error),
+    #[error("Failed to encode stats")]
+    EncodingStats(#[source] serde_json::Error),
 
-    #[error("Cache creation failed: {0}")]
-    CacheCreation(squishy_volumes_cache::CacheError),
-    #[error("Cache check failed: {0}")]
-    CacheCheck(squishy_volumes_cache::CacheError),
-    #[error("Failed to fetch frame: {0}")]
-    CacheFetch(squishy_volumes_cache::CacheReadingError),
-    #[error("Failed to fetch node count: {0}")]
-    CacheNodeCount(squishy_volumes_cache::CacheError),
-    #[error("Failed to drop frame: {0}")]
-    CacheDropFrames(squishy_volumes_cache::CacheError),
+    #[error("Cache creation failed")]
+    CacheCreation(#[source] squishy_volumes_cache::CacheError),
+    #[error("Cache check failed")]
+    CacheCheck(#[source] squishy_volumes_cache::CacheError),
+    #[error("Failed to fetch frame")]
+    CacheFetch(#[source] squishy_volumes_cache::CacheReadingError),
+    #[error("Failed to fetch node count")]
+    CacheNodeCount(#[source] squishy_volumes_cache::CacheError),
+    #[error("Failed to drop frame")]
+    CacheDropFrames(#[source] squishy_volumes_cache::CacheError),
 
-    #[error("Failed to fetch attribute: {0}")]
+    #[error("Failed to fetch attribute")]
     AttributeError(#[from] crate::attributes::AttributeError),
 
-    #[error("Failed to parse input header: {0}")]
-    ParsingInputHeader(serde_json::Error),
-    #[error("Failed to parse frame start: {0}")]
-    ParsingFrameStart(serde_json::Error),
-    #[error("Failed to parse bulk meta: {0}")]
-    ParsingBulkMeta(serde_json::Error),
-    #[error("Failed to parse compute settings: {0}")]
-    ParsingComputeSettings(serde_json::Error),
-    #[error("Failed to parse attribute: {0}")]
-    ParseAttribute(serde_json::Error),
+    #[error("Failed to parse input header")]
+    ParsingInputHeader(#[source] serde_json::Error),
+    #[error("Failed to parse frame start")]
+    ParsingFrameStart(#[source] serde_json::Error),
+    #[error("Failed to parse bulk meta")]
+    ParsingBulkMeta(#[source] serde_json::Error),
+    #[error("Failed to parse compute settings")]
+    ParsingComputeSettings(#[source] serde_json::Error),
+    #[error("Failed to parse attribute")]
+    ParseAttribute(#[source] serde_json::Error),
 
     #[error("The allowed disk space of {0} bytes was exceeded while recording inputs.")]
     DiskSpaceExceededWhileRecording(u64),
@@ -94,8 +95,8 @@ pub enum Error {
 
     #[error("Failed to create initial state")]
     InitializationError(#[from] StateInitializationError),
-    #[error("Failed to store frame: {0}")]
-    StoreError(squishy_volumes_cache::CacheError),
+    #[error("Failed to store frame")]
+    StoreError(#[source] squishy_volumes_cache::CacheError),
 
     #[error("Something went really wrong and the compute thread paniced: {0}")]
     ComputePanic(String),

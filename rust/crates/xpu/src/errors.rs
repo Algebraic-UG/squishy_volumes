@@ -25,6 +25,6 @@ pub enum Error {
         multiple: usize,
     },
 
-    #[error("Something went wrong with the compute harness: {0}")]
+    #[error("Something went wrong with the compute harness")]
     HarnessError(#[from] super::HarnessError),
 }

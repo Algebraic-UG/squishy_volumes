@@ -16,7 +16,7 @@ use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Error, Debug)]
 pub enum AttributeError {
-    #[error("Object error: {0}")]
+    #[error("Object error")]
     ObjectError(#[from] ObjectError),
     #[error("This is not a float attribute: {0}")]
     NotFloatAttribute(String),

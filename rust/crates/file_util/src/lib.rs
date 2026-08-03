@@ -43,19 +43,19 @@ fn version_bytes() -> [u8; VERSION_LEN] {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Failed to write magic bytes: {0}")]
-    WriteMagic(std::io::Error),
-    #[error("Failed to write version bytes: {0}")]
-    WriteVersion(std::io::Error),
-    #[error("Failed to read magic bytes: {0}")]
-    ReadMagic(std::io::Error),
+    #[error("Failed to write magic bytes")]
+    WriteMagic(#[source] std::io::Error),
+    #[error("Failed to write version bytes")]
+    WriteVersion(#[source] std::io::Error),
+    #[error("Failed to read magic bytes")]
+    ReadMagic(#[source] std::io::Error),
     #[error("Magic bytes mismatch, found {found:?}, but expected {expected:?}")]
     MagicMismatch {
         found: [u8; MAGIC_LEN],
         expected: [u8; MAGIC_LEN],
     },
-    #[error("Failed to read version bytes: {0}")]
-    ReadVersion(std::io::Error),
+    #[error("Failed to read version bytes")]
+    ReadVersion(#[source] std::io::Error),
     #[error("Version mismatch, found {found}, but expected {expected}")]
     VersionMismatch { found: String, expected: String },
 }

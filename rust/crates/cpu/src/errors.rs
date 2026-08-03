@@ -11,7 +11,7 @@ pub enum Error {
     #[error("The computation was canceled")]
     Canceled,
 
-    #[error("Something went wron accessing frame input: {0}")]
+    #[error("Something went wron accessing frame input")]
     FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
 
     #[error("Failed to cast a vector")]
@@ -23,7 +23,7 @@ pub enum Error {
     #[error("The time step ended up being 0")]
     ZeroTimeStep,
 
-    #[error("Something went wrong with the harness: {0}")]
+    #[error("Something went wrong with the harness")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error("The grid is missing is the serialization")]
@@ -31,6 +31,6 @@ pub enum Error {
     #[error("The grid node is missing is the serialization")]
     GridNodeMissing,
 
-    #[error("Failed to compute the elastic energy of a particle: {0}")]
+    #[error("Failed to compute the elastic energy of a particle")]
     EnergyError(#[from] squishy_volumes_util::EnergyError),
 }
