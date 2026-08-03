@@ -38,7 +38,7 @@ pub enum ProfilerError {
     #[error("Recorded {steps} steps, but the labels aren't a multiple of that {labels:?}")]
     NotMultipleOfRecordedSteps { steps: usize, labels: Vec<String> },
 
-    #[error("IoError: {0}")]
+    #[error("IoError")]
     IoError(#[from] io::Error),
 }
 

@@ -18,7 +18,7 @@ use squishy_volumes_util::{bulk_modulus_in_bounds, exponent_in_bounds, lambda, m
 
 #[derive(Error, Debug)]
 pub enum StateInitializationError {
-    #[error("Harness error: {0}")]
+    #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error("The object is missing in the header: {0}")]
@@ -26,10 +26,11 @@ pub enum StateInitializationError {
     #[error("The object's type doesn't match the one in the header: {0}")]
     ObjectTypeMismatch(String),
 
-    #[error("'{name}': input particle #{particle_index} invalid: {error}")]
+    #[error("'{name}': input particle #{particle_index} invalid")]
     ParticleInvalid {
         name: String,
         particle_index: usize,
+        #[source]
         error: ParticleInvalid,
     },
     #[error("Expected {expected} values for {name}, but found {actual}")]
@@ -39,7 +40,7 @@ pub enum StateInitializationError {
         expected: usize,
     },
 
-    #[error("Failed to read input for state initialization: {0}")]
+    #[error("Failed to read input for state initialization")]
     InpuError(#[from] squishy_volumes_file_input::InputError),
 
     #[error("'{name}': missing input for {attribute}")]
@@ -60,7 +61,7 @@ pub enum ParticleInvalid {
     #[error("The particle solid or fluid flag must be set, but not both")]
     SolidXorFluid,
 
-    #[error("Energy error: {0}")]
+    #[error("Energy error")]
     EnergyError(#[from] squishy_volumes_util::EnergyError),
 }
 

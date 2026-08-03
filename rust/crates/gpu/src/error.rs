@@ -26,34 +26,35 @@ pub enum GpuError {
         available: Vec<String>,
     },
 
-    #[error("Failed to map {label}: {error}")]
+    #[error("Failed to map {label}")]
     MapRangeError {
         label: &'static str,
+        #[source]
         error: wgpu::MapRangeError,
     },
 
     #[error("Exceeding the theorical maximum of grid nodes, most likely encountered a bug.")]
     MaxGridNodesExceeded,
 
-    #[error("Failed to create GPU pipeline: {0}")]
+    #[error("Failed to create GPU pipeline")]
     PipelineCreation(#[from] GpuPipelineCreationError),
 
-    #[error("Csv profiling failed: {0}")]
+    #[error("Csv profiling failed")]
     CsvProfilerError(#[from] ProfilerError),
 
-    #[error("Poll error: {0}")]
+    #[error("Poll error")]
     PollError(#[from] wgpu::PollError),
 
-    #[error("Harness error: {0}")]
+    #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("Frame input error: {0}")]
+    #[error("Frame input error")]
     FrameInputError(#[from] squishy_volumes_xpu::FrameInputError),
 
     #[error("No particle input")]
     NoParticles,
 
-    #[error("Failed to request the adapter: {0}")]
+    #[error("Failed to request the adapter")]
     RequestAdapterError(#[from] wgpu::RequestAdapterError),
 
     #[error("We can not deal with variable subgroup size yet.")]
@@ -74,10 +75,10 @@ pub enum GpuError {
     #[error("Exceeding adapter's limits: {0:?}")]
     ExceedingRequiredLimits(Vec<ExceedingLimit>),
 
-    #[error("Failed to request the device: {0}")]
+    #[error("Failed to request the device")]
     RequestDeviceError(#[from] wgpu::RequestDeviceError),
 
-    #[error("Failed to allocate a binding: {0}")]
+    #[error("Failed to allocate a binding")]
     AllocationError(#[from] GpuAllocatorError),
 
     #[error("Allocator is missing")]
@@ -86,16 +87,16 @@ pub enum GpuError {
     #[error("Indirect allocator is missing")]
     IndirectAllocatorMissing,
 
-    #[error("Something went wrong with creating the profiler: {0}")]
+    #[error("Something went wrong with creating the profiler")]
     ProfilerError(#[from] wgpu_profiler::CreationError),
 
     #[error("There's no shader registered to {0}")]
     ShaderIdMissing(u32),
 
-    #[error("A shader reported errors: {0}")]
+    #[error("A shader reported errors")]
     Shader(#[from] GpuShaderError),
 
-    #[error("Input to the GPU wasn't valid: {0}")]
+    #[error("Input to the GPU wasn't valid")]
     Input(#[from] GpuInputError),
 }
 
@@ -128,7 +129,7 @@ pub enum GpuPipelineCreationError {
         needed: u32,
     },
 
-    #[error("Failed to set pipeline constants: {0}")]
+    #[error("Failed to set pipeline constants")]
     PipelineConstantError(#[from] wgpu::naga::back::pipeline_constants::PipelineConstantError),
 
     #[error("Duplicate constant: {0}")]

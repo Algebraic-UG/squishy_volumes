@@ -12,17 +12,18 @@ use thiserror::Error;
 pub enum InputError {
     #[error("Requested frame {requested} but there are only {available}")]
     FrameNotAvailable { requested: usize, available: usize },
-    #[error("Index offset mishap: {0:?}")]
+    #[error("Index offset mishap")]
     OffsetReading(#[from] InputOffsetReadingError),
     #[error("Unknown read/write error")]
     IoError(#[from] std::io::Error),
     #[error("Unknown bincode error")]
     BincodeError(#[from] bincode::Error),
-    #[error("A simple check failed: {0}")]
+    #[error("A simple check failed")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
-    #[error("Frame #{frame} verifcation failed: {error}")]
+    #[error("Frame #{frame} verifcation failed")]
     FrameVerifcationError {
         frame: usize,
+        #[source]
         error: FrameVerifcationError,
     },
     #[error("Too many different colliders.")]
@@ -52,7 +53,7 @@ pub enum FrameVerifcationError {
         "'{0}': Missing collider input, note that collider must be present in all input frames"
     )]
     ColliderInputMissing(String),
-    #[error("Object error: {0}")]
+    #[error("Object error")]
     ObjectError(#[from] ObjectError),
 }
 

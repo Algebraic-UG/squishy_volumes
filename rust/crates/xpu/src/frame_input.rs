@@ -13,7 +13,7 @@ pub enum FrameInputError {
     #[error("Wanted to interpolate from {frame_low}, but {frame} is loaded")]
     WrongFrameLoaded { frame_low: usize, frame: usize },
 
-    #[error("Failed to input from file: {0}")]
+    #[error("Failed to input from file")]
     InputError(#[from] squishy_volumes_file_input::InputError),
 
     #[error("'{name}': length mismatch between '{attribute_a}' and '{attribute_b}'")]
@@ -23,10 +23,10 @@ pub enum FrameInputError {
         attribute_b: String,
     },
 
-    #[error("Something is wrong with the mesh inputs: {0}")]
+    #[error("Something is wrong with the mesh inputs")]
     MeshError(#[from] squishy_volumes_mesh_util::Error),
 
-    #[error("Object error: {0}")]
+    #[error("Object error")]
     ObjectError(#[from] squishy_volumes_file_input::ObjectError),
 }
 

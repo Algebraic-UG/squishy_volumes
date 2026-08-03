@@ -20,10 +20,10 @@ pub enum InputBulkError {
     #[error("The flags had a different size before")]
     FlagsLengthChanged,
 
-    #[error("Failed to cast sclice: {0}")]
+    #[error("Failed to cast sclice")]
     CastSlice(#[from] bytemuck::PodCastError),
 
-    #[error("Input Error: {0}")]
+    #[error("Input Error")]
     InputError(#[from] squishy_volumes_file_input::InputError),
 }
 
