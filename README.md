@@ -2,6 +2,8 @@
 <img src="logo_with_text.svg" alt="The Squishy Volumes logo">
 </p>
 
+![Discord](https://img.shields.io/discord/1336035911766511687?logo=#5865F2)
+
 The Material Point Method (MPM) in Blender!
 
 Here you can download ready-to-use releases, report bugs, and get the source code.
