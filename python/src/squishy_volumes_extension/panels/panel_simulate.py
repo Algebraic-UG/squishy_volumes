@@ -32,7 +32,7 @@ from ..input_capture import create_input_header, capture_input_frame
 from ..get_preferences import get_confirm_bake_overwrite
 
 
-def _start_compute(
+def start_compute(
     sim_handle: SimulationHandle,
     sim_props: Squishy_Volumes_Properties_Simulation,
     next_frame: int,
@@ -122,7 +122,7 @@ Note that this also discards all computed frames in the cache."""
 
         sim_handle = SimulationHandle.new()
         if self.start_baking:
-            _start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
+            start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
             self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
 
         return {"FINISHED"}
@@ -234,7 +234,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         sim_handle = SimulationHandle.new()
 
         if self.start_baking:
-            _start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
+            start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
             self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
 
         return {"FINISHED"}
@@ -271,7 +271,7 @@ or cancellation occurs due to user input or error."""
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         assert sim_handle is not None
-        _start_compute(
+        start_compute(
             sim_handle=sim_handle,
             sim_props=sim_props,
             next_frame=sim_handle.available_frames(),
@@ -319,7 +319,7 @@ come after the displayed one."""
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         assert sim_handle is not None
         assert sim_handle.loaded_frame is not None
-        _start_compute(
+        start_compute(
             sim_handle=sim_handle,
             sim_props=sim_props,
             next_frame=sim_handle.loaded_frame + 1,
