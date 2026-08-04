@@ -39,6 +39,9 @@ from ..magic_consts import PARTICLES
 
 from ..util import simulation_locked
 
+from ..panels.panel_simulate import start_compute
+from ..bridge import SimulationHandle
+
 EXAMPLE_BENCHMARK = "Benchmark"
 
 
@@ -153,6 +156,8 @@ def setup_example_benchmark(context: bpy.types.Context):
         blocking=True,
         start_baking=False,
     )
+    sim_handle = SimulationHandle.get(uuid=sim_uuid)
+    assert sim_handle is not None
 
     for input_obj in get_input_objects_with_uuid(sim_uuid):
         if input_obj.squishy_volumes.input_type != INPUT_TYPE_PARTICLES:  # ty:ignore[unresolved-attribute]
@@ -177,6 +182,10 @@ def setup_example_benchmark(context: bpy.types.Context):
             particle_energies=False,
             particle_collider_bits=False,
         )
-    bpy.ops.scene.squishy_volumes_bake_start_from_latest(  # ty:ignore[unresolved-attribute]
-        "INVOKE_DEFAULT", uuid=sim_uuid
+
+    start_compute(
+        sim_handle=sim_handle,
+        sim_props=sim_props,
+        next_frame=sim_handle.available_frames(),
+        number_of_frames=sim_props.bake_frames,
     )
