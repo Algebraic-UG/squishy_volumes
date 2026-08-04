@@ -2,6 +2,20 @@
 <img src="logo_with_text.svg" alt="The Squishy Volumes logo">
 </p>
 
+<center>
+    <div class="row">
+        <img alt="GitHub Release" src="https://img.shields.io/github/v/release/Algebraic-UG/squishy_volumes">
+        <a href="https://discord.gg/P8mrnQEavf">
+        <img alt="Discord" src="https://img.shields.io/discord/1336035911766511687?logo=discord">
+        </a>
+        <a href="https://algebraicug.gumroad.com/l/squishy_volumes">
+        <img alt="Static Badge" src="https://img.shields.io/badge/Gumroad-%E2%9D%A4%EF%B8%8F-blue?logo=gumroad">
+        </a>
+    </div>
+</center>
+
+# Squishy Volumes
+
 The Material Point Method (MPM) in Blender!
 
 Here you can download ready-to-use releases, report bugs, and get the source code.
