@@ -25,7 +25,7 @@ from .nodes import create_geometry_nodes_generate_goal_positions
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_input_object_add_goals"
-    bl_label = "Add Goal Control Objects"
+    bl_label = "Squishy Volumes Add Goal Control Objects"
     bl_description = """This adds two objects and a modifier to control particles:
 A 'choose' and a 'move' object, and the 'set goals' modifier.
 
