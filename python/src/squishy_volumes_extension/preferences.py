@@ -30,7 +30,7 @@ To prevent accidental deletion a popup adds a manual confirmation step:
 'WARNING: This is a destructive operation!'
 
 Disable this option to skip that popup.""",
-        default=True,
+        default=False,
     )  # type: ignore
 
     domain_min: bpy.props.FloatVectorProperty(
