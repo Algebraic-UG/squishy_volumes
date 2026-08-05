@@ -28,7 +28,7 @@ import uuid
 from pathlib import Path
 
 
-from ..bridge import SimulationHandle
+from ..bridge import SimulationHandle, build_info
 from ..frame_change import sync_simulation
 from ..popup import popup
 from ..progress_update import cleanup_markers
@@ -258,7 +258,7 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
 
 
 class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
-    bl_label = "Overview"
+    bl_label = f"Overview  -  v{build_info()["wrapper"]["crate_info"]["version"]}"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
