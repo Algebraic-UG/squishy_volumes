@@ -44,7 +44,7 @@ from .nodes import (
     create_material_display_uvw,
     create_geometry_nodes_grid,
 )
-from .nodes.drivers import add_drivers
+from .drivers import add_drivers
 from .util import (
     fill_mesh_with_positions,
     fill_mesh_with_vertices_and_triangles,
