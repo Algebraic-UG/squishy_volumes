@@ -47,6 +47,7 @@ from .view_utils import register_view_utils, unregister_view_utils
 from .script_utils import register_script_utils, unregister_script_utils
 from .append_hander import register_append_handler, unregister_append_handler
 from .goals import register_goals, unregister_goals
+from .drivers import register_drivers, unregister_drivers
 
 
 bl_info = {
@@ -104,9 +105,11 @@ def register():
     register_script_utils()
     register_append_handler()
     register_prune_simulation_handles()
+    register_drivers()
 
 
 def unregister():
+    unregister_drivers()
     unregister_prune_simulation_handles()
     unregister_append_handler()
     unregister_script_utils()
