@@ -52,7 +52,7 @@ def add_drivers(sim_obj, modifier):
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers(bpy.types.Operator):
     bl_idname = "object.squishy_volumes_add_drivers"
-    bl_label = "Add Drivers"
+    bl_label = "Squishy Volumes Add Drivers"
     bl_description = """This adds drivers to the objects' modifiers' sockets.
 
 Only changes active input/output objects.
