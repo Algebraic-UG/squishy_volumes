@@ -33,6 +33,16 @@ class SquishyVolumesPreferences(bpy.types.AddonPreferences):
         options=set(),
     )  # type: ignore
 
+    sanity_check_allowed_disk_space: bpy.props.BoolProperty(
+        name="Sanity Check Max Diskspace",
+        description="""Enable/Disable the sanity check for allowed disk space.
+
+Each time a bake is started, the max allowed diskspace is compared to
+the currently free space on the disk where the cache is located.""",
+        default=True,
+        options=set(),
+    )  # type: ignore
+
     confirm_bake_overwrite: bpy.props.BoolProperty(
         name="Confirm Overwrite",
         description="""Each time the simulation input is (over)written, old frames are discarded.
@@ -69,6 +79,7 @@ This is most likely only relevant to developers of other extensions.""",
 
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "default_cache_location")
+        self.layout.prop(self, "sanity_check_allowed_disk_space")
         self.layout.prop(self, "confirm_bake_overwrite")
         self.layout.prop(self, "domain_min")
         self.layout.prop(self, "domain_max")

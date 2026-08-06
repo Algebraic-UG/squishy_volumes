@@ -26,6 +26,12 @@ def get_default_cache_location() -> str:
     ).preferences.default_cache_location
 
 
+def get_sanity_check_allowed_disk_space() -> bool:
+    return bpy.context.preferences.addons.get(
+        __package__
+    ).preferences.sanity_check_allowed_disk_space
+
+
 def get_confirm_bake_overwrite() -> bool:
     return bpy.context.preferences.addons.get(
         __package__

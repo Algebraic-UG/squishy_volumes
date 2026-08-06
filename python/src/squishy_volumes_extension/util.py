@@ -171,5 +171,9 @@ def index_by_object(obj):
     return next(i for i, other in enumerate(bpy.data.objects) if other.name == obj.name)
 
 
-def giga_f32_to_u64(giga_float):
+def giga_f32_to_u64(giga_float: float) -> int:
     return int(float(giga_float) * 1e9)
+
+
+def u64_to_giga_f32(u: int) -> float:
+    return u * 1e-9
