@@ -2,7 +2,7 @@
 
 # Introduction
 
-This is the official Squishy Volumes 0.3.2 user guide.
+This is the official Squishy Volumes 0.3.3 user guide.
 
 You are likely looking for [Getting Started](./getting_started/index.html).
 
