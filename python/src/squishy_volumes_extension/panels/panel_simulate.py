@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import shutil
 import json
 import bpy
 
@@ -27,9 +28,12 @@ from ..squishy_volumes_properties import (
     Squishy_Volumes_Properties_Simulation,
 )
 from ..bridge import SimulationHandle, SimulationInputHandle
-from ..util import giga_f32_to_u64, simulation_input_exists
+from ..util import giga_f32_to_u64, simulation_input_exists, u64_to_giga_f32
 from ..input_capture import create_input_header, capture_input_frame
-from ..get_preferences import get_confirm_bake_overwrite
+from ..get_preferences import (
+    get_confirm_bake_overwrite,
+    get_sanity_check_allowed_disk_space,
+)
 
 
 def start_compute(
@@ -38,6 +42,19 @@ def start_compute(
     next_frame: int,
     number_of_frames: int,
 ):
+    if get_sanity_check_allowed_disk_space():
+        allowed = sim_props.max_giga_bytes_on_disk
+        free = u64_to_giga_f32(shutil.disk_usage(sim_props.directory).free)
+        if allowed > free:
+            raise RuntimeError(
+                f"""The disk might run out of space!
+
+Squishy Volumes is allowed to use up to {allowed:.2f} GB,
+but only {free:.2f} GB are free.
+
+This check can be disabled in the add-on peferences."""
+            )
+
     compute_settings = {
         "time_step": sim_props.time_step,
         "gpu": None if sim_props.compute_device == "CPU" else sim_props.compute_device,
