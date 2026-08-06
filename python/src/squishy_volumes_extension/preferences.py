@@ -16,11 +16,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import tempfile
+from pathlib import Path
 import bpy
 
 
 class SquishyVolumesPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
+
+    default_cache_location: bpy.props.StringProperty(
+        name="Default Cache",
+        description="""Default directory that holds the relevant simulation data.
+        It's a good idea to point this to a separate disk from the operating system.""",
+        default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
+        options=set(),
+    )  # type: ignore
 
     confirm_bake_overwrite: bpy.props.BoolProperty(
         name="Confirm Overwrite",

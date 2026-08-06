@@ -20,6 +20,12 @@ import bpy
 import mathutils
 
 
+def get_default_cache_location() -> str:
+    return bpy.context.preferences.addons.get(
+        __package__
+    ).preferences.default_cache_location
+
+
 def get_confirm_bake_overwrite() -> bool:
     return bpy.context.preferences.addons.get(
         __package__

@@ -19,9 +19,9 @@
 import platform
 from pathlib import Path
 import re
-import tempfile
 import bpy
 
+from ..get_preferences import get_default_cache_location
 from ..bridge import SimulationHandle, DETECTED_DEVICES
 
 TYPE_SIMULATION = "Simulation"
@@ -102,7 +102,7 @@ If there exists a cache at the location it can be loaded.
 
 The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
 The latter being a temporary file indicating ownership.""",
-        default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
+        default=get_default_cache_location(),
         subtype="DIR_PATH",
         options=set(),
         update=update_directory,
