@@ -29,6 +29,7 @@ class SquishyVolumesPreferences(bpy.types.AddonPreferences):
         description="""Default directory that holds the relevant simulation data.
         It's a good idea to point this to a separate disk from the operating system.""",
         default=str(Path(tempfile.gettempdir()) / "squishy_volumes_cache"),
+        subtype="DIR_PATH",
         options=set(),
     )  # type: ignore
 
@@ -67,6 +68,7 @@ This is most likely only relevant to developers of other extensions.""",
     )  # type: ignore
 
     def draw(self, context: bpy.types.Context) -> None:
+        self.layout.prop(self, "default_cache_location")
         self.layout.prop(self, "confirm_bake_overwrite")
         self.layout.prop(self, "domain_min")
         self.layout.prop(self, "domain_max")
