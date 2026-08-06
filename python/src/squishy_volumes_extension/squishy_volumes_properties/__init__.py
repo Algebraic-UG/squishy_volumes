@@ -19,7 +19,7 @@
 import bpy
 
 from ..bridge import SimulationHandle
-from ..get_preferences import get_print_debug_info
+from ..get_preferences import get_print_debug_info, get_default_cache_location
 
 from .object import *
 from .scene import *

@@ -94,6 +94,12 @@ class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
     progress_json_string: bpy.props.StringProperty()  # type: ignore
     last_exception: bpy.props.StringProperty()  # type: ignore
 
+    def get_directory_with_default(self):
+        return self.get("directory", get_default_cache_location())
+
+    def set_directory(self, value):
+        self["directory"] = value
+
     directory: bpy.props.StringProperty(
         name="Cache",
         description="""Directory that holds the relevant simulation data.
@@ -102,7 +108,9 @@ If there exists a cache at the location it can be loaded.
 
 The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
 The latter being a temporary file indicating ownership.""",
-        default=get_default_cache_location(),
+        default="",
+        get=get_directory_with_default,
+        set=set_directory,
         subtype="DIR_PATH",
         options=set(),
         update=update_directory,
