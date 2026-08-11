@@ -34,6 +34,7 @@ impl CpuState {
             vertex_positions,
             vertex_normals,
             triangle_frictions,
+            triangle_dampings,
             triangle_normals,
             ..
         } = self
@@ -182,8 +183,9 @@ impl CpuState {
 
                         let contact_normal = to_p / distance;
 
-                        let tangential_velocity = relative_velocity
-                            - contact_normal * relative_velocity.dot(&contact_normal);
+                        let normal_velocity =
+                            contact_normal * relative_velocity.dot(&contact_normal);
+                        let tangential_velocity = relative_velocity - normal_velocity;
                         let tangential_velocity_norm = tangential_velocity.norm();
                         if tangential_velocity_norm > NORMALIZATION_EPS {
                             let tangent = tangential_velocity / tangential_velocity_norm;
@@ -194,6 +196,8 @@ impl CpuState {
 
                             *velocity -= friction_impulse;
                         }
+
+                        *velocity -= triangle_dampings[closest_triangle].min(1.) * normal_velocity;
                     }
 
                     *velocity -= to_p / time_step;

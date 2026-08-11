@@ -252,6 +252,7 @@ fn simple() {
     let triangle_indices = vec![Triangle { a: 0, b: 1, c: 2 }];
     let triangle_collider = vec![0];
     let triangle_frictions = vec![0.];
+    let triangle_dampings = vec![0.];
 
     let forget_distance = 2.;
     let accept_distance = 1.;
@@ -273,6 +274,7 @@ fn simple() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
+            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],
@@ -312,6 +314,7 @@ fn simple2() {
     ];
     let triangle_collider = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
+    let triangle_dampings = vec![0.; triangle_indices.len()];
 
     let forget_distance = 2.;
     let accept_distance = 1.;
@@ -333,6 +336,7 @@ fn simple2() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
+            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],
@@ -359,6 +363,7 @@ fn torus() {
     let particle_velocities = vec![Vector4::zeros(); particle_positions_and_collider_bits.len()];
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
+    let triangle_dampings = vec![0.; triangle_indices.len()];
 
     let forget_distance = 0.7;
     let accept_distance = 0.5;
@@ -380,6 +385,7 @@ fn torus() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
+            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],

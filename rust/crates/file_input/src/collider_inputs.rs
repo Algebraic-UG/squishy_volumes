@@ -14,6 +14,7 @@ pub struct ColliderInput {
     pub vertex_positions: Vec<[f32; 3]>,
     pub triangle_indices: Vec<[u32; 3]>,
     pub triangle_frictions: Vec<f32>,
+    pub triangle_dampings: Vec<f32>,
 }
 
 impl std::ops::Deref for ColliderInputs {
@@ -32,6 +33,7 @@ impl ColliderInput {
             vertex_positions: rng.random_iter().take(num_vertices).collect(),
             triangle_indices: rng.random_iter().take(num_triangles).collect(),
             triangle_frictions: rng.random_iter().take(num_triangles).collect(),
+            triangle_dampings: rng.random_iter().take(num_triangles).collect(),
         }
     }
 }

@@ -58,18 +58,21 @@ var<storage, read_write> triangle_opposites: array<Opposite>;
 @group(0) @binding(9)
 var<storage, read_write> triangle_frictions: array<f32>;
 
+@group(0) @binding(10)
+var<storage, read_write> triangle_dampings: array<f32>;
+
 // acceleration sturcture
 
-@group(0) @binding(10)
+@group(0) @binding(11)
 var<storage, read_write> bvh_meta: BvhMeta;
 
-@group(0) @binding(11)
+@group(0) @binding(12)
 var<storage, read_write> bvh_nodes: array<u32>;
 
-@group(0) @binding(12)
+@group(0) @binding(13)
 var<storage, read_write> bvh_indices: array<u32>;
 
-@group(0) @binding(13)
+@group(0) @binding(14)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -209,7 +212,8 @@ fn main(
 
             let contact_normal = to_p / distance;
 
-            let tangential_velocity = relative_velocity - contact_normal * dot(relative_velocity, contact_normal);
+            let normal_velocity = contact_normal * dot(relative_velocity, contact_normal);
+            let tangential_velocity = relative_velocity - normal_velocity;
 
             let tangential_velocity_norm = length(tangential_velocity);
             if tangential_velocity_norm > NORMALIZATION_EPS {
@@ -220,6 +224,8 @@ fn main(
 
                 velocity -= friction_impulse;
             }
+
+            velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
         }
 
         velocity -= to_p / TIME_STEP;

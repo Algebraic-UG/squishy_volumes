@@ -72,6 +72,7 @@ pub enum FrameBulkCollider {
     VertexPositions,
     Triangles,
     TriangleFrictions,
+    TriangleDampings,
 }
 
 pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
@@ -232,6 +233,9 @@ impl SimulationInputImpl {
                         }
                         FrameBulkCollider::TriangleFrictions => {
                             cs.triangle_frictions = bulk.as_floats()?.to_vec()
+                        }
+                        FrameBulkCollider::TriangleDampings => {
+                            cs.triangle_dampings = bulk.as_floats()?.to_vec()
                         }
                     }
                 }

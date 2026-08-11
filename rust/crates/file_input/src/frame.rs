@@ -165,12 +165,14 @@ impl InputFrame {
                         vertex_positions,
                         triangle_indices,
                         triangle_frictions,
+                        triangle_dampings,
                     } = self.collider_inputs.get(name).ok_or(
                         crate::FrameVerifcationError::ColliderInputMissing(name.clone()),
                     )?;
                     check_length!(name, *num_vertices, vertex_positions)?;
                     check_length!(name, *num_triangles, triangle_indices)?;
                     check_length!(name, *num_triangles, triangle_frictions)?;
+                    check_length!(name, *num_triangles, triangle_dampings)?;
                 }
             }
         }

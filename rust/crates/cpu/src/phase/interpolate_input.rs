@@ -76,6 +76,12 @@ impl CpuState {
             .zip(b.triangle_frictions())
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
+        let triangle_dampings: Vec<f32> = a
+            .triangle_dampings()
+            .par_iter()
+            .zip(b.triangle_dampings())
+            .map(|(a, b)| factor_a * a + factor_b * b)
+            .collect();
 
         self.interpolated_input = Some(InterpolatedInput {
             gravity,
@@ -83,6 +89,7 @@ impl CpuState {
             vertex_positions,
             vertex_normals,
             triangle_frictions,
+            triangle_dampings,
             triangle_normals,
         });
 

@@ -62,6 +62,7 @@ pub struct ColliderInput {
     pub triangle_collider: Allocation,
     pub triangle_opposites: Allocation,
     pub triangle_frictions: Allocation,
+    pub triangle_dampings: Allocation,
 
     pub bvh: BoundingVolumeHierarchyAllocations,
 }
@@ -97,6 +98,7 @@ pub struct ColliderInputData<'a> {
     pub triangle_collider: &'a [u32],
     pub triangle_opposites: &'a [Opposites],
     pub triangle_frictions: &'a [f32],
+    pub triangle_dampings: &'a [f32],
 }
 
 #[derive(Clone)]
@@ -137,6 +139,7 @@ impl ColliderInput {
             triangle_collider,
             triangle_opposites,
             triangle_frictions,
+            triangle_dampings,
         }: ColliderInputData,
     ) -> Result<Self, GpuError> {
         check_length!(vertex_positions_start, vertex_positions_end)?;
@@ -207,6 +210,7 @@ impl ColliderInput {
         let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider)?;
         let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites)?;
         let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions)?;
+        let triangle_dampings = Allocation::new(device, "triangle_dampings", triangle_dampings)?;
 
         let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
@@ -220,6 +224,7 @@ impl ColliderInput {
             triangle_collider,
             triangle_opposites,
             triangle_frictions,
+            triangle_dampings,
             bvh,
         })
     }
@@ -523,6 +528,7 @@ impl PipelinePart for Step {
             triangle_collider,
             triangle_opposites,
             triangle_frictions,
+            triangle_dampings,
             bvh,
         }) = collider_input
         {
@@ -558,6 +564,7 @@ impl PipelinePart for Step {
                     triangle_normals,
                     triangle_opposites,
                     triangle_frictions,
+                    triangle_dampings,
                     bvh,
                 },
                 collide::Parameters,
