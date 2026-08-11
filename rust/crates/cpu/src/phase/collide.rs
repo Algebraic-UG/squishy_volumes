@@ -28,6 +28,8 @@ impl CpuState {
         let triangle_opposites = topology.triangle_opposites();
         let triangle_collider = topology.triangle_collider();
 
+        let vertex_velocities = frame_input.vertex_velocities();
+
         let InterpolatedInput {
             vertex_positions,
             vertex_normals,
@@ -100,6 +102,9 @@ impl CpuState {
                     let a = &vertex_positions[triangle.a as usize];
                     let b = &vertex_positions[triangle.b as usize];
                     let c = &vertex_positions[triangle.c as usize];
+                    let a_v = &vertex_velocities[triangle.a as usize];
+                    let b_v = &vertex_velocities[triangle.b as usize];
+                    let c_v = &vertex_velocities[triangle.c as usize];
                     let a_n = &vertex_normals[triangle.a as usize];
                     let b_n = &vertex_normals[triangle.b as usize];
                     let c_n = &vertex_normals[triangle.c as usize];
@@ -123,9 +128,15 @@ impl CpuState {
                     let bc = b - c;
                     let ca = c - a;
 
-                    let sa = n.dot(&bc.cross(&(c - p))) > 0.;
-                    let sb = n.dot(&ca.cross(&(a - p))) > 0.;
-                    let sc = n.dot(&ab.cross(&(b - p))) > 0.;
+                    let area2_abc = n.dot(&ca.cross(&ab));
+
+                    let a_bary = n.dot(&bc.cross(&(c - p))) / area2_abc;
+                    let b_bary = n.dot(&ca.cross(&(a - p))) / area2_abc;
+                    let c_bary = n.dot(&ab.cross(&(b - p))) / area2_abc;
+
+                    let sa = a_bary > 0.;
+                    let sb = b_bary > 0.;
+                    let sc = c_bary > 0.;
 
                     let DistanceResult {
                         distance,
@@ -166,10 +177,13 @@ impl CpuState {
                     }
 
                     if distance > NORMALIZATION_EPS {
+                        let collider_velocity = a_v * a_bary + b_v * b_bary + c_v * c_bary;
+                        let relative_velocity = *velocity - collider_velocity;
+
                         let contact_normal = to_p / distance;
 
-                        let tangential_velocity =
-                            *velocity - contact_normal * velocity.dot(&contact_normal);
+                        let tangential_velocity = relative_velocity
+                            - contact_normal * relative_velocity.dot(&contact_normal);
                         let tangential_velocity_norm = tangential_velocity.norm();
                         if tangential_velocity_norm > NORMALIZATION_EPS {
                             let tangent = tangential_velocity / tangential_velocity_norm;
