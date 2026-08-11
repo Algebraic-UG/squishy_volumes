@@ -38,35 +38,38 @@ var<storage, read_write> vertex_positions: array<vec3f>;
 @group(0) @binding(3)
 var<storage, read_write> vertex_normals: array<vec3f>;
 
+@group(0) @binding(4)
+var<storage, read_write> vertex_velocities: array<vec3f>;
+
 // indexed by triangle 
 
-@group(0) @binding(4)
+@group(0) @binding(5)
 var<storage, read_write> triangle_indices: array<Triangle>;
 
-@group(0) @binding(5)
+@group(0) @binding(6)
 var<storage, read_write> triangle_collider: array<u32>;
 
-@group(0) @binding(6)
+@group(0) @binding(7)
 var<storage, read_write> triangle_normals: array<vec3f>;
 
-@group(0) @binding(7)
+@group(0) @binding(8)
 var<storage, read_write> triangle_opposites: array<Opposite>;
 
-@group(0) @binding(8)
+@group(0) @binding(9)
 var<storage, read_write> triangle_frictions: array<f32>;
 
 // acceleration sturcture
 
-@group(0) @binding(9)
+@group(0) @binding(10)
 var<storage, read_write> bvh_meta: BvhMeta;
 
-@group(0) @binding(10)
+@group(0) @binding(11)
 var<storage, read_write> bvh_nodes: array<u32>;
 
-@group(0) @binding(11)
+@group(0) @binding(12)
 var<storage, read_write> bvh_indices: array<u32>;
 
-@group(0) @binding(12)
+@group(0) @binding(13)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -123,6 +126,10 @@ fn main(
         let a = vertex_positions[triangle.a];
         let b = vertex_positions[triangle.b];
         let c = vertex_positions[triangle.c];
+
+        let a_v = vertex_velocities[triangle.a];
+        let b_v = vertex_velocities[triangle.b];
+        let c_v = vertex_velocities[triangle.c];
 
         let ab = a - b;
         let bc = b - c;
@@ -197,8 +204,12 @@ fn main(
         }
 
         if distance > NORMALIZATION_EPS {
+            let collider_velocity = a_v * bary_a + b_v * bary_b + c_v * bary_c;
+            let relative_velocity = velocity - collider_velocity;
+
             let contact_normal = to_p / distance;
-            let tangential_velocity = velocity - contact_normal * dot(velocity, contact_normal);
+
+            let tangential_velocity = relative_velocity - contact_normal * dot(relative_velocity, contact_normal);
 
             let tangential_velocity_norm = length(tangential_velocity);
             if tangential_velocity_norm > NORMALIZATION_EPS {

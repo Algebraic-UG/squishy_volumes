@@ -16,6 +16,7 @@ use squishy_volumes_util::{Aabb, NORMALIZATION_EPS};
 pub struct TestMesh {
     pub vertex_positions_a: Vec<Vector4<f32>>,
     pub vertex_positions_b: Vec<Vector4<f32>>,
+    pub vertex_velocities: Vec<Vector4<f32>>,
     pub triangle_frictions_a: Vec<f32>,
     pub triangle_frictions_b: Vec<f32>,
     pub triangle_indices: Vec<Triangle>,
@@ -28,7 +29,7 @@ pub struct TestMesh {
 pub struct TestMeshNormals {}
 
 impl TestMesh {
-    pub fn new(num_triangles: usize, aabb: Aabb<Vector3<f32>>) -> Self {
+    pub fn new(num_triangles: usize, aabb: Aabb<Vector3<f32>>, frames_per_second: u32) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(33);
         let vertex_positions_a: Vec<_> = (0..num_triangles * 3)
             .flat_map(|_| {
@@ -63,6 +64,11 @@ impl TestMesh {
                     0.,
                 )
             })
+            .collect();
+        let vertex_velocities = vertex_positions_a
+            .iter()
+            .zip(&vertex_positions_b)
+            .map(|(a, b)| (a - b) * frames_per_second as f32)
             .collect();
         let triangle_frictions_a = (0..num_triangles)
             .map(|_| rng.random_range(0.0..100.0))
@@ -112,6 +118,7 @@ impl TestMesh {
         Self {
             vertex_positions_a,
             vertex_positions_b,
+            vertex_velocities,
             triangle_frictions_a,
             triangle_frictions_b,
             triangle_indices,

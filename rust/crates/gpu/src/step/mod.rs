@@ -53,6 +53,7 @@ pub struct Parameters {
 pub struct ColliderInput {
     pub vertex_positions_start: Allocation,
     pub vertex_positions_end: Allocation,
+    pub vertex_velocities: Allocation,
     pub vertex_triangle_offsets: Allocation,
 
     pub vertex_triangle_lists: Option<Allocation>,
@@ -125,6 +126,7 @@ impl ColliderInput {
         device: &wgpu::Device,
         leaf_size: f32,
         leaf_threshold: u32,
+        frames_per_second: u32,
         Settings {
             forget_distance, ..
         }: Settings,
@@ -184,10 +186,17 @@ impl ColliderInput {
 
         let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
 
+        let vertex_velocities: Vec<_> = vertex_positions_start
+            .iter()
+            .zip(vertex_positions_end)
+            .map(|(start, end)| (end - start) * frames_per_second as f32)
+            .collect();
+
         let vertex_positions_start =
             Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
         let vertex_positions_end =
             Allocation::new(device, "vertex_positions_end", vertex_positions_end)?;
+        let vertex_velocities = Allocation::new(device, "vertex_velocities", &vertex_velocities)?;
         let vertex_triangle_offsets =
             Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
         let vertex_triangle_lists = (!vertex_triangle_lists.is_empty())
@@ -204,6 +213,7 @@ impl ColliderInput {
         Ok(Self {
             vertex_positions_start,
             vertex_positions_end,
+            vertex_velocities,
             vertex_triangle_offsets,
             vertex_triangle_lists,
             triangle_indices,
@@ -265,6 +275,7 @@ impl Input {
         device: &wgpu::Device,
         leaf_size: f32,
         leaf_threshold: u32,
+        frames_per_second: u32,
         settings @ Settings {
             workgroup_size,
             dispatch_limit,
@@ -314,6 +325,7 @@ impl Input {
                     device,
                     leaf_size,
                     leaf_threshold,
+                    frames_per_second,
                     settings.clone(),
                     collider_input_data,
                 )
@@ -504,6 +516,7 @@ impl PipelinePart for Step {
         if let Some(ColliderInput {
             vertex_positions_start,
             vertex_positions_end,
+            vertex_velocities,
             vertex_triangle_offsets,
             vertex_triangle_lists,
             triangle_indices,
@@ -539,6 +552,7 @@ impl PipelinePart for Step {
                     particle_velocities: particle_velocities.clone(),
                     vertex_positions,
                     vertex_normals,
+                    vertex_velocities,
                     triangle_indices,
                     triangle_collider,
                     triangle_normals,

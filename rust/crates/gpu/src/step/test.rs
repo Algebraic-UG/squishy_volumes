@@ -331,6 +331,7 @@ fn run(settings: Settings, data: InputData) -> OutputData {
         context.device(),
         settings.accept_distance,
         16,
+        24,
         settings.clone(),
         data,
     )

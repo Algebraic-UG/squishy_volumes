@@ -41,6 +41,7 @@ pub struct Input {
     pub particle_velocities: Allocation,
     pub vertex_positions: Allocation,
     pub vertex_normals: Allocation,
+    pub vertex_velocities: Allocation,
     pub triangle_indices: Allocation,
     pub triangle_collider: Allocation,
     pub triangle_normals: Allocation,
@@ -56,6 +57,7 @@ pub struct InputData<'a> {
     pub particle_velocities: &'a [Vector4<f32>],
     pub vertex_positions: &'a [Vector4<f32>],
     pub vertex_normals: &'a [Vector4<f32>],
+    pub vertex_velocities: &'a [Vector4<f32>],
     pub triangle_indices: &'a [Triangle],
     pub triangle_collider: &'a [u32],
     pub triangle_normals: &'a [Vector4<f32>],
@@ -76,6 +78,7 @@ impl Input {
             particle_velocities,
             vertex_positions,
             vertex_normals,
+            vertex_velocities,
             triangle_indices,
             triangle_collider,
             triangle_normals,
@@ -118,6 +121,8 @@ impl Input {
         let vertex_positions = Allocation::new(device, "vertex_positions", vertex_positions)?;
         let vertex_normals = Allocation::new(device, "vertex_normals", vertex_normals)?;
 
+        let vertex_velocities = Allocation::new(device, "vertex_velocities", vertex_velocities)?;
+
         let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
         let triangle_collider = Allocation::new(device, "triangle_collider", triangle_collider)?;
         let triangle_normals = Allocation::new(device, "triangle_normals", triangle_normals)?;
@@ -131,6 +136,7 @@ impl Input {
             particle_velocities,
             vertex_positions,
             vertex_normals,
+            vertex_velocities,
             triangle_indices,
             triangle_collider,
             triangle_normals,
@@ -169,6 +175,7 @@ impl PipelinePart for Collide {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //particle_velocities
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_positions
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_normals
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_velocities
                     (Triangle::MIN_BINDING_SIZE, false),                //triangle_indices
                     (u32::MIN_BINDING_SIZE, false),                     //triangle_collider
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //triangle_normals
@@ -203,6 +210,7 @@ impl PipelinePart for Collide {
             particle_velocities,
             vertex_positions,
             vertex_normals,
+            vertex_velocities,
             triangle_indices,
             triangle_collider,
             triangle_normals,
@@ -230,6 +238,7 @@ impl PipelinePart for Collide {
                     particle_velocities.binding(),
                     vertex_positions.binding(),
                     vertex_normals.binding(),
+                    vertex_velocities.binding(),
                     triangle_indices.binding(),
                     triangle_collider.binding(),
                     triangle_normals.binding(),
