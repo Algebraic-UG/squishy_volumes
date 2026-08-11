@@ -161,6 +161,8 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
 
         for output_obj in get_output_objects_with_uuid(self.uuid):
             new_output_obj = output_obj.copy()
+            assert output_obj.data is not None
+            new_output_obj.data = output_obj.data.copy()
             new_output_obj.squishy_volumes.uuid = new_uuid  # ty: ignore[unresolved-attribute]
             context.collection.objects.link(new_output_obj)
             new_output_obj.squishy_volumes.input_name = input_mapping[  # ty: ignore[unresolved-attribute]
