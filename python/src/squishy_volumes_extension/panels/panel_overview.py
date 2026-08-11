@@ -258,7 +258,7 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
 
 
 class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
-    bl_label = f"Overview  -  v{build_info()["wrapper"]["crate_info"]["version"]}"
+    bl_label = f"Overview  -  v{build_info()['wrapper']['crate_info']['version']}"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
