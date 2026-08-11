@@ -127,6 +127,10 @@ fn main(
         let b = vertex_positions[triangle.b];
         let c = vertex_positions[triangle.c];
 
+        let a_v = vertex_velocities[triangle.a];
+        let b_v = vertex_velocities[triangle.b];
+        let c_v = vertex_velocities[triangle.c];
+
         let ab = a - b;
         let bc = b - c;
         let ca = c - a;
@@ -200,8 +204,12 @@ fn main(
         }
 
         if distance > NORMALIZATION_EPS {
+            let collider_velocity = a_v * bary_a + b_v * bary_b + c_v * bary_c;
+            let relative_velocity = velocity - collider_velocity;
+
             let contact_normal = to_p / distance;
-            let tangential_velocity = velocity - contact_normal * dot(velocity, contact_normal);
+
+            let tangential_velocity = relative_velocity - contact_normal * dot(relative_velocity, contact_normal);
 
             let tangential_velocity_norm = length(tangential_velocity);
             if tangential_velocity_norm > NORMALIZATION_EPS {
