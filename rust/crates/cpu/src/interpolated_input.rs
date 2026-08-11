@@ -18,5 +18,6 @@ pub struct InterpolatedInput {
     pub vertex_normals: Vec<Vector3<f32>>,
 
     pub triangle_frictions: Vec<f32>,
+    pub triangle_dampings: Vec<f32>,
     pub triangle_normals: Vec<Vector3<f32>>,
 }

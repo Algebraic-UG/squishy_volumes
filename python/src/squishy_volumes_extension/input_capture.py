@@ -236,5 +236,6 @@ def capture_input_frame(
             record(
                 python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
             )
+            record(python_name="squishy_volumes_damping", rust_name="TriangleDampings")
 
     sim_input_handle.finish_frame()

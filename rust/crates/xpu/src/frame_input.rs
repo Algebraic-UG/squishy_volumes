@@ -62,6 +62,7 @@ pub struct InputInterpolationPoint {
 
     vertex_positions: Vec<nalgebra::Vector3<f32>>,
     triangle_frictions: Vec<f32>,
+    triangle_dampings: Vec<f32>,
 }
 
 impl InputInterpolationPoint {
@@ -107,9 +108,11 @@ impl InputInterpolationPoint {
 
         let mut vertex_positions: Vec<nalgebra::Vector3<f32>> = Default::default();
         let mut triangle_frictions: Vec<f32> = Default::default();
+        let mut triangle_dampings: Vec<f32> = Default::default();
         for mut input in collider_inputs.into_values() {
             vertex_positions.extend_from_slice(bytemuck::cast_slice(&input.vertex_positions));
             triangle_frictions.append(&mut input.triangle_frictions);
+            triangle_dampings.append(&mut input.triangle_dampings);
         }
 
         particle_goal_positions
@@ -126,6 +129,7 @@ impl InputInterpolationPoint {
             particle_goal_positions,
             vertex_positions,
             triangle_frictions,
+            triangle_dampings,
         })
     }
 
@@ -145,6 +149,9 @@ impl InputInterpolationPoint {
     }
     pub fn triangle_frictions(&self) -> &[f32] {
         &self.triangle_frictions
+    }
+    pub fn triangle_dampings(&self) -> &[f32] {
+        &self.triangle_dampings
     }
 }
 
