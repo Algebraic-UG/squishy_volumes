@@ -241,6 +241,11 @@ fn get_collider_input(
         a.vertex_positions().iter().map(|p| p.push(0.)).collect();
     let vertex_positions_end: Vec<Vector4<f32>> =
         b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+    let vertex_velocities: Vec<Vector4<f32>> = frame_input
+        .vertex_velocities()
+        .iter()
+        .map(|v| v.push(0.))
+        .collect();
 
     let vertex_triangle_lists = topology.vertex_triangle_lists();
     let vertex_triangle_offsets = prefix_sum_on_cpu(
@@ -259,6 +264,7 @@ fn get_collider_input(
         Allocation::new(device, "vertex_positions_start", &vertex_positions_start)?;
     let vertex_positions_end =
         Allocation::new(device, "vertex_positions_end", &vertex_positions_end)?;
+    let vertex_velocities = Allocation::new(device, "vertex_velocities", &vertex_velocities)?;
     let vertex_triangle_offsets =
         Allocation::new(device, "vertex_triangle_offsets", &vertex_triangle_offsets)?;
     let vertex_triangle_lists = if vertex_triangle_lists.is_empty() {
@@ -294,6 +300,7 @@ fn get_collider_input(
     Ok(Some(step::ColliderInput {
         vertex_positions_start,
         vertex_positions_end,
+        vertex_velocities,
         vertex_triangle_offsets,
         vertex_triangle_lists,
         triangle_indices,

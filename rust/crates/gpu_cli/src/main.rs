@@ -86,6 +86,7 @@ fn main() {
     let accept_distance = grid_node_size * 2.;
     let leaf_size = accept_distance;
     let leaf_threshold = 16;
+    let frames_per_second = 24;
     let table_tries = 50;
     let max_num_grid_nodes = generate.try_into().unwrap();
 
@@ -116,6 +117,7 @@ fn main() {
                     min: Vector3::repeat(-10.),
                     max: Vector3::repeat(10.),
                 },
+                frames_per_second,
             );
             let settings = gpu::animate_mesh::Settings {
                 workgroup_size,
@@ -150,7 +152,7 @@ fn main() {
                 aabb,
                 ParticleSampling::Neat(grid_node_size / 10.),
             );
-            let test_mesh = TestMesh::new(10000, aabb);
+            let test_mesh = TestMesh::new(10000, aabb, frames_per_second);
             let settings = gpu::collide::Settings {
                 workgroup_size,
                 dispatch_limit,
@@ -169,6 +171,7 @@ fn main() {
                         .particle_positions_and_collider_bits,
                     particle_velocities: &test_particles.particle_velocities,
                     vertex_positions: &test_mesh.vertex_positions_a,
+                    vertex_velocities: &test_mesh.vertex_velocities,
                     vertex_normals: &test_mesh.vertex_normals_a,
                     triangle_indices: &test_mesh.triangle_indices,
                     triangle_collider: &vec![0; test_mesh.triangle_indices.len()],
@@ -499,7 +502,7 @@ fn main() {
                 aabb,
                 ParticleSampling::Neat(grid_node_size / 2.),
             );
-            let test_mesh = TestMesh::new(10000, aabb);
+            let test_mesh = TestMesh::new(10000, aabb, frames_per_second);
 
             let settings = gpu::step::Settings {
                 workgroup_size,
@@ -515,6 +518,7 @@ fn main() {
                 context.device(),
                 leaf_size,
                 leaf_threshold,
+                frames_per_second,
                 settings,
                 gpu::step::InputData {
                     gravity,
