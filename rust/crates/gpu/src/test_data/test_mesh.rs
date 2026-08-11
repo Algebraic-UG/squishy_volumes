@@ -19,6 +19,8 @@ pub struct TestMesh {
     pub vertex_velocities: Vec<Vector4<f32>>,
     pub triangle_frictions_a: Vec<f32>,
     pub triangle_frictions_b: Vec<f32>,
+    pub triangle_dampings_a: Vec<f32>,
+    pub triangle_dampings_b: Vec<f32>,
     pub triangle_indices: Vec<Triangle>,
     pub triangle_opposites: Vec<Opposites>,
 
@@ -71,10 +73,16 @@ impl TestMesh {
             .map(|(a, b)| (a - b) * frames_per_second as f32)
             .collect();
         let triangle_frictions_a = (0..num_triangles)
-            .map(|_| rng.random_range(0.0..100.0))
+            .map(|_| rng.random_range(0.0..1.0))
             .collect();
         let triangle_frictions_b = (0..num_triangles)
-            .map(|_| rng.random_range(0.0..100.0))
+            .map(|_| rng.random_range(0.0..1.0))
+            .collect();
+        let triangle_dampings_a = (0..num_triangles)
+            .map(|_| rng.random_range(0.0..1.0))
+            .collect();
+        let triangle_dampings_b = (0..num_triangles)
+            .map(|_| rng.random_range(0.0..1.0))
             .collect();
         let triangle_indices: Vec<_> = (0..num_triangles)
             .map(|i| Triangle {
@@ -121,6 +129,8 @@ impl TestMesh {
             vertex_velocities,
             triangle_frictions_a,
             triangle_frictions_b,
+            triangle_dampings_a,
+            triangle_dampings_b,
             triangle_indices,
             triangle_opposites,
             triangle_normals_a,
