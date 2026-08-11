@@ -212,7 +212,8 @@ fn main(
 
             let contact_normal = to_p / distance;
 
-            let tangential_velocity = relative_velocity - contact_normal * dot(relative_velocity, contact_normal);
+            let normal_velocity = contact_normal * dot(relative_velocity, contact_normal);
+            let tangential_velocity = relative_velocity - normal_velocity;
 
             let tangential_velocity_norm = length(tangential_velocity);
             if tangential_velocity_norm > NORMALIZATION_EPS {
@@ -223,6 +224,8 @@ fn main(
 
                 velocity -= friction_impulse;
             }
+
+            velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
         }
 
         velocity -= to_p / TIME_STEP;
