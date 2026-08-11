@@ -133,10 +133,14 @@ def fix_quaternion_order(quaternion):
 
 
 # https://blenderartists.org/t/duplicating-pointerproperty-propertygroup-and-collectionproperty/1419096/2?
-def copy_simple_property_group(source, target):
+def copy_simple_property_group(source, target, skip=None):
+    if skip is None:
+        skip = []
     if not hasattr(target, "__annotations__"):
         return
     for prop_name in target.__annotations__.keys():
+        if prop_name in skip:
+            continue
         try:
             setattr(target, prop_name, getattr(source, prop_name))
         except (AttributeError, TypeError):

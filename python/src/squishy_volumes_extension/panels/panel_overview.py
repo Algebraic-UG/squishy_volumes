@@ -50,6 +50,7 @@ from ..util import (
     force_ui_redraw,
     simulation_input_exists,
     simulation_locked,
+    copy_simple_property_group,
 )
 from ..example import EXAMPLE_BOING_BLOCK, EXAMPLE_BENCHMARK, setup_example_simulation
 
@@ -124,6 +125,51 @@ It just creates the Blender object to track the simulation."""
         force_ui_redraw()
 
         self.report({"INFO"}, f"Added {sim_obj.name}.")
+        return {"FINISHED"}
+
+
+class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_clone_simulation"
+    bl_label = "Clone"
+    bl_description = "Clone this Simulation."
+    bl_options = {"REGISTER", "UNDO"}
+
+    uuid: bpy.props.StringProperty()  # type: ignore
+
+    def execute(self, context):
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+
+        new_uuid = str(uuid.uuid4())
+        bpy.ops.scene.squishy_volumes_add_simulation(  # ty:ignore[unresolved-attribute]
+            "INVOKE_DEFAULT", uuid=new_uuid, name=sim_obj.name
+        )
+        new_sim_obj = get_simulation_object_with_uuid(new_uuid)
+
+        copy_simple_property_group(
+            sim_obj.squishy_volumes,  # ty: ignore[unresolved-attribute]
+            new_sim_obj.squishy_volumes,  # ty: ignore[unresolved-attribute]
+            ["uuid"],
+        )
+
+        input_mapping = {}
+        for input_obj in get_input_objects_with_uuid(self.uuid):
+            new_input_obj = input_obj.copy()
+            new_input_obj.squishy_volumes.uuid = new_uuid  # ty: ignore[unresolved-attribute]
+            context.collection.objects.link(new_input_obj)
+            new_input_obj.select_set(True)
+            input_mapping[input_obj.name] = new_input_obj.name
+
+        for output_obj in get_output_objects_with_uuid(self.uuid):
+            new_output_obj = output_obj.copy()
+            assert output_obj.data is not None
+            new_output_obj.data = output_obj.data.copy()
+            new_output_obj.squishy_volumes.uuid = new_uuid  # ty: ignore[unresolved-attribute]
+            context.collection.objects.link(new_output_obj)
+            new_output_obj.squishy_volumes.input_name = input_mapping[  # ty: ignore[unresolved-attribute]
+                new_output_obj.squishy_volumes.input_name  # ty: ignore[unresolved-attribute]
+            ]
+
+        self.report({"INFO"}, f"Cloned {sim_obj.name}.")
         return {"FINISHED"}
 
 
@@ -356,6 +402,10 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                         icon="FILE_CACHE",
                     ).uuid = sim_props.uuid
                 row.operator(
+                    SCENE_OT_Squishy_Volumes_Clone_Simulation.bl_idname,
+                    icon="DUPLICATE",
+                ).uuid = sim_props.uuid
+                row.operator(
                     SCENE_OT_Squishy_Volumes_Remove_Simulation.bl_idname,
                     icon="TRASH",
                 ).uuid = sim_props.uuid
@@ -416,6 +466,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 classes = [
     SCENE_OT_Squishy_Volumes_Add_Example_Simulation,
     SCENE_OT_Squishy_Volumes_Add_Simulation,
+    SCENE_OT_Squishy_Volumes_Clone_Simulation,
     SCENE_OT_Squishy_Volumes_Reload,
     SCENE_OT_Squishy_Volumes_Reload_All,
     SCENE_OT_Squishy_Volumes_Remove_Simulation,
