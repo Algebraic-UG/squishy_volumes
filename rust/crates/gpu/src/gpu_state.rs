@@ -447,11 +447,21 @@ impl GpuState {
         if let Some(collider_input) = self.next_input.collider_input.as_mut() {
             let vertex_positions_end: Vec<Vector4<f32>> =
                 b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+            let vertex_velocities: Vec<Vector4<f32>> = frame_input
+                .vertex_velocities()
+                .iter()
+                .map(|v| v.push(0.))
+                .collect();
             collider_input.vertex_positions_start = collider_input.vertex_positions_end.clone();
             collider_input.vertex_positions_end = Allocation::new(
                 self.gpu_context.device(),
                 "vertex_positions_end",
                 &vertex_positions_end,
+            )?;
+            collider_input.vertex_velocities = Allocation::new(
+                self.gpu_context.device(),
+                "vertex_velocities",
+                &vertex_velocities,
             )?;
 
             collider_input.bvh = BoundingVolumeHierarchyAllocations::new(
