@@ -46,6 +46,9 @@ pub struct FrameInput {
     // b could be none (end of input)
     a: InputInterpolationPoint,
     b: Option<InputInterpolationPoint>,
+
+    // from a to b (or zero)
+    vertex_velocities: Vec<nalgebra::Vector3<f32>>,
 }
 
 #[derive(Default)]
@@ -182,6 +185,8 @@ impl FrameInput {
         )?;
         let a = a.expect("a missing");
 
+        let vertex_velocities = linear_vertex_velocities(&consts, &a, b.as_ref());
+
         let bvh = update_bvh(&consts, &topology, &a, b.as_ref());
 
         Ok(Self {
@@ -193,6 +198,7 @@ impl FrameInput {
             bvh,
             a,
             b,
+            vertex_velocities,
         })
     }
 
@@ -216,6 +222,8 @@ impl FrameInput {
         self.a = a.expect("a missing");
 
         if prior_frame != self.a.frame {
+            self.vertex_velocities =
+                linear_vertex_velocities(&self.consts, &self.a, self.b.as_ref());
             self.bvh = update_bvh(&self.consts, &self.topology, &self.a, self.b.as_ref());
         }
 
@@ -242,6 +250,10 @@ impl FrameInput {
 
     pub fn b(&self) -> Option<&InputInterpolationPoint> {
         self.b.as_ref()
+    }
+
+    pub fn vertex_velocities(&self) -> &[nalgebra::Vector3<f32>] {
+        &self.vertex_velocities
     }
 
     pub fn frame_factor(&self, time: f64) -> Result<f32, FrameInputError> {
@@ -310,6 +322,22 @@ fn load_points(
     )?);
 
     Ok(())
+}
+
+fn linear_vertex_velocities(
+    consts: &squishy_volumes_file_input::InputConsts,
+    a: &InputInterpolationPoint,
+    b: Option<&InputInterpolationPoint>,
+) -> Vec<nalgebra::Vector3<f32>> {
+    if let Some(b) = b {
+        a.vertex_positions
+            .iter()
+            .zip(&b.vertex_positions)
+            .map(|(a, b)| (b - a) * consts.frames_per_second as f32)
+            .collect()
+    } else {
+        vec![nalgebra::Vector3::zeros(); a.vertex_positions.len()]
+    }
 }
 
 fn update_bvh(
