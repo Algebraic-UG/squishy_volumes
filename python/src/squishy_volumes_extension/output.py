@@ -152,7 +152,7 @@ def sync_output(sim_handle: SimulationHandle, output_obj: bpy.types.Object, fram
         if output_props.particle_flags:
             add_attribute(
                 output_obj.data,
-                ffa_i32("States"),
+                ffa_i32("Flags"),
                 SQUISHY_VOLUMES_FLAGS,
                 "INT",
             )
