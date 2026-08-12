@@ -27,7 +27,9 @@ jobs:
         with:
           python-version: 3.11
 
-      - uses: dtolnay/rust-toolchain@stable
+      # https://github.com/Algebraic-UG/squishy_volumes/issues/309
+      #- uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           targets: ${{ inputs.target-triple }}
 
