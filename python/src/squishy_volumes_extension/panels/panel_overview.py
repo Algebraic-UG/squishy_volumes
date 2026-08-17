@@ -309,13 +309,19 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
 
-    @classmethod
-    def poll(cls, context):
-        return context.mode == "OBJECT"
+    # No poll: this panel stays visible in every mode so that the sidebar tab
+    # keeps its position. Out of Object Mode it only shows the hint below.
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
         layout = self.layout
+
+        if context.mode != "OBJECT":
+            layout.label(text="Squishy Volumes needs Object Mode", icon="INFO")
+            layout.operator(
+                "object.mode_set", text="Switch to Object Mode", icon="OBJECT_DATAMODE"
+            ).mode = "OBJECT"
+            return
 
         if unloaded_simulations(context):
             layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
