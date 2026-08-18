@@ -134,6 +134,23 @@ fn main(
         let b_v = vertex_velocities[triangle.b];
         let c_v = vertex_velocities[triangle.c];
 
+        let a_n = vertex_normals[triangle.a];
+        let b_n = vertex_normals[triangle.b];
+        let c_n = vertex_normals[triangle.c];
+
+        var ab_n = vec3f(0.);
+        if opposites.ab != U32_MAX {
+            ab_n = normal + triangle_normals[opposites.ab];
+        }
+        var bc_n = vec3f(0.);
+        if opposites.bc != U32_MAX {
+            bc_n = normal + triangle_normals[opposites.bc];
+        }
+        var ca_n = vec3f(0.);
+        if opposites.ca != U32_MAX {
+            ca_n = normal + triangle_normals[opposites.ca];
+        }
+
         let ab = a - b;
         let bc = b - c;
         let ca = c - a;
@@ -147,47 +164,36 @@ fn main(
         let sb = bary_b > 0.;
         let sc = bary_c > 0.;
 
+        var distance = 0.;
         var to_p = vec3f(0.);
         if sa && sb && sc {
+            distance = length(to_p);
             to_p = normal * dot(p - a, normal);
         } else {
-            let ab_f = dot(p - b, ab) / dot(ab, ab);
-            let bc_f = dot(p - c, bc) / dot(bc, bc);
-            let ca_f = dot(p - a, ca) / dot(ca, ca);
-            if !sa && bc_f >= 0. && bc_f <= 1. {
-                if opposites.bc == U32_MAX {
-                    continue;
+            let ab_res = segment_distance_result(p, a, b, a_n, ab_n, b_n);
+            let bc_res = segment_distance_result(p, b, c, b_n, bc_n, c_n);
+            let ca_res = segment_distance_result(p, c, a, c_n, ca_n, a_n);
+
+            var res = ab_res;
+            if bc_res.distance < ca_res.distance {
+                if bc_res.distance < ab_res.distance {
+                    res = bc_res;
                 }
-                normal += triangle_normals[opposites.bc];
-                to_p = p - c - bc * bc_f;
-            } else if !sb && ca_f >= 0. && ca_f <= 1. {
-                if opposites.ca == U32_MAX {
-                    continue;
+            } else {
+                if ca_res.distance < ab_res.distance {
+                    res = ca_res;
                 }
-                normal += triangle_normals[opposites.ca];
-                to_p = p - a - ca * ca_f;
-            } else if !sc && ab_f >= 0. && ab_f <= 1. {
-                if opposites.ab == U32_MAX {
-                    continue;
-                }
-                normal += triangle_normals[opposites.ab];
-                to_p = p - b - ab * ab_f;
-            } else if bary_a >= 1. {
-                normal = vertex_normals[triangle.a];
-                to_p = p - a;
-            } else if bary_b >= 1. {
-                normal = vertex_normals[triangle.b];
-                to_p = p - b;
-            } else { //if bary_c >= 1. {
-                normal = vertex_normals[triangle.c];
-                to_p = p - c;
             }
-            if all(normal == vec3f(0.)) {
-                continue;
-            }
+
+            distance = res.distance;
+            to_p = res.to_p;
+            normal = res.normal;
         }
 
-        let distance = length(to_p);
+        if all(normal == vec3f(0.)) {
+            continue;
+        }
+
         let new_side = 0 <= dot(normal, to_p);
         if (collider_bits & (0x00010000u << collider)) == 0 {
             if distance < ACCEPT_DISTANCE {
@@ -241,10 +247,37 @@ fn main(
     particle_velocities[global_index] = velocity;
 }
 
-struct EdgeResult {
-    valid: bool,
+struct DistanceResult {
     distance: f32,
     to_p: vec3f,
+    normal: vec3f,
+}
+
+fn segment_distance_result(
+    p: vec3f,
+    start: vec3f,
+    end: vec3f,
+    start_normal: vec3f,
+    segment_normal: vec3f,
+    end_normal: vec3f,
+) -> DistanceResult {
+    var res: DistanceResult;
+    let segment = end - start;
+    let along_segment = dot(p - start, segment) / dot(segment, segment);
+    if along_segment < 0. {
+        res.distance = length(p - start);
+        res.to_p = p - start;
+        res.normal = start_normal;
+    } else if along_segment < 1. {
+        res.distance = length(p - start - segment * along_segment);
+        res.to_p = p - start - segment * along_segment;
+        res.normal = segment_normal;
+    } else {
+        res.distance = length(p - end);
+        res.to_p = p - end;
+        res.normal = end_normal;
+    }
+    return res;
 }
 
 fn find_relevant_triangle_indices(p: vec3f) -> vec2u {
