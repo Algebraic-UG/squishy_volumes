@@ -11,7 +11,7 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use nalgebra::{Matrix4x3, Vector4};
+use nalgebra::{Matrix4x3, Vector3, Vector4};
 use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, compute_triangle_lists, triangles_to_leaf_aabbs,
@@ -31,6 +31,7 @@ pub struct Step {
     scatter: Scatter,
     meld_grid: MeldGrid,
     collect: Collect,
+    cull_particles: CullParticles,
 }
 
 #[derive(Clone)]
@@ -42,6 +43,8 @@ pub struct Settings {
     pub accept_distance: f32,
     pub time_step: f32,
     pub table_tries: u32,
+    pub domain_min: Vector3<f32>,
+    pub domain_max: Vector3<f32>,
 }
 
 pub struct Parameters {
@@ -386,6 +389,8 @@ impl PipelinePart for Step {
             accept_distance,
             time_step,
             table_tries,
+            domain_min,
+            domain_max,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let animate_mesh = AnimateMesh::new(
@@ -465,6 +470,16 @@ impl PipelinePart for Step {
             },
         )?;
 
+        let cull_particles = CullParticles::new(
+            context,
+            cull_particles::Settings {
+                workgroup_size,
+                dispatch_limit,
+                domain_min,
+                domain_max,
+            },
+        )?;
+
         Ok(Self {
             animate_mesh,
             external_force,
@@ -475,6 +490,7 @@ impl PipelinePart for Step {
             scatter,
             meld_grid,
             collect,
+            cull_particles,
         })
     }
 
@@ -607,7 +623,7 @@ impl PipelinePart for Step {
             context,
             encoder,
             prepare_tmp::Input {
-                particle_flags,
+                particle_flags: particle_flags.clone(),
                 particle_parameters,
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_position_gradients: particle_position_gradients.clone(),
@@ -658,12 +674,22 @@ impl PipelinePart for Step {
                 hash_table,
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
                 node_momentums: node_momentums.clone(),
-                particle_positions_and_collider_bits,
+                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_position_gradients,
                 particle_velocities,
                 particle_velocity_gradients,
             },
             collect::Parameters,
+        )?;
+
+        let cull_particles::Output = self.cull_particles.record(
+            context,
+            encoder,
+            cull_particles::Input {
+                particle_flags,
+                particle_positions_and_collider_bits,
+            },
+            cull_particles::Parameters,
         )?;
 
         Ok(Output {

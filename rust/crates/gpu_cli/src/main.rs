@@ -9,7 +9,7 @@
 use std::num::NonZeroU32;
 
 use gpu::{GpuContext, PipelinePart, profiler_output};
-use nalgebra::{Vector3, Vector4};
+use nalgebra::{UnitVector3, Vector3, Vector4};
 use rand::{RngExt, SeedableRng, rngs::ChaCha8Rng};
 use squishy_volumes_gpu::{
     self as gpu, contributors_on_cpu, get_node_set, prepare_tmp_on_cpu,
@@ -513,6 +513,8 @@ fn main() {
                 accept_distance,
                 time_step,
                 table_tries,
+                domain_min: Vector3::repeat(-1000.),
+                domain_max: Vector3::repeat(1000.),
             };
             let pipeline_part = gpu::Step::new(&mut context, settings.clone()).unwrap();
             let input = gpu::step::Input::new(
