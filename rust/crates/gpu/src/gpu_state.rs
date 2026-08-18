@@ -23,7 +23,9 @@ pub struct GpuState {
     time: f64,
     time_step: f32,
     gpu_context: GpuContext,
+    update_flags: UpdateFlags,
     pipeline_part: Step,
+    new_flags: Allocation,
     next_input: step::Input,
     max_num_grid_nodes: NonZeroU32,
     io_state: IoState,
@@ -76,6 +78,14 @@ impl GpuState {
             .try_into()
             .unwrap();
         let workgroup_size = 64.try_into().unwrap(); // TODO: make configurable?
+
+        let update_flags = UpdateFlags::new(
+            &mut gpu_context,
+            update_flags::Settings {
+                workgroup_size,
+                dispatch_limit,
+            },
+        )?;
         let pipeline_part = Step::new(
             &mut gpu_context,
             step::Settings {
@@ -128,6 +138,7 @@ impl GpuState {
         // TODO: interpolate that
         let gravity = Allocation::new(device, "gravity", &[a.gravity().push(0.)])?;
 
+        let new_flags = Allocation::new(device, "new_flags", a.particle_flags())?;
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
@@ -166,7 +177,9 @@ impl GpuState {
             time,
             time_step,
             gpu_context,
+            update_flags,
             pipeline_part,
+            new_flags,
             next_input,
             max_num_grid_nodes,
             io_state,
@@ -338,14 +351,31 @@ impl GpuState {
             .gpu_context
             .device()
             .create_command_encoder(&Default::default());
+
+        // This has to happen just once per frame
+        // It doesn't fit with our other profiling stuff
+        self.update_flags.record(
+            &mut self.gpu_context,
+            &mut (&mut encoder).into(),
+            update_flags::Input {
+                new_flags: self.new_flags.clone(),
+                flags: self
+                    .next_input
+                    .variable_particle_input
+                    .particle_flags
+                    .clone(),
+            },
+            update_flags::Parameters,
+        )?;
+
         let mut profiler =
             wgpu_profiler::GpuProfiler::new(self.gpu_context.device(), Default::default()).unwrap();
 
         let mut times = Vec::new();
+
         let mut recorded_steps = 0;
         let output = loop {
             harness.check()?;
-
             let scope = profiler.scope("run_step", &mut encoder);
             let output = self.pipeline_part.record(
                 &mut self.gpu_context,
@@ -430,12 +460,8 @@ impl GpuState {
             .map(|p| p.push(0.))
             .collect::<Vec<_>>();
 
-        // TODO: this will need something else for when we have culling on GPU
-        self.next_input.variable_particle_input.particle_flags = Allocation::new(
-            self.gpu_context.device(),
-            "particle_flags",
-            b.particle_flags(),
-        )?;
+        self.new_flags =
+            Allocation::new(self.gpu_context.device(), "new_flags", b.particle_flags())?;
         self.next_input.particle_goals_start = self.next_input.particle_goals_end.clone();
         self.next_input.particle_goals_end = Allocation::new(
             self.gpu_context.device(),
@@ -542,6 +568,11 @@ impl GpuState {
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
             tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
             frame_input.load(frame_input.frame() - 1)?;
+            self.new_flags = Allocation::new(
+                self.gpu_context.device(),
+                "new_flags",
+                frame_input.a().particle_flags(),
+            )?;
             self.next_input.gravity = Allocation::new(
                 self.gpu_context.device(),
                 "gravity",
