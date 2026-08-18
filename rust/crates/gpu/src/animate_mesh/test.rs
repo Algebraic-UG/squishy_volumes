@@ -43,11 +43,20 @@ fn check(
             .collect::<Vec<_>>();
         let cpu_vertex_normals = vertex_triangle_lists
             .iter()
-            .map(|triangles| {
+            .enumerate()
+            .map(|(vertex_index, triangles)| {
                 let mut normal = Vector3::zeros();
                 for index in triangles.iter() {
-                    normal += cpu_triangle_normals[*index as usize];
+                    let triangle = triangle_indices[*index as usize];
+                    let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
+                    let p = cpu_vertex_positions[vertex_index];
+                    let a = cpu_vertex_positions[*others.next().unwrap() as usize];
+                    let b = cpu_vertex_positions[*others.next().unwrap() as usize];
+                    let angle = (a - p).angle(&(b - p));
+
+                    normal += angle * cpu_triangle_normals[*index as usize];
                 }
+
                 normal
                     .try_normalize(NORMALIZATION_EPS)
                     .unwrap_or(Vector3::zeros())
@@ -104,6 +113,19 @@ fn torus() {
     let vertices_0 = torus::vertices();
     let vertices_1 = vertices_0.iter().map(|v| v * 2.).collect::<Vec<_>>();
     let triangles = torus::triangles();
+
+    check(InputData {
+        vertex_positions_start: &vertices_0,
+        vertex_positions_end: &vertices_1,
+        triangle_indices: &triangles,
+    });
+}
+
+#[test]
+fn cone() {
+    let vertices_0 = cone::vertices();
+    let vertices_1 = cone::vertices();
+    let triangles = cone::triangles();
 
     check(InputData {
         vertex_positions_start: &vertices_0,

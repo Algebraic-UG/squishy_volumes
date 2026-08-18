@@ -18,6 +18,7 @@ impl CpuState {
     pub fn interpolate_input(&mut self, frame_input: &FrameInput) -> Result<(), Error> {
         profile!("interpolate_input");
 
+        let triangle_indices = frame_input.topology().triangle_indices();
         let a = frame_input.a();
         let b = frame_input.b().unwrap_or(a);
 
@@ -41,9 +42,7 @@ impl CpuState {
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
-        let triangle_normals: Vec<Vector3<f32>> = frame_input
-            .topology()
-            .triangle_indices()
+        let triangle_normals: Vec<Vector3<f32>> = triangle_indices
             .par_iter()
             .map(|Triangle { a, b, c }| {
                 let a = &vertex_positions[*a as usize];
@@ -56,14 +55,25 @@ impl CpuState {
             })
             .collect();
 
+        // Important to weigh the normals by angle
+        // https://github.com/Algebraic-UG/squishy_volumes/issues/313
         let vertex_normals: Vec<Vector3<f32>> = frame_input
             .topology()
             .vertex_triangle_lists()
             .par_iter()
-            .map(|triangles| {
+            .enumerate()
+            .map(|(vertex_index, triangles)| {
                 triangles
                     .iter()
-                    .map(|triangle_index| triangle_normals[*triangle_index as usize])
+                    .map(|triangle_index| {
+                        let triangle = triangle_indices[*triangle_index as usize];
+                        let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
+                        let p = vertex_positions[vertex_index];
+                        let a = vertex_positions[*others.next().unwrap() as usize];
+                        let b = vertex_positions[*others.next().unwrap() as usize];
+                        let angle = (a - p).angle(&(b - p));
+                        angle * triangle_normals[*triangle_index as usize]
+                    })
                     .sum::<Vector3<f32>>()
                     .try_normalize(NORMALIZATION_EPS)
                     .unwrap_or(Vector3::zeros())

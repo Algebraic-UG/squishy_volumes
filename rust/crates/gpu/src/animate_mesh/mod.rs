@@ -159,7 +159,9 @@ impl PipelinePart for AnimateMesh {
                 bind_group_entries: [
                     (u32::MIN_BINDING_SIZE, false),            // vertex_triangle_offsets
                     (u32::MIN_BINDING_SIZE, false),            // vertex_triangle_lists
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_normals
+                    (Triangle::MIN_BINDING_SIZE, false),       // triangle_indices
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // triangle_normals
                 ],
                 immediate_size: 0,
@@ -257,7 +259,9 @@ impl PipelinePart for AnimateMesh {
                     [
                         vertex_triangle_offsets.binding(),
                         vertex_triangle_lists.binding(),
+                        vertex_positions.binding(),
                         vertex_normals.binding(),
+                        triangle_indices.binding(),
                         triangle_normals.binding(),
                     ],
                 )
