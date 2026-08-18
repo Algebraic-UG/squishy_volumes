@@ -22,8 +22,12 @@ fn check(new_flags: &[ParticleFlags], flags: &[ParticleFlags]) {
         .iter()
         .zip(flags)
         .map(|(new_flags, flags)| {
-            // TODO
-            *flags
+            let mut f = *flags;
+            f.set(
+                ParticleFlags::HAS_GOAL,
+                new_flags.contains(ParticleFlags::HAS_GOAL),
+            );
+            f
         })
         .collect();
 

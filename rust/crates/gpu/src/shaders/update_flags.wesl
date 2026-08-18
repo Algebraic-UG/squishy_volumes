@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{get_global_index};
+import super::util::{get_global_index, HAS_GOAL};
 
 @group(0) @binding(0)
 var<storage, read_write> new_flags: array<u32>;
@@ -36,7 +36,13 @@ fn main(
         return;
     }
 
-    // TODO
+    var f = flags[global_index];
+    var new_f = new_flags[global_index];
+
+    f &= ~HAS_GOAL;
+    f |= new_f & HAS_GOAL;
+
+    flags[global_index] = f;
 }
 
 fn is_error() -> bool {
