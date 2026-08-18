@@ -327,11 +327,11 @@ impl GpuState {
             target_time,
             store_grid,
         }: GpuRunParameters,
-    ) -> Result<squishy_volumes_file_frame::IoState, GpuError> {
+    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
         squishy_volumes_util::profile!("produce_next_state");
 
         if self.time >= target_time {
-            return Ok(self.io_state.clone());
+            return Ok((self.io_state.clone(), Ok(())));
         }
 
         let mut encoder = self
@@ -508,6 +508,7 @@ impl GpuState {
         tracing::info!(self.max_num_grid_nodes, num_grid_nodes);
 
         let mut redo_frame = false;
+        let mut buffered_error = Ok(());
         match status.to_vec::<GpuStatus>()?[0].to_result(&self.gpu_context) {
             Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded { reporting_shader })) => {
                 tracing::warn!(
@@ -519,6 +520,12 @@ impl GpuState {
             Err(GpuError::Shader(GpuShaderError::TableTriesExceeded { reporting_shader })) => {
                 tracing::warn!(reporting_shader, "The hash table appears to be too small.");
                 redo_frame = true;
+            }
+            error @ Err(GpuError::Shader(GpuShaderError::ParticleCloseToInverted {
+                reporting_shader,
+            })) => {
+                tracing::warn!(reporting_shader, "A particle is too close to inversion.");
+                buffered_error = error;
             }
             x => x?,
         };
@@ -631,6 +638,6 @@ impl GpuState {
             })
             .transpose()?;
 
-        Ok(self.io_state.clone())
+        Ok((self.io_state.clone(), buffered_error))
     }
 }
