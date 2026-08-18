@@ -382,6 +382,10 @@ impl GpuState {
                 output.indirect_nodes,
                 self.next_input
                     .variable_particle_input
+                    .particle_flags
+                    .clone(),
+                self.next_input
+                    .variable_particle_input
                     .particle_positions_and_collider_bits
                     .clone(),
                 self.next_input
@@ -494,6 +498,7 @@ impl GpuState {
         let [
             status,
             indirect_nodes_download,
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -561,6 +566,7 @@ impl GpuState {
             particle_positions_and_collider_bits.to_vec()?;
 
         self.io_state.time = self.time;
+        self.io_state.particles.flags = particle_flags.to_vec()?;
         self.io_state.particles.collider_bits = particle_positions_and_collider_bits
             .iter()
             .map(|position_and_bits| position_and_bits.collider_bits)
