@@ -109,7 +109,7 @@ class Squishy_Volumes_Properties_Output(bpy.types.PropertyGroup):
     particle_flags: bpy.props.BoolProperty(
         name="Flags",
         description=f"Attribute name: {SQUISHY_VOLUMES_FLAGS}",
-        default=False,
+        default=True,
         options=set(),
     )  # type: ignore
 

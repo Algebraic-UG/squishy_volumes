@@ -172,7 +172,7 @@ def setup_example_benchmark(context: bpy.types.Context):
             grid_collider_bits=False,
             grid_masses=False,
             grid_velocities=False,
-            particle_flags=False,
+            particle_flags=True,
             particle_masses=False,
             particle_initial_volumes=False,
             particle_initial_positions=True,

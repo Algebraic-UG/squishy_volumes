@@ -123,28 +123,42 @@ impl ComputeThread {
 
                     let target_time = next_frame as f64 / consts.frames_per_second as f64;
 
+                    let result: Result<(), Error>;
                     let io_state = match &mut compute_state {
-                        ComputeState::Cpu(cpu_state) => cpu_state.produce_next_state(
-                            &harness,
-                            &frame_input,
-                            CpuRunParameters {
-                                target_time,
-                                max_time_step,
-                                adaptive_time_steps,
-                                store_grid: true,
-                            },
-                        )?,
-                        ComputeState::Gpu(gpu_state) => gpu_state.produce_next_state(
-                            &harness,
-                            &mut frame_input,
-                            GpuRunParameters {
-                                target_time,
-                                store_grid: true,
-                            },
-                        )?,
+                        ComputeState::Cpu(cpu_state) => {
+                            let (io_state, cpu_result) = cpu_state.produce_next_state(
+                                &harness,
+                                &frame_input,
+                                CpuRunParameters {
+                                    target_time,
+                                    max_time_step,
+                                    adaptive_time_steps,
+                                    store_grid: true,
+                                },
+                            )?;
+                            result = cpu_result.map_err(Error::CpuCompute);
+                            io_state
+                        }
+                        ComputeState::Gpu(gpu_state) => {
+                            let (io_state, gpu_result) = gpu_state.produce_next_state(
+                                &harness,
+                                &mut frame_input,
+                                GpuRunParameters {
+                                    target_time,
+                                    store_grid: true,
+                                },
+                            )?;
+                            result = gpu_result.map_err(Error::GpuError);
+                            io_state
+                        }
                     };
 
+                    // store state even if error occured
                     cache.store_frame(io_state).map_err(Error::StoreError)?;
+
+                    // now check for errors
+                    result?;
+
                     info!("computed frame {} of {}", next_frame, number_of_frames);
 
                     next_frame += 1;

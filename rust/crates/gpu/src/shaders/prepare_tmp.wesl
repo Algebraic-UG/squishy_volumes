@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED};
 import super::sand::sand_plasticity;
 import super::fluid::fluid_plasticity;
 import super::viscosity::cauchy_stress_general_viscosity;
@@ -69,6 +69,7 @@ fn main(
 
     if determinant(position_gradient) < INVERSE_EPS {
         atomicOr(&status, PARTICLE_CLOSE_TO_INVERTED);
+        flags[global_index] |= FAILED;
         return;
     }
 

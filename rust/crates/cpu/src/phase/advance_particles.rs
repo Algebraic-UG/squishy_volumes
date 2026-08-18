@@ -26,12 +26,15 @@ impl CpuState {
             .zip(&mut self.particles.position_gradients)
             .zip(&self.particles.velocities)
             .zip(&self.particles.velocity_gradients)
-            .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
+            .zip(&mut self.particles.flags)
+            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
             .try_for_each(
                 |(
-                    ((((elastic_energy, parameters), position), position_gradient), velocity),
-                    velocity_gradient,
+                    (
+                        ((((elastic_energy, parameters), position), position_gradient), velocity),
+                        velocity_gradient,
+                    ),
+                    flags,
                 )|
                  -> Result<(), Error> {
                     *position += velocity * time_step;
@@ -67,7 +70,8 @@ impl CpuState {
                                 }
                             }
 
-                            try_elastic_energy_neo_hookean(mu, lambda, position_gradient)?
+                            try_elastic_energy_neo_hookean(mu, lambda, position_gradient)
+                                .inspect_err(|_| *flags |= ParticleFlags::FAILED)?
                         }
                         SpecificParticleParameters::Fluid {
                             exponent,

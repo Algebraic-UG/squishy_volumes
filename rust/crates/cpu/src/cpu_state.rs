@@ -153,8 +153,9 @@ impl CpuState {
             adaptive_time_steps,
             store_grid,
         }: CpuRunParameters,
-    ) -> Result<squishy_volumes_file_frame::IoState, Error> {
+    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), Error>), Error> {
         squishy_volumes_util::profile!("produce_next_state");
+
         let harness = harness.scope(
             "Simulation Milliseconds to Next Frame".to_string(),
             NonZero::new(((1000. * frame_input.consts().seconds_per_frame()) as usize).max(1))
@@ -164,9 +165,7 @@ impl CpuState {
         self.adaptive_time_step_state.max_time_step = max_time_step;
 
         while self.time < target_time {
-            if harness.is_canceled() {
-                return Err(Error::Canceled);
-            }
+            harness.check()?;
 
             if self.adaptive_time_step_state.allowed_time_step() == 0. {
                 return Err(Error::ZeroTimeStep);
@@ -176,7 +175,13 @@ impl CpuState {
                 || (self.phase != Phase::LimitTimeStepBeforeForce
                     && self.phase != Phase::LimitTimeStepBeforeIntegrate);
             if run_phase {
-                self.run_phase(frame_input)?;
+                match self.run_phase(frame_input) {
+                    error @ Err(Error::EnergyError(energy_error)) => {
+                        tracing::warn!(?energy_error, "Encountered an energy error.");
+                        return Ok((self.to_io_state(store_grid)?, error));
+                    }
+                    x => x?,
+                }
             }
 
             self.phase = self.phase.cycle();
@@ -188,6 +193,6 @@ impl CpuState {
             )?;
         }
 
-        self.to_io_state(store_grid)
+        Ok((self.to_io_state(store_grid)?, Ok(())))
     }
 }
