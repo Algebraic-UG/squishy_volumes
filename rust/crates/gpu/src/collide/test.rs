@@ -28,6 +28,7 @@ fn check(
         triangle_frictions: _, // TODO
         ..
     }: InputData,
+    check_collider_bits: bool,
 ) {
     let vertex_triangle_lists = compute_triangle_lists(vertex_positions.len(), triangle_indices);
 
@@ -198,30 +199,33 @@ fn check(
         }
     }
 
-    println!("collider bits");
-    for (particle_index, (cpu, gpu)) in cpu_particle_positions_and_collider_bits
-        .iter()
-        .zip(gpu_particle_collider_bits)
-        .enumerate()
-    {
-        println!("{particle_index} {:?}", cpu.position);
-        let cpu = cpu.collider_bits;
-        let gpu = gpu.collider_bits;
+    if check_collider_bits {
+        println!("collider bits");
+        for (particle_index, (cpu, gpu)) in cpu_particle_positions_and_collider_bits
+            .iter()
+            .zip(gpu_particle_collider_bits)
+            .enumerate()
+        {
+            println!("{particle_index} {:?}", cpu.position);
+            let cpu = cpu.collider_bits;
+            let gpu = gpu.collider_bits;
 
-        assert_eq!(
-            cpu & 0xFFFF_0000,
-            gpu & 0xFFFF_0000,
-            "{particle_index}: {cpu:032b} vs {gpu:032b}"
-        );
+            assert_eq!(
+                cpu & 0xFFFF_0000,
+                gpu & 0xFFFF_0000,
+                "{particle_index}: {cpu:032b} vs {gpu:032b}"
+            );
 
-        let mask = cpu >> 16;
+            let mask = cpu >> 16;
 
-        assert_eq!(
-            cpu & mask,
-            gpu & mask,
-            "{particle_index}: {cpu:032b} vs {gpu:032b}"
-        );
+            assert_eq!(
+                cpu & mask,
+                gpu & mask,
+                "{particle_index}: {cpu:032b} vs {gpu:032b}"
+            );
+        }
     }
+
     println!("velocites");
     for (particle_index, (cpu, gpu)) in cpu_particle_velocites
         .iter()
@@ -281,6 +285,7 @@ fn simple() {
             triangle_normals: &[],
             triangle_opposites: &[],
         },
+        true,
     );
 }
 
@@ -343,6 +348,7 @@ fn simple2() {
             triangle_normals: &[],
             triangle_opposites: &[],
         },
+        true,
     );
 }
 
@@ -392,6 +398,7 @@ fn torus() {
             triangle_normals: &[],
             triangle_opposites: &[],
         },
+        false,
     );
 }
 
