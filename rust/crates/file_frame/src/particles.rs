@@ -28,6 +28,7 @@ bitflags::bitflags! {
         const USE_SAND_ALPHA = 1 << 3;
         const HAS_GOAL = 1 << 4;
         const TOMBSTONED = 1 << 5;
+        const FAILED = 1 << 6;
     }
 }
 
