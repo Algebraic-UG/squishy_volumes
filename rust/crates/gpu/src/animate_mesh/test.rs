@@ -121,6 +121,19 @@ fn torus() {
     });
 }
 
+#[test]
+fn cone() {
+    let vertices_0 = cone::vertices();
+    let vertices_1 = cone::vertices();
+    let triangles = cone::triangles();
+
+    check(InputData {
+        vertex_positions_start: &vertices_0,
+        vertex_positions_end: &vertices_1,
+        triangle_indices: &triangles,
+    });
+}
+
 fn run(
     settings: Settings,
     input_data: InputData,

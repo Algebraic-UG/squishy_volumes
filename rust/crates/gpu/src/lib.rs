@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+#![recursion_limit = "256"]
+
 pub use wgpu;
 pub use wgpu_profiler;
 
@@ -99,6 +101,8 @@ pub use test_status::TestStatus;
 pub use test_svd::TestSvd;
 pub use viscosity::Viscosity;
 
+#[cfg(test)]
+mod cone;
 #[cfg(test)]
 mod test_util;
 #[cfg(test)]
