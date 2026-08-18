@@ -43,11 +43,20 @@ fn check(
             .collect::<Vec<_>>();
         let cpu_vertex_normals = vertex_triangle_lists
             .iter()
-            .map(|triangles| {
+            .enumerate()
+            .map(|(vertex_index, triangles)| {
                 let mut normal = Vector3::zeros();
                 for index in triangles.iter() {
-                    normal += cpu_triangle_normals[*index as usize];
+                    let triangle = triangle_indices[*index as usize];
+                    let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
+                    let p = cpu_vertex_positions[vertex_index];
+                    let a = cpu_vertex_positions[*others.next().unwrap() as usize];
+                    let b = cpu_vertex_positions[*others.next().unwrap() as usize];
+                    let angle = (a - p).angle(&(b - p));
+
+                    normal += angle * cpu_triangle_normals[*index as usize];
                 }
+
                 normal
                     .try_normalize(NORMALIZATION_EPS)
                     .unwrap_or(Vector3::zeros())
