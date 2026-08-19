@@ -676,6 +676,7 @@ impl PipelinePart for Step {
                 hash_table,
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
                 node_momentums: node_momentums.clone(),
+                particle_flags: particle_flags.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_position_gradients,
                 particle_velocities,

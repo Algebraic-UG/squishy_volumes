@@ -476,6 +476,7 @@ fn main() {
                 gpu::collect::InputData {
                     node_ids_and_collider_bits: &node_ids_and_collider_bits,
                     node_momentums: &node_momentums,
+                    particle_flags: &test_particles.particle_flags,
                     particle_positions_and_collider_bits: &test_particles
                         .particle_positions_and_collider_bits,
                     particle_position_gradients: &test_particles.particle_position_gradients,

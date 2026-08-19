@@ -354,6 +354,7 @@ pub fn collect_on_cpu(
         particle_position_gradients,
         particle_velocities,
         particle_velocity_gradients,
+        ..
     }: collect::InputData,
 ) -> collect::OutputData {
     let map: FxHashMap<NodeIdAndColliderBits, Vector4<f32>> = node_ids_and_collider_bits
