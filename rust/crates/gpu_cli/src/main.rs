@@ -9,7 +9,7 @@
 use std::num::NonZeroU32;
 
 use gpu::{GpuContext, PipelinePart, profiler_output};
-use nalgebra::{UnitVector3, Vector3, Vector4};
+use nalgebra::{Vector3, Vector4};
 use rand::{RngExt, SeedableRng, rngs::ChaCha8Rng};
 use squishy_volumes_gpu::{
     self as gpu, contributors_on_cpu, get_node_set, prepare_tmp_on_cpu,
