@@ -167,6 +167,7 @@ fn main() {
                 gpu::collide::InputData {
                     leaf_size,
                     leaf_threshold,
+                    particle_flags: &test_particles.particle_flags,
                     particle_positions_and_collider_bits: &test_particles
                         .particle_positions_and_collider_bits,
                     particle_velocities: &test_particles.particle_velocities,

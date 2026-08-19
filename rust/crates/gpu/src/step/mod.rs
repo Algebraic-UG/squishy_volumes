@@ -569,6 +569,7 @@ impl PipelinePart for Step {
                 context,
                 encoder,
                 collide::Input {
+                    particle_flags: particle_flags.clone(),
                     particle_positions_and_collider_bits: particle_positions_and_collider_bits
                         .clone(),
                     particle_velocities: particle_velocities.clone(),

@@ -12,6 +12,7 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
+use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, triangles_to_leaf_aabbs,
 };
@@ -37,6 +38,7 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
+    pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_velocities: Allocation,
     pub vertex_positions: Allocation,
@@ -54,6 +56,7 @@ pub struct Input {
 pub struct InputData<'a> {
     pub leaf_size: f32,
     pub leaf_threshold: u32,
+    pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_velocities: &'a [Vector4<f32>],
     pub vertex_positions: &'a [Vector4<f32>],
@@ -76,6 +79,7 @@ impl Input {
         InputData {
             leaf_size,
             leaf_threshold,
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
@@ -89,7 +93,8 @@ impl Input {
             triangle_dampings,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        check_length!(particle_positions_and_collider_bits, particle_velocities)?;
+        check_length!(particle_flags, particle_positions_and_collider_bits)?;
+        check_length!(particle_flags, particle_velocities)?;
         check_length!(vertex_positions, vertex_normals)?;
         check_length!(triangle_indices, triangle_collider)?;
         check_length!(triangle_indices, triangle_normals)?;
@@ -114,6 +119,8 @@ impl Input {
 
         let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
 
+        let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
+
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -137,6 +144,7 @@ impl Input {
         let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
         Ok(Self {
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
@@ -177,6 +185,7 @@ impl PipelinePart for Collide {
                 context,
                 workgroup_size,
                 bind_group_entries: [
+                    (ParticleFlags::MIN_BINDING_SIZE, false), // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), //particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //particle_velocities
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_positions
@@ -213,6 +222,7 @@ impl PipelinePart for Collide {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
             vertex_positions,
@@ -242,6 +252,7 @@ impl PipelinePart for Collide {
                 encoder,
                 &self.collide,
                 [
+                    particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     particle_velocities.binding(),
                     vertex_positions.binding(),
