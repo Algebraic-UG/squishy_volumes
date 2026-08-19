@@ -172,6 +172,7 @@ fn run(
     let Output {
         contributor_offsets,
         contributors,
+        ..
     } = register_contributors
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();

@@ -45,6 +45,7 @@ pub struct Input {
 pub struct Output {
     pub contributor_offsets: Allocation,
     pub contributors: Allocation,
+    pub total_contributors: Allocation,
 }
 
 impl Input {
@@ -228,9 +229,9 @@ impl PipelinePart for RegisterContributors {
                 indirect: indirect_nodes,
                 numbers: contributor_counts.clone(),
             },
-            prefix_sum::Parameters { total_sum: false },
+            prefix_sum::Parameters { total_sum: true },
         )?;
-        assert!(total_sum.is_none());
+        let total_contributors = total_sum.expect("didn't get total sum");
 
         let contributors = context.allocator()?.allocate::<u32>(
             "contributors",
@@ -264,6 +265,7 @@ impl PipelinePart for RegisterContributors {
         Ok(Output {
             contributor_offsets,
             contributors,
+            total_contributors,
         })
     }
 }

@@ -608,6 +608,7 @@ impl PipelinePart for Step {
         let register_contributors::Output {
             contributor_offsets,
             contributors,
+            total_contributors,
         } = self.register_contributors.record(
             context,
             encoder,
@@ -640,6 +641,7 @@ impl PipelinePart for Step {
             encoder,
             scatter::Input {
                 indirect_nodes: indirect_nodes.clone(),
+                total_contributors,
                 contributor_offsets,
                 contributors,
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),

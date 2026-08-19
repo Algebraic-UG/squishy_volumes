@@ -12,21 +12,24 @@ import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, div_ceil
 var<storage, read> indirect: Indirect;
 
 @group(0) @binding(1)
-var<storage, read_write> contributor_offsets: array<u32>;
+var<storage, read_write> total_contributors: u32;
 
 @group(0) @binding(2)
-var<storage, read_write> contributors: array<u32>;
+var<storage, read_write> contributor_offsets: array<u32>;
 
 @group(0) @binding(3)
-var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
+var<storage, read_write> contributors: array<u32>;
 
 @group(0) @binding(4)
-var<storage, read_write> particle_tmp: array<mat4x4f>;
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
 @group(0) @binding(5)
-var<storage, read_write> node_momentums: array<vec4f>;
+var<storage, read_write> particle_tmp: array<mat4x4f>;
 
 @group(0) @binding(6)
+var<storage, read_write> node_momentums: array<vec4f>;
+
+@group(0) @binding(7)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -50,7 +53,7 @@ fn main(
     }
 
     let contributors_start = contributor_offsets[global_index];
-    var contributors_end = arrayLength(&contributors);
+    var contributors_end = total_contributors;
     if global_index + 1 < indirect.len {
         contributors_end = contributor_offsets[global_index + 1];
     }
