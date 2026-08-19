@@ -137,6 +137,8 @@ fn specific() {
         forget_distance: grid_node_size * 2.2,
         accept_distance: grid_node_size * 2.,
         table_tries: 50,
+        domain_min: Vector3::repeat(-100.),
+        domain_max: Vector3::repeat(100.),
     };
 
     let particle_positions_and_collider_bits = specific_positions_and_collider_bits();
@@ -198,6 +200,8 @@ fn test_single_undeformed() {
         forget_distance: grid_node_size * 2.2,
         accept_distance: grid_node_size * 2.,
         table_tries: 50,
+        domain_min: Vector3::repeat(-100.),
+        domain_max: Vector3::repeat(100.),
     };
 
     let particle_parameters = ParticleParameters {
