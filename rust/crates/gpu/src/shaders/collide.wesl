@@ -167,8 +167,8 @@ fn main(
         var distance = 0.;
         var to_p = vec3f(0.);
         if sa && sb && sc {
-            distance = length(to_p);
             to_p = normal * dot(p - a, normal);
+            distance = length(to_p);
         } else {
             let ab_res = segment_distance_result(p, a, b, a_n, ab_n, b_n);
             let bc_res = segment_distance_result(p, b, c, b_n, bc_n, c_n);
