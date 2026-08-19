@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL};
+import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, TOMBSTONED};
 
 @group(0) @binding(0)
 var<storage, read_write> gravity: vec3f;
@@ -51,7 +51,12 @@ fn main(
         return;
     }
 
-    if (particle_flags[global_index] & HAS_GOAL) != 0 {
+    let flags = particle_flags[global_index];
+    if (flags & TOMBSTONED) != 0 {
+        return;
+    }
+
+    if (flags & HAS_GOAL) != 0 {
         let goal_position = //
             (1. - factor) * particle_goals_start[global_index]
             + factor * particle_goals_end[global_index];
