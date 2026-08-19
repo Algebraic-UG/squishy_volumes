@@ -17,7 +17,11 @@ impl CpuState {
     pub fn external_force(&mut self, frame_input: &FrameInput) -> Result<(), Error> {
         profile!("external_force");
         let time_step = self.adaptive_time_step_state.allowed_time_step();
-        let input_flags = frame_input.a().particle_flags();
+        let a = frame_input.a();
+        let b = frame_input.b().unwrap_or(a);
+        let input_flags_a = a.particle_flags();
+        let input_flags_b = b.particle_flags();
+
         let interpolated_input = self
             .interpolated_input
             .as_ref()
@@ -32,7 +36,9 @@ impl CpuState {
             .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
             .for_each(|(index, (position, velocity))| {
                 let index = self.particles.sort_map[index] as usize;
-                if input_flags[index].contains(ParticleFlags::HAS_GOAL) {
+                if input_flags_a[index].contains(ParticleFlags::HAS_GOAL)
+                    && input_flags_b[index].contains(ParticleFlags::HAS_GOAL)
+                {
                     *velocity =
                         (interpolated_input.particle_goal_positions[index] - position) / time_step;
                 } else {
