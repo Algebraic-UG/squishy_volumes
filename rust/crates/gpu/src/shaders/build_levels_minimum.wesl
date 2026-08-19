@@ -38,7 +38,7 @@ fn main(
         set_shader_id();
     }
 
-    let index = stride - 1 + global_index * stride;
+    let index = global_index * stride;
 
     var my_data = F32_MAX;
     if index < indirect.len {
