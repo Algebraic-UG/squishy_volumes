@@ -13,8 +13,8 @@ pub struct InputConsts {
     pub leaf_threshold: u32,
     pub simulation_scale: f32,
     pub frames_per_second: u32,
-    pub domain_min: [f32; 3],
-    pub domain_max: [f32; 3],
+    domain_min: [f32; 3],
+    domain_max: [f32; 3],
 }
 
 #[cfg(test)]
@@ -39,6 +39,22 @@ impl InputConsts {
 
     pub fn unscaled_grid_node_size(&self) -> f32 {
         self.grid_node_size
+    }
+
+    pub fn scaled_domain_min(&self) -> [f32; 3] {
+        [
+            self.domain_min[0] / self.simulation_scale,
+            self.domain_min[1] / self.simulation_scale,
+            self.domain_min[2] / self.simulation_scale,
+        ]
+    }
+
+    pub fn scaled_domain_max(&self) -> [f32; 3] {
+        [
+            self.domain_max[0] / self.simulation_scale,
+            self.domain_max[1] / self.simulation_scale,
+            self.domain_max[2] / self.simulation_scale,
+        ]
     }
 
     pub fn accept_distance(&self) -> f32 {

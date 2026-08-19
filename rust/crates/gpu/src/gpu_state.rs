@@ -96,8 +96,8 @@ impl GpuState {
                 accept_distance: consts.accept_distance(),
                 time_step,
                 table_tries: 50, // TODO: make configurable?
-                domain_min: consts.domain_min.into(),
-                domain_max: consts.domain_max.into(),
+                domain_min: consts.scaled_domain_min().into(),
+                domain_max: consts.scaled_domain_max().into(),
             },
         )?;
         harness.check()?;
