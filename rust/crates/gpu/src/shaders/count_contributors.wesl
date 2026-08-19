@@ -8,21 +8,24 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING, TOMBSTONED};
 
 @group(0) @binding(0)
-var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
+var<storage, read_write> flags: array<u32>;
 
 @group(0) @binding(1)
-var<storage, read_write> hash_table: array<u32>;
+var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
 
 @group(0) @binding(2)
-var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
+var<storage, read_write> hash_table: array<u32>;
 
 @group(0) @binding(3)
-var<storage, read_write> contributor_counts: array<atomic<u32>>;
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
 
 @group(0) @binding(4)
+var<storage, read_write> contributor_counts: array<atomic<u32>>;
+
+@group(0) @binding(5)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -43,6 +46,9 @@ fn main(
         set_shader_id();
     }
     if global_index >= arrayLength(&positions_and_collider_bits) {
+        return;
+    }
+    if (flags[global_index] & TOMBSTONED) != 0 {
         return;
     }
 

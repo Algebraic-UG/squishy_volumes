@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic, TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic, TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED, TOMBSTONED};
 
 @group(0) @binding(0)
 var<storage, read_write> hash_table: array<u32>;
@@ -20,18 +20,21 @@ var<storage, read_write> node_momentums: array<vec4f>;
 // particle stuff
 
 @group(0) @binding(3)
-var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
+var<storage, read_write> particle_flags: array<u32>;
 
 @group(0) @binding(4)
-var<storage, read_write> particle_position_gradients: array<mat3x3<f32>>;
+var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
 @group(0) @binding(5)
-var<storage, read_write> particle_velocities: array<vec3<f32>>;
+var<storage, read_write> particle_position_gradients: array<mat3x3<f32>>;
 
 @group(0) @binding(6)
-var<storage, read_write> particle_velocity_gradients: array<mat3x3<f32>>;
+var<storage, read_write> particle_velocities: array<vec3<f32>>;
 
 @group(0) @binding(7)
+var<storage, read_write> particle_velocity_gradients: array<mat3x3<f32>>;
+
+@group(0) @binding(8)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -54,6 +57,10 @@ fn main(
         set_shader_id();
     }
     if global_index >= arrayLength(&particle_positions_and_collider_bits) {
+        return;
+    }
+
+    if (particle_flags[global_index] & TOMBSTONED) != 0 {
         return;
     }
 

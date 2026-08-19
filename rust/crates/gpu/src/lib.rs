@@ -53,6 +53,7 @@ pub mod collect;
 pub mod collide;
 pub mod count_subkeys;
 pub mod counts_indirect;
+pub mod cull_particles;
 pub mod elastic;
 pub mod external_force;
 pub mod fluid;
@@ -73,6 +74,7 @@ pub mod scatter;
 pub mod step;
 pub mod test_status;
 pub mod test_svd;
+pub mod update_flags;
 pub mod viscosity;
 
 pub use animate_mesh::AnimateMesh;
@@ -82,6 +84,7 @@ pub use collect::Collect;
 pub use collide::Collide;
 pub use count_subkeys::CountSubkeys;
 pub use counts_indirect::CountsIndirect;
+pub use cull_particles::CullParticles;
 pub use external_force::ExternalForce;
 pub use kernels::Kernels;
 pub use len_to_indirect::LenToIndirect;
@@ -99,6 +102,7 @@ pub use scatter::Scatter;
 pub use step::Step;
 pub use test_status::TestStatus;
 pub use test_svd::TestSvd;
+pub use update_flags::UpdateFlags;
 pub use viscosity::Viscosity;
 
 #[cfg(test)]

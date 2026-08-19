@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign};
+import super::util::{PositionAndColliderBits, get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign, TOMBSTONED};
 
 struct Opposite {
     ab: u32,
@@ -25,54 +25,57 @@ struct BvhMeta {
 // indexed by particle
 
 @group(0) @binding(0)
-var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
+var<storage, read_write> particle_flags: array<u32>;
 
 @group(0) @binding(1)
+var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
+
+@group(0) @binding(2)
 var<storage, read_write> particle_velocities: array<vec3f>;
 
 // indexed by vertex
 
-@group(0) @binding(2)
+@group(0) @binding(3)
 var<storage, read_write> vertex_positions: array<vec3f>;
 
-@group(0) @binding(3)
+@group(0) @binding(4)
 var<storage, read_write> vertex_normals: array<vec3f>;
 
-@group(0) @binding(4)
+@group(0) @binding(5)
 var<storage, read_write> vertex_velocities: array<vec3f>;
 
 // indexed by triangle 
 
-@group(0) @binding(5)
+@group(0) @binding(6)
 var<storage, read_write> triangle_indices: array<Triangle>;
 
-@group(0) @binding(6)
+@group(0) @binding(7)
 var<storage, read_write> triangle_collider: array<u32>;
 
-@group(0) @binding(7)
+@group(0) @binding(8)
 var<storage, read_write> triangle_normals: array<vec3f>;
 
-@group(0) @binding(8)
+@group(0) @binding(9)
 var<storage, read_write> triangle_opposites: array<Opposite>;
 
-@group(0) @binding(9)
+@group(0) @binding(10)
 var<storage, read_write> triangle_frictions: array<f32>;
 
-@group(0) @binding(10)
+@group(0) @binding(11)
 var<storage, read_write> triangle_dampings: array<f32>;
 
 // acceleration sturcture
 
-@group(0) @binding(11)
+@group(0) @binding(12)
 var<storage, read_write> bvh_meta: BvhMeta;
 
-@group(0) @binding(12)
+@group(0) @binding(13)
 var<storage, read_write> bvh_nodes: array<u32>;
 
-@group(0) @binding(13)
+@group(0) @binding(14)
 var<storage, read_write> bvh_indices: array<u32>;
 
-@group(0) @binding(14)
+@group(0) @binding(15)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -94,6 +97,9 @@ fn main(
         set_shader_id();
     }
     if global_index >= arrayLength(&particle_positions_and_collider_bits) {
+        return;
+    }
+    if (particle_flags[global_index] & TOMBSTONED) != 0 {
         return;
     }
 

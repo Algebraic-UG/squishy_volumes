@@ -6,34 +6,26 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, TOMBSTONED};
+import super::util::{get_global_index, PositionAndColliderBits, TOMBSTONED};
 
 @group(0) @binding(0)
-var<storage, read_write> gravity: vec3f;
-
-@group(0) @binding(1)
 var<storage, read_write> particle_flags: array<u32>;
 
-@group(0) @binding(2)
+@group(0) @binding(1)
 var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
-@group(0) @binding(3)
-var<storage, read_write> particle_velocities: array<vec3f>;
-
-@group(0) @binding(4)
-var<storage, read_write> particle_goals_start: array<vec3f>;
-
-@group(0) @binding(5)
-var<storage, read_write> particle_goals_end: array<vec3f>;
-
-@group(0) @binding(6)
+@group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
-override TIME_STEP: f32;
 
-var<immediate> factor: f32;
+override DOMAIN_MIN_X: f32;
+override DOMAIN_MIN_Y: f32;
+override DOMAIN_MIN_Z: f32;
+override DOMAIN_MAX_X: f32;
+override DOMAIN_MAX_Y: f32;
+override DOMAIN_MAX_Z: f32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -47,25 +39,22 @@ fn main(
     if global_index == 0 {
         set_shader_id();
     }
-    if global_index >= arrayLength(&particle_velocities) {
+    if global_index >= arrayLength(&particle_flags) {
         return;
     }
 
-    let flags = particle_flags[global_index];
+    var flags = particle_flags[global_index];
     if (flags & TOMBSTONED) != 0 {
         return;
     }
 
-    if (flags & HAS_GOAL) != 0 {
-        let goal_position = //
-            (1. - factor) * particle_goals_start[global_index]
-            + factor * particle_goals_end[global_index];
-        let position = particle_positions_and_collider_bits[global_index].position;
-        particle_velocities[global_index] = (goal_position - position) / TIME_STEP;
-        return;
+    let position = particle_positions_and_collider_bits[global_index].position;
+    let domain_min = vec3f(DOMAIN_MIN_X, DOMAIN_MIN_Y, DOMAIN_MIN_Z);
+    let domain_max = vec3f(DOMAIN_MAX_X, DOMAIN_MAX_Y, DOMAIN_MAX_Z);
+    if any(position < domain_min) || any(position > domain_max) {
+        flags |= TOMBSTONED;
+        particle_flags[global_index] = flags;
     }
-
-    particle_velocities[global_index] += TIME_STEP * gravity;
 }
 
 fn is_error() -> bool {

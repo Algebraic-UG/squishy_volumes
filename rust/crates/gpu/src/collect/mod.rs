@@ -12,6 +12,7 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::{Matrix4x3, Vector4};
+use squishy_volumes_file_frame::ParticleFlags;
 
 use super::*;
 
@@ -39,6 +40,7 @@ pub struct Input {
     pub node_ids_and_collider_bits: Allocation,
     pub node_momentums: Allocation,
 
+    pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_position_gradients: Allocation,
     pub particle_velocities: Allocation,
@@ -50,6 +52,7 @@ pub struct InputData<'a> {
     pub node_ids_and_collider_bits: &'a [NodeIdAndColliderBits],
     pub node_momentums: &'a [Vector4<f32>],
 
+    pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_position_gradients: &'a [Matrix4x3<f32>],
     pub particle_velocities: &'a [Vector4<f32>],
@@ -62,6 +65,7 @@ impl Input {
         InputData {
             node_ids_and_collider_bits,
             node_momentums,
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -69,15 +73,10 @@ impl Input {
         }: InputData,
     ) -> Result<Self, GpuError> {
         check_length!(node_ids_and_collider_bits, node_momentums)?;
-        check_length!(
-            particle_positions_and_collider_bits,
-            particle_position_gradients
-        )?;
-        check_length!(particle_positions_and_collider_bits, particle_velocities)?;
-        check_length!(
-            particle_positions_and_collider_bits,
-            particle_velocity_gradients
-        )?;
+        check_length!(particle_flags, particle_positions_and_collider_bits)?;
+        check_length!(particle_flags, particle_position_gradients)?;
+        check_length!(particle_flags, particle_velocities)?;
+        check_length!(particle_flags, particle_velocity_gradients)?;
 
         let hash_table = build_hash_table_on_cpu(node_ids_and_collider_bits);
 
@@ -88,6 +87,7 @@ impl Input {
             node_ids_and_collider_bits,
         )?;
         let node_momentums = Allocation::new(device, "node_momentums", node_momentums)?;
+        let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -110,6 +110,7 @@ impl Input {
             hash_table,
             node_ids_and_collider_bits,
             node_momentums,
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -153,6 +154,7 @@ impl PipelinePart for Collect {
                     (u32::MIN_BINDING_SIZE, false),                     // hash_table
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits
                     (Vector4::<i32>::MIN_BINDING_SIZE, false),        // node_momentums
+                    (ParticleFlags::MIN_BINDING_SIZE, false),         // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false), // particle_position_gradients
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),   // particle_velocities
@@ -182,6 +184,7 @@ impl PipelinePart for Collect {
             hash_table,
             node_ids_and_collider_bits,
             node_momentums,
+            particle_flags,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -192,9 +195,7 @@ impl PipelinePart for Collect {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
-            len: particle_positions_and_collider_bits
-                .len::<PositionAndColliderBits>()
-                .get() as u32,
+            len: particle_flags.len::<ParticleFlags>().get() as u32,
         })
         .direct();
 
@@ -206,6 +207,7 @@ impl PipelinePart for Collect {
                     hash_table.binding(),
                     node_ids_and_collider_bits.binding(),
                     node_momentums.binding(),
+                    particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     particle_position_gradients.binding(),
                     particle_velocities.binding(),

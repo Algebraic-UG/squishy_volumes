@@ -116,6 +116,7 @@ fn test_single_undeformed() {
         InputData {
             node_ids_and_collider_bits: &node_ids_and_collider_bits,
             node_momentums: &node_momentums,
+            particle_flags: &[Default::default()],
             particle_positions_and_collider_bits: &[PositionAndColliderBits {
                 position: Vector3::repeat(0.6),
                 collider_bits: 0,
@@ -151,6 +152,7 @@ fn test_many_random_props() {
 
     let positions = many_positions();
     let n = positions.len();
+    let particle_flags = vec![Default::default(); n];
     let positions_and_collider_bits = positions
         .into_iter()
         .map(|position| PositionAndColliderBits {
@@ -215,6 +217,7 @@ fn test_many_random_props() {
         collect::InputData {
             node_ids_and_collider_bits: &node_ids_and_collider_bits,
             node_momentums: &node_momentums,
+            particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &positions_and_collider_bits,
             particle_position_gradients: &position_gradients,
             particle_velocities: &velocities,

@@ -247,6 +247,7 @@ fn simple() {
         position: Vector3::new(0.5, 0.5, 0.5),
         collider_bits: 0x0001_0000,
     }];
+    let particle_flags = vec![Default::default()];
     let particle_velocities = vec![Vector4::zeros()];
     let vertex_positions = vec![
         Vector4::new(1., 1., 1., 0.),
@@ -271,6 +272,7 @@ fn simple() {
         InputData {
             leaf_size,
             leaf_threshold,
+            particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
             vertex_positions: &vertex_positions,
@@ -305,6 +307,7 @@ fn simple2() {
             collider_bits: 0x0001_0000,
         },
     ];
+    let particle_flags = vec![Default::default(); particle_positions_and_collider_bits.len()];
     let particle_velocities = vec![Vector4::zeros(); particle_positions_and_collider_bits.len()];
     let vertex_positions = vec![
         Vector4::new(1., 1., 1., 0.),
@@ -334,6 +337,7 @@ fn simple2() {
         InputData {
             leaf_size,
             leaf_threshold,
+            particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
             vertex_positions: &vertex_positions,
@@ -366,6 +370,7 @@ fn torus() {
             collider_bits: 0,
         })
         .collect();
+    let particle_flags = vec![Default::default(); particle_positions_and_collider_bits.len()];
     let particle_velocities = vec![Vector4::zeros(); particle_positions_and_collider_bits.len()];
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
@@ -384,6 +389,7 @@ fn torus() {
         InputData {
             leaf_size,
             leaf_threshold,
+            particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
             vertex_positions: &vertex_positions,

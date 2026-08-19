@@ -167,6 +167,7 @@ fn main() {
                 gpu::collide::InputData {
                     leaf_size,
                     leaf_threshold,
+                    particle_flags: &test_particles.particle_flags,
                     particle_positions_and_collider_bits: &test_particles
                         .particle_positions_and_collider_bits,
                     particle_velocities: &test_particles.particle_velocities,
@@ -281,6 +282,7 @@ fn main() {
                 context.device(),
                 settings,
                 &node_ids_and_collider_bits,
+                &test_particles.particle_flags,
                 &test_particles.particle_positions_and_collider_bits,
             )
             .unwrap();
@@ -474,6 +476,7 @@ fn main() {
                 gpu::collect::InputData {
                     node_ids_and_collider_bits: &node_ids_and_collider_bits,
                     node_momentums: &node_momentums,
+                    particle_flags: &test_particles.particle_flags,
                     particle_positions_and_collider_bits: &test_particles
                         .particle_positions_and_collider_bits,
                     particle_position_gradients: &test_particles.particle_position_gradients,
@@ -513,6 +516,8 @@ fn main() {
                 accept_distance,
                 time_step,
                 table_tries,
+                domain_min: Vector3::repeat(-1000.),
+                domain_max: Vector3::repeat(1000.),
             };
             let pipeline_part = gpu::Step::new(&mut context, settings.clone()).unwrap();
             let input = gpu::step::Input::new(

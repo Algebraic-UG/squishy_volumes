@@ -29,6 +29,7 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect_nodes: Allocation,
+    pub total_contributors: Allocation,
 
     pub contributor_offsets: Allocation,
     pub contributors: Allocation,
@@ -69,6 +70,8 @@ impl Input {
         });
 
         let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes])?;
+        let total_contributors =
+            Allocation::new(device, "total_contributors", &[contributors.len() as u32])?;
         let contributor_offsets =
             Allocation::new(device, "contributor_offsets", contributor_offsets)?;
         let contributors = Allocation::new(device, "contributors", contributors)?;
@@ -81,6 +84,7 @@ impl Input {
 
         Ok(Self {
             indirect_nodes,
+            total_contributors,
             contributor_offsets,
             contributors,
             node_ids_and_collider_bits,
@@ -113,6 +117,7 @@ impl PipelinePart for Scatter {
                 workgroup_size,
                 bind_group_entries: [
                     (Indirect::MIN_BINDING_SIZE, true),               // indirect
+                    (u32::MIN_BINDING_SIZE, false),                   // total_contributors
                     (u32::MIN_BINDING_SIZE, false),                   // contributor_offsets
                     (u32::MIN_BINDING_SIZE, false),                   // contributors
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits
@@ -133,6 +138,7 @@ impl PipelinePart for Scatter {
         encoder: &mut CommandEncoder,
         Input {
             indirect_nodes,
+            total_contributors,
             contributor_offsets,
             contributors,
             node_ids_and_collider_bits,
@@ -159,6 +165,7 @@ impl PipelinePart for Scatter {
                 &self.scatter,
                 [
                     indirect_nodes.binding(),
+                    total_contributors.binding(),
                     contributor_offsets.binding(),
                     contributors.binding(),
                     node_ids_and_collider_bits.binding(),

@@ -161,6 +161,7 @@ fn run(
         context.device(),
         settings.clone(),
         node_ids_and_collider_bits,
+        &vec![Default::default(); positions_and_collider_bits.len()],
         positions_and_collider_bits,
     )
     .unwrap();
@@ -171,6 +172,7 @@ fn run(
     let Output {
         contributor_offsets,
         contributors,
+        ..
     } = register_contributors
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
