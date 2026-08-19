@@ -282,6 +282,7 @@ fn main() {
                 context.device(),
                 settings,
                 &node_ids_and_collider_bits,
+                &test_particles.particle_flags,
                 &test_particles.particle_positions_and_collider_bits,
             )
             .unwrap();

@@ -11,6 +11,8 @@ use std::{num::NonZeroU32, sync::atomic::AtomicU32};
 #[cfg(test)]
 mod test;
 
+use squishy_volumes_file_frame::ParticleFlags;
+
 use super::*;
 
 pub struct RegisterContributors {
@@ -34,6 +36,7 @@ pub struct Parameters;
 
 pub struct Input {
     pub indirect_nodes: Allocation,
+    pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub hash_table: Allocation,
     pub node_ids_and_collider_bits: Allocation,
@@ -53,8 +56,11 @@ impl Input {
             ..
         }: Settings,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
+        particle_flags: &[ParticleFlags],
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, GpuError> {
+        check_length!(particle_flags, particle_positions_and_collider_bits)?;
+
         let hash_table = hash_table_on_cpu(
             node_ids_and_collider_bits,
             particle_positions_and_collider_bits,
@@ -67,6 +73,7 @@ impl Input {
         });
 
         let indirect_nodes = Allocation::new(device, "indirect_nodes", &[indirect_nodes])?;
+        let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -81,6 +88,7 @@ impl Input {
 
         Ok(Self {
             indirect_nodes,
+            particle_flags,
             particle_positions_and_collider_bits,
             hash_table,
             node_ids_and_collider_bits,
@@ -109,6 +117,7 @@ impl PipelinePart for RegisterContributors {
                 context,
                 workgroup_size,
                 bind_group_entries: [
+                    (ParticleFlags::MIN_BINDING_SIZE, false),
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
@@ -136,6 +145,7 @@ impl PipelinePart for RegisterContributors {
                 context,
                 workgroup_size,
                 bind_group_entries: [
+                    (ParticleFlags::MIN_BINDING_SIZE, false),
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false),
                     (u32::MIN_BINDING_SIZE, false),
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false),
@@ -166,6 +176,7 @@ impl PipelinePart for RegisterContributors {
         encoder: &mut CommandEncoder,
         Input {
             indirect_nodes,
+            particle_flags,
             particle_positions_and_collider_bits,
             hash_table,
             node_ids_and_collider_bits,
@@ -198,6 +209,7 @@ impl PipelinePart for RegisterContributors {
                 encoder,
                 &self.count_contributors,
                 [
+                    particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     hash_table.binding(),
                     node_ids_and_collider_bits.binding(),
@@ -238,6 +250,7 @@ impl PipelinePart for RegisterContributors {
                 encoder,
                 &self.register_contributors,
                 [
+                    particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     hash_table.binding(),
                     node_ids_and_collider_bits.binding(),

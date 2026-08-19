@@ -613,6 +613,7 @@ impl PipelinePart for Step {
             encoder,
             register_contributors::Input {
                 indirect_nodes: indirect_nodes.clone(),
+                particle_flags: particle_flags.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 hash_table: hash_table.clone(),
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
