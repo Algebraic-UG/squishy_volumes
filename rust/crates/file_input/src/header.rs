@@ -48,6 +48,9 @@ impl InputConsts {
             self.domain_min[2] / self.simulation_scale,
         ]
     }
+    pub fn unscaled_domain_min(&self) -> [f32; 3] {
+        self.domain_min
+    }
 
     pub fn scaled_domain_max(&self) -> [f32; 3] {
         [
@@ -55,6 +58,9 @@ impl InputConsts {
             self.domain_max[1] / self.simulation_scale,
             self.domain_max[2] / self.simulation_scale,
         ]
+    }
+    pub fn unscaled_domain_max(&self) -> [f32; 3] {
+        self.domain_max
     }
 
     pub fn accept_distance(&self) -> f32 {
