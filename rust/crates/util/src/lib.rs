@@ -12,6 +12,7 @@ mod consts;
 mod elastic;
 mod flat;
 mod panic_to_string;
+mod particle_parameters;
 mod safe_inverse;
 mod typedefs;
 
@@ -21,6 +22,7 @@ pub use consts::*;
 pub use elastic::*;
 pub use flat::*;
 pub use panic_to_string::*;
+pub use particle_parameters::*;
 pub use safe_inverse::*;
 pub use typedefs::*;
 

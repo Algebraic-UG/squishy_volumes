@@ -29,17 +29,17 @@ impl AllowedInBinding for ParticleParametersDevice {
     const ALIGNMENT: NonZeroU64 = u32::ALIGNMENT;
 }
 
-impl From<&squishy_volumes_file_frame::ParticleParameters> for ParticleParametersDevice {
+impl From<&squishy_volumes_util::ParticleParameters> for ParticleParametersDevice {
     fn from(
-        squishy_volumes_file_frame::ParticleParameters {
+        squishy_volumes_util::ParticleParameters {
             mass,
             initial_volume,
             viscosity,
             specific,
-        }: &squishy_volumes_file_frame::ParticleParameters,
+        }: &squishy_volumes_util::ParticleParameters,
     ) -> Self {
         match *specific {
-            squishy_volumes_file_frame::SpecificParticleParameters::Solid {
+            squishy_volumes_util::SpecificParticleParameters::Solid {
                 mu,
                 lambda,
                 sand_alpha,
@@ -57,7 +57,7 @@ impl From<&squishy_volumes_file_frame::ParticleParameters> for ParticleParameter
                 sand_alpha: sand_alpha.unwrap_or_default(),
                 ..Default::default()
             },
-            squishy_volumes_file_frame::SpecificParticleParameters::Fluid {
+            squishy_volumes_util::SpecificParticleParameters::Fluid {
                 exponent,
                 bulk_modulus,
             } => Self {

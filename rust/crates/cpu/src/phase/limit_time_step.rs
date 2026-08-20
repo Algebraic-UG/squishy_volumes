@@ -8,10 +8,11 @@
 
 use nalgebra::{Matrix3, Vector3};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_file_frame::{ParticleFlags, SpecificParticleParameters};
+use squishy_volumes_file_frame::ParticleFlags;
 
 use squishy_volumes_util::{
-    SINGULAR_VALUE_SEPARATION, double_partial_elastic_energy_inviscid_by_invariant_3,
+    ParticleParameters, SINGULAR_VALUE_SEPARATION,
+    double_partial_elastic_energy_inviscid_by_invariant_3,
     first_piola_stress_inviscid_svd_in_diagonal_space,
     first_piola_stress_neo_hookean_svd_in_diagonal_space,
     partial_elastic_energy_inviscid_by_invariant_3, profile,

@@ -8,10 +8,9 @@
 
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator as _, ParallelIterator};
-use squishy_volumes_file_frame::{SpecificParticleParameters, ViscosityParameters};
 use squishy_volumes_util::{
-    cauchy_stress_general_viscosity, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
-    profile,
+    SpecificParticleParameters, ViscosityParameters, cauchy_stress_general_viscosity,
+    first_piola_stress_inviscid, first_piola_stress_neo_hookean, profile,
 };
 
 use super::*;

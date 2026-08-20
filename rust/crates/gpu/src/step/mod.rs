@@ -12,10 +12,11 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::{Matrix4x3, Vector3, Vector4};
-use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
+use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, compute_triangle_lists, triangles_to_leaf_aabbs,
 };
+use squishy_volumes_util::ParticleParameters;
 
 use crate::particle_parameters::ParticleParametersDevice;
 

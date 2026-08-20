@@ -12,7 +12,8 @@ use std::num::NonZeroU32;
 mod test;
 
 use nalgebra::{Matrix4, Matrix4x3, Vector4};
-use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters};
+use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::ParticleParameters;
 
 use crate::particle_parameters::ParticleParametersDevice;
 

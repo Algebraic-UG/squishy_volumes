@@ -7,14 +7,15 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Matrix3;
-use squishy_volumes_file_frame::{
-    IoState, ParticleFlags, SpecificParticleParameters, ViscosityParameters,
-};
+use squishy_volumes_file_frame::{IoState, ParticleFlags};
 use squishy_volumes_file_input::{InputRange, InputRanges, InputReader};
 use squishy_volumes_xpu::Harness;
 use thiserror::Error;
 
-use squishy_volumes_util::{bulk_modulus_in_bounds, exponent_in_bounds, lambda, mu};
+use squishy_volumes_util::{
+    SpecificParticleParameters, ViscosityParameters, bulk_modulus_in_bounds, exponent_in_bounds,
+    lambda, mu,
+};
 
 #[derive(Error, Debug)]
 pub enum StateInitializationError {
