@@ -88,7 +88,7 @@ impl CpuState {
                     s.x * s.x * second.m11,
                     s.y * s.y * second.m22,
                     s.z * s.z * second.m33,
-                    s.y * s.y
+                    s.x * s.y
                         * if xy_close {
                             (first.x + s.x * second.m11 - s.y * second.m21) / 2. / s.x
                         } else {
@@ -102,7 +102,7 @@ impl CpuState {
                         },
                     s.z * s.x
                         * if zx_close {
-                            (first.z + s.x * second.m33 - s.x * second.m13) / 2. / s.z
+                            (first.z + s.z * second.m33 - s.x * second.m13) / 2. / s.z
                         } else {
                             (s.z * first.z - s.x * first.x) / (s.z * s.z - s.x * s.x)
                         },
