@@ -43,7 +43,10 @@ macro_rules! ensure_err {
 }
 
 #[cfg(feature = "profile")]
-use coarse_prof::profile;
+pub use coarse_prof;
+#[cfg(feature = "profile")]
+pub use coarse_prof::profile;
+
 #[macro_export]
 macro_rules! fake_profile {
     ($name:expr) => {};

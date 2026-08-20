@@ -22,6 +22,9 @@ use squishy_volumes_util::panic_payload_to_string;
 use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
 use tracing::info;
 
+#[cfg(feature = "profile")]
+use squishy_volumes_util::coarse_prof;
+
 use crate::{
     Error, initialization::initialize_io_state, simulation_input_path, stats::ComputeStats,
 };
@@ -113,6 +116,12 @@ impl ComputeThread {
                     ComputeState::Cpu(CpuState::from_io_state(io_state)?)
                 };
 
+                #[cfg(feature = "profile")]
+                {
+                    coarse_prof::reset();
+                    info!("profile reset");
+                }
+
                 let mut frame_times = VecDeque::new();
                 while next_frame < number_of_frames.get() {
                     harness.check()?;
@@ -180,6 +189,14 @@ impl ComputeThread {
                         last_frame_time_sec,
                         last_frame_substeps: 0, // TODO
                     });
+                }
+
+                #[cfg(feature = "profile")]
+                {
+                    let mut buf = std::io::BufWriter::new(Vec::new());
+                    coarse_prof::write(&mut buf).unwrap();
+                    info!("{}", String::from_utf8(buf.into_inner().unwrap()).unwrap());
+                    coarse_prof::reset();
                 }
 
                 info!("done computing {}", number_of_frames.get());
