@@ -8,8 +8,7 @@
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_file_frame::SpecificParticleParameters;
-use squishy_volumes_util::{lambda, mu};
+use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use crate::test_data::{
     test_inviscid_parameters, test_lame_parameters, test_position_gradients_random,

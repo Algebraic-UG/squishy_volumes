@@ -7,8 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
-use squishy_volumes_file_frame::SpecificParticleParameters;
-use squishy_volumes_util::{lambda, mu};
+use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use super::*;
 

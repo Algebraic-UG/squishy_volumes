@@ -11,10 +11,9 @@ use std::iter::repeat;
 use approx::assert_relative_eq;
 use nalgebra::{Matrix1x3, Matrix3, stack};
 use rand::{SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_file_frame::SpecificParticleParameters;
 use squishy_volumes_util::{
-    elastic_energy_inviscid, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
-    try_elastic_energy_neo_hookean,
+    SpecificParticleParameters, elastic_energy_inviscid, first_piola_stress_inviscid,
+    first_piola_stress_neo_hookean, try_elastic_energy_neo_hookean,
 };
 
 use crate::test_data::{

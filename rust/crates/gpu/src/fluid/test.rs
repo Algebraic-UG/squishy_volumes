@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, stack};
-use squishy_volumes_file_frame::SpecificParticleParameters;
+use squishy_volumes_util::SpecificParticleParameters;
 
 use crate::test_data::test_position_gradients_random;
 

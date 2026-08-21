@@ -7,8 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix3, Matrix4x3};
-use squishy_volumes_file_frame::{SpecificParticleParameters, ViscosityParameters};
-use squishy_volumes_util::cauchy_stress_general_viscosity;
+use squishy_volumes_util::{
+    SpecificParticleParameters, ViscosityParameters, cauchy_stress_general_viscosity,
+};
 
 use crate::test_data::test_velocity_gradients_random;
 
