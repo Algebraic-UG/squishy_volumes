@@ -309,10 +309,12 @@ fn first_piola_stress_inviscid(
     ) * partial_invariant_3_by_position_gradient(position_gradient);
 }
 
+const F32_MIN: f32 = -3.4028234663852886e38f;
 const F32_MAX: f32 = 3.4028234663852886e38f;
 const U32_MAX: u32 = ~0u;
 const NORMALIZATION_EPS: f32 = 1e-5;
 const INVERSE_EPS: f32 = 1e-7;
+const SINGULAR_VALUE_SEPARATION: f32 = 1e-5;
 
 struct Triangle {
     a: u32,
@@ -370,4 +372,115 @@ fn from_diagonal_element(e: f32) -> mat3x3f {
         vec3f(0., e, 0.),
         vec3f(0., 0., e),
     );
+}
+
+fn outer(a: vec3f, b: vec3f) -> mat3x3f {
+    return mat3x3f(
+        a * b.x,
+        a * b.y,
+        a * b.z,
+    );
+}
+
+struct TimeStepLimits {
+    time_step_by_velocity: f32,
+    time_step_by_deformation: f32,
+    time_step_by_isolated: f32,
+    time_step_by_sound: f32,
+}
+
+fn partial_invariant_2_by_svd(singular_values: vec3f) -> vec3f {
+    return 2. * singular_values;
+}
+
+fn invariant_3_by_svd(singular_values: vec3f) -> f32 {
+    return singular_values.x * singular_values.y * singular_values.z;
+}
+
+fn partial_invariant_3_by_svd(singular_values: vec3f) -> vec3f {
+    return vec3f(
+        singular_values.y * singular_values.z,
+        singular_values.x * singular_values.z,
+        singular_values.x * singular_values.y,
+    );
+}
+
+fn double_partial_invariant_3_by_svd(singular_values: vec3f) -> mat3x3f {
+    let x = singular_values.x;
+    let y = singular_values.y;
+    let z = singular_values.z;
+    return mat3x3f(
+        0., z, y,
+        z, 0., x,
+        y, x, 0.,
+    );
+}
+
+fn first_piola_stress_neo_hookean_svd_in_diagonal_space(
+    mu: f32,
+    lambda: f32,
+    s: vec3f,
+) -> vec3f {
+    return partial_elastic_energy_neo_hookean_by_invariant_2(mu) * partial_invariant_2_by_svd(s)
+    + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3_by_svd(s))
+    * partial_invariant_3_by_svd(s);
+}
+
+fn double_partial_elastic_energy_neo_hookean_by_invariant_3(
+    mu: f32,
+    lambda: f32,
+    invariant_3: f32,
+) -> f32 {
+    return (lambda * (1. - log(invariant_3) + mu) / pow(invariant_3, 3));
+}
+
+fn second_derivative_neo_hookean_svd_in_diagonal_space(
+    mu: f32,
+    lambda: f32,
+    s: vec3f,
+) -> mat3x3f {
+    return from_diagonal_element(partial_elastic_energy_neo_hookean_by_invariant_2(mu) * 2.)
+    + outer(double_partial_elastic_energy_neo_hookean_by_invariant_3(
+        mu,
+        lambda,
+        invariant_3_by_svd(s),
+    ) * partial_invariant_3_by_svd(s),
+        partial_invariant_3_by_svd(s))
+    + partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3_by_svd(s))
+    * double_partial_invariant_3_by_svd(s);
+}
+
+fn first_piola_stress_inviscid_svd_in_diagonal_space(
+    bulk_modulus: f32,
+    exponent: i32,
+    s: vec3f,
+) -> vec3f {
+    return partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, invariant_3_by_svd(s))
+    * partial_invariant_3_by_svd(s);
+}
+
+fn double_partial_elastic_energy_inviscid_by_invariant_3(
+    bulk_modulus: f32,
+    exponent: i32,
+    invariant_3: f32,
+) -> f32 {
+    return f32(exponent) * bulk_modulus / pow(invariant_3, f32(exponent) + 1.);
+}
+
+fn second_derivative_inviscid_svd_in_diagonal_space(
+    bulk_modulus: f32,
+    exponent: i32,
+    s: vec3f,
+) -> mat3x3f {
+    return outer(double_partial_elastic_energy_inviscid_by_invariant_3(
+        bulk_modulus,
+        exponent,
+        invariant_3_by_svd(s),
+    ) * partial_invariant_3_by_svd(s),
+        partial_invariant_3_by_svd(s))
+    + partial_elastic_energy_inviscid_by_invariant_3(
+        bulk_modulus,
+        exponent,
+        invariant_3_by_svd(s),
+    ) * double_partial_invariant_3_by_svd(s);
 }
