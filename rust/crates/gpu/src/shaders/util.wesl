@@ -382,6 +382,15 @@ fn outer(a: vec3f, b: vec3f) -> mat3x3f {
     );
 }
 
+fn mat3x3f_abs(m: mat3x3f) -> mat3x3f {
+    return mat3x3f(abs(m[0]), abs(m[1]), abs(m[2]));
+}
+
+fn mat3x3f_max_elem(m: mat3x3f) -> f32 {
+    let v = max(max(m[0], m[1]), m[2]);
+    return max(max(v.x, v.y), v.z);
+}
+
 struct TimeStepLimits {
     time_step_by_velocity: f32,
     time_step_by_deformation: f32,

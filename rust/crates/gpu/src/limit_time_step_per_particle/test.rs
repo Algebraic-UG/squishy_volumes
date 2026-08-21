@@ -63,24 +63,24 @@ fn check(
     let gpu_time_step_limits = run(settings, input_data.clone());
 
     for (cpu, gpu) in cpu_time_step_limits.into_iter().zip(gpu_time_step_limits) {
-        //assert_relative_eq!(
-        //    cpu.time_step_by_velocity,
-        //    gpu.time_step_by_velocity,
-        //    epsilon = 0.000001,
-        //    max_relative = 0.01
-        //);
-        //assert_relative_eq!(
-        //    cpu.time_step_by_deformation,
-        //    gpu.time_step_by_deformation,
-        //    epsilon = 0.000001,
-        //    max_relative = 0.01
-        //);
-        //assert_relative_eq!(
-        //    cpu.time_step_by_isolated,
-        //    gpu.time_step_by_isolated,
-        //    epsilon = 0.000001,
-        //    max_relative = 0.01
-        //);
+        assert_relative_eq!(
+            cpu.time_step_by_velocity,
+            gpu.time_step_by_velocity,
+            epsilon = 0.000001,
+            max_relative = 0.01
+        );
+        assert_relative_eq!(
+            cpu.time_step_by_deformation,
+            gpu.time_step_by_deformation,
+            epsilon = 0.000001,
+            max_relative = 0.01
+        );
+        assert_relative_eq!(
+            cpu.time_step_by_isolated,
+            gpu.time_step_by_isolated,
+            epsilon = 0.000001,
+            max_relative = 0.01
+        );
         assert_relative_eq!(
             cpu.time_step_by_sound,
             gpu.time_step_by_sound,

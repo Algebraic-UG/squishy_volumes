@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, TimeStepLimits, SINGULAR_VALUE_SEPARATION, first_piola_stress_neo_hookean_svd_in_diagonal_space, first_piola_stress_inviscid_svd_in_diagonal_space, second_derivative_neo_hookean_svd_in_diagonal_space, second_derivative_inviscid_svd_in_diagonal_space, F32_MIN};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, TimeStepLimits, SINGULAR_VALUE_SEPARATION, first_piola_stress_neo_hookean_svd_in_diagonal_space, first_piola_stress_inviscid_svd_in_diagonal_space, second_derivative_neo_hookean_svd_in_diagonal_space, second_derivative_inviscid_svd_in_diagonal_space, F32_MIN, partial_elastic_energy_inviscid_by_invariant_3, double_partial_elastic_energy_inviscid_by_invariant_3, mat3x3f_max_elem, mat3x3f_abs};
 import super::external::wgebra::svd3::{Svd, svd, recompose};
 
 @group(0) @binding(0)
@@ -60,7 +60,13 @@ fn main(
     let velocity = velocities[global_index];
     let velocity_gradient = velocity_gradients[global_index];
 
-    time_step_limits[global_index].time_step_by_sound = limit_time_step_by_speed_of_sound(flag, parameter, position_gradient);
+    var limits: TimeStepLimits;
+    limits.time_step_by_sound = limit_time_step_by_speed_of_sound(flag, parameter, position_gradient);
+    limits.time_step_by_isolated = limit_time_step_by_isolated(flag, parameter, position_gradient);
+    limits.time_step_by_velocity = limit_time_step_by_velocity(velocity);
+    limits.time_step_by_deformation = limit_time_step_by_deformation(velocity_gradient);
+
+    time_step_limits[global_index] = limits;
 }
 
 fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, position_gradient: mat3x3f) -> f32 {
@@ -115,6 +121,45 @@ fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, p
     let c = sqrt(kappa / current_density);
 
     return GRID_NODE_SIZE / c;
+}
+
+fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, position_gradient: mat3x3f) -> f32 {
+    if (flag & IS_SOLID) > 0 {
+        // Stability analysis of explicit MPM, Technical document 3.12
+        let xi = 3. / GRID_NODE_SIZE / GRID_NODE_SIZE;
+        const R: f32 = 1.; // APIC & CPIC
+        const K: f32 = 1.; // CPIC
+        const D: f32 = 3.; // 3D
+        return sqrt(parameters.mass / (parameters.initial_volume * xi * (R - K / 2.) * (parameters.mu + D / 2. * parameters.lambda)));
+    }
+
+    if (flag & IS_FLUID) > 0 {
+        // Effective time step restrictions for explicit MPM simulation,
+        // Technical document "Simple bounds"
+        let initial_density = parameters.mass / parameters.initial_volume;
+        let j = determinant(position_gradient);
+        const K: f32 = 6.; // quadratic splines
+        const D: f32 = 3.; // 3D
+        let first = partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
+        if abs(j - 1.) > SINGULAR_VALUE_SEPARATION {
+            return GRID_NODE_SIZE / j * sqrt(initial_density * (j - 1.) / (K * first * D));
+        }
+
+        let second = double_partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
+
+        return sqrt(GRID_NODE_SIZE * (initial_density / (K * second * D)));
+    }
+
+    return 0.;
+}
+
+fn limit_time_step_by_velocity(velocity: vec3f) -> f32 {
+    return GRID_NODE_SIZE * 0.5 / max(length(velocity), GRID_NODE_SIZE * 0.5);
+}
+
+fn limit_time_step_by_deformation(velocity_gradient: mat3x3f) -> f32 {
+    const DELTA: f32 = 0.2;
+    return DELTA / max(mat3x3f_max_elem(mat3x3f_abs(velocity_gradient)), 1e-8);
 }
 
 fn is_error() -> bool {
