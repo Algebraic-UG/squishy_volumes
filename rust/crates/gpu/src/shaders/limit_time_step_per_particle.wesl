@@ -52,6 +52,10 @@ fn main(
 
     let flag = flags[global_index];
     if (flag & TOMBSTONED) != 0 {
+        time_step_limits[global_index].time_step_by_sound = F32_MAX;
+        time_step_limits[global_index].time_step_by_isolated = F32_MAX;
+        time_step_limits[global_index].time_step_by_velocity = F32_MAX;
+        time_step_limits[global_index].time_step_by_deformation = F32_MAX;
         return;
     }
 
