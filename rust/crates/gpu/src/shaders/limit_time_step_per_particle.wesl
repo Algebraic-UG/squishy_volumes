@@ -85,24 +85,26 @@ fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, p
         second = second_derivative_inviscid_svd_in_diagonal_space(parameter.bulk_modulus, parameter.exponent, s);
     }
 
-    var kappa = F32_MIN;
+    var kappa = 0.;
     kappa = max(kappa, s.x * s.x * second[0].x);
     kappa = max(kappa, s.y * s.y * second[1].y);
     kappa = max(kappa, s.z * s.z * second[2].z);
     if xy_close {
-        kappa = max(kappa, s.x * s.y * (first.x + s.x + second[0].x * second[1].x) / 2. / s.x);
+        kappa = max(kappa, s.x * s.y * (first.x + s.x * second[0].x - s.y * second[0].y) / 2. / s.x);
     } else {
-        kappa = max(kappa, s.x * s.y * (s.x * first.x - s.y + first.y) / (s.x * s.x - s.y * s.y));
+        kappa = max(kappa, s.x * s.y * (s.x * first.x - s.y * first.y) / (s.x * s.x - s.y * s.y));
     }
+
     if yz_close {
-        kappa = max(kappa, s.y * s.z * (first.y + s.y + second[1].y * second[2].y) / 2. / s.y);
+        kappa = max(kappa, s.y * s.z * (first.y + s.y * second[1].y - s.z * second[1].z) / 2. / s.y);
     } else {
-        kappa = max(kappa, s.y * s.z * (s.y * first.y - s.z + first.z) / (s.y * s.y - s.z * s.z));
+        kappa = max(kappa, s.y * s.z * (s.y * first.y - s.z * first.z) / (s.y * s.y - s.z * s.z));
     }
+
     if zx_close {
-        kappa = max(kappa, s.z * s.x * (first.z + s.z + second[2].z * second[0].z) / 2. / s.z);
+        kappa = max(kappa, s.z * s.x * (first.z + s.z * second[2].z - s.x * second[2].x) / 2. / s.z);
     } else {
-        kappa = max(kappa, s.z * s.x * (s.z * first.z - s.x + first.x) / (s.z * s.z - s.x * s.x));
+        kappa = max(kappa, s.z * s.x * (s.z * first.z - s.x * first.x) / (s.z * s.z - s.x * s.x));
     }
 
     kappa /= j;

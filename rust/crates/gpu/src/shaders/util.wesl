@@ -431,7 +431,7 @@ fn double_partial_elastic_energy_neo_hookean_by_invariant_3(
     lambda: f32,
     invariant_3: f32,
 ) -> f32 {
-    return (lambda * (1. - log(invariant_3) + mu) / pow(invariant_3, 3));
+    return (lambda * (1. - log(invariant_3)) + mu) / pow(invariant_3, 2);
 }
 
 fn second_derivative_neo_hookean_svd_in_diagonal_space(
