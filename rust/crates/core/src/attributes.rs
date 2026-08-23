@@ -93,8 +93,8 @@ pub fn fetch_flat_attribute_f32(
         Attribute::Const(attribute) => match attribute {
             AttributeConst::GridNodeSize => vec![input_header.consts.scaled_grid_node_size()],
             AttributeConst::SimulationScale => vec![input_header.consts.simulation_scale],
-            AttributeConst::DomainMin => input_header.consts.domain_min.to_vec(),
-            AttributeConst::DomainMax => input_header.consts.domain_max.to_vec(),
+            AttributeConst::DomainMin => input_header.consts.unscaled_domain_min().to_vec(),
+            AttributeConst::DomainMax => input_header.consts.unscaled_domain_max().to_vec(),
             _ => Err(AttributeError::NotFloatAttribute(format!("{attribute:?}")))?,
         },
         Attribute::Object { name, attribute } => {
