@@ -121,7 +121,9 @@ impl PipelinePart for FindMinimum {
     ) -> Result<Output, GpuError> {
         let len = input.numbers.len::<f32>();
 
-        let max_level = (len.get() as u32 * self.subgroup_size - 1).ilog(self.subgroup_size);
+        let max_level = (len.get() as u32 * self.subgroup_size - 1)
+            .ilog(self.subgroup_size)
+            .max(1);
 
         let indirect_levels = context.indirect_allocator()?.allocate::<Indirect>(
             "indiret_levels",

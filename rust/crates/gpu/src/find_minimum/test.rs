@@ -24,6 +24,11 @@ fn settings() -> Settings {
 }
 
 #[test]
+fn single() {
+    check(settings(), &[1.]);
+}
+
+#[test]
 fn test_simple() {
     check(settings(), &[0., 1.]);
 }

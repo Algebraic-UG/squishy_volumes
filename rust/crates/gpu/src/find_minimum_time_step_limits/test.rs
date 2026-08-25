@@ -25,6 +25,19 @@ fn settings() -> Settings {
 }
 
 #[test]
+fn single() {
+    check(
+        settings(),
+        &[TimeStepLimits {
+            time_step_by_velocity: 1.0,
+            time_step_by_deformation: 20000000.0,
+            time_step_by_isolated: 0.02309401,
+            time_step_by_sound: 0.027255382,
+        }],
+    );
+}
+
+#[test]
 fn test_simple() {
     check(
         settings(),
