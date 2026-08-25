@@ -21,6 +21,22 @@ fn check(settings: Settings, numbers: &[u32]) {
 }
 
 #[test]
+fn test_single() {
+    let numbers = [1];
+    assert_eq!(
+        vec![0],
+        run_prefix_sum(
+            prefix_sum::Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: 10.try_into().unwrap(),
+            },
+            &numbers
+        )
+        .0,
+    );
+}
+
+#[test]
 fn test_simple() {
     let numbers = [1, 1, 1, 1, 1, 1];
     assert_eq!(
