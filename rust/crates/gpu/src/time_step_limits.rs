@@ -11,12 +11,36 @@ use std::num::NonZeroU64;
 use crate::AllowedInBinding;
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
+#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
 pub struct TimeStepLimits {
     pub time_step_by_velocity: f32,
     pub time_step_by_deformation: f32,
     pub time_step_by_isolated: f32,
     pub time_step_by_sound: f32,
+}
+
+impl Default for TimeStepLimits {
+    fn default() -> Self {
+        Self {
+            time_step_by_velocity: f32::MAX,
+            time_step_by_deformation: f32::MAX,
+            time_step_by_isolated: f32::MAX,
+            time_step_by_sound: f32::MAX,
+        }
+    }
+}
+
+impl TimeStepLimits {
+    pub fn min(&self, other: &Self) -> Self {
+        Self {
+            time_step_by_velocity: self.time_step_by_velocity.min(other.time_step_by_velocity),
+            time_step_by_deformation: self
+                .time_step_by_deformation
+                .min(other.time_step_by_deformation),
+            time_step_by_isolated: self.time_step_by_isolated.min(other.time_step_by_isolated),
+            time_step_by_sound: self.time_step_by_sound.min(other.time_step_by_sound),
+        }
+    }
 }
 
 impl AllowedInBinding for TimeStepLimits {
