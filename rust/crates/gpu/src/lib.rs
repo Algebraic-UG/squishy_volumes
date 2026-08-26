@@ -47,6 +47,7 @@ pub use status::*;
 pub use svd::*;
 pub use util::*;
 
+pub mod advance_time;
 pub mod animate_mesh;
 pub mod bits_to_pops;
 pub mod build_hash_tables;
@@ -82,6 +83,7 @@ pub mod test_svd;
 pub mod update_flags;
 pub mod viscosity;
 
+pub use advance_time::AdvanceTime;
 pub use animate_mesh::AnimateMesh;
 pub use bits_to_pops::BitsToPops;
 pub use build_hash_tables::BuildHashTables;

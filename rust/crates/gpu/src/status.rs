@@ -24,6 +24,10 @@ pub enum GpuShaderError {
     IndirectLimitExceeded { reporting_shader: &'static str },
     #[error("{reporting_shader} found a particle too close to inversion.")]
     ParticleCloseToInverted { reporting_shader: &'static str },
+    #[error("{reporting_shader} ended up with a zero timestep.")]
+    TimeStepZero { reporting_shader: &'static str },
+    #[error("{reporting_shader} next frame is ready.")]
+    FrameTimeReached { reporting_shader: &'static str },
     #[error("{reporting_shader} unknown error: {error}")]
     UnknownError {
         reporting_shader: &'static str,
@@ -35,6 +39,8 @@ const TABLE_TRIES_EXCEEDED: u32 = 1;
 const TABLE_ENTRY_MISSING: u32 = 2;
 const INDIRECT_LIMIT_EXCEEDED: u32 = 4;
 const PARTICLE_CLOSE_TO_INVERTED: u32 = 8;
+const TIME_STEP_ZERO: u32 = 16;
+const REACHED_FRAME_TIME: u32 = 32;
 
 impl GpuStatus {
     pub fn to_result(&self, context: &GpuContext) -> Result<(), GpuError> {
@@ -67,6 +73,14 @@ impl GpuStatus {
 
         if self.0 & PARTICLE_CLOSE_TO_INVERTED != 0 {
             Err(GpuShaderError::ParticleCloseToInverted { reporting_shader })?;
+        }
+
+        if self.0 & TIME_STEP_ZERO != 0 {
+            Err(GpuShaderError::TimeStepZero { reporting_shader })?;
+        }
+
+        if self.0 & REACHED_FRAME_TIME != 0 {
+            Err(GpuShaderError::FrameTimeReached { reporting_shader })?;
         }
 
         Err(GpuShaderError::UnknownError {

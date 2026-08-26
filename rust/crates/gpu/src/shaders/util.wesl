@@ -354,6 +354,7 @@ const TABLE_ENTRY_MISSING: u32 = 2;
 const INDIRECT_LIMIT_EXCEEDED: u32 = 4;
 const PARTICLE_CLOSE_TO_INVERTED: u32 = 8;
 const TIME_STEP_ZERO: u32 = 16;
+const REACHED_FRAME_TIME: u32 = 32;
 
 fn trace(m: mat3x3f) -> f32 {
     return m[0].x + m[1].y + m[2].z;
