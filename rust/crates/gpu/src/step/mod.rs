@@ -18,12 +18,13 @@ use squishy_volumes_mesh_util::{
 };
 use squishy_volumes_util::ParticleParameters;
 
-use crate::particle_parameters::ParticleParametersDevice;
+use crate::{particle_parameters::ParticleParametersDevice, time_step_limits::TimeStepLimits};
 
 use super::*;
 
 pub struct Step {
     animate_mesh: AnimateMesh,
+    limit_time_step: LimitTimeStep,
     external_force: ExternalForce,
     collide: Collide,
     prepare_grid: PrepareGrid,
@@ -42,7 +43,8 @@ pub struct Settings {
     pub grid_node_size: f32,
     pub forget_distance: f32,
     pub accept_distance: f32,
-    pub time_step: f32,
+    pub max_time_step: f32,
+    pub time_step_history_length: u32,
     pub table_tries: u32,
     pub domain_min: Vector3<f32>,
     pub domain_max: Vector3<f32>,
@@ -50,6 +52,7 @@ pub struct Settings {
 
 pub struct Parameters {
     pub max_num_grid_nodes: NonZeroU32,
+    pub current_step: u32,
     pub factor: f32,
 }
 
@@ -92,6 +95,8 @@ pub struct Input {
     pub particle_goals_end: Allocation,
 
     pub collider_input: Option<ColliderInput>,
+
+    pub limits_over_time: Allocation,
 }
 
 #[derive(Clone)]
@@ -341,6 +346,9 @@ impl Input {
             })
             .transpose()?;
 
+        let limits_over_time =
+            Allocation::new(device, "limits_over_time", &[TimeStepLimits::default()])?;
+
         Ok(Self {
             gravity,
 
@@ -354,6 +362,8 @@ impl Input {
             variable_particle_input,
 
             collider_input,
+
+            limits_over_time,
         })
     }
 }
@@ -388,7 +398,8 @@ impl PipelinePart for Step {
             grid_node_size,
             forget_distance,
             accept_distance,
-            time_step,
+            max_time_step,
+            time_step_history_length,
             table_tries,
             domain_min,
             domain_max,
@@ -401,12 +412,22 @@ impl PipelinePart for Step {
                 dispatch_limit,
             },
         )?;
+        let limit_time_step = LimitTimeStep::new(
+            context,
+            limit_time_step::Settings {
+                workgroup_size,
+                dispatch_limit,
+                grid_node_size,
+                max_time_step,
+                time_step_history_length,
+            },
+        )?;
         let external_force = ExternalForce::new(
             context,
             external_force::Settings {
                 workgroup_size,
                 dispatch_limit,
-                time_step,
+                time_step: max_time_step,
             },
         )?;
         let collide = Collide::new(
@@ -416,7 +437,7 @@ impl PipelinePart for Step {
                 dispatch_limit,
                 forget_distance,
                 accept_distance,
-                time_step,
+                time_step: max_time_step,
             },
         )?;
         let prepare_grid = PrepareGrid::new(
@@ -443,7 +464,7 @@ impl PipelinePart for Step {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
-                time_step,
+                time_step: max_time_step,
             },
         )?;
         let scatter = Scatter::new(
@@ -466,7 +487,7 @@ impl PipelinePart for Step {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
-                time_step,
+                time_step: max_time_step,
                 table_tries,
             },
         )?;
@@ -483,6 +504,7 @@ impl PipelinePart for Step {
 
         Ok(Self {
             animate_mesh,
+            limit_time_step,
             external_force,
             collide,
             prepare_grid,
@@ -514,9 +536,11 @@ impl PipelinePart for Step {
                     particle_velocity_gradients,
                 },
             collider_input,
+            limits_over_time,
         }: Input,
         Parameters {
             max_num_grid_nodes,
+            current_step,
             factor,
         }: Parameters,
     ) -> Result<Output, GpuError> {
@@ -564,6 +588,22 @@ impl PipelinePart for Step {
                     triangle_indices: triangle_indices.clone(),
                 },
                 animate_mesh::Parameters { factor },
+            )?;
+
+            // TODO: use this
+            let limit_time_step::Output { time_step: _ } = self.limit_time_step.record(
+                context,
+                encoder,
+                limit_time_step::Input {
+                    indirect_particles: indirect_particles.clone(),
+                    particle_flags: particle_flags.clone(),
+                    particle_parameters: particle_parameters.clone(),
+                    particle_position_gradients: particle_position_gradients.clone(),
+                    particle_velocities: particle_velocities.clone(),
+                    particle_velocity_gradients: particle_velocity_gradients.clone(),
+                    limits_over_time,
+                },
+                limit_time_step::Parameters { current_step },
             )?;
 
             let collide::Output = self.collide.record(

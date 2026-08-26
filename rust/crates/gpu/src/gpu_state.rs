@@ -8,26 +8,28 @@
 
 use std::{num::NonZeroU32, path::PathBuf, time::Duration};
 
-use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
+use nalgebra::{ComplexField, Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::IoState;
 use squishy_volumes_xpu::{FrameInput, Harness};
 
 use crate::{
     particle_parameters::ParticleParametersDevice,
     step::{VariableParticleInput, VariableParticleInputData},
+    time_step_limits::TimeStepLimits,
 };
 
 use super::*;
 
 pub struct GpuState {
     time: f64,
-    time_step: f32,
+    max_time_step: f32,
     gpu_context: GpuContext,
     update_flags: UpdateFlags,
     pipeline_part: Step,
     new_flags: Allocation,
     next_input: step::Input,
     max_num_grid_nodes: NonZeroU32,
+    steps_per_frame: u32,
     io_state: IoState,
     profile_data_csv_writer: Option<ProfileDataCsvWriter>,
 }
@@ -39,7 +41,7 @@ impl GpuState {
         gpu: String,
         harness: &Harness,
         frame_input: &FrameInput,
-        time_step: f32,
+        max_time_step: f32,
         io_state: IoState,
         profiling_output_file: Option<PathBuf>,
     ) -> Result<Self, GpuError> {
@@ -55,6 +57,11 @@ impl GpuState {
             .unwrap();
 
         tracing::info!(max_num_grid_nodes, "this is the limit for now");
+
+        // This will most likely be wrong the first time
+        let steps_per_frame =
+            (1. / (consts.frames_per_second as f32 * max_time_step)).ceil() as u32;
+        tracing::info!(steps_per_frame, "first estimate");
 
         let mut gpu_context = GpuContext::new(Some(gpu))?;
         harness.check()?;
@@ -94,8 +101,9 @@ impl GpuState {
                 grid_node_size: consts.scaled_grid_node_size(),
                 forget_distance: consts.forget_distance(),
                 accept_distance: consts.accept_distance(),
-                time_step,
-                table_tries: 50, // TODO: make configurable?
+                max_time_step,
+                time_step_history_length: 10, // TODO: make configurable?
+                table_tries: 50,              // TODO: make configurable?
                 domain_min: consts.scaled_domain_min().into(),
                 domain_max: consts.scaled_domain_max().into(),
             },
@@ -154,6 +162,12 @@ impl GpuState {
 
         let collider_input = get_collider_input(device, frame_input)?;
 
+        let limits_over_time = Allocation::new(
+            device,
+            "limits_over_time",
+            &vec![TimeStepLimits::default(); steps_per_frame as usize],
+        )?;
+
         let next_input = step::Input {
             gravity,
             indirect_particles,
@@ -166,6 +180,8 @@ impl GpuState {
             variable_particle_input,
 
             collider_input,
+
+            limits_over_time,
         };
 
         let profile_data_csv_writer = profiling_output_file
@@ -177,13 +193,14 @@ impl GpuState {
 
         Ok(Self {
             time,
-            time_step,
+            max_time_step,
             gpu_context,
             update_flags,
             pipeline_part,
             new_flags,
             next_input,
             max_num_grid_nodes,
+            steps_per_frame,
             io_state,
             profile_data_csv_writer,
         })
@@ -386,10 +403,11 @@ impl GpuState {
                 step::Parameters {
                     max_num_grid_nodes: self.max_num_grid_nodes,
                     factor: frame_input.frame_factor(self.time)?,
+                    current_step: recorded_steps,
                 },
             )?;
             times.push(self.time);
-            self.time += self.time_step as f64;
+            self.time += self.max_time_step as f64;
 
             recorded_steps += 1;
             if recorded_steps > 10 {
