@@ -4077,6 +4077,7 @@ dependencies = [
  "bytemuck",
  "serde",
  "squishy_volumes_file_util",
+ "squishy_volumes_util",
  "thiserror 2.0.19",
 ]
 
@@ -4194,6 +4195,7 @@ dependencies = [
  "coarse-prof",
  "nalgebra",
  "rand 0.10.2",
+ "serde",
  "thiserror 2.0.19",
  "tracing",
 ]
