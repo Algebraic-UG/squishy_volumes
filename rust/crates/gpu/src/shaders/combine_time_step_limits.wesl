@@ -17,7 +17,10 @@ var<storage, read_write> time_step: f32;
 @group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
+var<immediate> current_step: u32;
+
 override MAX_TIME_STEP: f32;
+override TIME_STEP_HISTORY_LENGTH: u32;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
@@ -35,11 +38,15 @@ fn main(
         set_shader_id();
     }
 
-    if global_index >= arrayLength(&limits) {
+    let valid_entries = current_step + 1;
+    let size = min(valid_entries, TIME_STEP_HISTORY_LENGTH);
+    let offset = valid_entries - size;
+
+    if global_index >= size {
         return;
     }
 
-    let my_limits = limits[global_index];
+    let my_limits = limits[offset + global_index];
 
     let my_limit = min(
         min(my_limits.time_step_by_velocity, my_limits.time_step_by_deformation),

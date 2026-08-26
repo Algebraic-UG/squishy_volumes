@@ -23,8 +23,6 @@ pub struct LimitTimeStep {
     limit_time_step_per_particle: LimitTimeStepPerParticle,
     find_minimum_time_step_limits: FindMinimumTimeStepLimits,
     combine_time_step_limits: CompiledModule,
-
-    time_step_history_length: u32,
 }
 
 #[derive(Clone)]
@@ -168,8 +166,11 @@ impl PipelinePart for LimitTimeStep {
                     (TimeStepLimits::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
                 ],
-                immediate_size: 0,
-                constants: [("MAX_TIME_STEP", max_time_step as f64)]
+                immediate_size: 4,
+                constants: [
+                    ("MAX_TIME_STEP", max_time_step as f64),
+                    ("TIME_STEP_HISTORY_LENGTH", time_step_history_length as f64)
+                ]
             }
         );
 
@@ -185,7 +186,6 @@ impl PipelinePart for LimitTimeStep {
             limit_time_step_per_particle,
             find_minimum_time_step_limits,
             combine_time_step_limits,
-            time_step_history_length,
         })
     }
 
@@ -243,33 +243,18 @@ impl PipelinePart for LimitTimeStep {
                 Some(TimeStepLimits::MIN_BINDING_SIZE.get()),
             );
 
-        let limits_over_time_binding = {
-            let valid_entries = current_step + 1;
-            let size = valid_entries.min(self.time_step_history_length);
-            let offset = valid_entries - size;
-            tracing::warn!(current_step, valid_entries, size, offset);
-            wgpu::BufferBinding {
-                buffer: limits_over_time.buffer(),
-                offset: offset as u64 * TimeStepLimits::MIN_BINDING_SIZE.get(),
-                size: Some(
-                    (size as u64 * TimeStepLimits::MIN_BINDING_SIZE.get())
-                        .try_into()
-                        .unwrap(),
-                ),
-            }
-        };
-
         let time_step = context
             .allocator()?
             .allocate::<f32>("time_step", 1.try_into().unwrap())?;
 
-        context
-            .enter_module(
-                encoder,
-                &self.combine_time_step_limits,
-                [limits_over_time_binding, time_step.binding()],
-            )
-            .dispatch_workgroups(self.combine_time_step_limits.subgroup_size.get(), 1, 1);
+        let mut compute_pass = context.enter_module(
+            encoder,
+            &self.combine_time_step_limits,
+            [limits_over_time.binding(), time_step.binding()],
+        );
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&current_step));
+        compute_pass.dispatch_workgroups(self.combine_time_step_limits.subgroup_size.get(), 1, 1);
+        drop(compute_pass);
 
         Ok(Output { time_step })
     }
