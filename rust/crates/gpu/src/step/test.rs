@@ -13,7 +13,7 @@ use super::*;
 
 fn check(
     settings @ Settings {
-        time_step,
+        max_time_step,
         grid_node_size,
         ..
     }: Settings,
@@ -41,7 +41,7 @@ fn check(
     );
     let particle_tmp = prepare_tmp_on_cpu(
         settings.grid_node_size,
-        settings.time_step,
+        settings.max_time_step,
         prepare_tmp::InputData {
             particle_flags,
             particle_parameters,
@@ -64,7 +64,7 @@ fn check(
 
     collect_on_cpu(
         grid_node_size,
-        time_step,
+        max_time_step,
         collect::InputData {
             node_ids_and_collider_bits: &node_ids_and_collider_bits,
             node_momentums: &node_momentums,
@@ -128,11 +128,12 @@ fn specific() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 0.5;
-    let time_step = 0.001;
+    let max_time_step = 0.001;
     let settings = Settings {
         workgroup_size,
         dispatch_limit,
-        time_step,
+        max_time_step,
+        time_step_history_length: 10,
         grid_node_size,
         forget_distance: grid_node_size * 2.2,
         accept_distance: grid_node_size * 2.,
@@ -191,11 +192,12 @@ fn test_single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 0.5;
-    let time_step = 0.001;
+    let max_time_step = 0.001;
     let settings = Settings {
         workgroup_size,
         dispatch_limit,
-        time_step,
+        max_time_step,
+        time_step_history_length: 10,
         grid_node_size,
         forget_distance: grid_node_size * 2.2,
         accept_distance: grid_node_size * 2.,
@@ -359,6 +361,7 @@ fn run(settings: Settings, data: InputData) -> OutputData {
             Parameters {
                 factor: 0.5,
                 max_num_grid_nodes,
+                current_step: 0,
             },
         )
         .unwrap();
