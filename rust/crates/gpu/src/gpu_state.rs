@@ -22,7 +22,6 @@ use super::*;
 
 pub struct GpuState {
     start_time: f32,
-    max_time_step: f32,
     gpu_context: GpuContext,
     update_flags: UpdateFlags,
     pipeline_part: Step,
@@ -201,7 +200,6 @@ impl GpuState {
 
         Ok(Self {
             start_time,
-            max_time_step,
             gpu_context,
             update_flags,
             pipeline_part,
