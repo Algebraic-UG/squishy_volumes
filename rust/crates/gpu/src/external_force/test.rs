@@ -115,7 +115,7 @@ fn simple() {
 }
 
 fn run(settings: Settings, input_data: InputData, parameters: Parameters) -> Vec<Vector4<f32>> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
     let particle_velocities = input.particle_velocities.clone();

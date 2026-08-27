@@ -160,7 +160,7 @@ fn test_random() {
 }
 
 fn run(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) -> Vec<Vector4<f32>> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

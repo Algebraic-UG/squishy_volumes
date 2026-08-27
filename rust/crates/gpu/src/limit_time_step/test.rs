@@ -218,7 +218,7 @@ fn run(
     input_data: InputData<'_>,
     parameters: Parameters,
 ) -> (Vec<TimeStepLimits>, f32) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings.clone(), input_data).unwrap();
     let limits_over_time = input.limits_over_time.clone();

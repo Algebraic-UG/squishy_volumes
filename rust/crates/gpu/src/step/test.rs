@@ -334,7 +334,7 @@ fn test_many_random_props() {
 */
 
 fn run(settings: Settings, data: InputData) -> OutputData {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
     let max_num_grid_nodes = (data.particle_parameters.len() as u32 * 27)
         .try_into()
         .unwrap();

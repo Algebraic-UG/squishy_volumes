@@ -143,7 +143,7 @@ fn run_elastic(
     particle_flags: &[ParticleFlags],
     particle_parameters: &[ParticleParameters],
 ) -> (Vec<Matrix4x3<f32>>, Vec<f32>) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

@@ -53,7 +53,7 @@ fn test_random() {
 }
 
 fn run_counts_indirect(settings: Settings, len: u32) -> Vec<Indirect> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, len).unwrap();
     let counts_indirect = CountsIndirect::new(&mut context, settings).unwrap();

@@ -175,7 +175,7 @@ fn run_permute_particles(
     Vec<Vector4<f32>>,
     Vec<Matrix4x3<f32>>,
 ) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), workgroup_size, dispatch_limit, input_data);
     let permute_particles =

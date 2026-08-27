@@ -85,7 +85,7 @@ fn test_random() {
 }
 
 fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> (Vec<u32>, u32) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, numbers).unwrap();
     let prefix_sum = PrefixSum::new(&mut context, settings).unwrap();

@@ -81,7 +81,7 @@ fn simple() {
 }
 
 fn run(settings: Settings, input_data: InputData) -> Vec<ParticleFlags> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
     let flags = input.particle_flags.clone();

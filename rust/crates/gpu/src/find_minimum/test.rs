@@ -57,7 +57,7 @@ fn test_random() {
 }
 
 fn run(settings: Settings, numbers: &[f32]) -> f32 {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, numbers).unwrap();
     let find_minimum = FindMinimum::new(&mut context, settings).unwrap();

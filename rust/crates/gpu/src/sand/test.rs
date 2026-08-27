@@ -110,7 +110,7 @@ fn run(
     particle_parameters: &[ParticleParameters],
     particle_position_gradients: &[Matrix4x3<f32>],
 ) -> Vec<Matrix4x3<f32>> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

@@ -227,7 +227,7 @@ fn test_many_random_props() {
 }
 
 fn run(settings: Settings, input_data: InputData) -> OutputData {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
     let particle_positions_and_collider_bits = input.particle_positions_and_collider_bits.clone();

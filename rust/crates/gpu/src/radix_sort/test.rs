@@ -54,7 +54,7 @@ fn test_random() {
 
 #[test]
 fn specific() {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let indirect = Indirect {
         x: 1,
@@ -90,7 +90,7 @@ fn specific() {
 }
 
 fn run_radix_sort(settings: Settings, indices: Option<&[u32]>, keys: &[u32]) -> Vec<u32> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings.clone(), indices, keys).unwrap();
     run_with_input(settings, &mut context, input, false)

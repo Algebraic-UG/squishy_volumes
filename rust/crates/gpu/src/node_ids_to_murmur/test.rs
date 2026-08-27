@@ -97,7 +97,7 @@ fn run(
     dispatch_limit: NonZeroU32,
     node_ids_and_collider_bits: &[NodeIdAndColliderBits],
 ) -> (Vec<u32>, Vec<u32>) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

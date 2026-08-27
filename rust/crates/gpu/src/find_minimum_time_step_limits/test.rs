@@ -69,7 +69,7 @@ fn test_all_positions() {
 }
 
 fn run(settings: Settings, limits: &[TimeStepLimits]) -> TimeStepLimits {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, limits).unwrap();
     let find_minimum = FindMinimumTimeStepLimits::new(&mut context, settings).unwrap();

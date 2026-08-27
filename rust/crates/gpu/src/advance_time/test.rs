@@ -21,7 +21,7 @@ fn check(
     let seconds_per_frame = 1. / frames_per_second as f32;
     let reached = time > seconds_per_frame;
 
-    let result = gpu_status.to_result(&SHARED_CONTEXT.lock().unwrap());
+    let result = gpu_status.to_result(&get_shared_context());
 
     println!("time: {time}, reached: {reached}");
     println!("gpu_time: {gpu_time}, result: {result:?}");
@@ -73,7 +73,7 @@ fn reached() {
 }
 
 fn run(settings: Settings, time_step: f32, time: f32) -> (GpuStatus, f32) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), time_step, time).unwrap();
     let advance_time = AdvanceTime::new(&mut context, settings).unwrap();

@@ -201,7 +201,7 @@ fn run_prepare_grid(
     settings: Settings,
     positions_and_collider_bits: &[PositionAndColliderBits],
 ) -> OutputData {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),
