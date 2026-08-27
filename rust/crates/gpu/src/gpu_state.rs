@@ -356,6 +356,7 @@ fn get_collider_input(
 
 pub struct GpuRunParameters {
     pub target_time: f64,
+    pub adaptive_time_steps: bool,
     pub store_grid: bool,
 }
 
@@ -366,6 +367,7 @@ impl GpuState {
         frame_input: &mut squishy_volumes_xpu::FrameInput,
         GpuRunParameters {
             target_time,
+            adaptive_time_steps,
             store_grid,
         }: GpuRunParameters,
     ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
@@ -396,7 +398,8 @@ impl GpuState {
 
         self.recorded_steps = 0;
         loop {
-            let output = self.record_steps(harness, &mut encoder, &profiler)?;
+            let output =
+                self.record_steps(harness, adaptive_time_steps, &mut encoder, &profiler)?;
 
             let downloads = Downloads::new(self, store_grid, output);
             downloads.copy(&mut encoder);
@@ -506,6 +509,7 @@ impl GpuState {
                 frame_input,
                 GpuRunParameters {
                     target_time,
+                    adaptive_time_steps,
                     store_grid,
                 },
             );
@@ -544,6 +548,7 @@ impl GpuState {
     fn record_steps(
         &mut self,
         harness: &Harness,
+        adaptive_time_steps: bool,
         encoder: &mut wgpu::CommandEncoder,
         profiler: &wgpu_profiler::GpuProfiler,
     ) -> Result<step::Output, GpuError> {
@@ -558,6 +563,7 @@ impl GpuState {
                     max_num_grid_nodes: self.max_num_grid_nodes,
                     factor: 0., // TODO: this won't be needed
                     current_step: self.recorded_steps,
+                    adaptive_time_steps,
                 },
             )?;
             self.recorded_steps += 1;

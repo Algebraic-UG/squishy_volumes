@@ -154,6 +154,7 @@ impl ComputeThread {
                                 &mut frame_input,
                                 GpuRunParameters {
                                     target_time,
+                                    adaptive_time_steps,
                                     store_grid: true,
                                 },
                             )?;

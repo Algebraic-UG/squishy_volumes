@@ -35,6 +35,8 @@ pub struct Step {
     collect: Collect,
     cull_particles: CullParticles,
     advance_time: AdvanceTime,
+
+    max_time_step: f32,
 }
 
 #[derive(Clone)]
@@ -56,6 +58,7 @@ pub struct Parameters {
     pub max_num_grid_nodes: NonZeroU32,
     pub current_step: u32,
     pub factor: f32,
+    pub adaptive_time_steps: bool,
 }
 
 #[derive(Clone)]
@@ -527,6 +530,7 @@ impl PipelinePart for Step {
             collect,
             cull_particles,
             advance_time,
+            max_time_step,
         })
     }
 
@@ -556,23 +560,29 @@ impl PipelinePart for Step {
             max_num_grid_nodes,
             current_step,
             factor,
+            adaptive_time_steps,
         }: Parameters,
     ) -> Result<Output, GpuError> {
         // TODO: use collider velocities?
-        let limit_time_step::Output { time_step } = self.limit_time_step.record(
-            context,
-            encoder,
-            limit_time_step::Input {
-                indirect_particles: indirect_particles.clone(),
-                particle_flags: particle_flags.clone(),
-                particle_parameters: particle_parameters.clone(),
-                particle_position_gradients: particle_position_gradients.clone(),
-                particle_velocities: particle_velocities.clone(),
-                particle_velocity_gradients: particle_velocity_gradients.clone(),
-                limits_over_time,
-            },
-            limit_time_step::Parameters { current_step },
-        )?;
+        let time_step = if adaptive_time_steps {
+            let limit_time_step::Output { time_step } = self.limit_time_step.record(
+                context,
+                encoder,
+                limit_time_step::Input {
+                    indirect_particles: indirect_particles.clone(),
+                    particle_flags: particle_flags.clone(),
+                    particle_parameters: particle_parameters.clone(),
+                    particle_position_gradients: particle_position_gradients.clone(),
+                    particle_velocities: particle_velocities.clone(),
+                    particle_velocity_gradients: particle_velocity_gradients.clone(),
+                    limits_over_time,
+                },
+                limit_time_step::Parameters { current_step },
+            )?;
+            time_step
+        } else {
+            Allocation::new(context.device(), "time_step", &[self.max_time_step])?
+        };
 
         let external_force::Output = self.external_force.record(
             context,
