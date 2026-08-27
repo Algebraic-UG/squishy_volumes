@@ -252,7 +252,7 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
 The manually set value is chosen if it is smaller than
 the automatic one.
 
-TODO: Not yet available on GPU""",
+(Re)Start baking to manifest changes.""",
         default=True,
         options=set(),
     )  # type: ignore
