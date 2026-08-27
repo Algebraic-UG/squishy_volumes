@@ -513,6 +513,7 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                frames_per_second,
                 forget_distance,
                 accept_distance,
                 max_time_step: time_step,

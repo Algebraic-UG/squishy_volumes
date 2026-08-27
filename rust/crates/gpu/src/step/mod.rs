@@ -34,6 +34,7 @@ pub struct Step {
     meld_grid: MeldGrid,
     collect: Collect,
     cull_particles: CullParticles,
+    advance_time: AdvanceTime,
 }
 
 #[derive(Clone)]
@@ -41,6 +42,7 @@ pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
     pub grid_node_size: f32,
+    pub frames_per_second: u32,
     pub forget_distance: f32,
     pub accept_distance: f32,
     pub max_time_step: f32,
@@ -85,6 +87,8 @@ pub struct VariableParticleInput {
 
 #[derive(Clone)]
 pub struct Input {
+    pub time: Allocation,
+
     pub gravity: Allocation,
     pub indirect_particles: Allocation,
     pub particle_parameters: Allocation,
@@ -321,6 +325,7 @@ impl Input {
             .map(Into::into)
             .collect::<Vec<ParticleParametersDevice>>();
 
+        let time = Allocation::new(device, "time", &[0.])?;
         let gravity = Allocation::new(device, "gravity", &[gravity])?;
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
@@ -350,6 +355,8 @@ impl Input {
             Allocation::new(device, "limits_over_time", &[TimeStepLimits::default()])?;
 
         Ok(Self {
+            time,
+
             gravity,
 
             indirect_particles,
@@ -396,6 +403,7 @@ impl PipelinePart for Step {
             workgroup_size,
             dispatch_limit,
             grid_node_size,
+            frames_per_second,
             forget_distance,
             accept_distance,
             max_time_step,
@@ -502,6 +510,14 @@ impl PipelinePart for Step {
             },
         )?;
 
+        let advance_time = AdvanceTime::new(
+            context,
+            advance_time::Settings {
+                workgroup_size,
+                frames_per_second,
+            },
+        )?;
+
         Ok(Self {
             animate_mesh,
             limit_time_step,
@@ -514,6 +530,7 @@ impl PipelinePart for Step {
             meld_grid,
             collect,
             cull_particles,
+            advance_time,
         })
     }
 
@@ -522,6 +539,7 @@ impl PipelinePart for Step {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            time,
             gravity,
             indirect_particles,
             particle_parameters,
@@ -558,6 +576,22 @@ impl PipelinePart for Step {
             external_force::Parameters { factor },
         )?;
 
+        // TODO: use collider velocities?
+        let limit_time_step::Output { time_step } = self.limit_time_step.record(
+            context,
+            encoder,
+            limit_time_step::Input {
+                indirect_particles: indirect_particles.clone(),
+                particle_flags: particle_flags.clone(),
+                particle_parameters: particle_parameters.clone(),
+                particle_position_gradients: particle_position_gradients.clone(),
+                particle_velocities: particle_velocities.clone(),
+                particle_velocity_gradients: particle_velocity_gradients.clone(),
+                limits_over_time,
+            },
+            limit_time_step::Parameters { current_step },
+        )?;
+
         let meld_needed = collider_input.is_some();
         if let Some(ColliderInput {
             vertex_positions_start,
@@ -588,22 +622,6 @@ impl PipelinePart for Step {
                     triangle_indices: triangle_indices.clone(),
                 },
                 animate_mesh::Parameters { factor },
-            )?;
-
-            // TODO: use this
-            let limit_time_step::Output { time_step: _ } = self.limit_time_step.record(
-                context,
-                encoder,
-                limit_time_step::Input {
-                    indirect_particles: indirect_particles.clone(),
-                    particle_flags: particle_flags.clone(),
-                    particle_parameters: particle_parameters.clone(),
-                    particle_position_gradients: particle_position_gradients.clone(),
-                    particle_velocities: particle_velocities.clone(),
-                    particle_velocity_gradients: particle_velocity_gradients.clone(),
-                    limits_over_time,
-                },
-                limit_time_step::Parameters { current_step },
             )?;
 
             let collide::Output = self.collide.record(
@@ -736,6 +754,13 @@ impl PipelinePart for Step {
                 particle_positions_and_collider_bits,
             },
             cull_particles::Parameters,
+        )?;
+
+        let advance_time::Output = self.advance_time.record(
+            context,
+            encoder,
+            advance_time::Input { time_step, time },
+            advance_time::Parameters,
         )?;
 
         Ok(Output {

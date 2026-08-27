@@ -26,8 +26,8 @@ pub enum GpuShaderError {
     ParticleCloseToInverted { reporting_shader: &'static str },
     #[error("{reporting_shader} ended up with a zero timestep.")]
     TimeStepZero { reporting_shader: &'static str },
-    #[error("{reporting_shader} next frame is ready.")]
-    FrameTimeReached { reporting_shader: &'static str },
+    #[error("Next frame is ready.")]
+    FrameTimeReached,
     #[error("{reporting_shader} unknown error: {error}")]
     UnknownError {
         reporting_shader: &'static str,
@@ -80,7 +80,7 @@ impl GpuStatus {
         }
 
         if self.0 & REACHED_FRAME_TIME != 0 {
-            Err(GpuShaderError::FrameTimeReached { reporting_shader })?;
+            Err(GpuShaderError::FrameTimeReached)?;
         }
 
         Err(GpuShaderError::UnknownError {
