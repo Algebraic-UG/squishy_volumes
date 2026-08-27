@@ -32,12 +32,12 @@ pub struct Settings {
     pub dispatch_limit: NonZeroU32,
     pub forget_distance: f32,
     pub accept_distance: f32,
-    pub time_step: f32,
 }
 
 pub struct Parameters;
 
 pub struct Input {
+    pub time_step: Allocation,
     pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_velocities: Allocation,
@@ -54,6 +54,7 @@ pub struct Input {
 }
 
 pub struct InputData<'a> {
+    pub time_step: f32,
     pub leaf_size: f32,
     pub leaf_threshold: u32,
     pub particle_flags: &'a [ParticleFlags],
@@ -77,6 +78,7 @@ impl Input {
             forget_distance, ..
         }: &Settings,
         InputData {
+            time_step,
             leaf_size,
             leaf_threshold,
             particle_flags,
@@ -119,6 +121,7 @@ impl Input {
 
         let bvh = BoundingVolumeHierarchy::new(aabbs, leaf_threshold);
 
+        let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
 
         let particle_positions_and_collider_bits = Allocation::new(
@@ -144,6 +147,7 @@ impl Input {
         let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
         Ok(Self {
+            time_step,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
@@ -176,7 +180,6 @@ impl PipelinePart for Collide {
             dispatch_limit,
             forget_distance,
             accept_distance,
-            time_step,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
@@ -185,7 +188,8 @@ impl PipelinePart for Collide {
                 context,
                 workgroup_size,
                 bind_group_entries: [
-                    (ParticleFlags::MIN_BINDING_SIZE, false), // particle_flags
+                    (f32::MIN_BINDING_SIZE, false),                         // time_step
+                    (ParticleFlags::MIN_BINDING_SIZE, false),               // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), //particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //particle_velocities
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //vertex_positions
@@ -205,7 +209,6 @@ impl PipelinePart for Collide {
                 constants: [
                     ("FORGET_DISTANCE", forget_distance as f64),
                     ("ACCEPT_DISTANCE", accept_distance as f64),
-                    ("TIME_STEP", time_step as f64),
                 ]
             }
         );
@@ -222,6 +225,7 @@ impl PipelinePart for Collide {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            time_step,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
@@ -252,6 +256,7 @@ impl PipelinePart for Collide {
                 encoder,
                 &self.collide,
                 [
+                    time_step.binding(),
                     particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     particle_velocities.binding(),

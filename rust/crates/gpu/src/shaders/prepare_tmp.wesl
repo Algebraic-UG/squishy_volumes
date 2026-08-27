@@ -12,33 +12,35 @@ import super::fluid::fluid_plasticity;
 import super::viscosity::cauchy_stress_general_viscosity;
 
 @group(0) @binding(0)
-var<storage, read_write> flags: array<u32>;
+var<storage, read_write> time_step: f32;
 
 @group(0) @binding(1)
-var<storage, read_write> parameters: array<ParticleParameters>;
+var<storage, read_write> flags: array<u32>;
 
 @group(0) @binding(2)
-var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
+var<storage, read_write> parameters: array<ParticleParameters>;
 
 @group(0) @binding(3)
-var<storage, read_write> position_gradients: array<mat3x3f>;
+var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
 
 @group(0) @binding(4)
-var<storage, read_write> velocities: array<vec3f>;
+var<storage, read_write> position_gradients: array<mat3x3f>;
 
 @group(0) @binding(5)
-var<storage, read_write> velocity_gradients: array<mat3x3f>;
+var<storage, read_write> velocities: array<vec3f>;
 
 @group(0) @binding(6)
-var<storage, read_write> tmp: array<mat4x4f>;
+var<storage, read_write> velocity_gradients: array<mat3x3f>;
 
 @group(0) @binding(7)
+var<storage, read_write> tmp: array<mat4x4f>;
+
+@group(0) @binding(8)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
 override GRID_NODE_SIZE: f32;
-override TIME_STEP: f32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -48,7 +50,7 @@ fn main(
     if is_error() {
         return;
     }
-    let scaling = TIME_STEP * 4. / (GRID_NODE_SIZE * GRID_NODE_SIZE);
+    let scaling = time_step * 4. / (GRID_NODE_SIZE * GRID_NODE_SIZE);
 
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index == 0 {

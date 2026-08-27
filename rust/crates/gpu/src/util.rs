@@ -214,8 +214,8 @@ pub fn position_to_low_node(grid_node_size: f32, position: &Vector3<f32>) -> Vec
 
 pub fn prepare_tmp_on_cpu(
     grid_node_size: f32,
-    time_step: f32,
     prepare_tmp::InputData {
+        time_step,
         particle_flags: _,
         particle_parameters,
         particle_positions_and_collider_bits,

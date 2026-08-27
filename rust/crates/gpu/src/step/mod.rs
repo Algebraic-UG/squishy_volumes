@@ -435,7 +435,6 @@ impl PipelinePart for Step {
             external_force::Settings {
                 workgroup_size,
                 dispatch_limit,
-                time_step: max_time_step,
             },
         )?;
         let collide = Collide::new(
@@ -445,7 +444,6 @@ impl PipelinePart for Step {
                 dispatch_limit,
                 forget_distance,
                 accept_distance,
-                time_step: max_time_step,
             },
         )?;
         let prepare_grid = PrepareGrid::new(
@@ -472,7 +470,6 @@ impl PipelinePart for Step {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
-                time_step: max_time_step,
             },
         )?;
         let scatter = Scatter::new(
@@ -495,7 +492,6 @@ impl PipelinePart for Step {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
-                time_step: max_time_step,
                 table_tries,
             },
         )?;
@@ -562,20 +558,6 @@ impl PipelinePart for Step {
             factor,
         }: Parameters,
     ) -> Result<Output, GpuError> {
-        let external_force::Output = self.external_force.record(
-            context,
-            encoder,
-            external_force::Input {
-                gravity,
-                particle_flags: particle_flags.clone(),
-                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
-                particle_velocities: particle_velocities.clone(),
-                particle_goals_start,
-                particle_goals_end,
-            },
-            external_force::Parameters { factor },
-        )?;
-
         // TODO: use collider velocities?
         let limit_time_step::Output { time_step } = self.limit_time_step.record(
             context,
@@ -590,6 +572,21 @@ impl PipelinePart for Step {
                 limits_over_time,
             },
             limit_time_step::Parameters { current_step },
+        )?;
+
+        let external_force::Output = self.external_force.record(
+            context,
+            encoder,
+            external_force::Input {
+                time_step: time_step.clone(),
+                gravity,
+                particle_flags: particle_flags.clone(),
+                particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
+                particle_velocities: particle_velocities.clone(),
+                particle_goals_start,
+                particle_goals_end,
+            },
+            external_force::Parameters { factor },
         )?;
 
         let meld_needed = collider_input.is_some();
@@ -628,6 +625,7 @@ impl PipelinePart for Step {
                 context,
                 encoder,
                 collide::Input {
+                    time_step: time_step.clone(),
                     particle_flags: particle_flags.clone(),
                     particle_positions_and_collider_bits: particle_positions_and_collider_bits
                         .clone(),
@@ -685,6 +683,7 @@ impl PipelinePart for Step {
             context,
             encoder,
             prepare_tmp::Input {
+                time_step: time_step.clone(),
                 particle_flags: particle_flags.clone(),
                 particle_parameters,
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
@@ -734,6 +733,7 @@ impl PipelinePart for Step {
             context,
             encoder,
             collect::Input {
+                time_step: time_step.clone(),
                 hash_table,
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
                 node_momentums: node_momentums.clone(),

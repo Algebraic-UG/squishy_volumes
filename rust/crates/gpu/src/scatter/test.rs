@@ -167,8 +167,8 @@ fn test_many_random_props() {
 
     let particle_tmp = prepare_tmp_on_cpu(
         grid_node_size,
-        time_step,
         prepare_tmp::InputData {
+            time_step,
             particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,

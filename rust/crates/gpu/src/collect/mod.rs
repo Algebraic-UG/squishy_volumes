@@ -28,13 +28,13 @@ pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
     pub grid_node_size: f32,
-    pub time_step: f32,
     pub table_tries: u32,
 }
 
 pub struct Parameters;
 
 pub struct Input {
+    pub time_step: Allocation,
     pub hash_table: Allocation,
 
     pub node_ids_and_collider_bits: Allocation,
@@ -49,6 +49,8 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
+    pub time_step: f32,
+
     pub node_ids_and_collider_bits: &'a [NodeIdAndColliderBits],
     pub node_momentums: &'a [Vector4<f32>],
 
@@ -63,6 +65,7 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         InputData {
+            time_step,
             node_ids_and_collider_bits,
             node_momentums,
             particle_flags,
@@ -80,6 +83,7 @@ impl Input {
 
         let hash_table = build_hash_table_on_cpu(node_ids_and_collider_bits);
 
+        let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let hash_table = Allocation::new(device, "hash_table", &hash_table)?;
         let node_ids_and_collider_bits = Allocation::new(
             device,
@@ -107,6 +111,7 @@ impl Input {
         )?;
 
         Ok(Self {
+            time_step,
             hash_table,
             node_ids_and_collider_bits,
             node_momentums,
@@ -141,7 +146,6 @@ impl PipelinePart for Collect {
             workgroup_size,
             dispatch_limit,
             grid_node_size,
-            time_step,
             table_tries,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
@@ -151,6 +155,7 @@ impl PipelinePart for Collect {
                 context,
                 workgroup_size,
                 bind_group_entries: [
+                    (f32::MIN_BINDING_SIZE, false),                     // time_step
                     (u32::MIN_BINDING_SIZE, false),                     // hash_table
                     (NodeIdAndColliderBits::MIN_BINDING_SIZE, false), // node_ids_and_collider_bits
                     (Vector4::<i32>::MIN_BINDING_SIZE, false),        // node_momentums
@@ -163,7 +168,6 @@ impl PipelinePart for Collect {
                 immediate_size: 0,
                 constants: [
                     ("GRID_NODE_SIZE", grid_node_size as f64),
-                    ("TIME_STEP", time_step as f64),
                     ("TABLE_TRIES", table_tries as f64),
                 ]
             }
@@ -181,6 +185,7 @@ impl PipelinePart for Collect {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            time_step,
             hash_table,
             node_ids_and_collider_bits,
             node_momentums,
@@ -204,6 +209,7 @@ impl PipelinePart for Collect {
                 encoder,
                 &self.collect,
                 [
+                    time_step.binding(),
                     hash_table.binding(),
                     node_ids_and_collider_bits.binding(),
                     node_momentums.binding(),

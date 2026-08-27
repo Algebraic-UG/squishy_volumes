@@ -17,11 +17,7 @@ use crate::test_data::{
 use super::*;
 
 fn check(settings: Settings, input_data: InputData) {
-    let cpu_particle_tmp = prepare_tmp_on_cpu(
-        settings.grid_node_size,
-        settings.time_step,
-        input_data.clone(),
-    );
+    let cpu_particle_tmp = prepare_tmp_on_cpu(settings.grid_node_size, input_data.clone());
     let gpu_particle_tmp = run(settings, input_data);
 
     for (cpu, gpu) in cpu_particle_tmp.into_iter().zip(gpu_particle_tmp) {
@@ -39,12 +35,12 @@ fn test_single_undeformed() {
         workgroup_size,
         dispatch_limit,
         grid_node_size,
-        time_step,
     };
 
     check(
         settings,
         InputData {
+            time_step,
             particle_flags: &[ParticleFlags::IS_SOLID],
             particle_parameters: &[ParticleParameters {
                 mass: 1.,
@@ -83,7 +79,6 @@ fn test_many_random_props() {
         workgroup_size,
         dispatch_limit,
         grid_node_size,
-        time_step,
     };
 
     let positions = many_positions();
@@ -149,6 +144,7 @@ fn test_many_random_props() {
     check(
         settings,
         InputData {
+            time_step,
             particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,

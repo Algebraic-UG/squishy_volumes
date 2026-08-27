@@ -22,67 +22,69 @@ struct BvhMeta {
     offset_z: i32,
 }
 
+@group(0) @binding(0)
+var<storage, read_write> time_step: f32;
+
 // indexed by particle
 
-@group(0) @binding(0)
+@group(0) @binding(1)
 var<storage, read_write> particle_flags: array<u32>;
 
-@group(0) @binding(1)
+@group(0) @binding(2)
 var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
-@group(0) @binding(2)
+@group(0) @binding(3)
 var<storage, read_write> particle_velocities: array<vec3f>;
 
 // indexed by vertex
 
-@group(0) @binding(3)
+@group(0) @binding(4)
 var<storage, read_write> vertex_positions: array<vec3f>;
 
-@group(0) @binding(4)
+@group(0) @binding(5)
 var<storage, read_write> vertex_normals: array<vec3f>;
 
-@group(0) @binding(5)
+@group(0) @binding(6)
 var<storage, read_write> vertex_velocities: array<vec3f>;
 
 // indexed by triangle 
 
-@group(0) @binding(6)
+@group(0) @binding(7)
 var<storage, read_write> triangle_indices: array<Triangle>;
 
-@group(0) @binding(7)
+@group(0) @binding(8)
 var<storage, read_write> triangle_collider: array<u32>;
 
-@group(0) @binding(8)
+@group(0) @binding(9)
 var<storage, read_write> triangle_normals: array<vec3f>;
 
-@group(0) @binding(9)
+@group(0) @binding(10)
 var<storage, read_write> triangle_opposites: array<Opposite>;
 
-@group(0) @binding(10)
+@group(0) @binding(11)
 var<storage, read_write> triangle_frictions: array<f32>;
 
-@group(0) @binding(11)
+@group(0) @binding(12)
 var<storage, read_write> triangle_dampings: array<f32>;
 
 // acceleration sturcture
 
-@group(0) @binding(12)
+@group(0) @binding(13)
 var<storage, read_write> bvh_meta: BvhMeta;
 
-@group(0) @binding(13)
+@group(0) @binding(14)
 var<storage, read_write> bvh_nodes: array<u32>;
 
-@group(0) @binding(14)
+@group(0) @binding(15)
 var<storage, read_write> bvh_indices: array<u32>;
 
-@group(0) @binding(15)
+@group(0) @binding(16)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
 override FORGET_DISTANCE: f32;
 override ACCEPT_DISTANCE: f32;
-override TIME_STEP: f32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -232,7 +234,7 @@ fn main(
                 let tangent = tangential_velocity / tangential_velocity_norm;
 
                 let friction_impulse = tangent
-                    * min((triangle_frictions[closest_triangle] * distance / TIME_STEP), tangential_velocity_norm);
+                    * min((triangle_frictions[closest_triangle] * distance / time_step), tangential_velocity_norm);
 
                 velocity -= friction_impulse;
             }
@@ -240,7 +242,7 @@ fn main(
             velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
         }
 
-        velocity -= to_p / TIME_STEP;
+        velocity -= to_p / time_step;
 
         continuing {
             collider_bits &= ~(0x00010001u << collider);

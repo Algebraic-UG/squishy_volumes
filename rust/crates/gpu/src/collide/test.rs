@@ -18,8 +18,8 @@ use super::*;
 fn check(
     forget_distance: f32,
     accept_distance: f32,
-    time_step: f32,
     mut input_data @ InputData {
+        time_step,
         particle_positions_and_collider_bits,
         particle_velocities,
         vertex_positions,
@@ -70,7 +70,6 @@ fn check(
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
             forget_distance,
             accept_distance,
-            time_step,
         },
         input_data,
     );
@@ -268,8 +267,8 @@ fn simple() {
     check(
         forget_distance,
         accept_distance,
-        time_step,
         InputData {
+            time_step,
             leaf_size,
             leaf_threshold,
             particle_flags: &particle_flags,
@@ -333,8 +332,8 @@ fn simple2() {
     check(
         forget_distance,
         accept_distance,
-        time_step,
         InputData {
+            time_step,
             leaf_size,
             leaf_threshold,
             particle_flags: &particle_flags,
@@ -385,8 +384,8 @@ fn torus() {
     check(
         forget_distance,
         accept_distance,
-        time_step,
         InputData {
+            time_step,
             leaf_size,
             leaf_threshold,
             particle_flags: &particle_flags,

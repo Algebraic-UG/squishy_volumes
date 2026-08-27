@@ -9,29 +9,31 @@
 import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, TOMBSTONED};
 
 @group(0) @binding(0)
-var<storage, read_write> gravity: vec3f;
+var<storage, read_write> time_step: f32;
 
 @group(0) @binding(1)
-var<storage, read_write> particle_flags: array<u32>;
+var<storage, read_write> gravity: vec3f;
 
 @group(0) @binding(2)
-var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
+var<storage, read_write> particle_flags: array<u32>;
 
 @group(0) @binding(3)
-var<storage, read_write> particle_velocities: array<vec3f>;
+var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
 @group(0) @binding(4)
-var<storage, read_write> particle_goals_start: array<vec3f>;
+var<storage, read_write> particle_velocities: array<vec3f>;
 
 @group(0) @binding(5)
-var<storage, read_write> particle_goals_end: array<vec3f>;
+var<storage, read_write> particle_goals_start: array<vec3f>;
 
 @group(0) @binding(6)
+var<storage, read_write> particle_goals_end: array<vec3f>;
+
+@group(0) @binding(7)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
-override TIME_STEP: f32;
 
 var<immediate> factor: f32;
 
@@ -61,11 +63,11 @@ fn main(
             (1. - factor) * particle_goals_start[global_index]
             + factor * particle_goals_end[global_index];
         let position = particle_positions_and_collider_bits[global_index].position;
-        particle_velocities[global_index] = (goal_position - position) / TIME_STEP;
+        particle_velocities[global_index] = (goal_position - position) / time_step;
         return;
     }
 
-    particle_velocities[global_index] += TIME_STEP * gravity;
+    particle_velocities[global_index] += time_step * gravity;
 }
 
 fn is_error() -> bool {

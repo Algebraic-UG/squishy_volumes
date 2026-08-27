@@ -12,8 +12,9 @@ use nalgebra::Vector3;
 use super::*;
 
 fn check(
-    settings @ Settings { time_step, .. }: Settings,
+    settings: Settings,
     input_data @ InputData {
+        time_step,
         gravity,
         particle_flags,
         particle_positions_and_collider_bits,
@@ -99,9 +100,9 @@ fn simple() {
         Settings {
             workgroup_size,
             dispatch_limit,
-            time_step,
         },
         InputData {
+            time_step,
             gravity,
             particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_goals_positions_and_collider_bits,

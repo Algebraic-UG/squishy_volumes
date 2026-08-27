@@ -31,12 +31,12 @@ pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
     pub grid_node_size: f32,
-    pub time_step: f32,
 }
 
 pub struct Parameters;
 
 pub struct Input {
+    pub time_step: Allocation,
     pub particle_flags: Allocation,
     pub particle_parameters: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
@@ -47,6 +47,7 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
+    pub time_step: f32,
     pub particle_flags: &'a [ParticleFlags],
     pub particle_parameters: &'a [ParticleParameters],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
@@ -59,6 +60,7 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         InputData {
+            time_step,
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -76,6 +78,7 @@ impl Input {
         let particle_parameters: Vec<ParticleParametersDevice> =
             particle_parameters.iter().map(Into::into).collect();
 
+        let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
@@ -98,6 +101,7 @@ impl Input {
         )?;
 
         Ok(Self {
+            time_step,
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -124,7 +128,6 @@ impl PipelinePart for PrepareTmp {
             workgroup_size,
             dispatch_limit,
             grid_node_size,
-            time_step,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
@@ -133,6 +136,7 @@ impl PipelinePart for PrepareTmp {
                 context,
                 workgroup_size,
                 bind_group_entries: [
+                    (f32::MIN_BINDING_SIZE, false),                      // time_step
                     (ParticleFlags::MIN_BINDING_SIZE, false),            // flags
                     (ParticleParametersDevice::MIN_BINDING_SIZE, false), // parameters
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
@@ -142,10 +146,7 @@ impl PipelinePart for PrepareTmp {
                     (Matrix4::<f32>::MIN_BINDING_SIZE, false),          // tmp
                 ],
                 immediate_size: 0,
-                constants: [
-                    ("GRID_NODE_SIZE", grid_node_size as f64),
-                    ("TIME_STEP", time_step as f64),
-                ]
+                constants: [("GRID_NODE_SIZE", grid_node_size as f64),]
             }
         );
 
@@ -161,6 +162,7 @@ impl PipelinePart for PrepareTmp {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            time_step,
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -187,6 +189,7 @@ impl PipelinePart for PrepareTmp {
                 encoder,
                 &self.prepare_tmp,
                 [
+                    time_step.binding(),
                     particle_flags.binding(),
                     particle_parameters.binding(),
                     particle_positions_and_collider_bits.binding(),
