@@ -37,8 +37,7 @@ fn main(
 
     time += time_step;
 
-    let seconds_per_frame = 1. / f32(FRAMES_PER_SECOND);
-    if time < seconds_per_frame {
+    if time * f32(FRAMES_PER_SECOND) < 1. {
         return;
     }
 

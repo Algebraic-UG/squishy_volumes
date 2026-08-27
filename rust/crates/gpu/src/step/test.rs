@@ -364,9 +364,9 @@ fn run(settings: Settings, data: InputData) -> OutputData {
             &mut (&mut encoder).into(),
             input,
             Parameters {
-                factor: 0.5,
                 max_num_grid_nodes,
                 current_step: 0,
+                adaptive_time_steps: false,
             },
         )
         .unwrap();

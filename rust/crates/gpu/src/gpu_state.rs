@@ -559,7 +559,6 @@ impl GpuState {
                 self.next_input.clone(),
                 step::Parameters {
                     max_num_grid_nodes: self.max_num_grid_nodes,
-                    factor: 0., // TODO: this won't be needed
                     current_step: self.recorded_steps,
                     adaptive_time_steps,
                 },

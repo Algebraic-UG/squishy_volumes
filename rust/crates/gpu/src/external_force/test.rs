@@ -14,6 +14,7 @@ use super::*;
 fn check(
     settings: Settings,
     input_data @ InputData {
+        time,
         time_step,
         gravity,
         particle_flags,
@@ -22,9 +23,10 @@ fn check(
         particle_goals_start,
         particle_goals_end,
     }: InputData,
-    parameters @ Parameters { factor }: Parameters,
 ) {
-    let gpu_particle_velocites = run(settings, input_data, parameters);
+    let gpu_particle_velocites = run(settings, input_data);
+
+    let factor = time * settings.frames_per_second as f32;
 
     let mut cpu_particle_velocites = particle_velocities.to_vec();
     izip!(
@@ -94,14 +96,15 @@ fn simple() {
 
     let time_step = 0.01;
     let gravity = Vector4::new(0., 0., -9.8, 0.);
-    let factor = 0.5;
 
     check(
         Settings {
             workgroup_size,
             dispatch_limit,
+            frames_per_second: 1,
         },
         InputData {
+            time: 0.5,
             time_step,
             gravity,
             particle_flags: &particle_flags,
@@ -110,11 +113,10 @@ fn simple() {
             particle_goals_start: &particle_goals_start,
             particle_goals_end: &particle_goals_end,
         },
-        Parameters { factor },
     );
 }
 
-fn run(settings: Settings, input_data: InputData, parameters: Parameters) -> Vec<Vector4<f32>> {
+fn run(settings: Settings, input_data: InputData) -> Vec<Vector4<f32>> {
     let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
@@ -124,7 +126,7 @@ fn run(settings: Settings, input_data: InputData, parameters: Parameters) -> Vec
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output = external_force
-        .record(&mut context, &mut (&mut encoder).into(), input, parameters)
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
     let downloads = DownloadsToHost::new(&context, [particle_velocities, context.status()]);

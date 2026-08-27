@@ -555,10 +555,10 @@ pub fn collide_on_cpu(
         vertex_positions,
         triangle_indices,
         triangle_collider,
-        triangle_frictions: _,
+        triangle_frictions: _, // TODO
         vertex_normals,
         triangle_normals,
-        triangle_opposites, // TODO
+        triangle_opposites,
         ..
     }: collide::InputData,
 ) -> (Vec<PositionAndColliderBits>, Vec<Vector3<f32>>) {

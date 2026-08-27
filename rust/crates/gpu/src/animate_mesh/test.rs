@@ -12,16 +12,21 @@ use squishy_volumes_util::NORMALIZATION_EPS;
 use super::*;
 
 fn check(
-    input_data @ InputData {
+    mut input_data @ InputData {
         vertex_positions_start,
         vertex_positions_end,
         triangle_indices,
+        ..
     }: InputData,
 ) {
     let vertex_triangle_lists =
         compute_triangle_lists(vertex_positions_start.len(), triangle_indices);
     for step in 0..5 {
         let factor = step as f32 / 5.;
+
+        let frames_per_second = 1;
+        input_data.time = factor; // works via fps 1
+
         println!("factor: {factor}");
 
         let cpu_vertex_positions: Vec<Vector3<f32>> = vertex_positions_start
@@ -67,9 +72,9 @@ fn check(
             Settings {
                 workgroup_size: 64.try_into().unwrap(),
                 dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+                frames_per_second,
             },
             input_data.clone(),
-            Parameters { factor },
         );
 
         println!("vertex positions");
@@ -102,6 +107,7 @@ fn simple() {
     let triangles = vec![Triangle { a: 0, b: 1, c: 2 }];
 
     check(InputData {
+        time: 0., // hack: this is modified in check
         vertex_positions_start: &vertices_0,
         vertex_positions_end: &vertices_1,
         triangle_indices: &triangles,
@@ -115,6 +121,7 @@ fn torus() {
     let triangles = torus::triangles();
 
     check(InputData {
+        time: 0., // hack: this is modified in check
         vertex_positions_start: &vertices_0,
         vertex_positions_end: &vertices_1,
         triangle_indices: &triangles,
@@ -128,6 +135,7 @@ fn cone() {
     let triangles = cone::triangles();
 
     check(InputData {
+        time: 0., // hack: this is modified in check
         vertex_positions_start: &vertices_0,
         vertex_positions_end: &vertices_1,
         triangle_indices: &triangles,
@@ -137,7 +145,6 @@ fn cone() {
 fn run(
     settings: Settings,
     input_data: InputData,
-    parameters: Parameters,
 ) -> (Vec<Vector4<f32>>, Vec<Vector4<f32>>, Vec<Vector4<f32>>) {
     let mut context = get_shared_context();
 
@@ -151,7 +158,7 @@ fn run(
         vertex_normals,
         triangle_normals,
     } = step
-        .record(&mut context, &mut (&mut encoder).into(), input, parameters)
+        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
     let downloads = DownloadsToHost::new(

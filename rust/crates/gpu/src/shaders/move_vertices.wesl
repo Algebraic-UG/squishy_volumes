@@ -9,21 +9,23 @@
 import super::util::{get_global_index};
 
 @group(0) @binding(0)
-var<storage, read_write> vertex_positions_start: array<vec3f>;
+var<storage, read_write> time: f32;
 
 @group(0) @binding(1)
-var<storage, read_write> vertex_positions_end: array<vec3f>;
+var<storage, read_write> vertex_positions_start: array<vec3f>;
 
 @group(0) @binding(2)
-var<storage, read_write> vertex_positions: array<vec3f>;
+var<storage, read_write> vertex_positions_end: array<vec3f>;
 
 @group(0) @binding(3)
+var<storage, read_write> vertex_positions: array<vec3f>;
+
+@group(0) @binding(4)
 var<storage, read_write> status: atomic<u32>;
 
+override FRAMES_PER_SECOND: u32;
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
-
-var<immediate> factor: f32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(
@@ -40,6 +42,8 @@ fn main(
     if global_index >= arrayLength(&vertex_positions) {
         return;
     }
+
+    let factor = time * f32(FRAMES_PER_SECOND);
 
     vertex_positions[global_index] = //
         (1. - factor) * vertex_positions_start[global_index]

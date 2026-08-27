@@ -29,13 +29,13 @@ pub struct AnimateMesh {
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
+    pub frames_per_second: u32,
 }
 
-pub struct Parameters {
-    pub factor: f32,
-}
+pub struct Parameters;
 
 pub struct Input {
+    pub time: Allocation,
     pub vertex_positions_start: Allocation,
     pub vertex_positions_end: Allocation,
     pub vertex_triangle_offsets: Allocation,
@@ -45,6 +45,7 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
+    pub time: f32,
     pub vertex_positions_start: &'a [Vector4<f32>],
     pub vertex_positions_end: &'a [Vector4<f32>],
     pub triangle_indices: &'a [Triangle],
@@ -54,6 +55,7 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         InputData {
+            time,
             vertex_positions_start,
             vertex_positions_end,
             triangle_indices,
@@ -80,6 +82,7 @@ impl Input {
             .flatten()
             .collect::<Vec<_>>();
 
+        let time = Allocation::new(device, "time", &[time])?;
         let vertex_positions_start =
             Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
         let vertex_positions_end =
@@ -93,6 +96,7 @@ impl Input {
         let triangle_indices = Allocation::new(device, "triangle_indices", triangle_indices)?;
 
         Ok(Self {
+            time,
             vertex_positions_start,
             vertex_positions_end,
             vertex_triangle_offsets,
@@ -119,6 +123,7 @@ impl PipelinePart for AnimateMesh {
         Settings {
             workgroup_size,
             dispatch_limit,
+            frames_per_second,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
@@ -127,12 +132,13 @@ impl PipelinePart for AnimateMesh {
                 context,
                 workgroup_size,
                 bind_group_entries: [
+                    (f32::MIN_BINDING_SIZE, false),            // time
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_start
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions_end
                     (Vector4::<f32>::MIN_BINDING_SIZE, false), // vertex_positions
                 ],
-                immediate_size: 4,
-                constants: [],
+                immediate_size: 0,
+                constants: [("FRAMES_PER_SECOND", frames_per_second as f64)],
             }
         );
 
@@ -183,13 +189,14 @@ impl PipelinePart for AnimateMesh {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            time,
             vertex_positions_start,
             vertex_positions_end,
             vertex_triangle_offsets,
             vertex_triangle_lists,
             triangle_indices,
         }: Input,
-        Parameters { factor }: Parameters,
+        _: Parameters,
     ) -> Result<Output, GpuError> {
         let num_vertices = vertex_positions_start.len::<Vector4<f32>>();
         let num_triangles = triangle_indices.len::<Triangle>();
@@ -210,17 +217,18 @@ impl PipelinePart for AnimateMesh {
                 len: num_vertices.get() as u32,
             })
             .direct();
-            let mut compute_pass = context.enter_module(
-                encoder,
-                &self.move_vertices,
-                [
-                    vertex_positions_start.binding(),
-                    vertex_positions_end.binding(),
-                    vertex_positions.binding(),
-                ],
-            );
-            compute_pass.set_immediates(0, bytemuck::bytes_of(&factor));
-            compute_pass.dispatch_workgroups(x, y, z);
+            context
+                .enter_module(
+                    encoder,
+                    &self.move_vertices,
+                    [
+                        time.binding(),
+                        vertex_positions_start.binding(),
+                        vertex_positions_end.binding(),
+                        vertex_positions.binding(),
+                    ],
+                )
+                .dispatch_workgroups(x, y, z);
         }
 
         {

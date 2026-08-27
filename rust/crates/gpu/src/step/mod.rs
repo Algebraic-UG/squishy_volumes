@@ -57,7 +57,6 @@ pub struct Settings {
 pub struct Parameters {
     pub max_num_grid_nodes: NonZeroU32,
     pub current_step: u32,
-    pub factor: f32,
     pub adaptive_time_steps: bool,
 }
 
@@ -421,6 +420,7 @@ impl PipelinePart for Step {
             animate_mesh::Settings {
                 workgroup_size,
                 dispatch_limit,
+                frames_per_second,
             },
         )?;
         let limit_time_step = LimitTimeStep::new(
@@ -438,6 +438,7 @@ impl PipelinePart for Step {
             external_force::Settings {
                 workgroup_size,
                 dispatch_limit,
+                frames_per_second,
             },
         )?;
         let collide = Collide::new(
@@ -559,7 +560,6 @@ impl PipelinePart for Step {
         Parameters {
             max_num_grid_nodes,
             current_step,
-            factor,
             adaptive_time_steps,
         }: Parameters,
     ) -> Result<Output, GpuError> {
@@ -588,6 +588,7 @@ impl PipelinePart for Step {
             context,
             encoder,
             external_force::Input {
+                time: time.clone(),
                 time_step: time_step.clone(),
                 gravity,
                 particle_flags: particle_flags.clone(),
@@ -596,7 +597,7 @@ impl PipelinePart for Step {
                 particle_goals_start,
                 particle_goals_end,
             },
-            external_force::Parameters { factor },
+            external_force::Parameters,
         )?;
 
         let meld_needed = collider_input.is_some();
@@ -622,13 +623,14 @@ impl PipelinePart for Step {
                 context,
                 encoder,
                 animate_mesh::Input {
+                    time: time.clone(),
                     vertex_positions_start,
                     vertex_positions_end,
                     vertex_triangle_offsets,
                     vertex_triangle_lists,
                     triangle_indices: triangle_indices.clone(),
                 },
-                animate_mesh::Parameters { factor },
+                animate_mesh::Parameters,
             )?;
 
             let collide::Output = self.collide.record(
