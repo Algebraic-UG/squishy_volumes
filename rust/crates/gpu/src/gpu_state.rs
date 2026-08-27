@@ -21,7 +21,7 @@ use crate::{
 use super::*;
 
 pub struct GpuState {
-    time: f64,
+    start_time: f32,
     max_time_step: f32,
     gpu_context: GpuContext,
     update_flags: UpdateFlags,
@@ -148,9 +148,9 @@ impl GpuState {
 
         tracing::info!("creating particle allocations");
 
-        let time_between_frames =
+        let start_time =
             (io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
-        let time = Allocation::new(device, "time", &[time_between_frames])?;
+        let time = Allocation::new(device, "time", &[start_time])?;
         // TODO: interpolate that
         let gravity = Allocation::new(device, "gravity", &[a.gravity().push(0.)])?;
 
@@ -200,7 +200,7 @@ impl GpuState {
         harness.step()?;
 
         Ok(Self {
-            time: io_state.time,
+            start_time,
             max_time_step,
             gpu_context,
             update_flags,
@@ -371,9 +371,14 @@ impl GpuState {
     ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
         squishy_volumes_util::profile!("produce_next_state");
 
-        if self.time >= target_time {
+        if self.io_state.time >= target_time {
             return Ok((self.io_state.clone(), Ok(())));
         }
+
+        self.start_time =
+            (self.io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
+        self.next_input.time =
+            Allocation::new(self.gpu_context.device(), "time", &[self.start_time])?;
 
         let mut encoder = self
             .gpu_context
@@ -475,7 +480,6 @@ impl GpuState {
                 return Err(GpuError::MaxGridNodesExceeded);
             }
 
-            self.time = self.io_state.time;
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
             tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
             frame_input.load(frame_input.frame() - 1)?;
@@ -513,10 +517,7 @@ impl GpuState {
         }
         */
 
-        // TODO: This must be from downloads
-        self.io_state.time = self.time;
-
-        update_io_state(&mut self.io_state, mapped_downloads);
+        update_io_state(self.start_time, &mut self.io_state, mapped_downloads);
 
         Ok((self.io_state.clone(), buffered_error))
     }
@@ -666,6 +667,7 @@ impl Downloads {
             &gpu_state.gpu_context,
             [
                 gpu_state.gpu_context.status(),
+                gpu_state.next_input.time.clone(),
                 output.indirect_nodes,
                 gpu_state
                     .next_input
@@ -721,6 +723,7 @@ impl DownloadsReady<'_> {
     fn into_mapped(self) -> Result<MappedDownloads, GpuError> {
         let [
             status,
+            time,
             indirect_nodes,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -741,6 +744,7 @@ impl DownloadsReady<'_> {
 
         Ok(MappedDownloads {
             status: status.to_vec()?[0],
+            time: time.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
             particle_flags: particle_flags.to_vec()?,
             particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec()?,
@@ -753,6 +757,7 @@ impl DownloadsReady<'_> {
 
 struct MappedDownloads {
     status: GpuStatus,
+    time: f32,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
     particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
@@ -768,9 +773,11 @@ struct MappedDownloadsGrid {
 }
 
 fn update_io_state(
+    start_time: f32,
     io_state: &mut IoState,
     MappedDownloads {
         status: _,
+        time,
         indirect_nodes,
         particle_flags,
         particle_positions_and_collider_bits,
@@ -779,6 +786,7 @@ fn update_io_state(
         grid,
     }: MappedDownloads,
 ) {
+    io_state.time += (time - start_time) as f64;
     io_state.particles.flags = particle_flags;
     io_state.particles.collider_bits = particle_positions_and_collider_bits
         .iter()
