@@ -63,7 +63,6 @@ fn check(
     let gpu_time_step_limits = run(settings, input_data.clone());
 
     println!("{gpu_time_step_limits:#?}");
-    panic!();
 
     for (cpu, gpu) in cpu_time_step_limits.into_iter().zip(gpu_time_step_limits) {
         assert_relative_eq!(
