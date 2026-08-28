@@ -446,7 +446,6 @@ impl GpuState {
                         Some(self.next_input.limits_over_time.size().get()),
                     );
                     self.next_input.limits_over_time = limits_over_time;
-
                     continue;
                 }
                 Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded {
@@ -467,13 +466,11 @@ impl GpuState {
                 })) => {
                     tracing::warn!(reporting_shader, "A particle is too close to inversion.");
                     buffered_error = error;
-                    break;
                 }
-                Err(GpuError::Shader(GpuShaderError::FrameTimeReached)) => {
-                    break;
-                }
+                Err(GpuError::Shader(GpuShaderError::FrameTimeReached)) => {}
                 x => x?,
             };
+            break;
         }
 
         if redo_frame {
