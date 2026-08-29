@@ -14,10 +14,12 @@ fn check(
     }: Settings,
     time_step: f32,
     mut time: f32,
+    mut step: u32,
 ) {
-    let (gpu_status, gpu_time) = run(settings, time_step, time);
+    let (gpu_status, gpu_time, gpu_step) = run(settings, time_step, time, step);
 
     time += time_step;
+    step += 1;
     let seconds_per_frame = 1. / frames_per_second as f32;
     let reached = time > seconds_per_frame;
 
@@ -34,6 +36,7 @@ fn check(
         result.unwrap();
     }
     assert_eq!(time, gpu_time);
+    assert_eq!(step, gpu_step);
 }
 
 #[test]
@@ -42,6 +45,7 @@ fn not_reached() {
 
     let time_step = 0.01;
     let time = 0.;
+    let step = 0;
     let frames_per_second = 24;
 
     check(
@@ -51,6 +55,7 @@ fn not_reached() {
         },
         time_step,
         time,
+        step,
     );
 }
 
@@ -60,6 +65,7 @@ fn reached() {
 
     let time_step = 1.;
     let time = 0.;
+    let step = 0;
     let frames_per_second = 24;
 
     check(
@@ -69,23 +75,25 @@ fn reached() {
         },
         time_step,
         time,
+        step,
     );
 }
 
-fn run(settings: Settings, time_step: f32, time: f32) -> (GpuStatus, f32) {
+fn run(settings: Settings, time_step: f32, time: f32, step: u32) -> (GpuStatus, f32, u32) {
     let mut context = get_shared_context();
 
-    let input = Input::new(context.device(), time_step, time).unwrap();
+    let input = Input::new(context.device(), time_step, time, step).unwrap();
     let advance_time = AdvanceTime::new(&mut context, settings).unwrap();
 
     let time = input.time.clone();
+    let step = input.step.clone();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
     let Output = advance_time
         .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
         .unwrap();
 
-    let downloads = DownloadsToHost::new(&context, [context.status(), time]);
+    let downloads = DownloadsToHost::new(&context, [context.status(), time, step]);
     downloads.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);
@@ -95,7 +103,11 @@ fn run(settings: Settings, time_step: f32, time: f32) -> (GpuStatus, f32) {
         .poll(wgpu::PollType::wait_indefinitely())
         .unwrap();
 
-    let [status, time] = downloads.try_into().unwrap();
+    let [status, time, step] = downloads.try_into().unwrap();
 
-    (status.to_vec().unwrap()[0], time.to_vec().unwrap()[0])
+    (
+        status.to_vec().unwrap()[0],
+        time.to_vec().unwrap()[0],
+        step.to_vec().unwrap()[0],
+    )
 }

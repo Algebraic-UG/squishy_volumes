@@ -28,6 +28,7 @@ pub struct Parameters;
 pub struct Input {
     pub time_step: Allocation,
     pub time: Allocation,
+    pub step: Allocation,
 }
 
 impl Input {
@@ -35,10 +36,16 @@ impl Input {
         device: &wgpu::Device,
         time_step: f32,
         time: f32,
+        step: u32,
     ) -> Result<Self, GpuAllocatorError> {
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let time = Allocation::new(device, "time", &[time])?;
-        Ok(Self { time_step, time })
+        let step = Allocation::new(device, "step", &[step])?;
+        Ok(Self {
+            time_step,
+            time,
+            step,
+        })
     }
 }
 
@@ -65,6 +72,7 @@ impl PipelinePart for AdvanceTime {
                 bind_group_entries: [
                     (f32::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
+                    (u32::MIN_BINDING_SIZE, false),
                 ],
                 immediate_size: 0,
                 constants: [("FRAMES_PER_SECOND", frames_per_second as f64)],
@@ -78,14 +86,18 @@ impl PipelinePart for AdvanceTime {
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input { time_step, time }: Input,
+        Input {
+            time_step,
+            time,
+            step,
+        }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
         context
             .enter_module(
                 encoder,
                 &self.advance_time,
-                [time_step.binding(), time.binding()],
+                [time_step.binding(), time.binding(), step.binding()],
             )
             .dispatch_workgroups(1, 1, 1);
 

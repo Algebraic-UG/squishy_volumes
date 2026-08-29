@@ -15,6 +15,9 @@ var<storage, read_write> time_step: f32;
 var<storage, read_write> time: f32;
 
 @group(0) @binding(2)
+var<storage, read_write> step: u32;
+
+@group(0) @binding(3)
 var<storage, read_write> status: atomic<u32>;
 
 override FRAMES_PER_SECOND: u32;
@@ -36,6 +39,7 @@ fn main(
     set_shader_id();
 
     time += time_step;
+    step += 1;
 
     if time * f32(FRAMES_PER_SECOND) < 1. {
         return;

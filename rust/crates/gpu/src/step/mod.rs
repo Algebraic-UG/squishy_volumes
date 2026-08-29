@@ -90,6 +90,7 @@ pub struct VariableParticleInput {
 #[derive(Clone)]
 pub struct Input {
     pub time: Allocation,
+    pub step: Allocation,
 
     pub gravity: Allocation,
     pub indirect_particles: Allocation,
@@ -328,6 +329,7 @@ impl Input {
             .collect::<Vec<ParticleParametersDevice>>();
 
         let time = Allocation::new(device, "time", &[0.])?;
+        let step = Allocation::new(device, "step", &[0])?;
         let gravity = Allocation::new(device, "gravity", &[gravity])?;
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
@@ -358,6 +360,7 @@ impl Input {
 
         Ok(Self {
             time,
+            step,
 
             gravity,
 
@@ -541,6 +544,7 @@ impl PipelinePart for Step {
         encoder: &mut CommandEncoder,
         Input {
             time,
+            step,
             gravity,
             indirect_particles,
             particle_parameters,
@@ -771,7 +775,11 @@ impl PipelinePart for Step {
         let advance_time::Output = self.advance_time.record(
             context,
             encoder,
-            advance_time::Input { time_step, time },
+            advance_time::Input {
+                time_step,
+                time,
+                step,
+            },
             advance_time::Parameters,
         )?;
 

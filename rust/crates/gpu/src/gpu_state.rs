@@ -150,6 +150,7 @@ impl GpuState {
         let start_time =
             (io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
         let time = Allocation::new(device, "time", &[start_time])?;
+        let step = Allocation::new(device, "step", &[0])?;
         // TODO: interpolate that
         let gravity = Allocation::new(device, "gravity", &[a.gravity().push(0.)])?;
 
@@ -175,6 +176,7 @@ impl GpuState {
 
         let next_input = step::Input {
             time,
+            step,
 
             gravity,
             indirect_particles,
@@ -379,6 +381,7 @@ impl GpuState {
             (self.io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
         self.next_input.time =
             Allocation::new(self.gpu_context.device(), "time", &[self.start_time])?;
+        self.next_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
 
         let mut encoder = self
             .gpu_context
@@ -669,6 +672,7 @@ impl Downloads {
                 gpu_state.gpu_context.status(),
                 gpu_state.next_input.time.clone(),
                 output.indirect_nodes,
+                gpu_state.next_input.step.clone(),
                 gpu_state
                     .next_input
                     .variable_particle_input
@@ -724,6 +728,7 @@ impl DownloadsReady<'_> {
         let [
             status,
             time,
+            step,
             indirect_nodes,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -745,6 +750,7 @@ impl DownloadsReady<'_> {
         Ok(MappedDownloads {
             status: status.to_vec()?[0],
             time: time.to_vec()?[0],
+            step: step.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
             particle_flags: particle_flags.to_vec()?,
             particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec()?,
@@ -758,6 +764,7 @@ impl DownloadsReady<'_> {
 struct MappedDownloads {
     status: GpuStatus,
     time: f32,
+    step: u32,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
     particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
@@ -778,6 +785,7 @@ fn update_io_state(
     MappedDownloads {
         status: _,
         time,
+        step: _,
         indirect_nodes,
         particle_flags,
         particle_positions_and_collider_bits,
