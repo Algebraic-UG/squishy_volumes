@@ -401,8 +401,11 @@ impl GpuState {
         let mut mapped_downloads;
 
         self.recorded_steps = 0;
+        if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
+            profile_data_csv_writer.clear();
+        }
         loop {
-            let output =
+            let (output, recorded_steps) =
                 self.record_steps(harness, adaptive_time_steps, &mut encoder, &profiler)?;
 
             let downloads = Downloads::new(self, store_grid, output);
@@ -432,6 +435,14 @@ impl GpuState {
 
             let num_grid_nodes = mapped_downloads.indirect_nodes.len;
             tracing::info!(self.max_num_grid_nodes, num_grid_nodes);
+
+            if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
+                profile_data_csv_writer.buffer_data(
+                    &self.gpu_context,
+                    &mut profiler,
+                    recorded_steps,
+                )?;
+            }
 
             let result = mapped_downloads.status.to_result(&self.gpu_context);
             self.gpu_context.reset_status()?;
@@ -516,11 +527,12 @@ impl GpuState {
             );
         }
 
-        /* TODO: need to get the times somehow
         if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
-            profile_data_csv_writer.write_frame(&self.gpu_context, &mut profiler, &times)?;
-        }
-        */
+            profile_data_csv_writer.write_frame(
+                self.io_state.time
+                    ..self.io_state.time + 1. / frame_input.consts().frames_per_second as f64,
+            )?;
+        };
 
         update_io_state(self.start_time, &mut self.io_state, mapped_downloads);
 
@@ -552,7 +564,9 @@ impl GpuState {
         adaptive_time_steps: bool,
         encoder: &mut wgpu::CommandEncoder,
         profiler: &wgpu_profiler::GpuProfiler,
-    ) -> Result<step::Output, GpuError> {
+    ) -> Result<(step::Output, usize), GpuError> {
+        tracing::info!(assumed_steps = self.steps_per_frame, "Recording steps");
+        let mut recorded_steps = 0;
         loop {
             harness.check()?;
             let scope = profiler.scope("run_step", encoder);
@@ -567,6 +581,7 @@ impl GpuState {
                 },
             )?;
             self.recorded_steps += 1;
+            recorded_steps += 1;
 
             if self.recorded_steps == self.steps_per_frame || self.recorded_steps.is_multiple_of(10)
             {
@@ -580,7 +595,7 @@ impl GpuState {
             }
 
             if self.recorded_steps == self.steps_per_frame {
-                break Ok(output);
+                break Ok((output, recorded_steps));
             }
         }
     }
@@ -675,6 +690,7 @@ impl Downloads {
                 gpu_state.gpu_context.status(),
                 gpu_state.next_input.time.clone(),
                 gpu_state.next_input.step.clone(),
+                gpu_state.next_input.limits_over_time.clone(),
                 gpu_state.next_input.indirect_grid_nodes.clone(),
                 gpu_state
                     .next_input
@@ -732,6 +748,7 @@ impl DownloadsReady<'_> {
             status,
             time,
             step,
+            limits_over_time,
             indirect_nodes,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -752,6 +769,7 @@ impl DownloadsReady<'_> {
 
         Ok(MappedDownloads {
             status: status.to_vec()?[0],
+            limits_over_time: limits_over_time.to_vec()?,
             time: time.to_vec()?[0],
             step: step.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
@@ -768,6 +786,7 @@ struct MappedDownloads {
     status: GpuStatus,
     time: f32,
     step: u32,
+    limits_over_time: Vec<TimeStepLimits>,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
     particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
@@ -789,6 +808,7 @@ fn update_io_state(
         status: _,
         time,
         step: _,
+        limits_over_time: _,
         indirect_nodes,
         particle_flags,
         particle_positions_and_collider_bits,

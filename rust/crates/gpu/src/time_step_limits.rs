@@ -41,6 +41,13 @@ impl TimeStepLimits {
             time_step_by_sound: self.time_step_by_sound.min(other.time_step_by_sound),
         }
     }
+
+    pub fn time_step(&self) -> f32 {
+        self.time_step_by_deformation
+            .min(self.time_step_by_isolated)
+            .min(self.time_step_by_sound)
+            .min(self.time_step_by_velocity)
+    }
 }
 
 impl AllowedInBinding for TimeStepLimits {
