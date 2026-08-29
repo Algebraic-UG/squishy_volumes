@@ -9,7 +9,7 @@
 use std::num::NonZeroU32;
 
 #[repr(C)]
-#[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq)]
 pub struct Indirect {
     pub x: u32,
     pub y: u32,

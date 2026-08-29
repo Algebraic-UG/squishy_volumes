@@ -156,6 +156,8 @@ impl GpuState {
 
         let new_flags = Allocation::new(device, "new_flags", a.particle_flags())?;
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
+        let indirect_grid_nodes =
+            Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
 
@@ -180,6 +182,7 @@ impl GpuState {
 
             gravity,
             indirect_particles,
+            indirect_grid_nodes,
 
             particle_parameters,
 
@@ -671,8 +674,8 @@ impl Downloads {
             [
                 gpu_state.gpu_context.status(),
                 gpu_state.next_input.time.clone(),
-                output.indirect_nodes,
                 gpu_state.next_input.step.clone(),
+                gpu_state.next_input.indirect_grid_nodes.clone(),
                 gpu_state
                     .next_input
                     .variable_particle_input

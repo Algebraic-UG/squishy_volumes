@@ -29,18 +29,18 @@ pub struct Parameters {
 
 pub struct Input {
     pub len: Allocation,
+    pub indirect: Allocation,
 }
 
 impl Input {
     pub fn new(device: &wgpu::Device, len: u32) -> Result<Self, GpuAllocatorError> {
         let len = Allocation::new(device, "len", &[len])?;
-        Ok(Self { len })
+        let indirect = Allocation::new(device, "indirect", &[Indirect::default()])?;
+        Ok(Self { len, indirect })
     }
 }
 
-pub struct Output {
-    pub new_indirect: Allocation,
-}
+pub struct Output;
 
 impl PipelinePart for LenToIndirect {
     type Settings = Settings;
@@ -79,22 +79,18 @@ impl PipelinePart for LenToIndirect {
         &self,
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
-        Input { len }: Input,
+        Input { len, indirect }: Input,
         Parameters { limit }: Parameters,
     ) -> Result<Output, GpuError> {
-        let new_indirect = context
-            .indirect_allocator()?
-            .allocate::<Indirect>("new_indirect", 1.try_into().unwrap())?;
-
         let mut compute_pass = context.enter_module(
             encoder,
             &self.len_to_indirect,
-            [len.binding(), new_indirect.binding()],
+            [len.binding(), indirect.binding()],
         );
         compute_pass.set_immediates(0, bytemuck::bytes_of(&limit));
         compute_pass.dispatch_workgroups(1, 1, 1);
         drop(compute_pass);
 
-        Ok(Output { new_indirect })
+        Ok(Output)
     }
 }

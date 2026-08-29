@@ -94,6 +94,8 @@ pub struct Input {
 
     pub gravity: Allocation,
     pub indirect_particles: Allocation,
+    pub indirect_grid_nodes: Allocation,
+
     pub particle_parameters: Allocation,
 
     pub variable_particle_input: VariableParticleInput,
@@ -333,6 +335,8 @@ impl Input {
         let gravity = Allocation::new(device, "gravity", &[gravity])?;
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
+        let indirect_grid_nodes =
+            Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
 
@@ -365,6 +369,7 @@ impl Input {
             gravity,
 
             indirect_particles,
+            indirect_grid_nodes,
 
             particle_parameters,
 
@@ -381,7 +386,6 @@ impl Input {
 }
 
 pub struct Output {
-    pub indirect_nodes: Allocation,
     pub node_ids_and_collider_bits: Allocation,
     pub node_momentums: Allocation,
 }
@@ -547,6 +551,7 @@ impl PipelinePart for Step {
             step,
             gravity,
             indirect_particles,
+            indirect_grid_nodes,
             particle_parameters,
             particle_goals_start,
             particle_goals_end,
@@ -662,7 +667,6 @@ impl PipelinePart for Step {
         }
 
         let prepare_grid::Output {
-            indirect_nodes,
             hash_table,
             node_ids_and_collider_bits,
             hash_table_multi,
@@ -673,6 +677,7 @@ impl PipelinePart for Step {
             encoder,
             prepare_grid::Input {
                 indirect_particles,
+                indirect_grid_nodes: indirect_grid_nodes.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
             },
             prepare_grid::Parameters { max_num_grid_nodes },
@@ -686,7 +691,7 @@ impl PipelinePart for Step {
             context,
             encoder,
             register_contributors::Input {
-                indirect_nodes: indirect_nodes.clone(),
+                indirect_nodes: indirect_grid_nodes.clone(),
                 particle_flags: particle_flags.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 hash_table: hash_table.clone(),
@@ -714,7 +719,7 @@ impl PipelinePart for Step {
             context,
             encoder,
             scatter::Input {
-                indirect_nodes: indirect_nodes.clone(),
+                indirect_nodes: indirect_grid_nodes.clone(),
                 total_contributors,
                 contributor_offsets,
                 contributors,
@@ -731,7 +736,7 @@ impl PipelinePart for Step {
                 context,
                 encoder,
                 meld_grid::Input {
-                    indirect_nodes: indirect_nodes.clone(),
+                    indirect_nodes: indirect_grid_nodes.clone(),
                     node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
                     hash_table_multi,
                     multi_offsets,
@@ -784,7 +789,6 @@ impl PipelinePart for Step {
         )?;
 
         Ok(Output {
-            indirect_nodes,
             node_ids_and_collider_bits,
             node_momentums,
         })
