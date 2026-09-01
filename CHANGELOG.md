@@ -1,12 +1,17 @@
-# [0.3.4] - 2026-08-12
+# [0.3.5] - 2026-09-01
 
-Highlight is on colliders: Another important friction fix and a new damping parameter that alleviates the bounciness of single particles.
+The most important change is that adaptive time steps are now available on the GPU.
 
 ## Features
-- A new damping parameter that we can use to fix the bounciness.
-- Copy simulation operator; allows for a quick test of different global settings.
-- Default cache location, set in add-on preferences.
+- Adaptive time steps on GPU.
+- Domain particle culling on the GPU.
+- Load the latest state on failure, and indicate the failed particles.
+- Hint to switch to object mode instead of showing nothing.
 
 ## Fixed
-- Friction for moving colliders.
-- 0.3.3 could not be used in Blender 5.0 due to Python 3.11.
+- CPU profiling was broken.
+- Toggling pinning caused an issue.
+- Allow particles to get squished much more before aborting.
+- GPU collision logic was slightly different from the CPU version.
+- The vertex normal calculation was too naive.
+- There was an issue with querying particle flags.
