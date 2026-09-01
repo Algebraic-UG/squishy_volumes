@@ -689,8 +689,8 @@ impl Downloads {
             [
                 gpu_state.gpu_context.status(),
                 gpu_state.next_input.time.clone(),
-                gpu_state.next_input.step.clone(),
-                gpu_state.next_input.limits_over_time.clone(),
+                //gpu_state.next_input.step.clone(),
+                //gpu_state.next_input.limits_over_time.clone(),
                 gpu_state.next_input.indirect_grid_nodes.clone(),
                 gpu_state
                     .next_input
@@ -747,8 +747,8 @@ impl DownloadsReady<'_> {
         let [
             status,
             time,
-            step,
-            limits_over_time,
+            //step,
+            //limits_over_time,
             indirect_nodes,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -769,9 +769,9 @@ impl DownloadsReady<'_> {
 
         Ok(MappedDownloads {
             status: status.to_vec()?[0],
-            limits_over_time: limits_over_time.to_vec()?,
+            //limits_over_time: limits_over_time.to_vec()?,
             time: time.to_vec()?[0],
-            step: step.to_vec()?[0],
+            //step: step.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
             particle_flags: particle_flags.to_vec()?,
             particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec()?,
@@ -785,8 +785,9 @@ impl DownloadsReady<'_> {
 struct MappedDownloads {
     status: GpuStatus,
     time: f32,
-    step: u32,
-    limits_over_time: Vec<TimeStepLimits>,
+    // TODO: load this for stats
+    //step: u32,
+    //limits_over_time: Vec<TimeStepLimits>,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
     particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
@@ -807,8 +808,8 @@ fn update_io_state(
     MappedDownloads {
         status: _,
         time,
-        step: _,
-        limits_over_time: _,
+        //step: _,
+        //limits_over_time: _,
         indirect_nodes,
         particle_flags,
         particle_positions_and_collider_bits,
