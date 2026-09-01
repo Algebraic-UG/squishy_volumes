@@ -82,6 +82,7 @@ fn main() {
 
     let grid_node_size = 1.;
     let time_step = 0.001;
+    let time_step_history_length = 10;
     let forget_distance = grid_node_size * 2.2;
     let accept_distance = grid_node_size * 2.;
     let leaf_size = accept_distance;
@@ -512,9 +513,11 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
+                frames_per_second,
                 forget_distance,
                 accept_distance,
-                time_step,
+                max_time_step: time_step,
+                time_step_history_length,
                 table_tries,
                 domain_min: Vector3::repeat(-1000.),
                 domain_max: Vector3::repeat(1000.),
@@ -560,6 +563,7 @@ fn main() {
                 gpu::step::Parameters {
                     factor: 0.5,
                     max_num_grid_nodes,
+                    current_step: 0,
                 },
             );
         }

@@ -103,7 +103,7 @@ fn test_random() {
 }
 
 fn run(settings: Settings, positions_and_collider_bits: &[PositionAndColliderBits]) -> Vec<u32> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), positions_and_collider_bits).unwrap();
     let partition_nodes = PartitionNodes::new(&mut context, settings).unwrap();

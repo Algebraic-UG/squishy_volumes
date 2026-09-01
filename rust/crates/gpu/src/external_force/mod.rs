@@ -26,14 +26,14 @@ pub struct ExternalForce {
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
-    pub time_step: f32,
+    pub frames_per_second: u32,
 }
 
-pub struct Parameters {
-    pub factor: f32,
-}
+pub struct Parameters;
 
 pub struct Input {
+    pub time: Allocation,
+    pub time_step: Allocation,
     pub gravity: Allocation,
     pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
@@ -43,6 +43,8 @@ pub struct Input {
 }
 
 pub struct InputData<'a> {
+    pub time: f32,
+    pub time_step: f32,
     pub gravity: Vector4<f32>,
     pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
@@ -55,6 +57,8 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         InputData {
+            time,
+            time_step,
             gravity,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -63,6 +67,8 @@ impl Input {
             particle_goals_end,
         }: InputData,
     ) -> Result<Self, GpuError> {
+        let time = Allocation::new(device, "time", &[time])?;
+        let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let gravity = Allocation::new(device, "gravity", &[gravity])?;
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_positions_and_collider_bits = Allocation::new(
@@ -77,6 +83,8 @@ impl Input {
         let particle_goals_end = Allocation::new(device, "particle_goals_end", particle_goals_end)?;
 
         Ok(Self {
+            time,
+            time_step,
             gravity,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -100,7 +108,7 @@ impl PipelinePart for ExternalForce {
         Settings {
             workgroup_size,
             dispatch_limit,
-            time_step,
+            frames_per_second,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
@@ -109,15 +117,17 @@ impl PipelinePart for ExternalForce {
                 context,
                 workgroup_size,
                 bind_group_entries: [
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false), // gravity
-                    (ParticleFlags::MIN_BINDING_SIZE, false),  // particle_flags
+                    (f32::MIN_BINDING_SIZE, false),                     // time
+                    (f32::MIN_BINDING_SIZE, false),                     // time_step
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          // gravity
+                    (ParticleFlags::MIN_BINDING_SIZE, false),           // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_velocities
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals_start
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals_end
                 ],
-                immediate_size: 4,
-                constants: [("TIME_STEP", time_step as f64),]
+                immediate_size: 0,
+                constants: [("FRAMES_PER_SECOND", frames_per_second as f64)]
             }
         );
 
@@ -133,6 +143,8 @@ impl PipelinePart for ExternalForce {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
+            time,
+            time_step,
             gravity,
             particle_flags,
             particle_positions_and_collider_bits,
@@ -140,7 +152,7 @@ impl PipelinePart for ExternalForce {
             particle_goals_start,
             particle_goals_end,
         }: Input,
-        Parameters { factor }: Parameters,
+        _: Parameters,
     ) -> Result<Output, GpuError> {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
@@ -149,20 +161,22 @@ impl PipelinePart for ExternalForce {
         })
         .direct();
 
-        let mut compute_pass = context.enter_module(
-            encoder,
-            &self.external_force,
-            [
-                gravity.binding(),
-                particle_flags.binding(),
-                particle_positions_and_collider_bits.binding(),
-                particle_velocities.binding(),
-                particle_goals_start.binding(),
-                particle_goals_end.binding(),
-            ],
-        );
-        compute_pass.set_immediates(0, bytemuck::bytes_of(&factor));
-        compute_pass.dispatch_workgroups(x, y, z);
+        context
+            .enter_module(
+                encoder,
+                &self.external_force,
+                [
+                    time.binding(),
+                    time_step.binding(),
+                    gravity.binding(),
+                    particle_flags.binding(),
+                    particle_positions_and_collider_bits.binding(),
+                    particle_velocities.binding(),
+                    particle_goals_start.binding(),
+                    particle_goals_end.binding(),
+                ],
+            )
+            .dispatch_workgroups(x, y, z);
 
         Ok(Output)
     }

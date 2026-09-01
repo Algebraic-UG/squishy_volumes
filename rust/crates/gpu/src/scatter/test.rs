@@ -167,8 +167,8 @@ fn test_many_random_props() {
 
     let particle_tmp = prepare_tmp_on_cpu(
         grid_node_size,
-        time_step,
         prepare_tmp::InputData {
+            time_step,
             particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,
@@ -191,7 +191,7 @@ fn test_many_random_props() {
 }
 
 fn run(settings: Settings, dispatch_limit: NonZeroU32, input_data: InputData) -> Vec<Vector4<f32>> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, dispatch_limit, input_data).unwrap();
     let scatter = Scatter::new(&mut context, settings).unwrap();

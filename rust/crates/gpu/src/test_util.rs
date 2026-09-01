@@ -6,7 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{num::NonZeroU32, sync::Mutex};
+use std::{
+    num::NonZeroU32,
+    sync::{Mutex, MutexGuard},
+};
 
 use crate::{DispatchSettings, GpuContext, Indirect, PositionAndColliderBits};
 
@@ -17,7 +20,7 @@ use approx::assert_relative_eq;
 use lazy_static::lazy_static;
 use nalgebra::{Matrix3, Vector3, Vector4};
 lazy_static! {
-    pub static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
+    static ref SHARED_CONTEXT: Mutex<GpuContext> = Mutex::new({
         let mut context = GpuContext::new(None).unwrap();
         context
             .setup_allocator(None, 10000000, "test allocator", true)
@@ -27,6 +30,12 @@ lazy_static! {
             .unwrap();
         context
     });
+}
+
+pub fn get_shared_context() -> MutexGuard<'static, GpuContext> {
+    let mut context = SHARED_CONTEXT.lock().unwrap();
+    context.reset_status().unwrap();
+    context
 }
 
 // This one is ugly.

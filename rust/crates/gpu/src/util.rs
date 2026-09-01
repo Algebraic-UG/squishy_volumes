@@ -12,12 +12,13 @@ use itertools::izip;
 use murmur3::murmur3_32;
 use rand::{SeedableRng as _, rngs::ChaCha8Rng, seq::SliceRandom as _};
 use rustc_hash::FxHashMap;
-use squishy_volumes_file_frame::SpecificParticleParameters;
 use squishy_volumes_mesh_util::{
     DistanceResult, Triangle, distance_to_triangle, segment_distance_result,
 };
 use squishy_volumes_util::collider_bits;
-use squishy_volumes_util::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
+use squishy_volumes_util::{
+    SpecificParticleParameters, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
+};
 use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::iter::once;
@@ -213,8 +214,8 @@ pub fn position_to_low_node(grid_node_size: f32, position: &Vector3<f32>) -> Vec
 
 pub fn prepare_tmp_on_cpu(
     grid_node_size: f32,
-    time_step: f32,
     prepare_tmp::InputData {
+        time_step,
         particle_flags: _,
         particle_parameters,
         particle_positions_and_collider_bits,
@@ -554,10 +555,10 @@ pub fn collide_on_cpu(
         vertex_positions,
         triangle_indices,
         triangle_collider,
-        triangle_frictions: _,
+        triangle_frictions: _, // TODO
         vertex_normals,
         triangle_normals,
-        triangle_opposites, // TODO
+        triangle_opposites,
         ..
     }: collide::InputData,
 ) -> (Vec<PositionAndColliderBits>, Vec<Vector3<f32>>) {

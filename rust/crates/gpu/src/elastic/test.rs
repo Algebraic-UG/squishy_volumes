@@ -11,10 +11,9 @@ use std::iter::repeat;
 use approx::assert_relative_eq;
 use nalgebra::{Matrix1x3, Matrix3, stack};
 use rand::{SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_file_frame::SpecificParticleParameters;
 use squishy_volumes_util::{
-    elastic_energy_inviscid, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
-    try_elastic_energy_neo_hookean,
+    SpecificParticleParameters, elastic_energy_inviscid, first_piola_stress_inviscid,
+    first_piola_stress_neo_hookean, try_elastic_energy_neo_hookean,
 };
 
 use crate::test_data::{
@@ -144,7 +143,7 @@ fn run_elastic(
     particle_flags: &[ParticleFlags],
     particle_parameters: &[ParticleParameters],
 ) -> (Vec<Matrix4x3<f32>>, Vec<f32>) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

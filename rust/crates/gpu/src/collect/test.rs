@@ -14,7 +14,7 @@ use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 
 fn check(settings: Settings, input_data: InputData) {
     let gpu_output = run(settings, input_data.clone());
-    let cpu_output = collect_on_cpu(settings.grid_node_size, settings.time_step, input_data);
+    let cpu_output = collect_on_cpu(settings.grid_node_size, input_data.time_step, input_data);
 
     println!("checking positions");
     for (cpu, gpu) in cpu_output
@@ -69,7 +69,6 @@ fn test_single_undeformed() {
         workgroup_size,
         dispatch_limit,
         grid_node_size,
-        time_step,
         table_tries: 50,
     };
 
@@ -114,6 +113,7 @@ fn test_single_undeformed() {
     check(
         settings,
         InputData {
+            time_step,
             node_ids_and_collider_bits: &node_ids_and_collider_bits,
             node_momentums: &node_momentums,
             particle_flags: &[Default::default()],
@@ -146,7 +146,6 @@ fn test_many_random_props() {
         workgroup_size,
         dispatch_limit,
         grid_node_size,
-        time_step,
         table_tries: 50,
     };
 
@@ -215,6 +214,7 @@ fn test_many_random_props() {
     check(
         settings,
         collect::InputData {
+            time_step,
             node_ids_and_collider_bits: &node_ids_and_collider_bits,
             node_momentums: &node_momentums,
             particle_flags: &particle_flags,
@@ -227,7 +227,7 @@ fn test_many_random_props() {
 }
 
 fn run(settings: Settings, input_data: InputData) -> OutputData {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
     let particle_positions_and_collider_bits = input.particle_positions_and_collider_bits.clone();

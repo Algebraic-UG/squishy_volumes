@@ -137,7 +137,7 @@ fn test_simple() {
 }
 
 fn run(settings: Settings, node_id_and_collider_bits: &[NodeIdAndColliderBits]) -> OutputData {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

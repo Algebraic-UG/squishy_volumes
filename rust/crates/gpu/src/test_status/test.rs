@@ -10,7 +10,7 @@ use super::*;
 
 #[test]
 fn read_back_status() {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
     let test_status = TestStatus::new(
         &mut context,
         Settings {

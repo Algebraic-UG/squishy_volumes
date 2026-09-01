@@ -69,7 +69,7 @@ fn random() {
 }
 
 fn run(settings: Settings, matrices: &[Matrix4x3<f32>]) -> Vec<Svd> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), matrices).unwrap();
 

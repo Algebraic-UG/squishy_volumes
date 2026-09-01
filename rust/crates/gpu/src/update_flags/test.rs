@@ -49,7 +49,7 @@ fn run(
     new_falgs: &[ParticleFlags],
     flags: &[ParticleFlags],
 ) -> Vec<ParticleFlags> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), new_falgs, flags).unwrap();
     let flags = input.flags.clone();

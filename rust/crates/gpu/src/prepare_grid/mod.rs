@@ -40,11 +40,11 @@ pub struct Parameters {
 
 pub struct Input {
     pub indirect_particles: Allocation,
+    pub indirect_grid_nodes: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
 }
 
 pub struct Output {
-    pub indirect_nodes: Allocation,
     pub hash_table: Allocation,
     pub node_ids_and_collider_bits: Allocation,
     pub hash_table_multi: Allocation,
@@ -78,6 +78,8 @@ impl Input {
         });
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
+        let indirect_grid_nodes =
+            Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -86,6 +88,7 @@ impl Input {
 
         Ok(Self {
             indirect_particles,
+            indirect_grid_nodes,
             particle_positions_and_collider_bits,
         })
     }
@@ -193,6 +196,7 @@ impl PipelinePart for PrepareGrid {
         encoder: &mut CommandEncoder,
         Input {
             indirect_particles,
+            indirect_grid_nodes,
             particle_positions_and_collider_bits,
         }: Input,
         Parameters { max_num_grid_nodes }: Parameters,
@@ -240,12 +244,13 @@ impl PipelinePart for PrepareGrid {
             unreachable!("we asked for the total sum");
         };
 
-        let len_to_indirect::Output {
-            new_indirect: indirect_nodes,
-        } = self.len_to_indirect.record(
+        let len_to_indirect::Output = self.len_to_indirect.record(
             context,
             encoder,
-            len_to_indirect::Input { len: total_nodes },
+            len_to_indirect::Input {
+                len: total_nodes,
+                indirect: indirect_grid_nodes.clone(),
+            },
             len_to_indirect::Parameters {
                 limit: max_num_grid_nodes.get(),
             },
@@ -280,7 +285,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             build_hash_tables::Input {
-                indirect_nodes: indirect_nodes.clone(),
+                indirect_nodes: indirect_grid_nodes.clone(),
                 node_ids_and_collider_bits: node_ids_and_collider_bits.clone(),
             },
             build_hash_tables::Parameters,
@@ -293,7 +298,7 @@ impl PipelinePart for PrepareGrid {
             context,
             encoder,
             prefix_sum::Input {
-                indirect: indirect_nodes.clone(),
+                indirect: indirect_grid_nodes.clone(),
                 numbers: multi_counts.clone(),
             },
             prefix_sum::Parameters { total_sum: false },
@@ -319,7 +324,7 @@ impl PipelinePart for PrepareGrid {
                 encoder,
                 &self.fill_multi_map,
                 [
-                    indirect_nodes.binding(),
+                    indirect_grid_nodes.binding(),
                     node_ids_and_collider_bits.binding(),
                     hash_table_multi.binding(),
                     multi_counts.binding(),
@@ -327,10 +332,12 @@ impl PipelinePart for PrepareGrid {
                     multi.binding(),
                 ],
             )
-            .dispatch_workgroups_indirect(indirect_nodes.buffer(), indirect_nodes.offset());
+            .dispatch_workgroups_indirect(
+                indirect_grid_nodes.buffer(),
+                indirect_grid_nodes.offset(),
+            );
 
         Ok(Output {
-            indirect_nodes,
             hash_table,
             node_ids_and_collider_bits,
             hash_table_multi,

@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::mem::take;
 use std::ops::Range;
 use std::path::Path;
 use std::{
@@ -91,6 +92,8 @@ pub fn profiler_output(
 }
 
 pub struct ProfileDataCsvWriter {
+    steps: usize,
+    buffered_data: Vec<(String, Range<f64>)>,
     writer: BufWriter<File>,
     labels: Option<Vec<String>>,
 }
@@ -99,37 +102,50 @@ impl ProfileDataCsvWriter {
     pub fn new(path: impl AsRef<Path>) -> Result<Self, ProfilerError> {
         let writer = BufWriter::new(File::create(path)?);
         Ok(Self {
+            steps: 0,
+            buffered_data: Default::default(),
             writer,
             labels: None,
         })
     }
 
-    pub fn write_frame(
+    pub fn clear(&mut self) {
+        self.steps = 0;
+        self.buffered_data.clear();
+    }
+
+    pub fn buffer_data(
         &mut self,
         context: &GpuContext,
         profiler: &mut wgpu_profiler::GpuProfiler,
-        times: &[f64],
+        steps: usize,
     ) -> Result<(), ProfilerError> {
-        let profiling_data = get_profiling_data(context, profiler)?;
+        let mut profiling_data = get_profiling_data(context, profiler)?;
         if profiling_data.is_empty() {
             return Err(ProfilerError::ResultsEmpty);
         }
-
-        if !profiling_data.len().is_multiple_of(times.len()) {
+        if !profiling_data.len().is_multiple_of(steps) {
             return Err(ProfilerError::NotMultipleOfRecordedSteps {
-                steps: times.len(),
+                steps,
                 labels: profiling_data
                     .into_iter()
                     .map(|label_and_range| label_and_range.0)
                     .collect(),
             });
         }
+        self.buffered_data.append(&mut profiling_data);
+        self.steps += steps;
+        Ok(())
+    }
 
-        for (&time, profiling_data) in times
-            .iter()
-            .zip(profiling_data.chunks(profiling_data.len() / times.len()))
-        {
-            self.write_step(time, profiling_data)?;
+    pub fn write_frame(&mut self, time: Range<f64>) -> Result<(), ProfilerError> {
+        let data = take(&mut self.buffered_data);
+        let steps = take(&mut self.steps);
+
+        let time_step = (time.end - time.start) / steps as f64;
+        for (i, data) in data.chunks(data.len() / steps).enumerate() {
+            let approx_step_time = time.start + time_step * i as f64;
+            self.write_step(approx_step_time, data)?;
         }
 
         self.writer.flush()?;

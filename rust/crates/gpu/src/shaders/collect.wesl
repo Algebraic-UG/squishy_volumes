@@ -9,38 +9,40 @@
 import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic, TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED, TOMBSTONED};
 
 @group(0) @binding(0)
-var<storage, read_write> hash_table: array<u32>;
+var<storage, read_write> time_step: f32;
 
 @group(0) @binding(1)
-var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
+var<storage, read_write> hash_table: array<u32>;
 
 @group(0) @binding(2)
+var<storage, read_write> node_ids_and_collider_bits: array<NodeIdAndColliderBits>;
+
+@group(0) @binding(3)
 var<storage, read_write> node_momentums: array<vec4f>;
 
 // particle stuff
 
-@group(0) @binding(3)
+@group(0) @binding(4)
 var<storage, read_write> particle_flags: array<u32>;
 
-@group(0) @binding(4)
+@group(0) @binding(5)
 var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
-@group(0) @binding(5)
+@group(0) @binding(6)
 var<storage, read_write> particle_position_gradients: array<mat3x3<f32>>;
 
-@group(0) @binding(6)
+@group(0) @binding(7)
 var<storage, read_write> particle_velocities: array<vec3<f32>>;
 
-@group(0) @binding(7)
+@group(0) @binding(8)
 var<storage, read_write> particle_velocity_gradients: array<mat3x3<f32>>;
 
-@group(0) @binding(8)
+@group(0) @binding(9)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
 override GRID_NODE_SIZE: f32;
-override TIME_STEP: f32;
 override TABLE_TRIES: u32;
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -69,7 +71,7 @@ fn main(
     let normalized_position = position_and_collider_bits.position / GRID_NODE_SIZE;
     let collider_bits = position_and_collider_bits.collider_bits;
 
-    //var velocity = TIME_STEP * vec3f(0., 0., -9.8);
+    //var velocity = time_step * vec3f(0., 0., -9.8);
     var velocity = vec3f(0.);
     var velocity_gradient = mat3x3f();
 
@@ -129,8 +131,8 @@ fn main(
 
     velocity_gradient *= 4. / GRID_NODE_SIZE / GRID_NODE_SIZE;
 
-    particle_positions_and_collider_bits[global_index].position += velocity * TIME_STEP;
-    particle_position_gradients[global_index] += velocity_gradient * particle_position_gradients[global_index] * TIME_STEP;
+    particle_positions_and_collider_bits[global_index].position += velocity * time_step;
+    particle_position_gradients[global_index] += velocity_gradient * particle_position_gradients[global_index] * time_step;
 
     particle_velocities[global_index] = velocity;
     particle_velocity_gradients[global_index] = velocity_gradient;

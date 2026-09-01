@@ -21,6 +21,22 @@ fn check(settings: Settings, numbers: &[u32]) {
 }
 
 #[test]
+fn test_single() {
+    let numbers = [1];
+    assert_eq!(
+        vec![0],
+        run_prefix_sum(
+            prefix_sum::Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: 10.try_into().unwrap(),
+            },
+            &numbers
+        )
+        .0,
+    );
+}
+
+#[test]
 fn test_simple() {
     let numbers = [1, 1, 1, 1, 1, 1];
     assert_eq!(
@@ -69,7 +85,7 @@ fn test_random() {
 }
 
 fn run_prefix_sum(settings: prefix_sum::Settings, numbers: &[u32]) -> (Vec<u32>, u32) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, numbers).unwrap();
     let prefix_sum = PrefixSum::new(&mut context, settings).unwrap();

@@ -7,14 +7,13 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
-use squishy_volumes_file_frame::SpecificParticleParameters;
-use squishy_volumes_util::{lambda, mu};
+use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use super::*;
 
 fn check(
     settings @ Settings {
-        time_step,
+        max_time_step,
         grid_node_size,
         ..
     }: Settings,
@@ -42,8 +41,8 @@ fn check(
     );
     let particle_tmp = prepare_tmp_on_cpu(
         settings.grid_node_size,
-        settings.time_step,
         prepare_tmp::InputData {
+            time_step: max_time_step, // TODO: this should be the result of the limit heuristic
             particle_flags,
             particle_parameters,
             particle_positions_and_collider_bits,
@@ -65,8 +64,9 @@ fn check(
 
     collect_on_cpu(
         grid_node_size,
-        time_step,
+        max_time_step,
         collect::InputData {
+            time_step: max_time_step, // TODO: this should be the result of the limit heuristic
             node_ids_and_collider_bits: &node_ids_and_collider_bits,
             node_momentums: &node_momentums,
             particle_flags,
@@ -129,12 +129,15 @@ fn specific() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 0.5;
-    let time_step = 0.001;
+    let max_time_step = 0.001;
+    let frames_per_second = 24;
     let settings = Settings {
+        max_time_step,
         workgroup_size,
         dispatch_limit,
-        time_step,
+        time_step_history_length: 10,
         grid_node_size,
+        frames_per_second,
         forget_distance: grid_node_size * 2.2,
         accept_distance: grid_node_size * 2.,
         table_tries: 50,
@@ -192,12 +195,15 @@ fn test_single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 0.5;
-    let time_step = 0.001;
+    let frames_per_second = 24;
+    let max_time_step = 0.001;
     let settings = Settings {
         workgroup_size,
         dispatch_limit,
-        time_step,
+        max_time_step,
+        time_step_history_length: 10,
         grid_node_size,
+        frames_per_second,
         forget_distance: grid_node_size * 2.2,
         accept_distance: grid_node_size * 2.,
         table_tries: 50,
@@ -328,7 +334,7 @@ fn test_many_random_props() {
 */
 
 fn run(settings: Settings, data: InputData) -> OutputData {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
     let max_num_grid_nodes = (data.particle_parameters.len() as u32 * 27)
         .try_into()
         .unwrap();
@@ -358,8 +364,9 @@ fn run(settings: Settings, data: InputData) -> OutputData {
             &mut (&mut encoder).into(),
             input,
             Parameters {
-                factor: 0.5,
                 max_num_grid_nodes,
+                current_step: 0,
+                adaptive_time_steps: false,
             },
         )
         .unwrap();

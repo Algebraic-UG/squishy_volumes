@@ -8,8 +8,8 @@
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use rand::{RngExt, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_file_frame::{ParticleFlags, ParticleParameters, SpecificParticleParameters};
-use squishy_volumes_util::Aabb;
+use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::{Aabb, ParticleParameters, SpecificParticleParameters};
 
 use crate::PositionAndColliderBits;
 

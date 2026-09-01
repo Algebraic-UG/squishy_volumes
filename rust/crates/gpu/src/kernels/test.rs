@@ -51,7 +51,7 @@ fn test_random() {
 }
 
 fn run_kernels(settings: Settings, values: &[f32]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), values).unwrap();
     let kernels = Kernels::new(&mut context, settings).unwrap();

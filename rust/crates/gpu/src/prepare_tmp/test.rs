@@ -8,8 +8,7 @@
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_file_frame::SpecificParticleParameters;
-use squishy_volumes_util::{lambda, mu};
+use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use crate::test_data::{
     test_inviscid_parameters, test_lame_parameters, test_position_gradients_random,
@@ -18,11 +17,7 @@ use crate::test_data::{
 use super::*;
 
 fn check(settings: Settings, input_data: InputData) {
-    let cpu_particle_tmp = prepare_tmp_on_cpu(
-        settings.grid_node_size,
-        settings.time_step,
-        input_data.clone(),
-    );
+    let cpu_particle_tmp = prepare_tmp_on_cpu(settings.grid_node_size, input_data.clone());
     let gpu_particle_tmp = run(settings, input_data);
 
     for (cpu, gpu) in cpu_particle_tmp.into_iter().zip(gpu_particle_tmp) {
@@ -40,12 +35,12 @@ fn test_single_undeformed() {
         workgroup_size,
         dispatch_limit,
         grid_node_size,
-        time_step,
     };
 
     check(
         settings,
         InputData {
+            time_step,
             particle_flags: &[ParticleFlags::IS_SOLID],
             particle_parameters: &[ParticleParameters {
                 mass: 1.,
@@ -84,7 +79,6 @@ fn test_many_random_props() {
         workgroup_size,
         dispatch_limit,
         grid_node_size,
-        time_step,
     };
 
     let positions = many_positions();
@@ -150,6 +144,7 @@ fn test_many_random_props() {
     check(
         settings,
         InputData {
+            time_step,
             particle_flags: &particle_flags,
             particle_parameters: &particle_parameters,
             particle_positions_and_collider_bits: &positions_and_collider_bits,
@@ -161,7 +156,7 @@ fn test_many_random_props() {
 }
 
 fn run(settings: Settings, input_data: InputData<'_>) -> Vec<Matrix4<f32>> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
     let prepare_tmp = PrepareTmp::new(&mut context, settings).unwrap();

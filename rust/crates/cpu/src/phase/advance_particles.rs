@@ -8,8 +8,10 @@
 
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
-use squishy_volumes_file_frame::{ParticleFlags, SpecificParticleParameters};
-use squishy_volumes_util::{elastic_energy_inviscid, profile, try_elastic_energy_neo_hookean};
+use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::{
+    SpecificParticleParameters, elastic_energy_inviscid, profile, try_elastic_energy_neo_hookean,
+};
 
 use super::*;
 

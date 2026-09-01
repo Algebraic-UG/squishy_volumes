@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, stack};
-use squishy_volumes_file_frame::SpecificParticleParameters;
+use squishy_volumes_util::SpecificParticleParameters;
 
 use crate::test_data::test_position_gradients_random;
 
@@ -89,7 +89,7 @@ fn run(
     particle_parameters: &[ParticleParameters],
     particle_position_gradients: &[Matrix4x3<f32>],
 ) -> Vec<Matrix4x3<f32>> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(
         context.device(),

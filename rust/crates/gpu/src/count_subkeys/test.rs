@@ -209,7 +209,7 @@ fn run_subkey_count(
     indices: Option<&[u32]>,
     keys: &[u32],
 ) -> Vec<u32> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = get_shared_context();
 
     let input = Input::new(context.device(), settings, indices, keys).unwrap();
 
