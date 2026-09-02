@@ -20,7 +20,7 @@ import bpy
 
 
 from .squishy_volumes_properties import get_selected_input_object
-from .nodes import create_geometry_nodes_generate_goal_positions
+from .assets import create_geometry_nodes_generate_goal_positions
 
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
