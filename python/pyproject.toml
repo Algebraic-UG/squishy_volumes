@@ -5,7 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
   "vendorize",
   "pip>=25.3",
-  "tree-clipper==0.1.8",
+  "tree-clipper==0.1.12",
 ]
 classifiers = ["Private :: Do Not Upload"]
 
