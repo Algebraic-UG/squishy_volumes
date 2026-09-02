@@ -32,9 +32,6 @@ def _load_tree_clipper(
     return report
 
 
-asset_map = {}
-
-
 def _load_tree_clipper_to_asset(
     file_path: Path,
     externals: list[tuple[int, bpy.types.ID]],
@@ -48,12 +45,10 @@ def _load_tree_clipper_to_asset(
             specific_handlers=BUILT_IN_IMPORTER,
             debug_prints=False,
         ),
-        asset_directory=asset_dir,
+        asset_file_path=asset_dir / f"{file_path.stem}.blend",
     )
     for warning in report.warnings:
         print(f"warning: {warning}")
-
-    asset_map[file_path.name] = asset_file_path
 
 
 colored_instances_name = _load_tree_clipper(
