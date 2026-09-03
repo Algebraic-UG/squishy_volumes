@@ -6,17 +6,19 @@
             "command": "./scripts/rebuild_zip.sh"
         },
         {
-            "label": "run-python-vendor",
+            "label": "build-assets",
             "type": "shell",
             "command": "uv",
             "args": [
                 "run",
-                "python-vendorize",
-            ],
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceFolder}/python"
-            }
+                "--python",
+                "3.11",
+                "--with",
+                "bpy==5.0.1",
+                "--with",
+                "tree-clipper==0.1.12",
+                "./scripts/build_assets.py"
+            ]
         }
     ]
 }

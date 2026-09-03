@@ -37,9 +37,8 @@ jobs:
 
       - uses: astral-sh/setup-uv@v8.3.2
 
-      - name: Vendorize Tree Clipper
-        working-directory: python
-        run: uv run python-vendorize
+      - name: Build assets from Tree Clipper JSONs
+        run: uv run --python 3.11 --with "tree-clipper==0.1.12" --with "bpy==5.0.1" scripts/build_assets.py
 
       # =================================================================
       # Download all wheel artifacts

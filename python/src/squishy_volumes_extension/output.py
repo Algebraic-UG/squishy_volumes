@@ -38,8 +38,7 @@ from .magic_consts import (
     SQUISHY_VOLUMES_COLLIDER_BITS,
 )
 
-from .nodes import (
-    create_geometry_nodes_surface_samples,
+from .assets import (
     create_geometry_nodes_particles,
     create_material_display_uvw,
     create_geometry_nodes_grid,

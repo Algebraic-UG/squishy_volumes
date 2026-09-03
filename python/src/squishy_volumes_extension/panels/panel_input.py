@@ -54,7 +54,7 @@ from ..util import (
     index_by_object,
     giga_f32_to_u64,
 )
-from ..nodes import (
+from ..assets import (
     create_geometry_nodes_generate_particles,
     create_geometry_nodes_generate_collider,
 )
