@@ -68,6 +68,9 @@ jobs:
       - name: Copy license
         run: cp LICENSE_GPLv3 python/src/squishy_volumes_extension
 
+      - name: Build assets from Tree Clipper JSONs
+        run: uv run --python 3.11 --with "tree-clipper==0.1.12" --with "bpy==5.0.1" scripts/build_assets.py
+
       - name: Get build script
         run: curl https://raw.githubusercontent.com/blender/blender/refs/tags/v5.0.1/scripts/addons_core/bl_pkg/cli/blender_ext.py --output blender_ext.py
 
