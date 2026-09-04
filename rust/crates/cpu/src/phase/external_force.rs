@@ -8,7 +8,7 @@
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{NORMALIZATION_EPS, profile};
 use squishy_volumes_xpu::FrameInput;
 
 use super::*;
@@ -39,8 +39,14 @@ impl CpuState {
                 if input_flags_a[index].contains(ParticleFlags::HAS_GOAL)
                     && input_flags_b[index].contains(ParticleFlags::HAS_GOAL)
                 {
-                    *velocity =
-                        (interpolated_input.particle_goal_positions[index] - position) / time_step;
+                    let to_goal = interpolated_input.particle_goal_positions[index] - position;
+                    let distance = to_goal.norm();
+                    if distance > NORMALIZATION_EPS {
+                        let to_goal_dir = to_goal / distance;
+                        *velocity += (1000. * distance - 1. * to_goal_dir.dot(velocity))
+                            * time_step
+                            * to_goal_dir;
+                    }
                 } else {
                     *velocity += time_step * interpolated_input.gravity;
                 }

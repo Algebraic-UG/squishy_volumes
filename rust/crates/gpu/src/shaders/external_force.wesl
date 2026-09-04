@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, TOMBSTONED};
+import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, TOMBSTONED, NORMALIZATION_EPS};
 
 @group(0) @binding(0)
 var<storage, read_write> time: f32;
@@ -66,7 +66,14 @@ fn main(
             (1. - factor) * particle_goals_start[global_index]
             + factor * particle_goals_end[global_index];
         let position = particle_positions_and_collider_bits[global_index].position;
-        particle_velocities[global_index] = (goal_position - position) / time_step;
+        let velocity = particle_velocities[global_index];
+        let to_goal = goal_position - position;
+        let distance = length(to_goal);
+        if distance > NORMALIZATION_EPS {
+            let to_goal_dir = to_goal / distance;
+            particle_velocities[global_index] += (1000. * distance - 1. * dot(to_goal_dir, velocity)) * time_step * to_goal_dir;
+        }
+
         return;
     }
 
