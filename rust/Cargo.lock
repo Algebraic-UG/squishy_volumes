@@ -4090,6 +4090,7 @@ dependencies = [
  "rand 0.10.2",
  "serde",
  "squishy_volumes_file_util",
+ "squishy_volumes_util",
  "tempfile",
  "thiserror 2.0.19",
  "tracing",
@@ -4192,6 +4193,20 @@ dependencies = [
 name = "squishy_volumes_util"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
+ "coarse-prof",
+ "nalgebra",
+ "rand 0.10.2",
+ "serde",
+ "thiserror 2.0.19",
+ "tracing",
+]
+
+[[package]]
+name = "squishy_volumes_util_test_with_f64"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
  "coarse-prof",
  "nalgebra",
  "rand 0.10.2",
