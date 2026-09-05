@@ -368,6 +368,7 @@ fn run(settings: Settings, data: InputData) -> OutputData {
         data,
     )
     .unwrap();
+    let indirect_nodes = input.indirect_grid_nodes.clone();
 
     let variable_particle_input = input.variable_particle_input.clone();
 
@@ -376,7 +377,6 @@ fn run(settings: Settings, data: InputData) -> OutputData {
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output {
-        indirect_nodes,
         node_ids_and_collider_bits,
         node_momentums,
     } = step
