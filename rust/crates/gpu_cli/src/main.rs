@@ -80,6 +80,7 @@ fn main() {
         seed,
     } = Cli::parse();
 
+    let time = 0.;
     let grid_node_size = 1.;
     let time_step = 0.001;
     let time_step_history_length = 10;
@@ -90,6 +91,7 @@ fn main() {
     let frames_per_second = 24;
     let table_tries = 50;
     let max_num_grid_nodes = generate.try_into().unwrap();
+    let adaptive_time_steps = true;
 
     let mut context = GpuContext::new(None).unwrap();
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
@@ -123,11 +125,13 @@ fn main() {
             let settings = gpu::animate_mesh::Settings {
                 workgroup_size,
                 dispatch_limit,
+                frames_per_second,
             };
             let pipeline_part = gpu::AnimateMesh::new(&mut context, settings).unwrap();
             let input = gpu::animate_mesh::Input::new(
                 context.device(),
                 gpu::animate_mesh::InputData {
+                    time,
                     vertex_positions_start: &test_mesh.vertex_positions_a,
                     vertex_positions_end: &test_mesh.vertex_positions_b,
                     triangle_indices: &test_mesh.triangle_indices,
@@ -140,7 +144,7 @@ fn main() {
                 tool,
                 pipeline_part,
                 input,
-                gpu::animate_mesh::Parameters { factor: 0.5 },
+                gpu::animate_mesh::Parameters,
             );
         }
         Task::Collide => {
@@ -159,13 +163,13 @@ fn main() {
                 dispatch_limit,
                 forget_distance,
                 accept_distance,
-                time_step,
             };
             let pipeline_part = gpu::Collide::new(&mut context, settings).unwrap();
             let input = gpu::collide::Input::new(
                 context.device(),
                 &settings,
                 gpu::collide::InputData {
+                    time_step,
                     leaf_size,
                     leaf_threshold,
                     particle_flags: &test_particles.particle_flags,
@@ -309,12 +313,12 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
-                time_step,
             };
             let pipeline_part = gpu::PrepareTmp::new(&mut context, settings).unwrap();
             let input = gpu::prepare_tmp::Input::new(
                 context.device(),
                 gpu::prepare_tmp::InputData {
+                    time_step,
                     particle_flags: &test_particles.particle_flags,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_positions_and_collider_bits: &test_particles
@@ -350,8 +354,8 @@ fn main() {
                 );
             let particle_tmp = prepare_tmp_on_cpu(
                 grid_node_size,
-                time_step,
                 gpu::prepare_tmp::InputData {
+                    time_step,
                     particle_flags: &test_particles.particle_flags,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_positions_and_collider_bits: &test_particles
@@ -468,13 +472,13 @@ fn main() {
                 workgroup_size,
                 dispatch_limit,
                 grid_node_size,
-                time_step,
                 table_tries,
             };
             let pipeline_part = gpu::Collect::new(&mut context, settings).unwrap();
             let input = gpu::collect::Input::new(
                 context.device(),
                 gpu::collect::InputData {
+                    time_step,
                     node_ids_and_collider_bits: &node_ids_and_collider_bits,
                     node_momentums: &node_momentums,
                     particle_flags: &test_particles.particle_flags,
@@ -570,9 +574,9 @@ fn main() {
                 pipeline_part,
                 input,
                 gpu::step::Parameters {
-                    factor: 0.5,
                     max_num_grid_nodes,
                     current_step: 0,
+                    adaptive_time_steps,
                 },
             );
         }
