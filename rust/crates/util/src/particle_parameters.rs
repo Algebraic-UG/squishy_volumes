@@ -6,16 +6,18 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use crate::T;
+
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct ViscosityParameters {
-    pub dynamic: f32,
-    pub bulk: f32,
+    pub dynamic: T,
+    pub bulk: T,
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Default)]
 pub struct ParticleParameters {
-    pub mass: f32,
-    pub initial_volume: f32,
+    pub mass: T,
+    pub initial_volume: T,
     pub viscosity: Option<ViscosityParameters>,
     pub specific: SpecificParticleParameters,
 }
@@ -23,13 +25,13 @@ pub struct ParticleParameters {
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum SpecificParticleParameters {
     Solid {
-        mu: f32,
-        lambda: f32,
-        sand_alpha: Option<f32>,
+        mu: T,
+        lambda: T,
+        sand_alpha: Option<T>,
     },
     Fluid {
         exponent: i32,
-        bulk_modulus: f32,
+        bulk_modulus: T,
     },
 }
 

@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use crate::{
-    ParticleParameters, SINGULAR_VALUE_SEPARATION, SpecificParticleParameters,
+    ParticleParameters, SINGULAR_VALUE_SEPARATION, SpecificParticleParameters, T,
     double_partial_elastic_energy_inviscid_by_invariant_3,
     first_piola_stress_inviscid_svd_in_diagonal_space,
     first_piola_stress_neo_hookean_svd_in_diagonal_space,
@@ -20,9 +20,9 @@ use nalgebra::{Matrix3, Vector3};
 // Effective time step restrictions for explicit MPM simulation 4.1 Sound Speed
 pub fn limit_time_step_by_speed_of_sound(
     parameters: &ParticleParameters,
-    position_gradient: &Matrix3<f32>,
-    grid_node_size: f32,
-) -> f32 {
+    position_gradient: &Matrix3<T>,
+    grid_node_size: T,
+) -> T {
     let s = position_gradient.svd(false, false).singular_values;
 
     let j = s.product();
@@ -32,8 +32,8 @@ pub fn limit_time_step_by_speed_of_sound(
     let yz_close = (s.y - s.z).abs() < SINGULAR_VALUE_SEPARATION;
     let zx_close = (s.z - s.x).abs() < SINGULAR_VALUE_SEPARATION;
 
-    let first: Vector3<f32>;
-    let second: Matrix3<f32>;
+    let first: Vector3<T>;
+    let second: Matrix3<T>;
 
     // TODO: do something with viscosity?
 
@@ -79,7 +79,7 @@ pub fn limit_time_step_by_speed_of_sound(
             },
     ]
     .into_iter()
-    .max_by(f32::total_cmp)
+    .max_by(T::total_cmp)
     .unwrap()
         / j;
     let initial_density = parameters.mass / parameters.initial_volume;
@@ -92,9 +92,9 @@ pub fn limit_time_step_by_speed_of_sound(
 
 pub fn limit_time_step_by_isolated_particles(
     parameters: &ParticleParameters,
-    position_gradient: &Matrix3<f32>,
-    grid_node_size: f32,
-) -> f32 {
+    position_gradient: &Matrix3<T>,
+    grid_node_size: T,
+) -> T {
     // TODO: do someting with viscosity?
     match parameters.specific {
         SpecificParticleParameters::Solid {
@@ -104,9 +104,9 @@ pub fn limit_time_step_by_isolated_particles(
         } => {
             // Stability analysis of explicit MPM, Technical document 3.12
             let xi = 3. / grid_node_size / grid_node_size;
-            const R: f32 = 1.; // APIC & CPIC
-            const K: f32 = 1.; // CPIC
-            const D: f32 = 3.; // 3D
+            const R: T = 1.; // APIC & CPIC
+            const K: T = 1.; // CPIC
+            const D: T = 3.; // 3D
             (parameters.mass
                 / (parameters.initial_volume * xi * (R - K / 2.) * (mu + D / 2. * lambda)))
                 .sqrt()
@@ -119,8 +119,8 @@ pub fn limit_time_step_by_isolated_particles(
             // Technical document "Simple bounds"
             let initial_density = parameters.mass / parameters.initial_volume;
             let j = position_gradient.determinant();
-            const K: f32 = 6.; // quadratic splines
-            const D: f32 = 3.; // 3D
+            const K: T = 6.; // quadratic splines
+            const D: T = 3.; // 3D
             let first = partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, j);
             if (j - 1.).abs() > SINGULAR_VALUE_SEPARATION {
                 return grid_node_size / j * (initial_density * (j - 1.) / (K * first * D)).sqrt();
@@ -137,15 +137,15 @@ pub fn limit_time_step_by_isolated_particles(
 // At least somewhat similar to
 // Effective time step restrictions for explicit MPM simulation 4.2-4
 
-pub fn limit_time_step_by_velocity(velocity: &Vector3<f32>, grid_node_size: f32) -> f32 {
+pub fn limit_time_step_by_velocity(velocity: &Vector3<T>, grid_node_size: T) -> T {
     grid_node_size * 0.5 / velocity.norm().max(grid_node_size * 0.5)
 }
 
-pub fn limit_time_step_by_deformation(velocity_gradient: &Matrix3<f32>) -> f32 {
-    const DELTA: f32 = 0.2;
+pub fn limit_time_step_by_deformation(velocity_gradient: &Matrix3<T>) -> T {
+    const DELTA: T = 0.2;
     velocity_gradient
         .iter()
         .map(|e| DELTA / e.abs().max(1e-8))
-        .min_by(f32::total_cmp)
+        .min_by(T::total_cmp)
         .unwrap()
 }
