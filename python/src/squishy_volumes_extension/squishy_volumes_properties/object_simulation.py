@@ -191,10 +191,9 @@ you can set this to 100.""",
     # ----------------------------------------------------------------
     gravity: bpy.props.FloatVectorProperty(
         name="Gravity",
-        description="Acts on all the particles and can be key-framed.",
+        description="Acts on all the particles and can be key-framed, in m/s^2",
         default=(0.0, 0.0, -9.8),
         options={"ANIMATABLE"},
-        subtype="VELOCITY",
     )  # type: ignore
 
     # ----------------------------------------------------------------
