@@ -55,7 +55,7 @@ pub struct FrameInput {
 pub struct InputInterpolationPoint {
     frame: usize,
 
-    gravity: nalgebra::Vector3<f32>,
+    animated_globals: squishy_volumes_util::AnimatedGlobals,
 
     particle_flags: Vec<squishy_volumes_file_frame::ParticleFlags>,
     particle_goal_positions: Vec<nalgebra::Vector3<f32>>,
@@ -71,13 +71,11 @@ impl InputInterpolationPoint {
         input_ranges: &squishy_volumes_file_input::InputRanges,
         frame: usize,
         squishy_volumes_file_input::InputFrame {
-            gravity,
+            animated_globals,
             particles_inputs,
             collider_inputs,
         }: squishy_volumes_file_input::InputFrame,
     ) -> Result<Self, FrameInputError> {
-        let gravity = nalgebra::Vector3::from(gravity);
-
         let mut particle_flags: Vec<squishy_volumes_file_frame::ParticleFlags> =
             vec![Default::default(); input_ranges.total_particles];
         let mut particle_goal_positions: Vec<nalgebra::Vector3<f32>> =
@@ -124,7 +122,7 @@ impl InputInterpolationPoint {
 
         Ok(Self {
             frame,
-            gravity,
+            animated_globals,
             particle_flags,
             particle_goal_positions,
             vertex_positions,
@@ -133,8 +131,8 @@ impl InputInterpolationPoint {
         })
     }
 
-    pub fn gravity(&self) -> &nalgebra::Vector3<f32> {
-        &self.gravity
+    pub fn animated_globals(&self) -> &squishy_volumes_util::AnimatedGlobals {
+        &self.animated_globals
     }
 
     pub fn particle_flags(&self) -> &[squishy_volumes_file_frame::ParticleFlags] {

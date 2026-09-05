@@ -94,5 +94,7 @@ fn main() -> Result<()> {
         sleep(Duration::from_millis(200));
     }
 
+    simulation.poll_impl()?;
+
     Ok(())
 }

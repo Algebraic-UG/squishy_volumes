@@ -16,3 +16,4 @@ tracing.workspace = true
 thiserror.workspace = true
 
 squishy_volumes_file_util.path = "../file_util"
+squishy_volumes_util.path = "../util"

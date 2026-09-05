@@ -26,7 +26,9 @@ impl CpuState {
         let factor_b = frame_input.frame_factor(self.time)?;
         let factor_a = 1. - factor_b;
 
-        let gravity = factor_a * a.gravity() + factor_b * b.gravity();
+        let animated_globals = a
+            .animated_globals()
+            .interpolate(b.animated_globals(), factor_b);
 
         let particle_goal_positions: Vec<Vector3<f32>> = a
             .particle_goal_positions()
@@ -94,7 +96,7 @@ impl CpuState {
             .collect();
 
         self.interpolated_input = Some(InterpolatedInput {
-            gravity,
+            animated_globals,
             particle_goal_positions,
             vertex_positions,
             vertex_normals,

@@ -8,7 +8,7 @@
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{AnimatedGlobals, NORMALIZATION_EPS, profile};
 use squishy_volumes_xpu::FrameInput;
 
 use super::*;
@@ -26,6 +26,15 @@ impl CpuState {
             .interpolated_input
             .as_ref()
             .ok_or(Error::InterpolatedInputMissing)?;
+        let AnimatedGlobals {
+            gravity_x,
+            gravity_y,
+            gravity_z,
+            goal_stiffness,
+            goal_damping,
+            damping,
+        } = interpolated_input.animated_globals;
+        let gravity = nalgebra::Vector3::new(gravity_x, gravity_y, gravity_z);
 
         self.particles
             .positions
@@ -35,14 +44,22 @@ impl CpuState {
             .zip(&self.particles.flags)
             .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
             .for_each(|(index, (position, velocity))| {
+                *velocity -= time_step * damping * *velocity;
+                *velocity += time_step * gravity;
+
                 let index = self.particles.sort_map[index] as usize;
                 if input_flags_a[index].contains(ParticleFlags::HAS_GOAL)
                     && input_flags_b[index].contains(ParticleFlags::HAS_GOAL)
                 {
-                    *velocity =
-                        (interpolated_input.particle_goal_positions[index] - position) / time_step;
-                } else {
-                    *velocity += time_step * interpolated_input.gravity;
+                    let to_goal = interpolated_input.particle_goal_positions[index] - position;
+                    let distance = to_goal.norm();
+                    if distance > NORMALIZATION_EPS {
+                        let to_goal_dir = to_goal / distance;
+                        *velocity += (goal_stiffness * distance
+                            - goal_damping * to_goal_dir.dot(velocity))
+                            * time_step
+                            * to_goal_dir;
+                    }
                 }
             });
 

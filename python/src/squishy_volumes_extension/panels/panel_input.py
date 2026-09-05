@@ -269,6 +269,9 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
         header.label(text="Animatable Globals")
         if body is not None:
             body.prop(sim_props, "gravity")
+            body.prop(sim_props, "goal_stiffness")
+            body.prop(sim_props, "goal_damping")
+            body.prop(sim_props, "damping")
 
         row = self.layout.row()
         row.column().template_list(

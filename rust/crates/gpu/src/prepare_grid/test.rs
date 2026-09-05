@@ -209,12 +209,12 @@ fn run_prepare_grid(
         positions_and_collider_bits,
     )
     .unwrap();
+    let indirect_nodes = input.indirect_grid_nodes.clone();
     let prepare_grid = PrepareGrid::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output {
-        indirect_nodes,
         hash_table,
         node_ids_and_collider_bits,
         hash_table_multi,

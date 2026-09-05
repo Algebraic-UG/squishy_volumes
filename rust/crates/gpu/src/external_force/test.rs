@@ -8,6 +8,7 @@
 
 use itertools::izip;
 use nalgebra::Vector3;
+use squishy_volumes_util::NORMALIZATION_EPS;
 
 use super::*;
 
@@ -16,7 +17,8 @@ fn check(
     input_data @ InputData {
         time,
         time_step,
-        gravity,
+        globals_start,
+        globals_end,
         particle_flags,
         particle_positions_and_collider_bits,
         particle_velocities,
@@ -27,6 +29,14 @@ fn check(
     let gpu_particle_velocites = run(settings, input_data);
 
     let factor = time * settings.frames_per_second as f32;
+    let AnimatedGlobals {
+        gravity_x,
+        gravity_y,
+        gravity_z,
+        goal_stiffness,
+        goal_damping,
+        damping,
+    } = globals_start.interpolate(&globals_end, factor);
 
     let mut cpu_particle_velocites = particle_velocities.to_vec();
     izip!(
@@ -38,13 +48,20 @@ fn check(
     )
     .for_each(
         |(flags, PositionAndColliderBits { position, .. }, velocity, goal_start, goal_end)| {
+            *velocity -= time_step * damping * *velocity;
+            *velocity += time_step * Vector4::new(gravity_x, gravity_y, gravity_z, 0.);
             if flags.contains(ParticleFlags::HAS_GOAL) {
-                *velocity = ((goal_start * (1. - factor) + goal_end * factor).xyz() - position)
-                    .push(0.)
-                    / time_step;
-                return;
+                let goal = goal_start * (1. - factor) + goal_end * factor;
+                let to_goal = goal.xyz() - position;
+                let distance = to_goal.norm();
+                if distance > NORMALIZATION_EPS {
+                    let to_goal_dir = to_goal / distance;
+                    *velocity = (goal_stiffness * distance
+                        - goal_damping * to_goal_dir.dot(&velocity.xyz()))
+                        * time_step
+                        * to_goal_dir.push(0.);
+                }
             }
-            *velocity += time_step * gravity;
         },
     );
 
@@ -95,7 +112,15 @@ fn simple() {
     ];
 
     let time_step = 0.01;
-    let gravity = Vector4::new(0., 0., -9.8, 0.);
+    let globals_start = AnimatedGlobals {
+        gravity_x: 0.,
+        gravity_y: 0.,
+        gravity_z: -9.8,
+        goal_stiffness: 1000.,
+        goal_damping: 0.5,
+        damping: 0.,
+    };
+    let globals_end = globals_start;
 
     check(
         Settings {
@@ -106,7 +131,8 @@ fn simple() {
         InputData {
             time: 0.5,
             time_step,
-            gravity,
+            globals_start,
+            globals_end,
             particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_goals_positions_and_collider_bits,
             particle_velocities: &particle_velocities,

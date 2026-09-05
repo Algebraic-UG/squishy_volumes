@@ -16,7 +16,7 @@ use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, compute_triangle_lists, triangles_to_leaf_aabbs,
 };
-use squishy_volumes_util::ParticleParameters;
+use squishy_volumes_util::{AnimatedGlobals, ParticleParameters};
 
 use crate::{particle_parameters::ParticleParametersDevice, time_step_limits::TimeStepLimits};
 
@@ -92,7 +92,9 @@ pub struct Input {
     pub time: Allocation,
     pub step: Allocation,
 
-    pub gravity: Allocation,
+    pub globals_start: Allocation,
+    pub globals_end: Allocation,
+
     pub indirect_particles: Allocation,
     pub indirect_grid_nodes: Allocation,
 
@@ -130,7 +132,9 @@ pub struct VariableParticleInputData<'a> {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
-    pub gravity: Vector4<f32>,
+    pub globals_start: AnimatedGlobals,
+    pub globals_end: AnimatedGlobals,
+
     pub particle_parameters: &'a [ParticleParameters],
 
     pub particle_goals_start: &'a [Vector4<f32>],
@@ -305,7 +309,8 @@ impl Input {
             ..
         }: Settings,
         InputData {
-            gravity,
+            globals_start,
+            globals_end,
             particle_parameters,
             particle_goals_start,
             particle_goals_end,
@@ -332,7 +337,8 @@ impl Input {
 
         let time = Allocation::new(device, "time", &[0.])?;
         let step = Allocation::new(device, "step", &[0])?;
-        let gravity = Allocation::new(device, "gravity", &[gravity])?;
+        let globals_start = Allocation::new(device, "globals_start", &[globals_start])?;
+        let globals_end = Allocation::new(device, "globals_end", &[globals_end])?;
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
         let indirect_grid_nodes =
@@ -366,7 +372,8 @@ impl Input {
             time,
             step,
 
-            gravity,
+            globals_start,
+            globals_end,
 
             indirect_particles,
             indirect_grid_nodes,
@@ -549,7 +556,8 @@ impl PipelinePart for Step {
         Input {
             time,
             step,
-            gravity,
+            globals_start,
+            globals_end,
             indirect_particles,
             indirect_grid_nodes,
             particle_parameters,
@@ -599,7 +607,8 @@ impl PipelinePart for Step {
             external_force::Input {
                 time: time.clone(),
                 time_step: time_step.clone(),
-                gravity,
+                globals_start,
+                globals_end,
                 particle_flags: particle_flags.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_velocities: particle_velocities.clone(),

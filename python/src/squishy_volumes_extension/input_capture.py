@@ -146,12 +146,15 @@ def capture_input_frame(
     sim_props,
     sim_input_handle: SimulationInputHandle,
 ):
-    gravity = [
-        sim_props.gravity[0],
-        sim_props.gravity[1],
-        sim_props.gravity[2],
-    ]
-    frame_start = {"gravity": gravity}
+    animated_globals = {
+        "gravity_x": sim_props.gravity[0],
+        "gravity_y": sim_props.gravity[1],
+        "gravity_z": sim_props.gravity[2],
+        "goal_stiffness": sim_props.goal_stiffness,
+        "goal_damping": sim_props.goal_damping,
+        "damping": sim_props.damping,
+    }
+    frame_start = {"animated_globals": animated_globals}
 
     sim_input_handle.start_frame(frame_start=frame_start)
 

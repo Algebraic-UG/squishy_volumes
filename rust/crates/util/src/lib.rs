@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 mod aabb;
+mod animated_globals;
 pub mod collider_bits;
 mod consts;
 mod elastic;
@@ -19,6 +20,7 @@ mod typedefs;
 
 pub use aabb::*;
 
+pub use animated_globals::*;
 pub use consts::*;
 pub use elastic::*;
 pub use flat::*;
@@ -28,13 +30,13 @@ pub use particle_parameters::*;
 pub use safe_inverse::*;
 pub use typedefs::*;
 
-#[cfg(test)]
+#[cfg(use_f64)]
 type T = f64;
-#[cfg(not(test))]
-type T = f32;
-
-#[cfg(test)]
+#[cfg(all(use_f64, test))]
 mod tests;
+
+#[cfg(not(use_f64))]
+type T = f32;
 
 #[macro_export]
 macro_rules! ensure_err {

@@ -66,10 +66,11 @@ fn run(settings: Settings, len: u32) -> Vec<Indirect> {
     let mut context = get_shared_context();
 
     let input = Input::new(context.device(), len).unwrap();
+    let indirect = input.indirect.clone();
     let len_to_indirect = LenToIndirect::new(&mut context, settings).unwrap();
 
     let mut encoder = context.device().create_command_encoder(&Default::default());
-    let Output { new_indirect } = len_to_indirect
+    let Output = len_to_indirect
         .record(
             &mut context,
             &mut (&mut encoder).into(),
@@ -78,7 +79,7 @@ fn run(settings: Settings, len: u32) -> Vec<Indirect> {
         )
         .unwrap();
 
-    let download = DownloadToHost::new(&context, new_indirect);
+    let download = DownloadToHost::new(&context, indirect);
     download.copy(&mut encoder);
 
     context.queue().submit([encoder.finish()]);

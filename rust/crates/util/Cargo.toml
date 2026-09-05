@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(use_f64)'] }
+
 [features]
 profile = [ "dep:coarse-prof" ]
 
@@ -15,6 +18,7 @@ nalgebra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
+bytemuck.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
