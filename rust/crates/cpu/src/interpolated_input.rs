@@ -7,10 +7,11 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Vector3;
+use squishy_volumes_util::AnimatedGlobals;
 
 #[derive(Clone)]
 pub struct InterpolatedInput {
-    pub gravity: Vector3<f32>,
+    pub animated_globals: AnimatedGlobals,
 
     pub particle_goal_positions: Vec<Vector3<f32>>,
 

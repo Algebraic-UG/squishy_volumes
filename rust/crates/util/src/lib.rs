@@ -7,6 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 mod aabb;
+mod animated_globals;
 pub mod collider_bits;
 mod consts;
 mod elastic;
@@ -19,6 +20,7 @@ mod typedefs;
 
 pub use aabb::*;
 
+pub use animated_globals::*;
 pub use consts::*;
 pub use elastic::*;
 pub use flat::*;

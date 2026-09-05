@@ -49,7 +49,7 @@ impl ParticlesInput {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct InputFrame {
-    pub gravity: [f32; 3],
+    pub animated_globals: squishy_volumes_util::AnimatedGlobals,
     pub particles_inputs: std::collections::BTreeMap<String, ParticlesInput>,
     pub collider_inputs: crate::ColliderInputs,
 }
@@ -189,7 +189,14 @@ impl InputFrame {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(42);
         Self {
-            gravity: [0.; 3],
+            animated_globals: squishy_volumes_util::AnimatedGlobals {
+                gravity_x: 1.,
+                gravity_y: 2.,
+                gravity_z: 3.,
+                goal_stiffness: 42.,
+                goal_damping: 0.5,
+                damping: 1.23,
+            },
             particles_inputs: [
                 (
                     "foo".to_string(),
@@ -217,7 +224,14 @@ impl InputFrame {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(69);
         Self {
-            gravity: [0., 0., -10.],
+            animated_globals: squishy_volumes_util::AnimatedGlobals {
+                gravity_x: 2.,
+                gravity_y: 3.,
+                gravity_z: 4.,
+                goal_stiffness: 43.,
+                goal_damping: 0.8,
+                damping: 1.2,
+            },
             particles_inputs: [
                 (
                     "foo".to_string(),
@@ -240,7 +254,14 @@ impl InputFrame {
 
     pub fn test_input_2() -> Self {
         Self {
-            gravity: [0., 0., 10.],
+            animated_globals: squishy_volumes_util::AnimatedGlobals {
+                gravity_x: 3.,
+                gravity_y: 4.,
+                gravity_z: 5.,
+                goal_stiffness: 44.,
+                goal_damping: 0.1,
+                damping: 0.,
+            },
             particles_inputs: Default::default(),
             collider_inputs: Default::default(),
         }

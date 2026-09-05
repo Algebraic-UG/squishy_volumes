@@ -20,7 +20,8 @@ fn check(
     input_data: InputData,
 ) {
     let InputData {
-        gravity: _, //TODO
+        globals_end: _,   // TODO
+        globals_start: _, // TODO
         particle_parameters,
         particle_goals_start: _, // TODO
         particle_goals_end: _,   // TODO
@@ -144,6 +145,15 @@ fn specific() {
         domain_min: Vector3::repeat(-100.),
         domain_max: Vector3::repeat(100.),
     };
+    let globals_start = AnimatedGlobals {
+        gravity_x: 0.,
+        gravity_y: 0.,
+        gravity_z: -9.8,
+        goal_stiffness: 1000.,
+        goal_damping: 0.5,
+        damping: 0.,
+    };
+    let globals_end = globals_start;
 
     let particle_positions_and_collider_bits = specific_positions_and_collider_bits();
     let n = particle_positions_and_collider_bits.len();
@@ -162,7 +172,8 @@ fn specific() {
     check(
         settings,
         InputData {
-            gravity: Vector4::new(0., 0., -9.8, 0.),
+            globals_start,
+            globals_end,
             particle_parameters: &vec![particle_parameters; n],
             particle_goals_start: &vec![Vector4::zeros(); n],
             particle_goals_end: &vec![Vector4::zeros(); n],
@@ -210,6 +221,15 @@ fn test_single_undeformed() {
         domain_min: Vector3::repeat(-100.),
         domain_max: Vector3::repeat(100.),
     };
+    let globals_start = AnimatedGlobals {
+        gravity_x: 0.,
+        gravity_y: 0.,
+        gravity_z: -9.8,
+        goal_stiffness: 1000.,
+        goal_damping: 0.5,
+        damping: 0.,
+    };
+    let globals_end = globals_start;
 
     let particle_parameters = ParticleParameters {
         mass: 1.,
@@ -225,7 +245,8 @@ fn test_single_undeformed() {
     check(
         settings,
         InputData {
-            gravity: Vector4::new(0., 0., -9.8, 0.),
+            globals_start,
+            globals_end,
             particle_parameters: &[particle_parameters],
             particle_goals_start: &[Vector4::zeros()],
             particle_goals_end: &[Vector4::zeros()],

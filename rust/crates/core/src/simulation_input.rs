@@ -17,6 +17,7 @@ use squishy_volumes_api::InputBulk;
 use squishy_volumes_directory_lock::DirectoryLock;
 use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_file_input::{InputFrame, InputHeader, InputWriter};
+use squishy_volumes_util::AnimatedGlobals;
 use tracing::{debug, error};
 
 use crate::{Error, InputBulkError, InputBulkExt};
@@ -28,9 +29,9 @@ pub struct SimulationInputImpl {
     pub current_frame: Option<InputFrame>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FrameStart {
-    gravity: [f32; 3],
+    pub animated_globals: AnimatedGlobals,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -109,10 +110,11 @@ impl SimulationInputImpl {
 
 impl SimulationInputImpl {
     pub fn start_frame_impl(&mut self, frame_start: Value) -> Result<(), Error> {
-        let FrameStart { gravity } = from_value(frame_start).map_err(Error::ParsingFrameStart)?;
+        let FrameStart { animated_globals } =
+            from_value(frame_start).map_err(Error::ParsingFrameStart)?;
 
         let input_frame = InputFrame {
-            gravity,
+            animated_globals,
             particles_inputs: Default::default(),
             collider_inputs: Default::default(),
         };

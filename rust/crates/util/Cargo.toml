@@ -15,6 +15,7 @@ nalgebra.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
+bytemuck.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true

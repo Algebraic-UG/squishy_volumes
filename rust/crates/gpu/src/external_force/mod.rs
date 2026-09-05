@@ -11,6 +11,7 @@ mod test;
 
 use nalgebra::Vector4;
 use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::AnimatedGlobals;
 use std::num::NonZeroU32;
 
 use super::*;
@@ -34,7 +35,8 @@ pub struct Parameters;
 pub struct Input {
     pub time: Allocation,
     pub time_step: Allocation,
-    pub gravity: Allocation,
+    pub globals_start: Allocation,
+    pub globals_end: Allocation,
     pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_velocities: Allocation,
@@ -45,7 +47,8 @@ pub struct Input {
 pub struct InputData<'a> {
     pub time: f32,
     pub time_step: f32,
-    pub gravity: Vector4<f32>,
+    pub globals_start: AnimatedGlobals,
+    pub globals_end: AnimatedGlobals,
     pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_velocities: &'a [Vector4<f32>],
@@ -59,7 +62,8 @@ impl Input {
         InputData {
             time,
             time_step,
-            gravity,
+            globals_start,
+            globals_end,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
@@ -69,7 +73,8 @@ impl Input {
     ) -> Result<Self, GpuError> {
         let time = Allocation::new(device, "time", &[time])?;
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
-        let gravity = Allocation::new(device, "gravity", &[gravity])?;
+        let globals_start = Allocation::new(device, "globals_start", &[globals_start])?;
+        let globals_end = Allocation::new(device, "globals_end", &[globals_end])?;
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
@@ -85,7 +90,8 @@ impl Input {
         Ok(Self {
             time,
             time_step,
-            gravity,
+            globals_start,
+            globals_end,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
@@ -119,7 +125,8 @@ impl PipelinePart for ExternalForce {
                 bind_group_entries: [
                     (f32::MIN_BINDING_SIZE, false),                     // time
                     (f32::MIN_BINDING_SIZE, false),                     // time_step
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          // gravity
+                    (AnimatedGlobals::MIN_BINDING_SIZE, false),         // globals_start
+                    (AnimatedGlobals::MIN_BINDING_SIZE, false),         // globals_end
                     (ParticleFlags::MIN_BINDING_SIZE, false),           // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_velocities
@@ -145,7 +152,8 @@ impl PipelinePart for ExternalForce {
         Input {
             time,
             time_step,
-            gravity,
+            globals_start,
+            globals_end,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
@@ -168,7 +176,8 @@ impl PipelinePart for ExternalForce {
                 [
                     time.binding(),
                     time_step.binding(),
-                    gravity.binding(),
+                    globals_start.binding(),
+                    globals_end.binding(),
                     particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     particle_velocities.binding(),

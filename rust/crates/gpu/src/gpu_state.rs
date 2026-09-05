@@ -151,8 +151,9 @@ impl GpuState {
             (io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
         let time = Allocation::new(device, "time", &[start_time])?;
         let step = Allocation::new(device, "step", &[0])?;
-        // TODO: interpolate that
-        let gravity = Allocation::new(device, "gravity", &[a.gravity().push(0.)])?;
+
+        let globals_start = Allocation::new(device, "globals_start", &[*a.animated_globals()])?;
+        let globals_end = Allocation::new(device, "globlas_end", &[*b.animated_globals()])?;
 
         let new_flags = Allocation::new(device, "new_flags", a.particle_flags())?;
         let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
@@ -180,7 +181,9 @@ impl GpuState {
             time,
             step,
 
-            gravity,
+            globals_end,
+            globals_start,
+
             indirect_particles,
             indirect_grid_nodes,
 
@@ -503,10 +506,11 @@ impl GpuState {
                 "new_flags",
                 frame_input.a().particle_flags(),
             )?;
-            self.next_input.gravity = Allocation::new(
+            self.next_input.globals_end = self.next_input.globals_start.clone();
+            self.next_input.globals_start = Allocation::new(
                 self.gpu_context.device(),
-                "gravity",
-                &[frame_input.a().gravity().push(0.)],
+                "globals_start",
+                &[*frame_input.a().animated_globals()],
             )?;
             self.next_input.collider_input =
                 get_collider_input(self.gpu_context.device(), frame_input)?;
@@ -621,11 +625,15 @@ impl GpuState {
             &particle_goals_end,
         )?;
 
-        // TODO: interpolate
-        self.next_input.gravity = Allocation::new(
+        self.next_input.globals_start = Allocation::new(
             self.gpu_context.device(),
-            "gravity",
-            &[frame_input.a().gravity().push(0.)],
+            "globals_start",
+            &[*frame_input.a().animated_globals()],
+        )?;
+        self.next_input.globals_end = Allocation::new(
+            self.gpu_context.device(),
+            "globals_end",
+            &[*b.animated_globals()],
         )?;
 
         if let Some(collider_input) = self.next_input.collider_input.as_mut() {

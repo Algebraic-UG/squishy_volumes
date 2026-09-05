@@ -495,3 +495,12 @@ fn second_derivative_inviscid_svd_in_diagonal_space(
         invariant_3_by_svd(s),
     ) * double_partial_invariant_3_by_svd(s);
 }
+
+struct AnimatedGlobals {
+    gravity_x: f32,
+    gravity_y: f32,
+    gravity_z: f32,
+    goal_stiffness: f32,
+    goal_damping: f32,
+    damping: f32,
+}

@@ -15,7 +15,7 @@ use squishy_volumes_gpu::{
     self as gpu, contributors_on_cpu, get_node_set, prepare_tmp_on_cpu,
     test_data::{ParticleSampling, TestMesh, TestParticles},
 };
-use squishy_volumes_util::Aabb;
+use squishy_volumes_util::{Aabb, AnimatedGlobals};
 use tracing::dispatcher::set_global_default;
 use tracing_subscriber::FmtSubscriber;
 
@@ -496,7 +496,15 @@ fn main() {
             );
         }
         Task::Step => {
-            let gravity = Vector4::new(0., 0., -9.8, 0.);
+            let globals_start = AnimatedGlobals {
+                gravity_x: 0.,
+                gravity_y: 0.,
+                gravity_z: -9.8,
+                goal_stiffness: 1000.,
+                goal_damping: 0.5,
+                damping: 0.,
+            };
+            let globals_end = globals_start;
             let aabb = Aabb {
                 min: Vector3::repeat(-100.),
                 max: Vector3::repeat(100.),
@@ -530,7 +538,8 @@ fn main() {
                 frames_per_second,
                 settings,
                 gpu::step::InputData {
-                    gravity,
+                    globals_start,
+                    globals_end,
                     particle_parameters: &test_particles.particle_parameters,
                     particle_goals_start: &test_particles.particle_goals_start,
                     particle_goals_end: &test_particles.particle_goals_end,
