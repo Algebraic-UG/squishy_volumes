@@ -1,4 +1,4 @@
-/// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT
 //
 // Copyright 2025  Algebraic UG (haftungsbeschränkt)
 //
