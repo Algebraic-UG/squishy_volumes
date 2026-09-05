@@ -196,6 +196,32 @@ you can set this to 100.""",
         options={"ANIMATABLE"},
     )  # type: ignore
 
+    goal_stiffness: bpy.props.FloatProperty(
+        name="Goal Stiffness",
+        description="""The particles are pulled towards their
+goal positions with this stiffness.
+This is mass-normalized, so the unit is 1/s^2""",
+        default=1000.0,
+        options={"ANIMATABLE"},
+    )  # type: ignore
+
+    goal_damping: bpy.props.FloatProperty(
+        name="Goal Damping",
+        description="""The particles's velocity towards their
+goal positions is damped with this.
+This is mass-normalized, so the unit is 1/s""",
+        default=1.0,
+        options={"ANIMATABLE"},
+    )  # type: ignore
+
+    damping: bpy.props.FloatProperty(
+        name="Damping",
+        description="""The particles's velocity is damped with this.
+This is mass-normalized, so the unit is 1/s""",
+        default=0.0,
+        options={"ANIMATABLE"},
+    )  # type: ignore
+
     # ----------------------------------------------------------------
     # setup for capturing animation data
     # ----------------------------------------------------------------
