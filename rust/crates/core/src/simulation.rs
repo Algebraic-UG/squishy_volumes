@@ -6,13 +6,14 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{collections::BTreeMap, num::NonZero, path::PathBuf, sync::Arc};
+use std::{num::NonZero, path::PathBuf, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_cache::Cache;
 use squishy_volumes_directory_lock::DirectoryLock;
-use squishy_volumes_file_input::{InputHeader, InputObject, InputRanges, InputReader};
+use squishy_volumes_file_input::{InputHeader, InputRanges, InputReader};
+use squishy_volumes_xpu::ReportInfo;
 use tracing::{info, warn};
 
 use crate::{
@@ -20,7 +21,6 @@ use crate::{
     attributes::{available_attributes, fetch_flat_attribute_f32, fetch_flat_attribute_i32},
     compute_thread::{ComputeThread, ComputeThreadSettings},
     simulation_input_path,
-    stats::{ComputeStats, StateStats, Stats},
 };
 
 pub struct SimulationImpl {
@@ -29,7 +29,6 @@ pub struct SimulationImpl {
 
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
-    cached_compute_stats: Option<ComputeStats>,
 }
 
 impl SimulationImpl {
@@ -84,9 +83,14 @@ impl SimulationImpl {
             input_ranges,
             cache,
             compute_thread: None,
-            cached_compute_stats: None,
         })
     }
+}
+
+#[derive(serde::Serialize)]
+struct PollInfo {
+    current_bytes_on_disk: u64,
+    progress: Vec<ReportInfo>,
 }
 
 impl SimulationImpl {
@@ -102,13 +106,15 @@ impl SimulationImpl {
 
     pub fn poll_impl(&mut self) -> Result<Value, Error> {
         self.cache.check().map_err(Error::CacheCheck)?;
-        serde_json::to_value(
-            self.compute_thread
+        serde_json::to_value(PollInfo {
+            current_bytes_on_disk: self.cache.current_bytes_on_disk(),
+            progress: self
+                .compute_thread
                 .as_mut()
                 .map(ComputeThread::poll)
                 .transpose()?
                 .unwrap_or(Default::default()),
-        )
+        })
         .map_err(Error::EncodingReport)
     }
 
@@ -129,7 +135,7 @@ impl SimulationImpl {
             return Ok(());
         };
 
-        self.pause_compute_impl()?;
+        self.pause_compute_impl();
 
         self.cache.check().map_err(Error::CacheCheck)?;
         self.cache
@@ -149,12 +155,8 @@ impl SimulationImpl {
         Ok(())
     }
 
-    pub fn pause_compute_impl(&mut self) -> Result<(), Error> {
-        self.cached_compute_stats = None;
-        if let Some(compute_thread) = self.compute_thread.take() {
-            self.cached_compute_stats = compute_thread.stats()?;
-        }
-        Ok(())
+    pub fn pause_compute_impl(&mut self) {
+        self.compute_thread = None;
     }
 
     pub fn available_frames_impl(&self) -> usize {
@@ -175,7 +177,11 @@ impl SimulationImpl {
         Ok(fetch_flat_attribute_f32(
             &self.input_header,
             &self.input_ranges,
-            &*self.cache.fetch_frame(frame).map_err(Error::CacheFetch)?,
+            &self
+                .cache
+                .fetch_frame(frame)
+                .map_err(Error::CacheFetch)?
+                .io_state,
             &from_value(attribute).map_err(Error::ParseAttribute)?,
         )?)
     }
@@ -188,53 +194,27 @@ impl SimulationImpl {
         Ok(fetch_flat_attribute_i32(
             &self.input_header,
             &self.input_ranges,
-            &*self.cache.fetch_frame(frame).map_err(Error::CacheFetch)?,
+            &self
+                .cache
+                .fetch_frame(frame)
+                .map_err(Error::CacheFetch)?
+                .io_state,
             &from_value(attribute).map_err(Error::ParseAttribute)?,
         )?)
     }
 
-    pub fn stats_impl(&self) -> Result<Value, Error> {
-        let state = {
-            let mut total_particle_count = 0;
-            let per_object_count: BTreeMap<String, usize> = self
-                .input_header
-                .objects
-                .iter()
-                .filter_map(|(name, object)| {
-                    if let InputObject::Particles { num_particles } = object {
-                        total_particle_count += num_particles;
-                        Some((name.clone(), *num_particles))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            let grid_node_count = self
-                .cache
-                .grid_node_count()
-                .map_err(Error::CacheNodeCount)?;
+    pub fn current_bytes_on_disk_impl(&self) -> u64 {
+        self.cache.current_bytes_on_disk()
+    }
 
-            StateStats {
-                total_particle_count,
-                per_object_count,
-                grid_node_count,
-            }
-        };
-
-        let compute = self
-            .compute_thread
-            .as_ref()
-            .and_then(|compute_thread| compute_thread.stats().transpose())
-            .transpose()?
-            .or(self.cached_compute_stats.clone());
-
-        let bytes_on_disk = self.cache.current_bytes_on_disk();
-
-        to_value(Stats {
-            state,
-            compute,
-            bytes_on_disk,
-        })
+    pub fn stats_impl(&self, frame: usize) -> Result<Value, Error> {
+        serde_json::to_value(
+            self.cache
+                .fetch_frame(frame)
+                .map_err(Error::CacheFetch)?
+                .stats
+                .clone(),
+        )
         .map_err(Error::EncodingStats)
     }
 }

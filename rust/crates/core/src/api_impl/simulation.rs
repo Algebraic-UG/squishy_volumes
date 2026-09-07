@@ -23,8 +23,8 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         Ok(self.start_compute_impl(compute_settings)?)
     }
 
-    fn pause_compute(&mut self) -> anyhow::Result<()> {
-        Ok(self.pause_compute_impl()?)
+    fn pause_compute(&mut self) {
+        self.pause_compute_impl()
     }
 
     fn available_frames(&self) -> usize {
@@ -51,7 +51,7 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         Ok(self.fetch_flat_attribute_i32_impl(frame, attribute)?)
     }
 
-    fn stats(&self) -> anyhow::Result<serde_json::Value> {
-        Ok(self.stats_impl()?)
+    fn stats(&self, frame: usize) -> anyhow::Result<serde_json::Value> {
+        Ok(self.stats_impl(frame)?)
     }
 }

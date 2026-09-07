@@ -17,11 +17,11 @@ pub trait Simulation {
     fn poll(&mut self) -> Result<Value>;
 
     fn start_compute(&mut self, settings: Value) -> Result<()>;
-    fn pause_compute(&mut self) -> Result<()>;
+    fn pause_compute(&mut self);
 
     fn available_frames(&self) -> usize;
     fn available_attributes(&self) -> Result<Vec<Value>>;
     fn fetch_flat_attribute_f32(&self, frame: usize, attribute: Value) -> Result<Vec<f32>>;
     fn fetch_flat_attribute_i32(&self, frame: usize, attribute: Value) -> Result<Vec<i32>>;
-    fn stats(&self) -> Result<Value>;
+    fn stats(&self, frame: usize) -> Result<Value>;
 }

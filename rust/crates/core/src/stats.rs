@@ -8,25 +8,30 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use squishy_volumes_file_frame::{IoState, StateStats};
+use squishy_volumes_file_input::InputObject;
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Stats {
-    pub state: StateStats,
-    pub compute: Option<ComputeStats>,
-    pub bytes_on_disk: u64,
-}
+pub fn make_state_stats(objects: &BTreeMap<String, InputObject>, io_state: &IoState) -> StateStats {
+    let mut total_particle_count = 0;
+    let per_object_count: BTreeMap<String, usize> = objects
+        .iter()
+        .filter_map(|(name, object)| {
+            if let InputObject::Particles { num_particles } = object {
+                total_particle_count += num_particles;
+                Some((name.clone(), *num_particles))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let grid_node_count = io_state
+        .grid_nodes
+        .as_ref()
+        .map(|grid_nodes| grid_nodes.collider_bits.len());
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct StateStats {
-    pub total_particle_count: usize,
-    pub per_object_count: BTreeMap<String, usize>,
-    pub grid_node_count: Option<usize>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ComputeStats {
-    pub remaining_time_sec: f32,
-    pub last_frame_time_sec: f32,
-    pub last_frame_substeps: usize,
+    StateStats {
+        total_particle_count,
+        per_object_count,
+        grid_node_count,
+    }
 }

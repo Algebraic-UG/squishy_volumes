@@ -6,13 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use super::*;
-
-#[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
-pub struct IoState {
-    pub time: f64,
-
-    pub particles: Particles,
-
-    pub grid_nodes: Option<GridNodes>,
+fn main() {
+    println!("cargo::rustc-cfg=use_f64");
+    println!("cargo::rustc-check-cfg=cfg(use_f64)");
 }

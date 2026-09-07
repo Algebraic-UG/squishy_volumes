@@ -51,6 +51,7 @@ from ..util import (
     simulation_input_exists,
     simulation_locked,
     copy_simple_property_group,
+    u64_to_giga_f32,
 )
 from ..example import EXAMPLE_BOING_BLOCK, EXAMPLE_BENCHMARK, setup_example_simulation
 
@@ -358,8 +359,11 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 progress_text = f"{sim_obj.name}: "
                 factor = 0.0
                 if sim_handle is not None:
-                    if sim_handle.progress is not None and sim_handle.progress:
-                        progress = sim_handle.progress[0]
+                    if (
+                        sim_handle.poll_info is not None
+                        and sim_handle.poll_info["progress"]
+                    ):
+                        progress = sim_handle.poll_info["progress"][0]
                         progress_text += progress["label"]
                         completed_steps = progress["completed_steps"]
                         steps_to_completion = progress["steps_to_completion"]
@@ -383,6 +387,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 header.progress(text=progress_text, factor=factor)
 
             if body is not None:
+                body.prop(sim_props, "sync")
                 body.prop(sim_obj, "name")
                 body.prop(sim_props, "directory")
 
@@ -390,9 +395,15 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 col.enabled = False
                 col.prop(sim_props, "uuid")
 
-                col = body.column()
-                col.prop(sim_props, "sync")
-                col.prop(sim_props, "max_giga_bytes_on_disk")
+                if sim_handle is not None and sim_handle.poll_info is not None:
+                    current = u64_to_giga_f32(
+                        sim_handle.poll_info["current_bytes_on_disk"]
+                    )
+                    body.progress(
+                        text="Used Disk Space",
+                        factor=current / sim_props.max_giga_bytes_on_disk,
+                    )
+                body.prop(sim_props, "max_giga_bytes_on_disk")
 
                 row = body.row()
                 if sim_handle is None and simulation_locked(sim_props.directory):
@@ -418,16 +429,17 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
                 if sim_handle is None:
                     continue
-                stats = sim_handle.stats()
+                if sim_handle.loaded_frame is None:
+                    continue
+
+                stats = sim_handle.stats(sim_handle.loaded_frame)
                 state = stats["state"]
                 compute = stats["compute"]
-                bytes_on_disk = stats["bytes_on_disk"]
 
                 body.label(text="Misc. Stats")
                 box = body.box()
                 grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
                 grid.label(text="Currently used")
-                grid.label(text=f"{bytes_on_disk * 1e-9:.2f} GB")
 
                 total_particle_count = state["total_particle_count"]
                 grid_node_count = state["grid_node_count"]

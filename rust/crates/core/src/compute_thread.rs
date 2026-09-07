@@ -9,14 +9,15 @@
 use std::{
     collections::VecDeque,
     num::NonZero,
-    sync::{Arc, Mutex},
+    sync::Arc,
     thread::{JoinHandle, spawn},
     time::Instant,
 };
 
 use squishy_volumes_cache::Cache;
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
-use squishy_volumes_file_input::InputReader;
+use squishy_volumes_file_frame::{ComputeStats, Frame, Stats};
+use squishy_volumes_file_input::{InputHeader, InputReader};
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_util::panic_payload_to_string;
 use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
@@ -26,12 +27,10 @@ use tracing::info;
 use squishy_volumes_util::coarse_prof;
 
 use crate::{
-    Error, initialization::initialize_io_state, simulation_input_path, stats::ComputeStats,
+    Error, initialization::initialize_io_state, simulation_input_path, stats::make_state_stats,
 };
 
 pub struct ComputeThread {
-    stats: Arc<Mutex<Option<ComputeStats>>>,
-
     harness: Harness,
     thread: Option<JoinHandle<Result<(), Error>>>,
 }
@@ -63,17 +62,13 @@ impl ComputeThread {
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
             .map_err(Error::StartInputReading)?;
-        let consts = input_reader
-            .read_header()
-            .map_err(Error::ReadHeader)?
-            .consts;
+        let InputHeader { consts, objects } =
+            input_reader.read_header().map_err(Error::ReadHeader)?;
 
-        let stats = Arc::new(Mutex::new(None));
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
 
         let thread = {
-            let stats = stats.clone();
             let harness = harness.clone();
             Some(spawn(move || -> Result<(), Error> {
                 info!("compute thread started");
@@ -81,7 +76,13 @@ impl ComputeThread {
                     info!("creating initial state");
                     let io_state = initialize_io_state(&harness, &mut input_reader)?;
                     cache
-                        .store_frame(io_state.clone())
+                        .store_frame(Frame {
+                            io_state: io_state.clone(),
+                            stats: Stats {
+                                state: make_state_stats(&objects, &io_state),
+                                compute: None,
+                            },
+                        })
                         .map_err(Error::StoreError)?;
                     next_frame += 1;
                     harness.step()?;
@@ -91,6 +92,7 @@ impl ComputeThread {
                     cache
                         .fetch_frame(next_frame - 1)
                         .map_err(Error::CacheFetch)?
+                        .io_state
                         .clone()
                 };
                 harness.check()?;
@@ -163,14 +165,6 @@ impl ComputeThread {
                         }
                     };
 
-                    // store state even if error occured
-                    cache.store_frame(io_state).map_err(Error::StoreError)?;
-
-                    // now check for errors
-                    result?;
-
-                    info!("computed frame {} of {}", next_frame, number_of_frames);
-
                     next_frame += 1;
                     harness.step()?;
 
@@ -185,11 +179,23 @@ impl ComputeThread {
                         frame_times.iter().sum::<f32>() / frame_times.len() as f32;
                     let remaining_time_sec = approx_frame_time * remaining_frames as f32;
 
-                    *stats.lock().unwrap() = Some(ComputeStats {
-                        remaining_time_sec,
-                        last_frame_time_sec,
-                        last_frame_substeps: 0, // TODO
-                    });
+                    // store state even if error occured
+                    let stats = Stats {
+                        state: make_state_stats(&objects, &io_state),
+                        compute: Some(ComputeStats {
+                            remaining_time_sec,
+                            last_frame_time_sec,
+                            last_frame_substeps: 0, // TODO
+                        }),
+                    };
+                    cache
+                        .store_frame(Frame { io_state, stats })
+                        .map_err(Error::StoreError)?;
+
+                    // now check for errors
+                    result?;
+
+                    info!("computed frame {} of {}", next_frame, number_of_frames);
                 }
 
                 #[cfg(feature = "profile")]
@@ -206,11 +212,7 @@ impl ComputeThread {
             }))
         };
 
-        Ok(Self {
-            stats,
-            harness,
-            thread,
-        })
+        Ok(Self { harness, thread })
     }
 
     pub fn running(&self) -> bool {
@@ -231,14 +233,6 @@ impl ComputeThread {
         }
         self.thread = Some(thread);
         Ok(self.harness.get_infos()?)
-    }
-
-    pub fn stats(&self) -> Result<Option<ComputeStats>, Error> {
-        Ok(self
-            .stats
-            .lock()
-            .map_err(|_| Error::ComputeStatsMutexPoisoned)?
-            .clone())
     }
 }
 

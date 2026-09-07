@@ -41,7 +41,7 @@ pub enum Error {
         #[source]
         error: std::io::Error,
     },
-    #[error("Failed to serialize state")]
+    #[error("Failed to serialize frame")]
     Serialize(#[source] bincode::Error),
     #[error("Failed to read '{path}'")]
     Read {
@@ -49,7 +49,7 @@ pub enum Error {
         #[source]
         error: std::io::Error,
     },
-    #[error("Failed to serialize state")]
+    #[error("Failed to deserialize frame")]
     Deserialize(#[source] bincode::Error),
     #[error("A simple check failed")]
     FileUtil(#[from] squishy_volumes_file_util::Error),

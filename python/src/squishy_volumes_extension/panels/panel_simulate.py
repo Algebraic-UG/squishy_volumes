@@ -454,8 +454,8 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
             icon="CANCEL",
         ).uuid = sim_props.uuid
 
-        if sim_handle.progress is not None:
-            for info in sim_handle.progress:
+        if sim_handle.poll_info is not None:
+            for info in sim_handle.poll_info["progress"]:
                 name = info["label"]
                 completed_steps = info["completed_steps"]
                 steps_to_completion = info["steps_to_completion"]
