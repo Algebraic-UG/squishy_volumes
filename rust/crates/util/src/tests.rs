@@ -685,7 +685,7 @@ fn check_iters<'a>(
     [(a_name, a_iter), (b_name, b_iter)]: [(&'static str, impl IntoIterator<Item = &'a T>); 2],
     eps: T,
 ) {
-    for (a, b) in a_iter.into_iter().zip(b_iter.into_iter()) {
+    for (a, b) in a_iter.into_iter().zip(b_iter) {
         eprintln!("{a_name}: {a}, {b_name}: {b}, diff: {}", a - b);
         if a.abs() < 1e-2 {
             assert!(b.abs() < 1e-2);

@@ -68,7 +68,11 @@ fn check(
             })
             .collect::<Vec<_>>();
 
-        let (gpu_vertex_positions, gpu_vertex_normals, gpu_triangle_normals) = run(
+        let OutputData {
+            vertex_positions: gpu_vertex_positions,
+            vertex_normals: gpu_vertex_normals,
+            triangle_normals: gpu_triangle_normals,
+        } = run(
             Settings {
                 workgroup_size: 64.try_into().unwrap(),
                 dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
@@ -142,10 +146,13 @@ fn cone() {
     });
 }
 
-fn run(
-    settings: Settings,
-    input_data: InputData,
-) -> (Vec<Vector4<f32>>, Vec<Vector4<f32>>, Vec<Vector4<f32>>) {
+struct OutputData {
+    vertex_positions: Vec<Vector4<f32>>,
+    vertex_normals: Vec<Vector4<f32>>,
+    triangle_normals: Vec<Vector4<f32>>,
+}
+
+fn run(settings: Settings, input_data: InputData) -> OutputData {
     let mut context = get_shared_context();
 
     let input = Input::new(context.device(), input_data).unwrap();
@@ -176,9 +183,9 @@ fn run(
 
     let [vertex_positions, vertex_normals, triangle_normals] = downloads.try_into().unwrap();
 
-    (
-        vertex_positions.to_vec().unwrap(),
-        vertex_normals.to_vec().unwrap(),
-        triangle_normals.to_vec().unwrap(),
-    )
+    OutputData {
+        vertex_positions: vertex_positions.to_vec().unwrap(),
+        vertex_normals: vertex_normals.to_vec().unwrap(),
+        triangle_normals: triangle_normals.to_vec().unwrap(),
+    }
 }

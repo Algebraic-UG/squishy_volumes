@@ -2738,7 +2738,7 @@ pub fn specific_positions_and_collider_bits() -> Vec<PositionAndColliderBits> {
 }
 
 pub fn check_iters<'a>(a: impl IntoIterator<Item = &'a f32>, b: impl IntoIterator<Item = &'a f32>) {
-    for (a, b) in a.into_iter().zip(b.into_iter()) {
+    for (a, b) in a.into_iter().zip(b) {
         println!("{a} vs {b}");
         assert_relative_eq!(a, b, epsilon = 0.000001, max_relative = 0.01);
     }
@@ -2751,7 +2751,7 @@ pub fn check_iters_by_norm<'a>(
     let mut norm_a = 0.;
     let mut norm_b = 0.;
     let mut norm_difference = 0.;
-    for (a, b) in a.into_iter().zip(b.into_iter()) {
+    for (a, b) in a.into_iter().zip(b) {
         norm_a += a * a;
         norm_b += b * b;
         norm_difference += (a - b) * (a - b);

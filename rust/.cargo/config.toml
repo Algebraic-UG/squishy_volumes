@@ -1,3 +1,6 @@
+[unstable]
+cargo-lints = true
+
 #https://github.com/Algebraic-UG/squishy_volumes/issues/309
 [build]
 rustflags = ["-Znext-solver=globally"]

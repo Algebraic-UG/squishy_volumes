@@ -60,6 +60,7 @@ pub fn test_velocity_gradients_random(n: usize) -> Vec<Matrix4x3<f32>> {
     use rand::rngs::ChaCha8Rng;
     let mut rng = ChaCha8Rng::seed_from_u64(42);
 
+    #[allow(clippy::toplevel_ref_arg)]
     (0..n)
         .map(|_| {
             stack![

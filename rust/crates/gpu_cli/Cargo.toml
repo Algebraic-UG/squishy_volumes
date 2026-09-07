@@ -4,6 +4,13 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[lints]
+workspace = true
+
+[[bin]]
+name = "squishy-volumes-gpu-cli"
+path = "src/main.rs"
+
 [dependencies]
 winit = "0.30.13"
 
@@ -20,4 +27,3 @@ nalgebra.workspace = true
 
 squishy_volumes_util.path = "../util"
 squishy_volumes_gpu.path = "../gpu"
-convert_case = "0.11.0"

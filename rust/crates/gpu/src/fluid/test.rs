@@ -25,7 +25,7 @@ fn check(
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
         },
         &particle_flags,
-        &particle_parameters,
+        particle_parameters,
         particle_position_gradients,
     );
 

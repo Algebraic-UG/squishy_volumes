@@ -14,7 +14,7 @@ members = [
     "crates/gpu_cli",
     "crates/hot",
     "crates/mesh_util",
-    "crates/plot",
+    #"crates/plot",
     "crates/util",
     "crates/util_test_with_f64",
     "crates/wrap",
@@ -63,3 +63,6 @@ wesl = { version = "0.4.0", features = ["naga-ext"] }
 [patch.crates-io]
 wgpu.git = "https://github.com/Vollkornaffe/wgpu.git"
 wgpu.rev = "ef5c491923d4f5419ce9c8c18b1b490c56383834"
+
+[workspace.lints.cargo]
+unused_dependencies = "forbid"

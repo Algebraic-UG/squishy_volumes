@@ -76,10 +76,7 @@ fn test_random() {
         .random_iter::<i32>()
         .take(n * 3)
         .collect();
-    let node_ids: Vec<Vector3<i32>> = node_ids
-        .chunks_exact(3)
-        .map(Vector3::from_column_slice)
-        .collect();
+    let node_ids: Vec<Vector3<i32>> = bytemuck::cast_vec(node_ids);
     let collider_bits = ChaCha8Rng::seed_from_u64(42).random_iter::<u32>();
     let node_ids_and_collider_bits: Vec<_> = node_ids
         .into_iter()
