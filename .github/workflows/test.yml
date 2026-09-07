@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-    test-build:
-      name: Test if Builds
+    basic-checks:
+      name: Basic Checks
       runs-on: ${{ matrix.os }}
       strategy:
           max-parallel: 4
@@ -31,10 +31,10 @@ jobs:
           - uses: dtolnay/rust-toolchain@nightly
             with:
               targets: ${{ inputs.target-triple }}
+              components: clippy, rustfmt
 
-          - uses: baptiste0928/cargo-install@v3.4.0
-            with:
-              crate: clippy
+          - working-directory: rust
+            run: cargo fmt --check
 
           - working-directory: rust
             run: cargo clippy --all-targets
