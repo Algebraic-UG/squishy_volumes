@@ -1,0 +1,36 @@
+name: CI
+
+on:
+    push:
+      branches: ["main"]
+    pull_request:
+      branches: ["*"]
+    workflow_dispatch:
+
+# Cancel in-progress runs when a new workflow with the same group is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+    test-build:
+      name: Test if Builds
+      runs-on: ${{ matrix.os }}
+      strategy:
+          max-parallel: 4
+          fail-fast: false
+          matrix:
+            os: [ubuntu-latest, macos-latest, windows-latest]
+      steps:
+          - uses: actions/checkout@v6
+            with:
+              lfs: false # only user guide has lfs objects
+
+          # https://github.com/Algebraic-UG/squishy_volumes/issues/309
+          #- uses: dtolnay/rust-toolchain@stable
+          - uses: dtolnay/rust-toolchain@nightly
+            with:
+              targets: ${{ inputs.target-triple }}
+
+          - working-directory: rust
+            run: cargo test --no-run
