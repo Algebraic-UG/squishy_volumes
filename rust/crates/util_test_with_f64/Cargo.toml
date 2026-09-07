@@ -1,0 +1,24 @@
+[package]
+name = "squishy_volumes_util_test_with_f64"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+path = "../util/src/lib.rs"
+
+[features]
+profile = [ "dep:coarse-prof" ]
+
+[dev-dependencies]
+rand.workspace = true
+
+[dependencies]
+nalgebra.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+serde.workspace = true
+bytemuck.workspace = true
+
+coarse-prof.workspace = true
+coarse-prof.optional = true
