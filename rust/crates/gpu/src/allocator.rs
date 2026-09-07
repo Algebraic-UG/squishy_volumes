@@ -129,7 +129,7 @@ impl Allocation {
     pub fn len<T: AllowedInBinding>(&self) -> NonZeroU64 {
         let size = self.size().get();
         assert!(size.is_multiple_of(T::MIN_BINDING_SIZE.get()));
-        NonZeroU64::new(size / T::MIN_BINDING_SIZE.get()).unwrap()
+        NonZeroU64::new(size / T::MIN_BINDING_SIZE).unwrap()
     }
 
     pub fn size(&self) -> NonZeroU64 {

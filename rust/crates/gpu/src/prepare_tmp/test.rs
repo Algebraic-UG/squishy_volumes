@@ -56,11 +56,13 @@ fn test_single_undeformed() {
                 position: Vector3::zeros(),
                 collider_bits: 0,
             }],
+            #[allow(clippy::toplevel_ref_arg)]
             particle_position_gradients: &[stack![
                 Matrix3::identity();
                 Matrix1x3::zeros()
             ]],
             particle_velocities: &[Vector4::zeros()],
+            #[allow(clippy::toplevel_ref_arg)]
             particle_velocity_gradients: &[stack![
                 Matrix3::zeros();
                 Matrix1x3::zeros()

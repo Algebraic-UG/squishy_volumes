@@ -15,6 +15,7 @@ use squishy_volumes_util::{Aabb, NORMALIZATION_EPS, collider_bits};
 
 use super::*;
 
+// TODO: check friction and damping
 fn check(
     forget_distance: f32,
     accept_distance: f32,
@@ -25,7 +26,6 @@ fn check(
         vertex_positions,
         triangle_indices,
         triangle_collider,
-        triangle_frictions: _, // TODO
         ..
     }: InputData,
     check_collider_bits: bool,

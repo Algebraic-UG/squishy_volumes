@@ -77,13 +77,14 @@ fn test_random() {
     use rand::rngs::ChaCha8Rng;
 
     let n = 1000;
-    let positions: Vec<f32> = ChaCha8Rng::seed_from_u64(42)
-        .random_iter::<f32>()
-        .take(n * 3)
-        .collect();
+    let positions: Vec<Vector3<f32>> = bytemuck::cast_vec(
+        ChaCha8Rng::seed_from_u64(42)
+            .random_iter::<f32>()
+            .take(n * 3)
+            .collect(),
+    );
     let positions_and_collider_bits = positions
-        .chunks_exact(3)
-        .map(Vector3::from_column_slice)
+        .into_iter()
         .zip(ChaCha8Rng::seed_from_u64(42).random_iter::<u32>())
         .map(|(position, collider_bits)| PositionAndColliderBits {
             position,

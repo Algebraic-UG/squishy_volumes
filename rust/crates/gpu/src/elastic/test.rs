@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::iter::repeat;
+use std::iter::repeat_n;
 
 use approx::assert_relative_eq;
 use nalgebra::{Matrix1x3, Matrix3, stack};
@@ -26,7 +26,7 @@ fn check(position_gradients: &[Matrix3<f32>], parameters: &[ParticleParameters])
     let particle_parameters: Vec<_> = parameters
         .iter()
         .cloned()
-        .flat_map(|p| repeat(p).take(position_gradients.len()))
+        .flat_map(|p| repeat_n(p, position_gradients.len()))
         .collect();
     let position_gradients_host = position_gradients.repeat(parameters.len());
     assert_eq!(particle_parameters.len(), position_gradients_host.len());

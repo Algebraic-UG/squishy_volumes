@@ -180,6 +180,7 @@ fn specific() {
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &vec![ParticleFlags::IS_SOLID; n],
                 particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+                #[allow(clippy::toplevel_ref_arg)]
                 particle_position_gradients: &vec![
                     stack![
                         Matrix3::identity();
@@ -188,6 +189,7 @@ fn specific() {
                     n
                 ],
                 particle_velocities: &vec![Vector4::zeros(); n],
+                #[allow(clippy::toplevel_ref_arg)]
                 particle_velocity_gradients: &vec![
                     stack![
                         Matrix3::zeros();
@@ -256,11 +258,13 @@ fn test_single_undeformed() {
                     position: Vector3::zeros(),
                     collider_bits: 0,
                 }],
+                #[allow(clippy::toplevel_ref_arg)]
                 particle_position_gradients: &[stack![
                     Matrix3::identity();
                     Matrix1x3::zeros()
                 ]],
                 particle_velocities: &[Vector4::zeros()],
+                #[allow(clippy::toplevel_ref_arg)]
                 particle_velocity_gradients: &[stack![
                     Matrix3::zeros();
                     Matrix1x3::zeros()

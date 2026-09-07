@@ -30,7 +30,7 @@ fn check(
     if reached {
         assert!(matches!(
             result,
-            Err(GpuError::Shader(GpuShaderError::FrameTimeReached { .. }))
+            Err(GpuError::Shader(GpuShaderError::FrameTimeReached))
         ));
     } else {
         result.unwrap();
