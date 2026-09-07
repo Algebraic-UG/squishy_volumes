@@ -33,4 +33,4 @@ jobs:
               targets: ${{ inputs.target-triple }}
 
           - working-directory: rust
-            run: cargo test --no-run
+            run: cargo clippy --all-targets
