@@ -8,6 +8,8 @@
 
 #![recursion_limit = "256"]
 
+use wgebra as _;
+
 pub use wgpu;
 pub use wgpu_profiler;
 
