@@ -17,8 +17,7 @@ jobs:
       name: Basic Checks
       runs-on: ${{ matrix.os }}
       strategy:
-          max-parallel: 4
-          fail-fast: false
+          fail-fast: true
           matrix:
             os: [ubuntu-latest, macos-latest, windows-latest]
       steps:
