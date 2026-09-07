@@ -14,8 +14,8 @@ use std::sync::{
 use super::*;
 
 struct LoadedFrame {
-    frame: usize,
-    state: squishy_volumes_file_frame::IoState,
+    frame_index: usize,
+    frame: squishy_volumes_file_frame::Frame,
 }
 
 pub struct CachedState<'a> {
@@ -23,14 +23,14 @@ pub struct CachedState<'a> {
 }
 
 impl<'a> std::ops::Deref for CachedState<'a> {
-    type Target = squishy_volumes_file_frame::IoState;
+    type Target = squishy_volumes_file_frame::Frame;
 
     fn deref(&self) -> &Self::Target {
         &self
             .guard
             .as_ref()
             .expect("cached state is never none")
-            .state
+            .frame
     }
 }
 
@@ -146,10 +146,7 @@ impl Cache {
         self.total_bytes_on_disk.load(Ordering::Relaxed)
     }
 
-    pub fn store_frame(
-        &self,
-        state: squishy_volumes_file_frame::IoState,
-    ) -> Result<(), CacheError> {
+    pub fn store_frame(&self, frame: squishy_volumes_file_frame::Frame) -> Result<(), CacheError> {
         if self.total_bytes_on_disk.load(Ordering::Relaxed)
             >= self.max_bytes_on_disk.load(Ordering::Relaxed)
         {
@@ -158,11 +155,14 @@ impl Cache {
         self.store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?
-            .store(state)?;
+            .store(frame)?;
         Ok(())
     }
 
-    pub fn fetch_frame<'a>(&'a self, frame: usize) -> Result<CachedState<'a>, CacheReadingError> {
+    pub fn fetch_frame<'a>(
+        &'a self,
+        frame_index: usize,
+    ) -> Result<CachedState<'a>, CacheReadingError> {
         let mut loaded_frame = self
             .loaded_frame
             .lock()
@@ -170,17 +170,17 @@ impl Cache {
 
         if loaded_frame
             .as_ref()
-            .is_none_or(|loaded_frame| loaded_frame.frame != frame)
+            .is_none_or(|loaded_frame| loaded_frame.frame_index != frame_index)
         {
-            if frame >= self.available_frames.load(Ordering::Relaxed) {
+            if frame_index >= self.available_frames.load(Ordering::Relaxed) {
                 return Err(CacheReadingError::FrameNotReady);
             }
-            tracing::debug!(frame, "reading frame from disk");
-            let state = squishy_volumes_file_frame::IoState::read(frame_path(
+            tracing::debug!(frame_index, "reading frame from disk");
+            let frame = squishy_volumes_file_frame::Frame::read(frame_path(
                 self.directory_lock.directory(),
-                frame,
+                frame_index,
             ))?;
-            *loaded_frame = Some(LoadedFrame { frame, state });
+            *loaded_frame = Some(LoadedFrame { frame_index, frame });
         }
 
         Ok(CachedState {
@@ -209,21 +209,6 @@ impl Cache {
             Ordering::Relaxed,
         );
         Ok(())
-    }
-
-    pub fn grid_node_count(&self) -> Result<Option<usize>, CacheError> {
-        Ok(self
-            .loaded_frame
-            .lock()
-            .map_err(|_| CacheReadingError::LoadedFrameLockPoisoned)?
-            .as_ref()
-            .and_then(|loaded_frame| {
-                loaded_frame
-                    .state
-                    .grid_nodes
-                    .as_ref()
-                    .map(|grid_nodes| grid_nodes.collider_bits.len())
-            }))
     }
 }
 

@@ -32,9 +32,11 @@ PROGRESS_INTERVAL = 0.25
 def update_progress():
     should_redraw = False
     for sim_obj in get_simulation_objects():
-        cleanup_markers(sim_obj)
-
         sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        if not sim_props.sync:
+            continue
+
+        cleanup_capture_markers(sim_obj)
         add_or_update_marker(
             f"{sim_obj.name} Capture Start",
             sim_props.capture_start_frame,
@@ -44,9 +46,6 @@ def update_progress():
             sim_props.capture_start_frame + sim_props.capture_frames - 1,
         )
 
-        if not sim_props.sync:
-            continue
-
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         if sim_handle is None:
             continue
@@ -54,17 +53,15 @@ def update_progress():
         if sim_handle.last_error is not None:
             continue
 
-        progess = sim_handle.progress
-
         def poll_and_true():
-            sim_handle.poll()
-            return True
+            return sim_handle.poll()
 
         if not with_popup(uuid=sim_props.uuid, f=poll_and_true):
             continue
 
-        if progess != sim_handle.progress:
-            should_redraw = True
+        should_redraw = True
+
+        cleanup_bake_markers(sim_obj)
 
         add_or_update_marker(
             f"{sim_obj.name} Bake Start",
@@ -95,13 +92,21 @@ def update_progress():
     return PROGRESS_INTERVAL
 
 
-def cleanup_markers(sim_obj: bpy.types.Object):
+def cleanup_capture_markers(sim_obj: bpy.types.Object):
     remove_marker(f"{sim_obj.name} Capture Start")
     remove_marker(f"{sim_obj.name} Capture End")
+
+
+def cleanup_bake_markers(sim_obj: bpy.types.Object):
     remove_marker(f"{sim_obj.name} Bake Start")
     remove_marker(f"{sim_obj.name} Bake Latest")
     remove_marker(f"{sim_obj.name} Bake End")
     remove_marker(f"{sim_obj.name} Bake Latest & End")
+
+
+def cleanup_markers(sim_obj: bpy.types.Object):
+    cleanup_capture_markers(sim_obj)
+    cleanup_bake_markers(sim_obj)
 
 
 def is_updating():

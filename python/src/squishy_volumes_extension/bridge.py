@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from copy import deepcopy
 import platform
 import bpy
 from bpy.app.handlers import persistent
@@ -100,7 +101,7 @@ class SimulationHandle:
         _simulations[handle.uuid()] = self
         self.handle = handle
         self.last_error = None
-        self.progress = None
+        self.poll_info = None
         self.loaded_frame = None
 
     @staticmethod
@@ -131,12 +132,10 @@ class SimulationHandle:
         return json.loads(self.handle.input_header())
 
     @hint_at_info
-    def poll(self):
-        progress = self.handle.poll()
-        if progress is None:
-            self.progress = None
-        else:
-            self.progress = json.loads(progress)
+    def poll(self) -> bool:
+        poll_info = deepcopy(self.poll_info)
+        self.poll_info = json.loads(self.handle.poll())
+        return poll_info != self.poll_info
 
     @hint_at_info
     def computing(self) -> bool:
@@ -187,8 +186,8 @@ class SimulationHandle:
         return data
 
     @hint_at_info
-    def stats(self) -> dict[str, Any]:
-        return json.loads(self.handle.stats())
+    def stats(self, frame: int) -> dict[str, Any]:
+        return json.loads(self.handle.stats(frame))
 
     @hint_at_info
     def drop(self):

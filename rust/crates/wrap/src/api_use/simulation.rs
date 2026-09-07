@@ -88,7 +88,8 @@ impl Simulation {
             context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
-                .pause_compute()
+                .pause_compute();
+            Ok(())
         })
     }
 
@@ -151,13 +152,13 @@ impl Simulation {
         })
     }
 
-    pub fn stats(&self) -> Result<String> {
+    pub fn stats(&self, frame: usize) -> Result<String> {
         try_with_context(|context| {
             Ok(to_string(
                 &context
                     .get_simulation(&self.0)
                     .context("No simulation found for {self.0}")?
-                    .stats()?,
+                    .stats(frame)?,
             )?)
         })
     }

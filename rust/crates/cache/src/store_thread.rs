@@ -15,7 +15,7 @@ use std::sync::{
 use super::*;
 
 struct SenderAndThread {
-    sender: mpsc::Sender<squishy_volumes_file_frame::IoState>,
+    sender: mpsc::Sender<squishy_volumes_file_frame::Frame>,
     thread: std::thread::JoinHandle<Result<(), CacheWritingError>>,
 }
 
@@ -31,11 +31,11 @@ impl StoreThread {
     ) -> Self {
         tracing::info!("starting store thread");
         // TODO: this should be bounded?
-        let (store_tx, store_rx) = mpsc::channel::<squishy_volumes_file_frame::IoState>();
+        let (store_tx, store_rx) = mpsc::channel::<squishy_volumes_file_frame::Frame>();
         let thread = std::thread::spawn(move || -> Result<(), CacheWritingError> {
-            while let Ok(state) = store_rx.recv() {
+            while let Ok(frame) = store_rx.recv() {
                 total_bytes_on_disk.fetch_add(
-                    state.write(frame_path(
+                    frame.write(frame_path(
                         &cache_dir,
                         available_frames.load(Ordering::Relaxed),
                     ))?,
@@ -58,15 +58,12 @@ impl StoreThread {
         }
     }
 
-    pub fn store(
-        &self,
-        state: squishy_volumes_file_frame::IoState,
-    ) -> Result<(), CacheWritingError> {
+    pub fn store(&self, frame: squishy_volumes_file_frame::Frame) -> Result<(), CacheWritingError> {
         self.sender_and_thread
             .as_ref()
             .ok_or(CacheWritingError::ThreadGone)?
             .sender
-            .send(state)
+            .send(frame)
             .map_err(|_| CacheWritingError::Sending)
     }
 
