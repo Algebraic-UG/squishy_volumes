@@ -5,6 +5,9 @@ version = "0.3.5"
 edition = "2021"
 license = "MIT"
 
+[lints]
+workspace = true
+
 [features]
 default = ["hot_reload"]
 hot_reload = ["dep:hot-lib-reloader"]

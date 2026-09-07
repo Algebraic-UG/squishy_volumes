@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[lints.cargo]
+unused_dependencies = "forbid"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(use_f64)'] }
 
