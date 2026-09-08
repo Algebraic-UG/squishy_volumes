@@ -20,31 +20,29 @@ import bpy
 import mathutils
 
 
+def _get_preferences():
+    return bpy.context.preferences.addons.get(__package__).preferences
+
+
 def get_default_cache_location() -> str:
-    return bpy.context.preferences.addons.get(
-        __package__
-    ).preferences.default_cache_location
+    return _get_preferences().default_cache_location
 
 
 def get_sanity_check_allowed_disk_space() -> bool:
-    return bpy.context.preferences.addons.get(
-        __package__
-    ).preferences.sanity_check_allowed_disk_space
+    return _get_preferences().sanity_check_allowed_disk_space
 
 
 def get_confirm_bake_overwrite() -> bool:
-    return bpy.context.preferences.addons.get(
-        __package__
-    ).preferences.confirm_bake_overwrite
+    return _get_preferences().confirm_bake_overwrite
 
 
 def get_domain_min() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(__package__).preferences.domain_min
+    return _get_preferences().domain_min
 
 
 def get_domain_max() -> mathutils.Vector:
-    return bpy.context.preferences.addons.get(__package__).preferences.domain_max
+    return _get_preferences().domain_max
 
 
 def get_print_debug_info() -> bool:
-    return bpy.context.preferences.addons.get(__package__).preferences.print_debug_info
+    return _get_preferences().print_debug_info
