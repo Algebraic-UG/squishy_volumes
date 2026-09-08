@@ -88,6 +88,19 @@ https://github.com/Algebraic-UG/squishy_volumes/issues/84""",
         options=set(),  # can't be animated
     )  # type: ignore
 
+    allow_scaled_input: bpy.props.BoolProperty(
+        name="Allow Scaled Input",
+        description="""Squishy Volumes to accept scaled input particle objects.
+
+The default input generation uses the object scale
+to determine the initial compression/stretching of the material.
+
+This is a useful feature, but it is easy to 'misuse' by accident,
+which is why any scaling is rejected by default.""",
+        default=False,
+        options=set(),  # can't be animated
+    )  # type: ignore
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "default_cache_location")
         self.layout.prop(self, "sanity_check_allowed_disk_space")
@@ -96,6 +109,7 @@ https://github.com/Algebraic-UG/squishy_volumes/issues/84""",
         self.layout.prop(self, "domain_max")
         self.layout.prop(self, "print_debug_info")
         self.layout.prop(self, "enable_timeline_markers")
+        self.layout.prop(self, "allow_scaled_input")
 
 
 def register_preferences():

@@ -50,3 +50,7 @@ def get_print_debug_info() -> bool:
 
 def get_enable_timeline_markers() -> bool:
     return _get_preferences().enable_timeline_markers
+
+
+def get_allow_scaled_input() -> bool:
+    return _get_preferences().allow_scaled_input

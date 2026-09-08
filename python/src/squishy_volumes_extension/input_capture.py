@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
+import mathutils
 
 import numpy as np
 from .bridge import SimulationInputHandle
@@ -27,7 +28,7 @@ from .squishy_volumes_properties import (
     INPUT_TYPE_PARTICLES,
     INPUT_TYPE_COLLIDER,
 )
-from .get_preferences import get_domain_min, get_domain_max
+from .get_preferences import get_domain_min, get_domain_max, get_allow_scaled_input
 
 
 def create_input_header(sim_props):
@@ -161,7 +162,8 @@ def capture_input_frame(
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
     for input_obj in get_input_objects_with_uuid(sim_props.uuid):
-        mesh = input_obj.evaluated_get(depsgraph).data
+        evaluated_obj = input_obj.evaluated_get(depsgraph)
+        mesh = evaluated_obj.data
         attributes = mesh.attributes  # ty:ignore[possibly-missing-attribute]
         input_type = input_obj.squishy_volumes.input_type  # ty:ignore[unresolved-attribute]
 
@@ -191,6 +193,19 @@ def capture_input_frame(
                 raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
         if input_type == INPUT_TYPE_PARTICLES:
+            if not get_allow_scaled_input() and evaluated_obj.scale != mathutils.Vector(
+                (1.0, 1.0, 1.0)
+            ):
+                raise RuntimeWarning(
+                    f"""{evaluated_obj.name} is scaled to {evaluated_obj.scale}.
+Your material will be initially compressed or stretched!
+
+If that is what you want, enable the addon preference
+"Allow Scaled Input".
+
+Or apply the object scale."""
+                )
+
             record(python_name="squishy_volumes_is_solid", rust_name="IsSolid")
             record(python_name="squishy_volumes_is_fluid", rust_name="IsFluid")
             record(
