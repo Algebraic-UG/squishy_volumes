@@ -220,28 +220,29 @@ fn main(
             continue;
         }
 
-        if distance > NORMALIZATION_EPS {
-            let collider_velocity = a_v * bary_a + b_v * bary_b + c_v * bary_c;
-            let relative_velocity = velocity - collider_velocity;
-
-            let contact_normal = to_p / distance;
-
-            let normal_velocity = contact_normal * dot(relative_velocity, contact_normal);
-            let tangential_velocity = relative_velocity - normal_velocity;
-
-            let tangential_velocity_norm = length(tangential_velocity);
-            if tangential_velocity_norm > NORMALIZATION_EPS {
-                let tangent = tangential_velocity / tangential_velocity_norm;
-
-                let friction_impulse = tangent
-                    * min((triangle_frictions[closest_triangle] * distance / time_step), tangential_velocity_norm);
-
-                velocity -= friction_impulse;
-            }
-
-            velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
+        if distance < NORMALIZATION_EPS {
+            continue;
         }
 
+        let collider_velocity = a_v * bary_a + b_v * bary_b + c_v * bary_c;
+        let relative_velocity = velocity - collider_velocity;
+
+        let contact_normal = to_p / distance;
+
+        let normal_velocity = contact_normal * dot(relative_velocity, contact_normal);
+        let tangential_velocity = relative_velocity - normal_velocity;
+
+        let tangential_velocity_norm = length(tangential_velocity);
+        if tangential_velocity_norm > NORMALIZATION_EPS {
+            let tangent = tangential_velocity / tangential_velocity_norm;
+
+            let friction_impulse = tangent
+                * min((triangle_frictions[closest_triangle] * distance / time_step), tangential_velocity_norm);
+
+            velocity -= friction_impulse;
+        }
+
+        velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
         velocity -= to_p / time_step;
 
         continuing {
