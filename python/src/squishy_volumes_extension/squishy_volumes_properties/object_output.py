@@ -67,6 +67,8 @@ class Squishy_Volumes_Properties_Output(bpy.types.PropertyGroup):
         options=set(),
     )  # type: ignore
 
+    sync_issue: bpy.props.BoolProperty()  # type: ignore
+
     # ----------------------------------------------------------------
     # Attribute syncing
     # ----------------------------------------------------------------

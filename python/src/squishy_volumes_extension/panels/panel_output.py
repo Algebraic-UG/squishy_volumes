@@ -380,12 +380,15 @@ class SCENE_UL_Squishy_Volumes_Output_Object_List(bpy.types.UIList):
         flt_flag,
     ):
         assert isinstance(item, bpy.types.Object)
+        layout.alert = item.squishy_volumes.sync_issue
         icon = "QUESTION"
         if item.squishy_volumes.output_type == PARTICLES:
             icon = "OUTLINER_OB_POINTCLOUD"
         if item.squishy_volumes.output_type == GRID:
             icon = "MESH_GRID"
         layout.label(text=item.name, icon=icon)
+        if item.squishy_volumes.output_type == PARTICLES:
+            layout.prop(item.squishy_volumes, "input_name", text="")
 
 
 class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
