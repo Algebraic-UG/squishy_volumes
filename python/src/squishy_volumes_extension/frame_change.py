@@ -72,25 +72,29 @@ def sync_simulation(
             continue
         try:
             sync_output(sim_handle, output_obj, frame)
+            output_obj.squishy_volumes.sync_issue = False
         except RuntimeError as e:
             desynced_objs.append((output_obj, e))
 
-    if desynced_objs:
-        for output_obj, _ in desynced_objs:
-            output_obj.squishy_volumes.uuid = "broken"
+    report_sync_issue = False
+    for output_obj, _ in desynced_objs:
+        if not output_obj.squishy_volumes.sync_issue:
+            output_obj.squishy_volumes.sync_issue = True
+            report_sync_issue = True
 
-        def raise_():
-            message = """These output objects could not be synced and
+    def raise_():
+        message = """These output objects could not be synced and
 have been decoupled from the output of the simulation.
 (Most likely, the respective input object
 is now incompatible or gone.)
 
 """
-            for obj, e in desynced_objs:
-                message += f"{obj.name}: {str(e)}"
+        for obj, e in desynced_objs:
+            message += f"{obj.name}: {str(e)}"
 
-            raise RuntimeError(message)
+        raise RuntimeError(message)
 
+    if report_sync_issue:
         with_popup(uuid=sim_props.uuid, f=raise_)
 
 
