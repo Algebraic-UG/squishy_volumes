@@ -22,6 +22,7 @@ from typing import Any
 
 from ..get_preferences import get_confirm_bake_overwrite
 from ..drivers import add_drivers
+from ..squishy_volumes_properties import Squishy_Volumes_Properties
 
 from ..squishy_volumes_properties import (
     get_selected_input_object,
@@ -61,12 +62,6 @@ from ..assets import (
 
 
 class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
-    def filter_items(self, context, data, property):
-        return [
-            self.bitflag_filter_item if obj.select_get() else 0
-            for obj in bpy.data.objects
-        ], []
-
     def draw_item(
         self,
         context,
@@ -79,31 +74,48 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
         index,
         flt_flag,
     ):
-        assert isinstance(item, bpy.types.Object)
+        assert isinstance(item, Squishy_Volumes_New_Input)
         row = layout.row()
-        row.label(text=item.name)
-        if item.type != "MESH":
+        row.label(text=item.obj_name)
+        if item.obj_type != "MESH":
             row.label(text="️⚠️ not a Mesh")
             return
-        if item.squishy_volumes.type == TYPE_SIMULATION:
-            row.label(text="⚠️ already a simulation")
-            return
-        if item.squishy_volumes.type == TYPE_INPUT:
-            row.label(text="⚠️ already an input")
-            return
-        if item.squishy_volumes.type == TYPE_OUTPUT:
-            row.label(text="⚠️ already an output")
-            return
-        row.prop(item.squishy_volumes, "input_type")
-        row.prop(item.squishy_volumes, "add_default_generation")
+        row.prop(item, "input_type")
+        row.prop(item, "add_default_generation")
 
 
 def _can_add(obj: bpy.types.ID) -> bool:
-    return (
-        isinstance(obj, bpy.types.Object)
-        and obj.type == "MESH"
-        and obj.squishy_volumes.type == TYPE_NONE  # ty:ignore[unresolved-attribute]
+    return isinstance(obj, bpy.types.Object) and obj.type == "MESH"
+
+
+def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
+    sim_obj = get_simulation_object_with_uuid(uuid)
+    input_obj = bpy.data.objects[name]
+    if not _can_add(input_obj):
+        raise RuntimeError(f"Can't add {input_obj.name}")
+
+    input_props = input_obj.squishy_volumes
+
+    input_props.uuid = uuid
+    input_props.type = TYPE_INPUT
+
+    operator.report(
+        {"INFO"},
+        f"Added {input_obj.name} to input objects of {sim_obj.name}.",
     )
+
+    if not input_props.add_default_generation:
+        return {"FINISHED"}
+
+    modifier = input_obj.modifiers.new("Squishy Volumes Input", type="NODES")
+    if input_props.input_type == INPUT_TYPE_PARTICLES:
+        modifier.node_group = create_geometry_nodes_generate_particles()
+    elif input_props.input_type == INPUT_TYPE_COLLIDER:
+        modifier.node_group = create_geometry_nodes_generate_collider()
+    else:
+        raise RuntimeError(f"Unknown input type {input_props.input_type}")
+
+    add_drivers(sim_obj, modifier)
 
 
 class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
@@ -118,39 +130,14 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     name: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        input_obj = bpy.data.objects[self.name]
-        if not _can_add(input_obj):
-            raise RuntimeError(f"Can't add {input_obj.name}")
-
-        input_props = input_obj.squishy_volumes
-        if input_props.input_type == INPUT_TYPE_PARTICLES:
-            node_group_generate_particles = create_geometry_nodes_generate_particles()
-        elif input_props.input_type == INPUT_TYPE_COLLIDER:
-            node_group_generate_collider = create_geometry_nodes_generate_collider()
-        else:
-            raise RuntimeError(f"Unknown input type {input_props.input_type}")
-
-        input_props.uuid = self.uuid
-        input_props.type = TYPE_INPUT
-
-        self.report(
-            {"INFO"},
-            f"Added {input_obj.name} to input objects of {sim_obj.name}.",
-        )
-
-        if not input_props.add_default_generation:
-            return {"FINISHED"}
-
-        modifier = input_obj.modifiers.new("Squishy Volumes Input", type="NODES")
-        if input_props.input_type == INPUT_TYPE_PARTICLES:
-            modifier.node_group = node_group_generate_particles
-        if input_props.input_type == INPUT_TYPE_COLLIDER:
-            modifier.node_group = node_group_generate_collider
-
-        add_drivers(sim_obj, modifier)
-
+        _add_input_object(self, self.uuid, self.name)
         return {"FINISHED"}
+
+
+@add_fields_from(Squishy_Volumes_Properties)
+class Squishy_Volumes_New_Input(bpy.types.PropertyGroup):
+    obj_name: bpy.props.StringProperty()  # type: ignore
+    obj_type: bpy.props.StringProperty()  # type: ignore
 
 
 class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
@@ -160,7 +147,9 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     uuid: bpy.props.StringProperty()  # type: ignore
-    selected_active: bpy.props.IntProperty()  # type: ignore
+
+    inputs: bpy.props.CollectionProperty(type=Squishy_Volumes_New_Input)  # type: ignore
+    selected_input: bpy.props.IntProperty()  # type: ignore
 
     @classmethod
     def poll(cls, context):
@@ -168,17 +157,27 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        for input_obj in bpy.data.objects:
-            if not input_obj.select_get() or not _can_add(input_obj):
+        for input in self.inputs:
+            input_obj = bpy.data.objects[input.obj_name]
+            if not _can_add(input_obj):
                 continue
-            bpy.ops.scene.squishy_volumes_add_input_object(  # ty:ignore[unresolved-attribute]
-                "INVOKE_DEFAULT", uuid=self.uuid, name=input_obj.name
+            input_obj.squishy_volumes.input_type = input.input_type
+            input_obj.squishy_volumes.add_default_generation = (
+                input.add_default_generation
             )
+            _add_input_object(self, self.uuid, input_obj.name)
 
         force_ui_redraw()
         return {"FINISHED"}
 
     def invoke(self, context, event):
+        self.inputs.clear()
+        for obj in context.selected_objects:
+            input = self.inputs.add()
+            input.obj_name = obj.name
+            input.obj_type = obj.type
+            input.type = obj.squishy_volumes.type
+            input.add_default_generation = obj.squishy_volumes.add_default_generation
         return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw(self, context):
@@ -186,10 +185,10 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
         self.layout.template_list(
             listtype_name="SCENE_UL_Squishy_Volumes_Particle_Input_Object_List",
             list_id="",
-            dataptr=bpy.data,
-            propname="objects",
+            dataptr=self,
+            propname="inputs",
             active_dataptr=self,
-            active_propname="selected_active",
+            active_propname="selected_input",
         )
 
 
@@ -309,6 +308,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
 
 
 classes = [
+    Squishy_Volumes_New_Input,
     SCENE_UL_Squishy_Volumes_Particle_Input_Object_List,
     SCENE_OT_Squishy_Volumes_Add_Input_Object,
     SCENE_OT_Squishy_Volumes_Add_Input_Objects,
