@@ -27,9 +27,12 @@ from pathlib import Path
 import numpy as np
 
 from .bridge import SimulationHandle
+from .get_preferences import get_enable_timeline_markers
 
 
 def remove_marker(marker_name):
+    if not get_enable_timeline_markers():
+        return
     assert bpy.context.scene is not None
     marker = bpy.context.scene.timeline_markers.get(marker_name)
     if marker is not None:
@@ -37,6 +40,8 @@ def remove_marker(marker_name):
 
 
 def add_or_update_marker(marker_name, frame):
+    if not get_enable_timeline_markers():
+        return
     assert bpy.context.scene is not None
     # Check if the marker with the given name already exists
     marker = bpy.context.scene.timeline_markers.get(marker_name)
