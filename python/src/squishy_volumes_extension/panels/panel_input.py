@@ -235,7 +235,12 @@ class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
         flt_flag,
     ):
         assert isinstance(item, bpy.types.Object)
-        layout.label(text=item.name)
+        icon = "QUESTION"
+        if item.squishy_volumes.input_type == INPUT_TYPE_PARTICLES:
+            icon = "OUTLINER_OB_POINTCLOUD"
+        if item.squishy_volumes.input_type == INPUT_TYPE_COLLIDER:
+            icon = "MOD_PHYSICS"
+        layout.label(text=item.name, icon=icon)
 
 
 class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
