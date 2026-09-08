@@ -77,6 +77,17 @@ This is most likely only relevant to developers of other extensions.""",
         options=set(),  # can't be animated
     )  # type: ignore
 
+    enable_timeline_markers: bpy.props.BoolProperty(
+        name="Enable Timeline Markers",
+        description="""Squishy Volumes maintains a set of timeline markers for you.
+For example, the current bake progress.
+
+There are some known issues related to the markers:
+https://github.com/Algebraic-UG/squishy_volumes/issues/84""",
+        default=True,
+        options=set(),  # can't be animated
+    )  # type: ignore
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "default_cache_location")
         self.layout.prop(self, "sanity_check_allowed_disk_space")
@@ -84,6 +95,7 @@ This is most likely only relevant to developers of other extensions.""",
         self.layout.prop(self, "domain_min")
         self.layout.prop(self, "domain_max")
         self.layout.prop(self, "print_debug_info")
+        self.layout.prop(self, "enable_timeline_markers")
 
 
 def register_preferences():

@@ -46,3 +46,7 @@ def get_domain_max() -> mathutils.Vector:
 
 def get_print_debug_info() -> bool:
     return _get_preferences().print_debug_info
+
+
+def get_enable_timeline_markers() -> bool:
+    return _get_preferences().enable_timeline_markers
