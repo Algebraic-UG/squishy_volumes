@@ -6,8 +6,10 @@ dependencies = []
 classifiers = ["Private :: Do Not Upload"]
 
 [project.optional-dependencies]
-dev = [
+lint = [
   "ruff>=0.16.6",
+]
+dev = [
   "ty>=0.0.79",
   "requests==2.32.5",
   "fake-bpy-module>=20251003",

@@ -21,18 +21,22 @@ jobs:
             with:
               lfs: false # only user guide has lfs objects
 
-          - uses: actions/checkout@v6
+          - uses: astral-sh/setup-uv@v7
+            with:
+              version: "latest"
+              enable-cache: true
 
-          - uses: astral-sh/ruff-action@v3
+          - name: Install dependencies
             working-directory: python
+            run: uv sync --extra lint
 
-          - name: Check code formatting
+          - name: Check formatting
             working-directory: python
-            run: ruff format --diff
+            run: uv run ruff format --diff
 
-          - name: Lint code base
+          - name: Check lint
             working-directory: python
-            run: ruff check
+            run: uv run ruff check
 
     basic-rust-checks:
       name: Basic Rust Checks
