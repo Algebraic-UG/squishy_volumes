@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
 from .squishy_volumes_properties import (
     TYPE_INPUT,
@@ -60,7 +60,7 @@ Only changes modifiers starting with 'Squishy Volmues'.
 
 This connects the respective value, for example, 'Grid Node Size', with the
 value of the respective simulation(s) the objects are an output of."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     def execute(self, context):
         for obj in context.selected_objects:

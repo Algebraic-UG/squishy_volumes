@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
 import time
 import timeit
+
+import bpy  # ty: ignore[unresolved-import]
 
 from .bridge import SimulationHandle
 from .squishy_volumes_properties import get_simulation_object_with_uuid
@@ -30,7 +31,7 @@ class SCENE_OT_Squishy_Volumes_Wait_Until_Finished(bpy.types.Operator):
     bl_description = """Block and poll the given simulation.
 Loop with small sleep and return once finished the simulation or timeout.
 This is only useful for scripting."""
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER"}  # noqa: RUF012
 
     simulation_uuid: bpy.props.StringProperty(name="Simulation UUID")  # type: ignore
     timeout_sec: bpy.props.FloatProperty(name="Timeout", min=0.0)  # type: ignore

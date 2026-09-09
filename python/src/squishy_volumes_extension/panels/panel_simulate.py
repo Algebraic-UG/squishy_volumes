@@ -17,24 +17,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import shutil
-import json
-import bpy
 
-from ..squishy_volumes_properties import (
-    get_simulation_object_with_uuid,
-    get_selected_simulation_object,
-    get_selected_simulation_uuid,
-    get_input_objects_with_uuid,
-    Squishy_Volumes_Properties_Simulation,
-)
+import bpy  # ty: ignore[unresolved-import]
+
 from ..bridge import SimulationHandle, SimulationInputHandle
-from ..util import giga_f32_to_u64, simulation_input_exists, u64_to_giga_f32
-from ..input_capture import create_input_header, capture_input_frame
 from ..get_preferences import (
     get_confirm_bake_overwrite,
     get_sanity_check_allowed_disk_space,
 )
+from ..input_capture import capture_input_frame, create_input_header
 from ..popup import with_popup
+from ..squishy_volumes_properties import (
+    Squishy_Volumes_Properties_Simulation,
+    get_input_objects_with_uuid,
+    get_selected_simulation_object,
+    get_selected_simulation_uuid,
+    get_simulation_object_with_uuid,
+)
+from ..util import giga_f32_to_u64, simulation_input_exists, u64_to_giga_f32
 
 
 def start_compute(
@@ -83,7 +83,7 @@ This writes global settings as well as object specific settings
 to the simulation cache.
 
 Note that this also discards all computed frames in the cache."""
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
     blocking: bpy.props.BoolProperty(default=False)  # type: ignore
@@ -92,7 +92,7 @@ Note that this also discards all computed frames in the cache."""
     def execute(self, context: bpy.types.Context):
         assert context.scene is not None
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
 
         self.report({"INFO"}, f"Resetting {sim_obj.name}")
 
@@ -120,7 +120,7 @@ Note that this also discards all computed frames in the cache."""
         if not self.blocking:
             global SIMULATION_INPUT
             SIMULATION_INPUT = sim_input_handle
-            bpy.ops.scene.squishy_volumes_record_input_to_cache_modal(  # ty:ignore[unresolved-attribute]
+            bpy.ops.scene.squishy_volumes_record_input_to_cache_modal(
                 "INVOKE_DEFAULT", uuid=self.uuid, start_baking=self.start_baking
             )
             return {"FINISHED"}
@@ -156,7 +156,7 @@ Note that this also discards all computed frames in the cache."""
     def invoke(self, context, event):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         if (
-            simulation_input_exists(sim_obj.squishy_volumes.directory)  # ty:ignore[unresolved-attribute]
+            simulation_input_exists(sim_obj.squishy_volumes.directory)
             and get_confirm_bake_overwrite()
             and not self.blocking  # implies script usage
         ):
@@ -180,7 +180,7 @@ Note that this also discards all computed frames in the cache."""
 class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_record_input_to_cache_modal"
     bl_label = "Record Input Modal"
-    bl_options = set()
+    bl_options = set()  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
     start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
@@ -191,7 +191,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
 
     def invoke(self, context, event):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
 
         self.prior_frame = context.scene.frame_current
         if context.screen is not None:
@@ -212,7 +212,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         global SIMULATION_INPUT
         assert isinstance(SIMULATION_INPUT, SimulationInputHandle)
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
 
         if event.type in {"RIGHTMOUSE", "ESC"}:
             context.window_manager.event_timer_remove(self._timer)
@@ -238,7 +238,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
                 uuid=self.uuid,
                 f=lambda: capture_input_frame(
                     sim_props=sim_props,
-                    sim_input_handle=SIMULATION_INPUT,
+                    sim_input_handle=SIMULATION_INPUT,  # ty: ignore[invalid-argument-type]
                 ),
             ):
                 SIMULATION_INPUT.drop()
@@ -288,7 +288,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest(bpy.types.Operator):
 This uses the latest state available and runs the simulation
 either until the desired number of frames is reached
 or cancellation occurs due to user input or error."""
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -297,18 +297,18 @@ or cancellation occurs due to user input or error."""
         sim_obj = get_selected_simulation_object(context.scene)
         if sim_obj is None:
             return False
-        uuid = sim_obj.squishy_volumes.uuid  # ty:ignore[unresolved-attribute]
+        uuid = sim_obj.squishy_volumes.uuid
         sim_obj = get_simulation_object_with_uuid(uuid)
         sim_handle = SimulationHandle.get(uuid=uuid)
         return (
             sim_handle is not None
             and not sim_handle.computing()
-            and sim_handle.available_frames() < sim_obj.squishy_volumes.bake_frames  # ty:ignore[unresolved-attribute]
+            and sim_handle.available_frames() < sim_obj.squishy_volumes.bake_frames
         )
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         assert sim_handle is not None
         start_compute(
@@ -333,7 +333,7 @@ or cancellation occurs due to user input or error.
 
 Note that this discards already computed frames that
 come after the displayed one."""
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -342,7 +342,7 @@ come after the displayed one."""
         sim_obj = get_selected_simulation_object(context.scene)
         if sim_obj is None:
             return False
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
         if sim_obj is None:
             return False
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
@@ -355,7 +355,7 @@ come after the displayed one."""
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         assert sim_handle is not None
         assert sim_handle.loaded_frame is not None
@@ -373,7 +373,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_bake_pause"
     bl_label = "Pause"
     bl_description = "Pause the computation of the simulation frames."
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -399,7 +399,7 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
-    bl_options = set()
+    bl_options = set()  # noqa: RUF012
 
     @classmethod
     def poll(cls, context):
@@ -414,7 +414,7 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         assert isinstance(self.layout, bpy.types.UILayout)
         sim_obj = get_selected_simulation_object(context.scene)
         assert sim_obj is not None
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
 
         record_box = self.layout.box()
         record_box.label(text="Record Input")

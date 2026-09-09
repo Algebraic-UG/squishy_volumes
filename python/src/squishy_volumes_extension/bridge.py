@@ -16,19 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from copy import deepcopy
-import platform
-import bpy
-from bpy.app.handlers import persistent
-
-
 import json
-import numpy
-from typing import Any, Self
+import platform
+from copy import deepcopy
+from typing import Any, Self  # ty: ignore[unresolved-import]
 
-from .shim import *
+import bpy  # ty: ignore[unresolved-import]
+import numpy  # ty: ignore[unresolved-import]
+from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
+
 from .get_preferences import get_print_debug_info
 from .hint_at_info import *
+from .shim import *
 
 
 @hint_at_info
@@ -66,7 +65,7 @@ class SimulationInputHandle:
                 input_header=json.dumps(input_header),
                 max_bytes_on_disk=max_bytes_on_disk,
             )
-        )  # ty:ignore[invalid-return-type]
+        )
 
     @hint_at_info
     def start_frame(self, *, frame_start: dict[str, Any]):
@@ -110,12 +109,12 @@ class SimulationHandle:
 
     @staticmethod
     def get(*, uuid: str) -> None | Self:
-        return _simulations.get(uuid)  # ty:ignore[invalid-return-type]
+        return _simulations.get(uuid)
 
     @hint_at_info
     @staticmethod
     def new() -> Self:
-        return SimulationHandle(handle=squishy_volumes_wrap.Simulation.new())  # ty:ignore[invalid-return-type]
+        return SimulationHandle(handle=squishy_volumes_wrap.Simulation.new())
 
     @hint_at_info
     @staticmethod
@@ -125,7 +124,7 @@ class SimulationHandle:
                 uuid=uuid,
                 directory=directory,
             )
-        )  # ty:ignore[invalid-return-type]
+        )
 
     @hint_at_info
     def input_header(self) -> dict[str, Any]:
@@ -210,7 +209,7 @@ def prune_simulation_handles(scene):
         for obj in bpy.data.objects
         if obj.squishy_volumes.type == "Simulation"
     ]
-    to_drop = [uuid for uuid in _simulations.keys() if uuid not in live_uuids]
+    to_drop = [uuid for uuid in _simulations if uuid not in live_uuids]
     for uuid in to_drop:
         _simulations[uuid].drop()
 

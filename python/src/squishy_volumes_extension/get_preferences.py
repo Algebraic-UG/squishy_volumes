@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
-import mathutils
+import bpy  # ty: ignore[unresolved-import]
+import mathutils  # ty: ignore[unresolved-import]
 
 
 def _get_preferences():

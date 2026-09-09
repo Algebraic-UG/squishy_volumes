@@ -16,30 +16,27 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import json
 import time
-import bpy
 
-from .popup import with_popup
+import bpy  # ty: ignore[unresolved-import]
+
+from .bridge import SimulationHandle
+from .get_preferences import get_print_debug_info
 from .output import (
     sync_output,
 )
-
-from .get_preferences import get_print_debug_info
-from .bridge import SimulationHandle
+from .popup import with_popup
 from .squishy_volumes_properties import (
-    get_simulation_objects,
-    get_output_objects_with_uuid,
     Squishy_Volumes_Properties,
-    Squishy_Volumes_Properties_Simulation,
-    INPUT_TYPE_COLLIDER,
     frame_to_load,
+    get_output_objects_with_uuid,
+    get_simulation_objects,
 )
 
 
 def sync(scene):
     for sim_obj in get_simulation_objects():
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
         if not sim_props.sync:
             # https://github.com/Algebraic-UG/squishy_volumes/issues/175
             for obj in get_output_objects_with_uuid(sim_props.uuid):
@@ -90,7 +87,7 @@ is now incompatible or gone.)
 
 """
         for obj, e in desynced_objs:
-            message += f"{obj.name}: {str(e)}"
+            message += f"{obj.name}: {e!s}"
 
         raise RuntimeError(message)
 
@@ -116,12 +113,12 @@ def check_interface_locked(scene):
 
 def register_handler():
     if check_interface_locked not in bpy.app.handlers.render_pre:
-        bpy.app.handlers.render_pre.append(check_interface_locked)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_pre.append(check_interface_locked)
         if get_print_debug_info():
             print("Squishy Volumes render pre check registered.")
 
     if frame_change_handler not in bpy.app.handlers.frame_change_pre:
-        bpy.app.handlers.frame_change_pre.append(frame_change_handler)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.frame_change_pre.append(frame_change_handler)
         if get_print_debug_info():
             print("Squishy Volumes frame change handler registered.")
 

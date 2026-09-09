@@ -18,7 +18,8 @@
 
 import tempfile
 from pathlib import Path
-import bpy
+
+import bpy  # ty: ignore[unresolved-import]
 
 
 class SquishyVolumesPreferences(bpy.types.AddonPreferences):

@@ -16,12 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
-import numpy as np
-import mathutils
+import bpy  # ty: ignore[unresolved-import]
+import mathutils  # ty: ignore[unresolved-import]
 
-from .util import local_bounding_box
 from .assets import create_geometry_nodes_restrict_view
+from .util import local_bounding_box
 
 
 class OBJECT_OT_Squishy_Volumes_Restrict_View(bpy.types.Operator):
@@ -31,7 +30,7 @@ class OBJECT_OT_Squishy_Volumes_Restrict_View(bpy.types.Operator):
 
 The selected object is restricted via a geometry nodes modifier.
 This modifier deletes vertices that are outside of the cuboid."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     empty_name: bpy.props.StringProperty(
         name="Empty Name",
@@ -51,7 +50,7 @@ This modifier deletes vertices that are outside of the cuboid."""
             and context.active_object.type == "MESH"
         )
 
-    def invoke(self, context, _):  # ty:ignore[invalid-method-override]
+    def invoke(self, context, _):
         self.empty_name = f"{context.active_object.name} - View"
         return context.window_manager.invoke_props_dialog(self)
 

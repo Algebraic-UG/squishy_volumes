@@ -16,51 +16,43 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import re
-
-import bpy
-
 import datetime
-
-import json
 import os
 import uuid
 from pathlib import Path
 
+import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle, build_info
+from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
 from ..frame_change import sync_simulation
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
-    update_directory,
-    add_fields_from,
-    get_input_objects,
-    get_simulation_object_with_uuid,
+    TYPE_NONE,
+    TYPE_SIMULATION,
     get_input_objects_with_uuid,
     get_output_objects_with_uuid,
-    get_output_objects,
+    get_simulation_object_with_uuid,
     get_simulation_objects,
-    TYPE_SIMULATION,
-    TYPE_NONE,
     locked_simulations,
     unloaded_simulations,
+    update_directory,
 )
 from ..util import (
+    copy_simple_property_group,
     force_ui_redraw,
     simulation_input_exists,
     simulation_locked,
-    copy_simple_property_group,
     u64_to_giga_f32,
 )
-from ..example import EXAMPLE_BOING_BLOCK, EXAMPLE_BENCHMARK, setup_example_simulation
 
 
 class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_example_simulation"
     bl_label = "Example Setup"
     bl_description = """Start with a prefabricated Squishy Volumes simulation."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     startup_choice: bpy.props.EnumProperty(
         items=[
@@ -100,7 +92,7 @@ are completely separate from each other.
 
 Note that this doesn't create any files yet.
 It just creates the Blender object to track the simulation."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     name: bpy.props.StringProperty()  # type: ignore
     uuid: bpy.props.StringProperty()  # type: ignore
@@ -116,7 +108,7 @@ It just creates the Blender object to track the simulation."""
         # https://github.com/Algebraic-UG/squishy_volumes/issues/247
         sim_obj.use_fake_user = True
 
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
 
         sim_props.type = TYPE_SIMULATION
         sim_props.uuid = self.uuid
@@ -133,7 +125,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_clone_simulation"
     bl_label = "Clone"
     bl_description = "Clone this Simulation."
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -141,21 +133,21 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
         new_uuid = str(uuid.uuid4())
-        bpy.ops.scene.squishy_volumes_add_simulation(  # ty:ignore[unresolved-attribute]
+        bpy.ops.scene.squishy_volumes_add_simulation(
             "INVOKE_DEFAULT", uuid=new_uuid, name=sim_obj.name
         )
         new_sim_obj = get_simulation_object_with_uuid(new_uuid)
 
         copy_simple_property_group(
-            sim_obj.squishy_volumes,  # ty: ignore[unresolved-attribute]
-            new_sim_obj.squishy_volumes,  # ty: ignore[unresolved-attribute]
+            sim_obj.squishy_volumes,
+            new_sim_obj.squishy_volumes,
             ["uuid"],
         )
 
         input_mapping = {}
         for input_obj in get_input_objects_with_uuid(self.uuid):
             new_input_obj = input_obj.copy()
-            new_input_obj.squishy_volumes.uuid = new_uuid  # ty: ignore[unresolved-attribute]
+            new_input_obj.squishy_volumes.uuid = new_uuid
             context.collection.objects.link(new_input_obj)
             new_input_obj.select_set(True)
             input_mapping[input_obj.name] = new_input_obj.name
@@ -164,10 +156,10 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
             new_output_obj = output_obj.copy()
             assert output_obj.data is not None
             new_output_obj.data = output_obj.data.copy()
-            new_output_obj.squishy_volumes.uuid = new_uuid  # ty: ignore[unresolved-attribute]
+            new_output_obj.squishy_volumes.uuid = new_uuid
             context.collection.objects.link(new_output_obj)
-            new_output_obj.squishy_volumes.input_name = input_mapping[  # ty: ignore[unresolved-attribute]
-                new_output_obj.squishy_volumes.input_name  # ty: ignore[unresolved-attribute]
+            new_output_obj.squishy_volumes.input_name = input_mapping[
+                new_output_obj.squishy_volumes.input_name
             ]
 
         self.report({"INFO"}, f"Cloned {sim_obj.name}.")
@@ -178,7 +170,7 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_reload"
     bl_label = "Reload"
     bl_description = "Reloads the cache and locks it for this simulation object."
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -187,11 +179,11 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
 
         sim_handle = SimulationHandle.load(
             uuid=self.uuid,
-            directory=sim_obj.squishy_volumes.directory,  # ty:ignore[unresolved-attribute]
+            directory=sim_obj.squishy_volumes.directory,
         )
 
         sync_simulation(
-            sim_obj.squishy_volumes,  # ty:ignore[unresolved-attribute]
+            sim_obj.squishy_volumes,
             sim_handle,
             context.scene.frame_current,
         )
@@ -205,7 +197,7 @@ class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
     bl_label = "Reload All"
     bl_description = """Reloads all simulation caches.
 This is useful when reloading a Blender file with multiple simulations."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     def execute(self, context):
         for sim_obj in unloaded_simulations(context):
@@ -247,7 +239,7 @@ class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
 
 This does not clear the cache. If you want to delete (not overwrite) the cache,
 please use your OS's file browser."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -255,11 +247,11 @@ please use your OS's file browser."""
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
         for obj in get_input_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = "unassigned"  # ty:ignore[unresolved-attribute]
-            obj.squishy_volumes.type = TYPE_NONE  # ty:ignore[unresolved-attribute]
+            obj.squishy_volumes.uuid = "unassigned"
+            obj.squishy_volumes.type = TYPE_NONE
         for obj in get_output_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = "unassigned"  # ty:ignore[unresolved-attribute]
-            obj.squishy_volumes.type = TYPE_NONE  # ty:ignore[unresolved-attribute]
+            obj.squishy_volumes.uuid = "unassigned"
+            obj.squishy_volumes.type = TYPE_NONE
 
         cleanup_markers(sim_obj)
 
@@ -277,13 +269,13 @@ class SCENE_OT_Squishy_Volumes_Remove_Lock_File(bpy.types.Operator):
 
 If the lock file is present, it usually means that another simulation is using this cache.
 However, the lock file can remain after a crash, in which case it must be deleted."""
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        lock_file = Path(sim_obj.squishy_volumes.directory) / "lock"  # ty:ignore[unresolved-attribute]
+        lock_file = Path(sim_obj.squishy_volumes.directory) / "lock"
         if os.path.exists(lock_file):
             os.remove(lock_file)
             self.report({"INFO"}, f"Removed lock file for {sim_obj.name} .")
@@ -344,7 +336,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         layout.separator()
 
         for sim_obj in get_simulation_objects():
-            sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+            sim_props = sim_obj.squishy_volumes
             (header, body) = layout.panel(
                 sim_props.uuid,
                 default_closed=not simulation_input_exists(sim_props.directory),

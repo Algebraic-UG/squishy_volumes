@@ -3,5 +3,8 @@
     "blender.addon.buildTaskName": "build-assets",
     "blender.environmentVariables": [
         "RUST_BACKTRACE=full"
+    ],
+    "ruff.interpreter": [
+        "${workspaceFolder}/python/.venv/bin/python"
     ]
 }

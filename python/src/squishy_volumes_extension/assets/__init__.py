@@ -16,28 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
-
-
 from pathlib import Path
+
+import bpy  # ty: ignore[unresolved-import]
 
 
 def _load_material(file_stem: str, name: str) -> bpy.types.Material:
     file_path = Path(__file__).parent / f"{file_stem}.blend"
     with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
-        data_src,
+        _data_src,
         data_dst,
     ):
         data_dst.materials = [name]
-    for material in data_dst.materials:
-        material
     return bpy.data.materials[name]
 
 
 def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:
     file_path = Path(__file__).parent / f"{file_stem}.blend"
     with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
-        data_src,
+        _data_src,
         data_dst,
     ):
         data_dst.node_groups = [name]

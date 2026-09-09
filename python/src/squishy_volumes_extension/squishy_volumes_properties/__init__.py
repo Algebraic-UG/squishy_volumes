@@ -16,17 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle
-from ..get_preferences import get_print_debug_info, get_default_cache_location
-
+from ..get_preferences import get_print_debug_info
 from .object import *
 from .scene import *
 
 
 def frame_to_load(props: Squishy_Volumes_Properties, frame: int) -> int | None:
-    frame = frame - props.display_start_frame  # ty:ignore[unresolved-attribute]
+    frame = frame - props.display_start_frame
 
     sim = SimulationHandle.get(uuid=props.uuid)
     if sim is None:
@@ -35,7 +34,7 @@ def frame_to_load(props: Squishy_Volumes_Properties, frame: int) -> int | None:
     simulated_frames = sim.available_frames()
     if simulated_frames < 1:
         return None
-    max_frame = min(props.bake_frames, simulated_frames - 1)  # ty:ignore[unresolved-attribute]
+    max_frame = min(props.bake_frames, simulated_frames - 1)
 
     # clamping is more practical than not loading anything
     frame = max(0, min(max_frame, frame))
@@ -55,10 +54,10 @@ classes = [
 def register_properties():
     for cls in classes:
         bpy.utils.register_class(cls)
-    bpy.types.Object.squishy_volumes = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
+    bpy.types.Object.squishy_volumes = bpy.props.PointerProperty(
         type=Squishy_Volumes_Properties
     )
-    bpy.types.Scene.squishy_volumes = bpy.props.PointerProperty(  # ty:ignore[unresolved-attribute]
+    bpy.types.Scene.squishy_volumes = bpy.props.PointerProperty(
         type=Squishy_Volumes_Properties_Scene
     )
     subscribe_to_selection()
@@ -69,8 +68,8 @@ def register_properties():
 
 def unregister_properties():
     unsubscribe_from_selection()
-    del bpy.types.Scene.squishy_volumes  # ty:ignore[unresolved-attribute]
-    del bpy.types.Object.squishy_volumes  # ty:ignore[unresolved-attribute]
+    del bpy.types.Scene.squishy_volumes
+    del bpy.types.Object.squishy_volumes
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
     if get_print_debug_info():

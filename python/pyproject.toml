@@ -6,9 +6,11 @@ dependencies = []
 classifiers = ["Private :: Do Not Upload"]
 
 [project.optional-dependencies]
+lint = [
+  "ruff>=0.16.6",
+]
 dev = [
-  "ruff>=0.14.10",
-  "ty>=0.0.3",
+  "ty>=0.0.79",
   "requests==2.32.5",
   "fake-bpy-module>=20251003",
   "numpy==1.26.4", # should match what blender uses

@@ -16,12 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
+from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
 
-from bpy.app.handlers import persistent
-
-from .squishy_volumes_properties import TYPE_NONE
 from .get_preferences import get_print_debug_info
+from .squishy_volumes_properties import TYPE_NONE
 
 # See also
 # https://github.com/Algebraic-UG/squishy_volumes/issues/171
