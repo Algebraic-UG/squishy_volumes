@@ -76,9 +76,7 @@ def create_input_header(sim_props):
             }
 
     if collider_inputs > 16:
-        raise RuntimeError(f"""
-
-More than 16 colliders (you have {collider_inputs})
+        raise RuntimeError(f"""More than 16 colliders (you have {collider_inputs})
 
 Please consider joining some of them in a single object,
 or reduce the number of collider objects in other ways.
@@ -146,7 +144,7 @@ def capture_input_frame(
     *,
     sim_props,
     sim_input_handle: SimulationInputHandle,
-):
+) -> bool:
     animated_globals = {
         "gravity_x": sim_props.gravity[0],
         "gravity_y": sim_props.gravity[1],
@@ -196,7 +194,7 @@ def capture_input_frame(
             if not get_allow_scaled_input() and evaluated_obj.scale != mathutils.Vector(
                 (1.0, 1.0, 1.0)
             ):
-                raise RuntimeWarning(
+                raise RuntimeError(
                     f"""{evaluated_obj.name} is scaled to {evaluated_obj.scale}.
 Your material will be initially compressed or stretched!
 
@@ -257,3 +255,5 @@ Or apply the object scale."""
             record(python_name="squishy_volumes_damping", rust_name="TriangleDampings")
 
     sim_input_handle.finish_frame()
+
+    return True

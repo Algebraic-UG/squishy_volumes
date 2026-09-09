@@ -299,7 +299,9 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        popup(self.uuid)
+        sim = SimulationHandle.get(uuid=self.uuid)
+        assert sim is not None
+        popup(self.uuid, sim.last_error)
 
         return {"FINISHED"}
 

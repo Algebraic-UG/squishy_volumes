@@ -21,21 +21,17 @@ from .squishy_volumes_properties import get_simulation_object_with_uuid
 from .bridge import SimulationHandle
 
 
-# As far as I know there isn't a way to set operator's properties
-# outside of a drawing context where there is a layout
-# TODO: couldn't this just be stored in the scene properties?
-simulation_uuid = None
-
-
 class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_popup"
     bl_label = "Squishy Volumes Message"
 
     uuid: bpy.props.StringProperty()  # type: ignore
+    message: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
         sim = SimulationHandle.get(uuid=self.uuid)
-        assert sim is not None, f"No simulation context for {self.uuid}"
+        if sim is None:
+            return {"FINISHED"}
 
         self.report(
             {"INFO"},
@@ -45,17 +41,19 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        self.uuid = simulation_uuid
         sim_obj = get_simulation_object_with_uuid(self.uuid)
-        return context.window_manager.invoke_props_dialog(
-            self, title=sim_obj.name, confirm_text="Clear Message"
-        )
+        title = f"Squishy Volumes: {sim_obj.name}"
+        if SimulationHandle.exists(uuid=self.uuid):
+            return context.window_manager.invoke_props_dialog(
+                self,
+                title=title,
+                confirm_text="Clear Message",
+            )
+        return context.window_manager.invoke_props_dialog(self, title=title, width=600)
 
     def draw(self, context):
         assert self.layout is not None
-        sim = SimulationHandle.get(uuid=self.uuid)
-        assert sim is not None, f"No simulation context for {self.uuid}"
-        for line in sim.last_error.splitlines():
+        for line in self.message.splitlines():
             self.layout.label(text=line)
 
 
@@ -74,24 +72,24 @@ def unregister_popup():
         bpy.utils.unregister_class(cls)
 
 
-def popup(uuid):
+def popup(uuid: str, message: str):
     if not bpy.context.window:
         return
-    global simulation_uuid
-    simulation_uuid = uuid
-    bpy.ops.scene.squishy_volumes_popup("INVOKE_DEFAULT")  # ty:ignore[unresolved-attribute]
+    bpy.ops.scene.squishy_volumes_popup("INVOKE_DEFAULT", uuid=uuid, message=message)
 
 
 def with_popup(*, uuid, f):
     try:
         return f()
     except RuntimeError as e:
-        s = f"""{e}
-(Please 'Clear Message' to print to 'Info')"""
-
         sim = SimulationHandle.get(uuid=uuid)
-        assert sim is not None, f"No simulation context for {uuid}"
+        if sim is None:
+            message = f"{e}"
+        else:
+            message = f"""{e}
+(Please 'Clear Message' to print to 'Info')"""
+            if sim.last_error == message:
+                return
+            sim.last_error = message
 
-        if sim.last_error != s:
-            sim.last_error = s
-            popup(uuid)
+        popup(uuid, message)

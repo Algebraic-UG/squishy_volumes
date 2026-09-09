@@ -34,6 +34,7 @@ from ..get_preferences import (
     get_confirm_bake_overwrite,
     get_sanity_check_allowed_disk_space,
 )
+from ..popup import with_popup
 
 
 def start_compute(
@@ -41,7 +42,7 @@ def start_compute(
     sim_props: Squishy_Volumes_Properties_Simulation,
     next_frame: int,
     number_of_frames: int,
-):
+) -> bool:
     if get_sanity_check_allowed_disk_space():
         allowed = sim_props.max_giga_bytes_on_disk
         free = u64_to_giga_f32(shutil.disk_usage(sim_props.directory).free)
@@ -64,6 +65,8 @@ This check can be disabled in the add-on peferences."""
         "max_bytes_on_disk": giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
     }
     sim_handle.start_compute(compute_settings=compute_settings)
+
+    return True
 
 
 SIMULATION_INPUT = None
@@ -95,7 +98,11 @@ Note that this also discards all computed frames in the cache."""
         if sim_handle is not None:
             sim_handle.drop()
 
-        input_header = create_input_header(sim_props)
+        input_header = with_popup(
+            uuid=self.uuid, f=lambda: create_input_header(sim_props)
+        )
+        if input_header is None:
+            return {"FINISHED"}
 
         self.report({"INFO"}, f"Collected input header for {sim_obj.name}")
 
@@ -208,6 +215,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         if event.type in {"RIGHTMOUSE", "ESC"}:
             context.window_manager.event_timer_remove(self._timer)
             SIMULATION_INPUT.drop()
+            SIMULATION_INPUT = None
             self.report(
                 {"WARNING"},
                 f"Capture of {sim_obj.name} incomplete due to user cancellation.",
@@ -224,14 +232,20 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         assert captured_frames >= 0
 
         if captured_frames < sim_props.capture_frames:
-            try:
-                capture_input_frame(
+            if not with_popup(
+                uuid=self.uuid,
+                f=lambda: capture_input_frame(
                     sim_props=sim_props,
                     sim_input_handle=SIMULATION_INPUT,
-                )
-            except RuntimeError:
+                ),
+            ):
                 SIMULATION_INPUT.drop()
-                raise
+                SIMULATION_INPUT = None
+                self.report(
+                    {"WARNING"},
+                    f"Capture of {sim_obj.name} incomplete due to error.",
+                )
+                return {"FINISHED"}
 
             context.window_manager.progress_update(captured_frames)
 
@@ -251,8 +265,15 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         sim_handle = SimulationHandle.new()
 
         if self.start_baking:
-            start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
-            self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+            if with_popup(
+                uuid=self.uuid,
+                f=lambda: start_compute(
+                    sim_handle, sim_props, 0, sim_props.bake_frames
+                ),
+            ):
+                self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+            else:
+                self.report({"WARNING"}, f"Failed to start baking of {sim_obj.name}.")
 
         return {"FINISHED"}
 
