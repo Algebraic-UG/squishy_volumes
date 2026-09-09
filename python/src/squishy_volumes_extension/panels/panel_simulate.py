@@ -213,6 +213,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         if event.type in {"RIGHTMOUSE", "ESC"}:
             context.window_manager.event_timer_remove(self._timer)
             SIMULATION_INPUT.drop()
+            SIMULATION_INPUT = None
             self.report(
                 {"WARNING"},
                 f"Capture of {sim_obj.name} incomplete due to user cancellation.",
@@ -229,14 +230,20 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         assert captured_frames >= 0
 
         if captured_frames < sim_props.capture_frames:
-            try:
-                capture_input_frame(
+            if not with_popup(
+                uuid=self.uuid,
+                f=lambda: capture_input_frame(
                     sim_props=sim_props,
                     sim_input_handle=SIMULATION_INPUT,
-                )
-            except RuntimeError:
+                ),
+            ):
                 SIMULATION_INPUT.drop()
-                raise
+                SIMULATION_INPUT = None
+                self.report(
+                    {"WARNING"},
+                    f"Capture of {sim_obj.name} incomplete due to error.",
+                )
+                return {"FINISHED"}
 
             context.window_manager.progress_update(captured_frames)
 

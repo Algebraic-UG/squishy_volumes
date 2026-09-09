@@ -144,7 +144,7 @@ def capture_input_frame(
     *,
     sim_props,
     sim_input_handle: SimulationInputHandle,
-):
+) -> bool:
     animated_globals = {
         "gravity_x": sim_props.gravity[0],
         "gravity_y": sim_props.gravity[1],
@@ -255,3 +255,5 @@ Or apply the object scale."""
             record(python_name="squishy_volumes_damping", rust_name="TriangleDampings")
 
     sim_input_handle.finish_frame()
+
+    return True
