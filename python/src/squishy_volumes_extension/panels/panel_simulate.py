@@ -43,6 +43,8 @@ def start_compute(
     next_frame: int,
     number_of_frames: int,
 ) -> bool:
+    sim_handle.last_error = None
+
     if get_sanity_check_allowed_disk_space():
         allowed = sim_props.max_giga_bytes_on_disk
         free = u64_to_giga_f32(shutil.disk_usage(sim_props.directory).free)
