@@ -27,7 +27,7 @@ with python_shim_path.open("w") as f:
     f.write(
         f"""# This file is generated to alleviate https://github.com/Algebraic-UG/squishy_volumes/issues/83
 
-import {versioned_name} as {name}
+import {versioned_name} as {name}  # noqa: F401
 """
     )
 
