@@ -42,7 +42,7 @@ def start_compute(
     sim_props: Squishy_Volumes_Properties_Simulation,
     next_frame: int,
     number_of_frames: int,
-):
+) -> bool:
     if get_sanity_check_allowed_disk_space():
         allowed = sim_props.max_giga_bytes_on_disk
         free = u64_to_giga_f32(shutil.disk_usage(sim_props.directory).free)
@@ -65,6 +65,8 @@ This check can be disabled in the add-on peferences."""
         "max_bytes_on_disk": giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
     }
     sim_handle.start_compute(compute_settings=compute_settings)
+
+    return True
 
 
 SIMULATION_INPUT = None
@@ -263,8 +265,15 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         sim_handle = SimulationHandle.new()
 
         if self.start_baking:
-            start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
-            self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+            if with_popup(
+                uuid=self.uuid,
+                f=lambda: start_compute(
+                    sim_handle, sim_props, 0, sim_props.bake_frames
+                ),
+            ):
+                self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+            else:
+                self.report({"WARNING"}, f"Failed to start baking of {sim_obj.name}.")
 
         return {"FINISHED"}
 
