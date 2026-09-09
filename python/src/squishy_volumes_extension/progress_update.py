@@ -50,9 +50,6 @@ def update_progress():
         if sim_handle is None:
             continue
 
-        if sim_handle.last_error is not None:
-            continue
-
         def poll_and_true():
             return sim_handle.poll()
 
