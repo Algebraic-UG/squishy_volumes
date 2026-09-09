@@ -17,10 +17,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import tomllib
 from pathlib import Path
 
 import bpy  # ty: ignore[unresolved-import]
-import tomllib  # ty: ignore[unresolved-import]
 
 from .append_hander import register_append_handler, unregister_append_handler
 from .bridge import (

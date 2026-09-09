@@ -24,13 +24,13 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def hint_at_info(func: Callable[P, R]) -> Callable[P, R]:
+def hint_at_info(func: Callable[P, R]) -> Callable[P, R]:  # noqa UP047
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         try:
             return func(*args, **kwargs)
         except RuntimeError as cause:
-            cause.add_note("View the full message in 'Info'.")  # ty: ignore[unresolved-attribute]
+            cause.add_note("View the full message in 'Info'.")
             raise
 
     return wrapper
