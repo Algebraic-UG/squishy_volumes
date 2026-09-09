@@ -18,37 +18,36 @@
 
 import json
 from pathlib import Path
-import tomllib
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
+import tomllib  # ty: ignore[unresolved-import]
 
-from .preferences import (
-    register_preferences,
-    unregister_preferences,
-)
-from .get_preferences import get_print_debug_info
-from .squishy_volumes_properties import register_properties, unregister_properties
-from .progress_update import (
-    register_progress_update,
-    register_progress_update_toggle,
-    unregister_progress_update,
-    unregister_progress_update_toggle,
-)
+from .append_hander import register_append_handler, unregister_append_handler
 from .bridge import (
     SimulationHandle,
     build_info,
     register_prune_simulation_handles,
     unregister_prune_simulation_handles,
 )
+from .drivers import register_drivers, unregister_drivers
 from .frame_change import register_handler, unregister_handler
+from .get_preferences import get_print_debug_info
+from .goals import register_goals, unregister_goals
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
-from .view_utils import register_view_utils, unregister_view_utils
+from .preferences import (
+    register_preferences,
+    unregister_preferences,
+)
+from .progress_update import (
+    register_progress_update,
+    register_progress_update_toggle,
+    unregister_progress_update,
+    unregister_progress_update_toggle,
+)
 from .script_utils import register_script_utils, unregister_script_utils
-from .append_hander import register_append_handler, unregister_append_handler
-from .goals import register_goals, unregister_goals
-from .drivers import register_drivers, unregister_drivers
-
+from .squishy_volumes_properties import register_properties, unregister_properties
+from .view_utils import register_view_utils, unregister_view_utils
 
 bl_info = {
     "name": "Squishy Volumes",

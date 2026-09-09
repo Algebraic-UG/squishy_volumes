@@ -16,47 +16,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
-from typing import Any
-
-from ..get_preferences import get_confirm_bake_overwrite
+from ..assets import (
+    create_geometry_nodes_generate_collider,
+    create_geometry_nodes_generate_particles,
+)
 from ..drivers import add_drivers
-from ..squishy_volumes_properties import Squishy_Volumes_Properties
-
 from ..squishy_volumes_properties import (
-    get_selected_input_object,
-    get_simulation_object_with_uuid,
-    get_selected_simulation_uuid,
+    INPUT_TYPE_COLLIDER,
+    INPUT_TYPE_PARTICLES,
+    TYPE_INPUT,
+    TYPE_NONE,
+    Squishy_Volumes_Properties,
     add_fields_from,
     get_input_objects_with_uuid,
+    get_selected_input_object,
     get_selected_simulation_object,
-    Squishy_Volumes_Properties_Input,
-    TYPE_NONE,
-    TYPE_INPUT,
-    TYPE_SIMULATION,
-    TYPE_OUTPUT,
-    INPUT_TYPE_PARTICLES,
-    INPUT_TYPE_COLLIDER,
-)
-from ..bridge import (
-    SimulationInputHandle,
-    SimulationHandle,
-)
-from ..frame_change import (
-    register_handler,
-    unregister_handler,
+    get_selected_simulation_uuid,
+    get_simulation_object_with_uuid,
 )
 from ..util import (
-    copy_simple_property_group,
     force_ui_redraw,
-    simulation_input_exists,
-    index_by_object,
-    giga_f32_to_u64,
-)
-from ..assets import (
-    create_geometry_nodes_generate_particles,
-    create_geometry_nodes_generate_collider,
 )
 
 
@@ -123,7 +104,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     bl_description = (
         "Adds the object with the given name to the input list of the simulation"
     )
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
     name: bpy.props.StringProperty()  # type: ignore
@@ -143,7 +124,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_input_objects"
     bl_label = "Add Input Objects"
     bl_description = "Adds the *selected* objects to the input list of the simulation."
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -155,7 +136,6 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
         return any(obj.select_get() for obj in bpy.data.objects)
 
     def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
         for input in self.inputs:
             input_obj = bpy.data.objects[input.obj_name]
             if not _can_add(input_obj):
@@ -197,7 +177,7 @@ class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
     bl_description = """Remove the selected object from the list of inputs.
 
 Note that this does not delete the object or remove the input modifier."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     name: bpy.props.StringProperty()  # type: ignore
 
@@ -247,7 +227,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
-    bl_options = set()
+    bl_options = set()  # noqa: RUF012
 
     @classmethod
     def poll(cls, context):

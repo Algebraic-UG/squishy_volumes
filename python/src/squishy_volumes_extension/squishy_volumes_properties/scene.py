@@ -16,14 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
 from ..util import obj_by_index
 from .object import (
-    get_simulation_objects,
     TYPE_INPUT,
     TYPE_OUTPUT,
     get_simulation_object_with_uuid,
+    get_simulation_objects,
 )
 
 
@@ -35,7 +35,7 @@ def get_selected_simulation_uuid(scene: bpy.types.Scene) -> str | None:
     if len(sim_objs) == 1:
         return sim_objs[0].squishy_volumes.uuid
 
-    return scene.squishy_volumes.selected_simulation  # ty:ignore[unresolved-attribute]
+    return scene.squishy_volumes.selected_simulation
 
 
 def get_selected_simulation_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
@@ -49,22 +49,20 @@ def _verify_selected_object(
     obj: bpy.types.Object, scene: bpy.types.Scene
 ) -> bpy.types.Object | None:
     uuid = get_selected_simulation_uuid(scene)
-    if (
-        uuid is None or obj.squishy_volumes.uuid != uuid  # ty:ignore[unresolved-attribute]
-    ):
+    if uuid is None or obj.squishy_volumes.uuid != uuid:
         return None
     return obj
 
 
 def get_selected_input_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
-    obj = obj_by_index(scene.squishy_volumes.selected_input_object)  # ty:ignore[unresolved-attribute]
+    obj = obj_by_index(scene.squishy_volumes.selected_input_object)
     if obj is None or obj.squishy_volumes.type != TYPE_INPUT:
         return None
     return _verify_selected_object(obj, scene)
 
 
 def get_selected_output_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
-    obj = obj_by_index(scene.squishy_volumes.selected_output_object)  # ty:ignore[unresolved-attribute]
+    obj = obj_by_index(scene.squishy_volumes.selected_output_object)
     if obj is None or obj.squishy_volumes.type != TYPE_OUTPUT:
         return None
     return _verify_selected_object(obj, scene)
@@ -72,7 +70,7 @@ def get_selected_output_object(scene: bpy.types.Scene) -> bpy.types.Object | Non
 
 def _selectable_simulations(_, context):
     return [
-        (sim_obj.squishy_volumes.uuid, sim_obj.name, "")  # ty:ignore[unresolved-attribute]
+        (sim_obj.squishy_volumes.uuid, sim_obj.name, "")
         for sim_obj in get_simulation_objects()
     ]
 
@@ -95,16 +93,13 @@ def _on_active_change():
         i for i, other in enumerate(bpy.data.objects) if other.name == obj.name
     )
 
-    scene = bpy.context.scene.squishy_volumes  # ty:ignore[unresolved-attribute]
+    scene = bpy.context.scene.squishy_volumes
 
-    if (
-        obj.squishy_volumes.type == TYPE_INPUT  # ty:ignore[unresolved-attribute]
-        and scene.selected_input_object != index
-    ):
+    if obj.squishy_volumes.type == TYPE_INPUT and scene.selected_input_object != index:
         scene.selected_input_object = index
 
     if (
-        obj.squishy_volumes.type == TYPE_OUTPUT  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes.type == TYPE_OUTPUT
         and scene.selected_output_object != index
     ):
         scene.selected_output_object = index
@@ -115,7 +110,7 @@ _owner = object()
 
 def subscribe_to_selection():
     bpy.msgbus.subscribe_rna(
-        key=(bpy.types.LayerObjects, "active"),  # ty:ignore[invalid-argument-type]
+        key=(bpy.types.LayerObjects, "active"),
         owner=_owner,
         args=(),
         notify=_on_active_change,

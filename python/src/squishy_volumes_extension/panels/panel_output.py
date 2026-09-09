@@ -17,40 +17,31 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
-from typing import Any
-
-
+from ..bridge import SimulationHandle
 from ..frame_change import sync_simulation
-from ..util import copy_simple_property_group
-
 from ..magic_consts import (
     GRID,
     PARTICLES,
-    OUTPUT_TYPES,
-)
-
-
-from ..squishy_volumes_properties import (
-    get_selected_simulation_uuid,
-    INPUT_TYPE_PARTICLES,
-    INPUT_TYPE_COLLIDER,
-    get_output_objects,
-    TYPE_OUTPUT,
-    TYPE_NONE,
-    get_output_objects_with_uuid,
-    get_selected_simulation_object,
-    get_selected_output_object,
-    Squishy_Volumes_Properties_Output,
-    add_fields_from,
-    get_simulation_object_with_uuid,
 )
 from ..output import (
     create_default_visualization,
-    sync_output,
 )
-from ..bridge import SimulationHandle
+from ..squishy_volumes_properties import (
+    INPUT_TYPE_COLLIDER,
+    INPUT_TYPE_PARTICLES,
+    TYPE_NONE,
+    TYPE_OUTPUT,
+    Squishy_Volumes_Properties_Output,
+    add_fields_from,
+    get_output_objects_with_uuid,
+    get_selected_output_object,
+    get_selected_simulation_object,
+    get_selected_simulation_uuid,
+    get_simulation_object_with_uuid,
+)
+from ..util import copy_simple_property_group
 
 
 class Squishy_Volumes_New_Output_Object(bpy.types.PropertyGroup):
@@ -99,7 +90,7 @@ def update_select_action(self, context):
 class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_output_object"
     bl_label = "Add Output Object"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -109,11 +100,11 @@ class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        if self.output_type != GRID:  # ty:ignore[unresolved-attribute]
-            if self.input_name not in bpy.data.objects:  # ty:ignore[unresolved-attribute]
+        if self.output_type != GRID:  # noqa: SIM102
+            if self.input_name not in bpy.data.objects:
                 self.report(
                     {"WARNING"},
-                    f"Couldn't find input object '{self.input_name}', skinning might not work.",  # ty:ignore[unresolved-attribute]
+                    f"Couldn't find input object '{self.input_name}', skinning might not work.",
                 )
 
         output_obj = bpy.data.objects.new(
@@ -121,7 +112,7 @@ class SCENE_OT_Squishy_Volumes_Add_Output_Object(bpy.types.Operator):
         )
         context.collection.objects.link(output_obj)
 
-        output_props = output_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        output_props = output_obj.squishy_volumes
         output_props.type = TYPE_OUTPUT
         output_props.uuid = self.uuid
 
@@ -152,7 +143,7 @@ As long as the object is an active output
 and the current frame is availbe in the cache,
 the positions and attributes are synchronized
 each frame."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
 
@@ -169,7 +160,7 @@ each frame."""
             ("All",) * 3,
             ("Custom",) * 3,
             ("None",) * 3,
-        ],  # ty:ignore[invalid-argument-type]
+        ],
         update=update_select_action,
         default="All",
     )  # type: ignore
@@ -181,58 +172,58 @@ each frame."""
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        if self.output_type == GRID:  # ty:ignore[unresolved-attribute]
-            bpy.ops.scene.squishy_volumes_add_output_object(  # ty:ignore[unresolved-attribute]
+        if self.output_type == GRID:
+            bpy.ops.scene.squishy_volumes_add_output_object(
                 "INVOKE_DEFAULT",
                 uuid=self.uuid,
                 input_name="",
                 output_name="Grid - Output",
                 add_default_visualization=self.add_default_visualization,
-                output_type=self.output_type,  # ty:ignore[unresolved-attribute]
-                grid_collider_bits=self.grid_collider_bits,  # ty:ignore[unresolved-attribute]
-                grid_masses=self.grid_masses,  # ty:ignore[unresolved-attribute]
-                grid_velocities=self.grid_velocities,  # ty:ignore[unresolved-attribute]
-                particle_flags=self.particle_flags,  # ty:ignore[unresolved-attribute]
-                particle_masses=self.particle_masses,  # ty:ignore[unresolved-attribute]
-                particle_initial_volumes=self.particle_initial_volumes,  # ty:ignore[unresolved-attribute]
-                particle_initial_positions=self.particle_initial_positions,  # ty:ignore[unresolved-attribute]
-                particle_velocities=self.particle_velocities,  # ty:ignore[unresolved-attribute]
-                particle_sizes=self.particle_sizes,  # ty:ignore[unresolved-attribute]
-                particle_transformations=self.particle_transformations,  # ty:ignore[unresolved-attribute]
-                particle_energies=self.particle_energies,  # ty:ignore[unresolved-attribute]
-                particle_collider_bits=self.particle_collider_bits,  # ty:ignore[unresolved-attribute]
+                output_type=self.output_type,
+                grid_collider_bits=self.grid_collider_bits,
+                grid_masses=self.grid_masses,
+                grid_velocities=self.grid_velocities,
+                particle_flags=self.particle_flags,
+                particle_masses=self.particle_masses,
+                particle_initial_volumes=self.particle_initial_volumes,
+                particle_initial_positions=self.particle_initial_positions,
+                particle_velocities=self.particle_velocities,
+                particle_sizes=self.particle_sizes,
+                particle_transformations=self.particle_transformations,
+                particle_energies=self.particle_energies,
+                particle_collider_bits=self.particle_collider_bits,
             )
 
-        if self.output_type == PARTICLES:  # ty:ignore[unresolved-attribute]
+        if self.output_type == PARTICLES:
             for output in self.particle_outputs:
                 if not output.select:
                     continue
 
-                bpy.ops.scene.squishy_volumes_add_output_object(  # ty:ignore[unresolved-attribute]
+                bpy.ops.scene.squishy_volumes_add_output_object(
                     "INVOKE_DEFAULT",
                     uuid=self.uuid,
                     input_name=output.input_name,
                     output_name=output.output_name,
                     add_default_visualization=self.add_default_visualization,
-                    output_type=self.output_type,  # ty:ignore[unresolved-attribute]
-                    grid_collider_bits=self.grid_collider_bits,  # ty:ignore[unresolved-attribute]
-                    grid_masses=self.grid_masses,  # ty:ignore[unresolved-attribute]
-                    grid_velocities=self.grid_velocities,  # ty:ignore[unresolved-attribute]
-                    particle_flags=self.particle_flags,  # ty:ignore[unresolved-attribute]
-                    particle_masses=self.particle_masses,  # ty:ignore[unresolved-attribute]
-                    particle_initial_volumes=self.particle_initial_volumes,  # ty:ignore[unresolved-attribute]
-                    particle_initial_positions=self.particle_initial_positions,  # ty:ignore[unresolved-attribute]
-                    particle_velocities=self.particle_velocities,  # ty:ignore[unresolved-attribute]
-                    particle_sizes=self.particle_sizes,  # ty:ignore[unresolved-attribute]
-                    particle_transformations=self.particle_transformations,  # ty:ignore[unresolved-attribute]
-                    particle_energies=self.particle_energies,  # ty:ignore[unresolved-attribute]
-                    particle_collider_bits=self.particle_collider_bits,  # ty:ignore[unresolved-attribute]
+                    output_type=self.output_type,
+                    grid_collider_bits=self.grid_collider_bits,
+                    grid_masses=self.grid_masses,
+                    grid_velocities=self.grid_velocities,
+                    particle_flags=self.particle_flags,
+                    particle_masses=self.particle_masses,
+                    particle_initial_volumes=self.particle_initial_volumes,
+                    particle_initial_positions=self.particle_initial_positions,
+                    particle_velocities=self.particle_velocities,
+                    particle_sizes=self.particle_sizes,
+                    particle_transformations=self.particle_transformations,
+                    particle_energies=self.particle_energies,
+                    particle_collider_bits=self.particle_collider_bits,
                 )
 
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         if sim_handle is not None:
             sync_simulation(
-                sim_props=sim_obj.squishy_volumes,  # ty:ignore[unresolved-attribute]
+                sim_props=sim_obj.squishy_volumes,
                 sim_handle=sim_handle,
                 frame=context.scene.frame_current,
             )
@@ -262,7 +253,7 @@ each frame."""
         assert isinstance(self.layout, bpy.types.UILayout)
         propname = {
             PARTICLES: "particle_outputs",
-        }.get(self.output_type)  # ty:ignore[unresolved-attribute]
+        }.get(self.output_type)
         if propname is None:
             return
         self.layout.prop(self, "select_action", expand=True)
@@ -277,7 +268,7 @@ each frame."""
 
     def draw_object_attributes(self):
         assert isinstance(self.layout, bpy.types.UILayout)
-        output_type = self.output_type  # ty:ignore[unresolved-attribute]
+        output_type = self.output_type
 
         box = self.layout.box()
         box.label(text="These attributes will be loaded each frame.")
@@ -340,7 +331,7 @@ class OBJECT_OT_Squishy_Volumes_Remove_Output_Object(bpy.types.Operator):
     bl_description = """Deactivates the selected object as a simulation output.
 
 Note that this does not delete the object."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     name: bpy.props.StringProperty()  # type: ignore
 
@@ -396,7 +387,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
-    bl_options = set()
+    bl_options = set()  # noqa: RUF012
 
     @classmethod
     def poll(cls, context):
@@ -431,7 +422,7 @@ class SCENE_PT_Squishy_Volumes_Output(bpy.types.Panel):
         list_controls = row.column(align=True)
         add_output_col = list_controls.column()
         add_output_col.alert = not get_output_objects_with_uuid(sim_props.uuid)
-        add_op = add_output_col.operator(
+        add_output_col.operator(
             SCENE_OT_Squishy_Volumes_Add_Output_Objects.bl_idname,
             text="",
             icon="ADD",

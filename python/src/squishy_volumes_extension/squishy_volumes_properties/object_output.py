@@ -16,23 +16,21 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
 from ..magic_consts import (
-    SQUISHY_VOLUMES_ELASTIC_ENERGY,
-    SQUISHY_VOLUMES_FLAGS,
-    SQUISHY_VOLUMES_TRANSFORM,
-    SQUISHY_VOLUMES_COLLIDER_BITS,
-    SQUISHY_VOLUMES_INITIAL_POSITION,
-    SQUISHY_VOLUMES_VELOCITY,
-    SQUISHY_VOLUMES_DISTANCE,
-    SQUISHY_VOLUMES_NORMAL,
-    SQUISHY_VOLUMES_MASS,
-    SQUISHY_VOLUMES_PRESSURE,
-    SQUISHY_VOLUMES_INITIAL_VOLUME,
     OUTPUT_TYPES,
     PARTICLES,
+    SQUISHY_VOLUMES_COLLIDER_BITS,
+    SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_FLAGS,
+    SQUISHY_VOLUMES_INITIAL_POSITION,
+    SQUISHY_VOLUMES_INITIAL_VOLUME,
+    SQUISHY_VOLUMES_MASS,
+    SQUISHY_VOLUMES_NORMAL,
     SQUISHY_VOLUMES_SIZE,
+    SQUISHY_VOLUMES_TRANSFORM,
+    SQUISHY_VOLUMES_VELOCITY,
 )
 
 
@@ -56,7 +54,7 @@ class Squishy_Volumes_Properties_Output(bpy.types.PropertyGroup):
     output_type: bpy.props.EnumProperty(
         name="Output Type",
         description="Depending on this, different attributes are synchronizable.",
-        items=[(ty,) * 3 for ty in OUTPUT_TYPES],  # ty:ignore[invalid-argument-type]
+        items=[(ty,) * 3 for ty in OUTPUT_TYPES],
         default=PARTICLES,
         options=set(),
     )  # type: ignore

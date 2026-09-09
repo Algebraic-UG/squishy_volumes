@@ -16,41 +16,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
 
-import json
-import mathutils
-import numpy as np
-
-from .magic_consts import (
-    SQUISHY_VOLUMES_DISTANCE,
-    SQUISHY_VOLUMES_ELASTIC_ENERGY,
-    SQUISHY_VOLUMES_INITIAL_POSITION,
-    SQUISHY_VOLUMES_MASS,
-    SQUISHY_VOLUMES_NORMAL,
-    SQUISHY_VOLUMES_PRESSURE,
-    SQUISHY_VOLUMES_FLAGS,
-    SQUISHY_VOLUMES_TRANSFORM,
-    SQUISHY_VOLUMES_VELOCITY,
-    PARTICLES,
-    GRID,
-    SQUISHY_VOLUMES_SIZE,
-    SQUISHY_VOLUMES_COLLIDER_BITS,
-)
+import bpy  # ty: ignore[unresolved-import]
 
 from .assets import (
+    create_geometry_nodes_grid,
     create_geometry_nodes_particles,
     create_material_display_uvw,
-    create_geometry_nodes_grid,
-)
-from .drivers import add_drivers
-from .util import (
-    fill_mesh_with_positions,
-    fill_mesh_with_vertices_and_triangles,
-    fix_quaternion_order,
 )
 from .bridge import SimulationHandle
+from .drivers import add_drivers
+from .magic_consts import (
+    GRID,
+    PARTICLES,
+    SQUISHY_VOLUMES_COLLIDER_BITS,
+    SQUISHY_VOLUMES_ELASTIC_ENERGY,
+    SQUISHY_VOLUMES_FLAGS,
+    SQUISHY_VOLUMES_INITIAL_POSITION,
+    SQUISHY_VOLUMES_MASS,
+    SQUISHY_VOLUMES_SIZE,
+    SQUISHY_VOLUMES_TRANSFORM,
+    SQUISHY_VOLUMES_VELOCITY,
+)
 from .squishy_volumes_properties import Squishy_Volumes_Properties_Output
+from .util import (
+    fill_mesh_with_positions,
+)
 
 
 def create_default_visualization(sim_obj, output_obj):
@@ -90,7 +81,7 @@ def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
 
 
 def sync_output(sim_handle: SimulationHandle, output_obj: bpy.types.Object, frame: int):
-    output_props: Squishy_Volumes_Properties_Output = output_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+    output_props: Squishy_Volumes_Properties_Output = output_obj.squishy_volumes
 
     if output_props.output_type == GRID:
         ffa_f32 = lambda attribute: sim_handle.fetch_flat_attribute_f32(

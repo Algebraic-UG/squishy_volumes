@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
-from .squishy_volumes_properties import get_simulation_object_with_uuid
+import bpy  # ty: ignore[unresolved-import]
+
 from .bridge import SimulationHandle
+from .squishy_volumes_properties import get_simulation_object_with_uuid
 
 
 class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):

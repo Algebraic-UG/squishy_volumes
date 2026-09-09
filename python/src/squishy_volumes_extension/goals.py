@@ -16,11 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
-
-from .squishy_volumes_properties import get_selected_input_object
 from .assets import create_geometry_nodes_generate_goal_positions
+from .squishy_volumes_properties import get_selected_input_object
 
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
@@ -37,7 +36,7 @@ Both objects can be animated!
 
 The modifier causes the simulation to record the resulting 'goal' positions
 and forces particles to move towards them."""
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     @classmethod
     def poll(cls, context):
@@ -49,7 +48,7 @@ and forces particles to move towards them."""
 
         node_group = create_geometry_nodes_generate_goal_positions()
         modifier = obj.modifiers.new("Squishy Volumes Goals", type="NODES")
-        modifier.node_group = node_group  # ty:ignore[unresolved-attribute]
+        modifier.node_group = node_group
 
         bpy.ops.mesh.primitive_ico_sphere_add()
         choose = context.active_object
@@ -64,8 +63,8 @@ and forces particles to move towards them."""
             modifier["Socket_2"] = choose
             modifier["Socket_3"] = move
         else:
-            modifier.properties.inputs.Socket_2.value = choose  # ty:ignore[unresolved-attribute]
-            modifier.properties.inputs.Socket_3.value = move  # ty:ignore[unresolved-attribute]
+            modifier.properties.inputs.Socket_2.value = choose
+            modifier.properties.inputs.Socket_3.value = move
 
         obj.update_tag()
         context.view_layer.update()

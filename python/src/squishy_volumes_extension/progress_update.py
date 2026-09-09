@@ -16,15 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
+from .bridge import SimulationHandle
+from .frame_change import sync_simulation
 from .get_preferences import get_print_debug_info
 from .popup import with_popup
-from .frame_change import sync_simulation
-from .bridge import SimulationHandle
-from .util import add_or_update_marker, force_ui_redraw, remove_marker
 from .squishy_volumes_properties import frame_to_load, get_simulation_objects
-
+from .util import add_or_update_marker, force_ui_redraw, remove_marker
 
 PROGRESS_INTERVAL = 0.25
 
@@ -32,7 +31,7 @@ PROGRESS_INTERVAL = 0.25
 def update_progress():
     should_redraw = False
     for sim_obj in get_simulation_objects():
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        sim_props = sim_obj.squishy_volumes
         if not sim_props.sync:
             continue
 
@@ -51,7 +50,7 @@ def update_progress():
             continue
 
         def poll_and_true():
-            return sim_handle.poll()
+            return sim_handle.poll()  # noqa: B023
 
         if not with_popup(uuid=sim_props.uuid, f=poll_and_true):
             continue
@@ -79,9 +78,9 @@ def update_progress():
 
         if sim_handle.loaded_frame != frame_to_load(
             sim_props,
-            bpy.context.scene.frame_current,  # ty:ignore[possibly-missing-attribute]
+            bpy.context.scene.frame_current,
         ):
-            sync_simulation(sim_props, sim_handle, bpy.context.scene.frame_current)  # ty:ignore[possibly-missing-attribute]
+            sync_simulation(sim_props, sim_handle, bpy.context.scene.frame_current)
 
     if should_redraw:
         force_ui_redraw()
@@ -129,11 +128,11 @@ def unregister_progress_update(*_scene):
 
 def register_progress_update_toggle():
     if unregister_progress_update not in bpy.app.handlers.render_init:
-        bpy.app.handlers.render_init.append(unregister_progress_update)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_init.append(unregister_progress_update)
     if register_progress_update not in bpy.app.handlers.render_complete:
-        bpy.app.handlers.render_complete.append(register_progress_update)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_complete.append(register_progress_update)
     if register_progress_update not in bpy.app.handlers.render_cancel:
-        bpy.app.handlers.render_cancel.append(register_progress_update)  # ty:ignore[invalid-argument-type]
+        bpy.app.handlers.render_cancel.append(register_progress_update)
     if get_print_debug_info():
         print("Squishy Volumes progress update toggle on render registered.")
 

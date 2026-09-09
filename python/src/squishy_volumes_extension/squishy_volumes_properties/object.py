@@ -17,14 +17,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle
-from ..util import simulation_locked, simulation_input_exists
-
-from .object_simulation import *
+from ..util import simulation_input_exists, simulation_locked
 from .object_input import *
 from .object_output import *
+from .object_simulation import *
 
 TYPE_NONE = "None"
 TYPE_INPUT = "Input"
@@ -74,7 +73,7 @@ class Squishy_Volumes_Properties(bpy.types.PropertyGroup):
             (TYPE_SIMULATION,) * 3,
             (TYPE_INPUT,) * 3,
             (TYPE_OUTPUT,) * 3,
-        ],  # ty:ignore[invalid-argument-type]
+        ],
         name="Object Type",
         description="""Describes how this object is used by Squishy Volumes.
 It might be unreated, a simulation itself or in/output.""",
@@ -84,43 +83,27 @@ It might be unreated, a simulation itself or in/output.""",
 
 
 def get_input_objects() -> list[bpy.types.Object]:
-    return [
-        obj
-        for obj in bpy.data.objects
-        if obj.squishy_volumes.type == TYPE_INPUT  # ty:ignore[unresolved-attribute]
-    ]
+    return [obj for obj in bpy.data.objects if obj.squishy_volumes.type == TYPE_INPUT]
 
 
 def get_output_objects() -> list[bpy.types.Object]:
-    return [
-        obj
-        for obj in bpy.data.objects
-        if obj.squishy_volumes.type == TYPE_OUTPUT  # ty:ignore[unresolved-attribute]
-    ]
+    return [obj for obj in bpy.data.objects if obj.squishy_volumes.type == TYPE_OUTPUT]
 
 
 def get_input_objects_with_uuid(uuid: str) -> list[bpy.types.Object]:
-    return [
-        obj
-        for obj in get_input_objects()
-        if obj.squishy_volumes.uuid == uuid  # ty:ignore[unresolved-attribute]
-    ]
+    return [obj for obj in get_input_objects() if obj.squishy_volumes.uuid == uuid]
 
 
 def get_output_objects_with_uuid(uuid: str) -> list[bpy.types.Object]:
-    return [
-        obj
-        for obj in get_output_objects()
-        if obj.squishy_volumes.uuid == uuid  # ty:ignore[unresolved-attribute]
-    ]
+    return [obj for obj in get_output_objects() if obj.squishy_volumes.uuid == uuid]
 
 
 def locked_simulations() -> list[bpy.types.Object]:
     return [
         obj
         for obj in get_simulation_objects()
-        if not SimulationHandle.exists(uuid=obj.squishy_volumes.uuid)  # ty:ignore[unresolved-attribute]
-        and simulation_locked(obj.squishy_volumes.directory)  # ty:ignore[unresolved-attribute]
+        if not SimulationHandle.exists(uuid=obj.squishy_volumes.uuid)
+        and simulation_locked(obj.squishy_volumes.directory)
     ]
 
 
@@ -128,6 +111,6 @@ def unloaded_simulations(context):
     return [
         obj
         for obj in get_simulation_objects()
-        if not SimulationHandle.exists(uuid=obj.squishy_volumes.uuid)  # ty:ignore[unresolved-attribute]
-        and simulation_input_exists(obj.squishy_volumes.directory)  # ty:ignore[unresolved-attribute]
+        if not SimulationHandle.exists(uuid=obj.squishy_volumes.uuid)
+        and simulation_input_exists(obj.squishy_volumes.directory)
     ]

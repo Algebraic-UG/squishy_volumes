@@ -16,43 +16,31 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
 import uuid
-import math
 
-import tempfile
-from pathlib import Path
+import bpy  # ty: ignore[unresolved-import]
 
-
-from ..squishy_volumes_properties import (
-    update_directory,
-)
-
-from ..squishy_volumes_properties import (
-    INPUT_TYPE_PARTICLES,
-    INPUT_TYPE_COLLIDER,
-    get_simulation_object_with_uuid,
-    get_input_objects_with_uuid,
-)
-
-from ..magic_consts import PARTICLES
-
-from ..util import simulation_locked
-
-from ..panels.panel_simulate import start_compute
 from ..bridge import SimulationHandle
+from ..magic_consts import PARTICLES
+from ..panels.panel_simulate import start_compute
+from ..squishy_volumes_properties import (
+    INPUT_TYPE_COLLIDER,
+    INPUT_TYPE_PARTICLES,
+    get_input_objects_with_uuid,
+    get_simulation_object_with_uuid,
+)
 
 EXAMPLE_BOING_BLOCK = "Boing Block"
 
 
 def setup_example_boing_block(context: bpy.types.Context):
     sim_uuid = str(uuid.uuid4())
-    bpy.ops.scene.squishy_volumes_add_simulation(  # ty:ignore[unresolved-attribute]
+    bpy.ops.scene.squishy_volumes_add_simulation(
         "INVOKE_DEFAULT", name=EXAMPLE_BOING_BLOCK, uuid=sim_uuid
     )
 
     sim_obj = get_simulation_object_with_uuid(sim_uuid)
-    sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+    sim_props = sim_obj.squishy_volumes
 
     sim_props.capture_frames = 1
     sim_props.grid_node_size = 0.2
@@ -60,9 +48,9 @@ def setup_example_boing_block(context: bpy.types.Context):
     sim_props.time_step = 0.005
 
     def add_particles(obj: bpy.types.Object):
-        obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES  # ty:ignore[unresolved-attribute]
-        obj.squishy_volumes.add_default_generation = True  # ty:ignore[unresolved-attribute]
-        bpy.ops.scene.squishy_volumes_add_input_object(  # ty:ignore[unresolved-attribute]
+        obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES
+        obj.squishy_volumes.add_default_generation = True
+        bpy.ops.scene.squishy_volumes_add_input_object(
             "INVOKE_DEFAULT",
             uuid=sim_uuid,
             name=obj.name,
@@ -71,7 +59,7 @@ def setup_example_boing_block(context: bpy.types.Context):
     def add_collider(obj):
         obj.squishy_volumes.input_type = INPUT_TYPE_COLLIDER
         obj.squishy_volumes.add_default_generation = True
-        bpy.ops.scene.squishy_volumes_add_input_object(  # ty:ignore[unresolved-attribute]
+        bpy.ops.scene.squishy_volumes_add_input_object(
             "INVOKE_DEFAULT",
             uuid=sim_uuid,
             name=obj.name,
@@ -85,7 +73,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         rotation=(0, 0, 0),
     )
-    add_particles(context.active_object)  # ty:ignore[invalid-argument-type]
+    add_particles(context.active_object)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -96,7 +84,7 @@ def setup_example_boing_block(context: bpy.types.Context):
     )
     add_collider(context.active_object)
 
-    bpy.ops.scene.squishy_volumes_record_input_to_cache(  # ty:ignore[unresolved-attribute]
+    bpy.ops.scene.squishy_volumes_record_input_to_cache(
         "INVOKE_DEFAULT",
         uuid=sim_uuid,
         blocking=True,
@@ -106,9 +94,9 @@ def setup_example_boing_block(context: bpy.types.Context):
     assert sim_handle is not None
 
     for input_obj in get_input_objects_with_uuid(sim_uuid):
-        if input_obj.squishy_volumes.input_type != INPUT_TYPE_PARTICLES:  # ty:ignore[unresolved-attribute]
+        if input_obj.squishy_volumes.input_type != INPUT_TYPE_PARTICLES:
             continue
-        bpy.ops.scene.squishy_volumes_add_output_object(  # ty:ignore[unresolved-attribute]
+        bpy.ops.scene.squishy_volumes_add_output_object(
             "INVOKE_DEFAULT",
             uuid=sim_uuid,
             input_name=input_obj.name,

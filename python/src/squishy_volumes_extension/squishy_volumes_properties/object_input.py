@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
+import bpy  # ty: ignore[unresolved-import]
 
 INPUT_TYPE_PARTICLES = "Particles"
 INPUT_TYPE_COLLIDER = "Collider"
@@ -27,7 +27,7 @@ class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
         items=[
             (INPUT_TYPE_PARTICLES,) * 3,
             (INPUT_TYPE_COLLIDER,) * 3,
-        ],  # ty:ignore[invalid-argument-type]
+        ],
         name="Type",
         description=f"""Simulation type of the object:
 {INPUT_TYPE_PARTICLES}: point clouds that will be simulated, solid, fluid, etc.
@@ -37,7 +37,7 @@ class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
     )  # type: ignore
     add_default_generation: bpy.props.BoolProperty(
         name="Add Default Generation",
-        description=f"""Add default generating Geometry Nodes?
+        description="""Add default generating Geometry Nodes?
 
 Squishy Volumes needs certain attributes on the input objects.
 The default generation creates them.

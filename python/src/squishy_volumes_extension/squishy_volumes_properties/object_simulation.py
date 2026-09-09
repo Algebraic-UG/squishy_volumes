@@ -16,30 +16,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import platform
-from pathlib import Path
 import re
-import bpy
+from pathlib import Path
 
+import bpy  # ty: ignore[unresolved-import]
+
+from ..bridge import DETECTED_DEVICES, SimulationHandle
 from ..get_preferences import get_default_cache_location
-from ..bridge import SimulationHandle, DETECTED_DEVICES
 
 TYPE_SIMULATION = "Simulation"
 
 
 def get_simulation_objects() -> list[bpy.types.Object]:
     return [
-        obj
-        for obj in bpy.data.objects
-        if obj.squishy_volumes.type == TYPE_SIMULATION  # ty:ignore[unresolved-attribute]
+        obj for obj in bpy.data.objects if obj.squishy_volumes.type == TYPE_SIMULATION
     ]
 
 
 def get_simulation_object_with_uuid(uuid: str) -> bpy.types.Object:
     candidates = [
-        obj
-        for obj in get_simulation_objects()
-        if obj.squishy_volumes.uuid == uuid  # ty:ignore[unresolved-attribute]
+        obj for obj in get_simulation_objects() if obj.squishy_volumes.uuid == uuid
     ]
     if len(candidates) != 1:
         print(f"There are {len(candidates)} simulation objects for {uuid}")
@@ -49,17 +45,15 @@ def get_simulation_object_with_uuid(uuid: str) -> bpy.types.Object:
 
 def duplicate_simulation_directory(simulation):
     return any(
-        [
-            simulation.directory == other.directory
-            for other in [obj.squishy_volumes for obj in get_simulation_objects()]  # ty:ignore[unresolved-attribute]
-            if other.uuid != simulation.uuid
-        ]
+        simulation.directory == other.directory
+        for other in [obj.squishy_volumes for obj in get_simulation_objects()]
+        if other.uuid != simulation.uuid
     )
 
 
 def make_unique(new, existing):
     new = re.sub(r"\.\d\d\d$", "", new)
-    for i in range(0, 999):
+    for i in range(999):
         trial = f"{new}.{i:03d}"
         if not trial in existing:
             return trial
@@ -75,9 +69,9 @@ def update_directory(self, context):
         self.directory = make_unique(
             self.directory,
             [
-                obj.squishy_volumes.directory  # ty:ignore[unresolved-attribute]
+                obj.squishy_volumes.directory
                 for obj in bpy.data.objects
-                if obj.squishy_volumes.type == TYPE_SIMULATION  # ty:ignore[unresolved-attribute]
+                if obj.squishy_volumes.type == TYPE_SIMULATION
             ],
         )
         return  # we'll re-enter anyway
