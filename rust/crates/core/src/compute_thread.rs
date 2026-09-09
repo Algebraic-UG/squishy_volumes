@@ -82,6 +82,7 @@ impl ComputeThread {
                                 state: make_state_stats(&objects, &io_state),
                                 compute: None,
                             },
+                            error_message: None,
                         })
                         .map_err(Error::StoreError)?;
                     next_frame += 1;
@@ -89,11 +90,13 @@ impl ComputeThread {
                     io_state
                 } else {
                     info!("loading checkpoint");
-                    cache
+                    let frame = cache
                         .fetch_frame(next_frame - 1)
-                        .map_err(Error::CacheFetch)?
-                        .io_state
-                        .clone()
+                        .map_err(Error::CacheFetch)?;
+                    if let Some(error_message) = frame.error_message.clone() {
+                        return Err(Error::StoredError(error_message));
+                    }
+                    frame.io_state.clone()
                 };
                 harness.check()?;
 
@@ -179,7 +182,6 @@ impl ComputeThread {
                         frame_times.iter().sum::<f32>() / frame_times.len() as f32;
                     let remaining_time_sec = approx_frame_time * remaining_frames as f32;
 
-                    // store state even if error occured
                     let stats = Stats {
                         state: make_state_stats(&objects, &io_state),
                         compute: Some(ComputeStats {
@@ -188,8 +190,20 @@ impl ComputeThread {
                             last_frame_substeps: 0, // TODO
                         }),
                     };
+
+                    let error_message = if let Err(ref e) = result {
+                        Some(format!("{e:#?}"))
+                    } else {
+                        None
+                    };
+
+                    // store state even if error occured
                     cache
-                        .store_frame(Frame { io_state, stats })
+                        .store_frame(Frame {
+                            io_state,
+                            stats,
+                            error_message,
+                        })
                         .map_err(Error::StoreError)?;
 
                     // now check for errors
