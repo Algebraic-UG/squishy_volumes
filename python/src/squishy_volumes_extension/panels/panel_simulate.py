@@ -108,12 +108,17 @@ Note that this also discards all computed frames in the cache."""
 
         self.report({"INFO"}, f"Collected input header for {sim_obj.name}")
 
-        sim_input_handle = SimulationInputHandle.new(
+        sim_input_handle = with_popup(
             uuid=self.uuid,
-            directory=sim_props.directory,
-            input_header=input_header,
-            max_bytes_on_disk=giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
+            f=lambda: SimulationInputHandle.new(
+                uuid=self.uuid,
+                directory=sim_props.directory,
+                input_header=input_header,
+                max_bytes_on_disk=giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
+            ),
         )
+        if sim_input_handle is None:
+            return {"FINISHED"}
 
         self.report({"INFO"}, f"(Re)Created {sim_obj.name}")
 
