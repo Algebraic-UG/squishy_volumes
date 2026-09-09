@@ -43,7 +43,6 @@ from ..bridge import (
     SimulationInputHandle,
     SimulationHandle,
 )
-from ..input_capture import create_input_header, capture_input_frame
 from ..frame_change import (
     register_handler,
     unregister_handler,
