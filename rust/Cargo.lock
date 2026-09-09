@@ -3821,7 +3821,7 @@ dependencies = [
 
 [[package]]
 name = "squishy_volumes_file_util"
-version = "0.3.4"
+version = "0.3.6"
 dependencies = [
  "build-info",
  "build-info-build",
@@ -3929,7 +3929,7 @@ dependencies = [
 
 [[package]]
 name = "squishy_volumes_wrap"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "anyhow",
  "build-info",
