@@ -34,6 +34,7 @@ from ..get_preferences import (
     get_confirm_bake_overwrite,
     get_sanity_check_allowed_disk_space,
 )
+from ..popup import with_popup
 
 
 def start_compute(
@@ -95,7 +96,11 @@ Note that this also discards all computed frames in the cache."""
         if sim_handle is not None:
             sim_handle.drop()
 
-        input_header = create_input_header(sim_props)
+        input_header = with_popup(
+            uuid=self.uuid, f=lambda: create_input_header(sim_props)
+        )
+        if input_header is None:
+            return {"FINISHED"}
 
         self.report({"INFO"}, f"Collected input header for {sim_obj.name}")
 
