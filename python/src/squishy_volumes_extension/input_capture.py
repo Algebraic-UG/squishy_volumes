@@ -76,9 +76,7 @@ def create_input_header(sim_props):
             }
 
     if collider_inputs > 16:
-        raise RuntimeError(f"""
-
-More than 16 colliders (you have {collider_inputs})
+        raise RuntimeError(f"""More than 16 colliders (you have {collider_inputs})
 
 Please consider joining some of them in a single object,
 or reduce the number of collider objects in other ways.
