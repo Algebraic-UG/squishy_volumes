@@ -194,7 +194,7 @@ def capture_input_frame(
             if not get_allow_scaled_input() and evaluated_obj.scale != mathutils.Vector(
                 (1.0, 1.0, 1.0)
             ):
-                raise RuntimeWarning(
+                raise RuntimeError(
                     f"""{evaluated_obj.name} is scaled to {evaluated_obj.scale}.
 Your material will be initially compressed or stretched!
 
