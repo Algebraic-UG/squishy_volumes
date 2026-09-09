@@ -22,6 +22,7 @@ pub use stats::*;
 pub struct Frame {
     pub io_state: IoState,
     pub stats: Stats,
+    pub error_message: Option<String>,
 }
 
 fn magic_bytes() -> [u8; squishy_volumes_file_util::MAGIC_LEN] {

@@ -10,6 +10,11 @@ use crate::initialization::StateInitializationError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(
+        "This stored frame is already broken.\nPlease pick an earlier frame to rebake from.\n\nDetails:\n{0}"
+    )]
+    StoredError(String),
+
     #[error("Gpu error")]
     GpuError(#[from] squishy_volumes_gpu::GpuError),
 
