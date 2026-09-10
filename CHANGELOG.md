@@ -1,17 +1,27 @@
-# [0.3.5] - 2026-09-01
+# [0.3.6] - 2026-09-10
 
-The most important change is that adaptive time steps are now available on the GPU.
+With this release, Squishy Volumes switches from distributing Tree Clipper JSONs to Blender asset library files.
+They are still created with Tree Clipper from the JSONs during the build.
+
+This improves the overall user experience: node groups aren’t endlessly re-created, and we can use Blender 5.3.
+(At least the current alpha version)
+
+This release also includes several other smaller features and fixes.
 
 ## Features
-- Adaptive time steps on GPU.
-- Domain particle culling on the GPU.
-- Load the latest state on failure, and indicate the failed particles.
-- Hint to switch to object mode instead of showing nothing.
+- Shipping assets instead of JSONs
+- Tentative support for Blender 5.3
+- Global damping gives us a blunt, yet effective tool to deal with excessive jiggling.
+- Compute stats stored with each frame.
+- Basic CI checks
+- Time markers are optional now.
+- Icons to tell the type of input/output objects
+- Ability to set the input_name of output objects, allowing for the recovery of desynced ones
+
+## Changed
+- Goals/Pinning-Feature is back to damped springs, which is more stable.
+- Reject scaled input particle objects by default.
 
 ## Fixed
-- CPU profiling was broken.
-- Toggling pinning caused an issue.
-- Allow particles to get squished much more before aborting.
-- GPU collision logic was slightly different from the CPU version.
-- The vertex normal calculation was too naive.
-- There was an issue with querying particle flags.
+- Small-scale scenes allowed single particles to ignore friction.
+- Avoid showing stack traces for errors meant to be seen by users.
