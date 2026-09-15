@@ -45,14 +45,10 @@ pub enum FrameVerifcationError {
     )]
     LengthMismatch {
         name: String,
-        attribute: &'static str,
+        attribute: String,
         found: usize,
         expected: usize,
     },
-    #[error(
-        "'{0}': Missing collider input, note that collider must be present in all input frames"
-    )]
-    ColliderInputMissing(String),
     #[error("Object error")]
     ObjectError(#[from] ObjectError),
 }

@@ -16,7 +16,7 @@ use std::{
 use rand::{SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::{Builder, TempDir};
 
-use crate::{InputConsts, InputError, InputObject, InputOffsetReadingError};
+use crate::{FrameBulk, InputConsts, InputError, InputObject, InputOffsetReadingError};
 
 use super::{InputFrame, InputHeader, InputReader, InputWriter};
 
@@ -234,30 +234,20 @@ fn test_length_mismatch() {
 }
 
 #[test]
-fn test_collider_missing() {
-    let (path, _guard) = test_file();
-    let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
-    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
-    input_frame.collider_inputs.clear();
-    assert!(matches!(
-        writer.record_frame(&input_frame),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ColliderInputMissing(_),
-            ..
-        }),
-    ));
-}
-
-#[test]
 fn test_object_changed_type() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
     let mut input_frame = InputFrame::test_input_0(10, 9, 3);
-    input_frame.particles_inputs.clear();
-    input_frame
-        .collider_inputs
-        .insert("foo".to_string(), Default::default())
-        .unwrap();
+    input_frame.bulk.clear();
+    input_frame.bulk.push(FrameBulk {
+        meta: crate::FrameBulkMeta {
+            object_name: "foo".to_string(),
+            captured_attribute: crate::BulkAttribute::Collider(
+                crate::FrameBulkCollider::VertexPositions,
+            ),
+        },
+        data: Default::default(),
+    });
     assert!(matches!(
         writer.record_frame(&input_frame),
         Err(InputError::FrameVerifcationError {
@@ -274,10 +264,15 @@ fn test_object_not_in_header() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
     let mut input_frame = InputFrame::test_input_0(10, 9, 3);
-    input_frame
-        .collider_inputs
-        .insert("newfoo".to_string(), Default::default())
-        .unwrap();
+    input_frame.bulk.push(FrameBulk {
+        meta: crate::FrameBulkMeta {
+            object_name: "newfoo".to_string(),
+            captured_attribute: crate::BulkAttribute::Collider(
+                crate::FrameBulkCollider::VertexPositions,
+            ),
+        },
+        data: Default::default(),
+    });
     assert!(matches!(
         writer.record_frame(&input_frame),
         Err(InputError::FrameVerifcationError {
