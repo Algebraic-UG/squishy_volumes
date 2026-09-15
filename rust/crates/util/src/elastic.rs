@@ -672,8 +672,13 @@ pub fn cauchy_stress_general_viscosity(
     bulk_viscosity: T,
     velocity_gradient: &Matrix3<T>,
 ) -> Matrix3<T> {
-    2. * dynamic_viscosity * rate_of_strain(velocity_gradient)
-        + bulk_viscosity * Matrix3::from_diagonal_element(velocity_divergence(velocity_gradient))
+    let d = rate_of_strain(velocity_gradient);
+    let divergence = velocity_gradient.trace();
+
+    let deviatoric_d = d - Matrix3::from_diagonal_element(divergence / 3.);
+
+    2. * dynamic_viscosity * deviatoric_d
+        + bulk_viscosity * Matrix3::from_diagonal_element(divergence)
 }
 
 pub fn test_lame_parameters() -> impl Iterator<Item = [T; 2]> + Clone {

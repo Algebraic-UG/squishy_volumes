@@ -72,9 +72,10 @@ fn cauchy_stress_general_viscosity(
     bulk_viscosity: f32,
     velocity_gradient: mat3x3f,
 ) -> mat3x3f {
-    let dynamic_part: mat3x3f = dynamic_viscosity * (velocity_gradient + transpose(velocity_gradient));
-    let bulk_part: mat3x3f = bulk_viscosity * from_diagonal_element(trace(velocity_gradient));
+    let d = 0.5 * (velocity_gradient + transpose(velocity_gradient));
+    let divergence = trace(velocity_gradient);
+    let deviatoric_d = d - from_diagonal_element(divergence / 3.);
 
-    return dynamic_part + bulk_part;
+    return 2. * dynamic_viscosity * deviatoric_d + bulk_viscosity * from_diagonal_element(divergence);
 }
 
