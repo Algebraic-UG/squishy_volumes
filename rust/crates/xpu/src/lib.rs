@@ -6,10 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+mod collider;
 mod errors;
 mod frame_input;
 mod harness;
 
+pub use collider::*;
 pub use errors::*;
 pub use frame_input::*;
 pub use harness::*;

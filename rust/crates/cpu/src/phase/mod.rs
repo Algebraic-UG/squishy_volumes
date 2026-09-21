@@ -58,7 +58,7 @@ impl CpuState {
             Phase::InterpolateInput => self.interpolate_input(frame_input)?,
             Phase::Sort => self.sort(grid_node_size),
             Phase::Collide => self.collide(frame_input),
-            Phase::ExternalForce => self.external_force(frame_input)?,
+            Phase::ExternalForce => self.external_force()?,
             Phase::UpdateGridNodes => self.update_grid_nodes(grid_node_size),
             Phase::LimitTimeStepBeforeForce => self.limit_time_step_before_force(grid_node_size),
             Phase::ScatterMomentum => self.scatter_momentum(grid_node_size),

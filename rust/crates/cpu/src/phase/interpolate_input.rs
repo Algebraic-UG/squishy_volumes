@@ -19,28 +19,23 @@ impl CpuState {
         profile!("interpolate_input");
 
         let triangle_indices = frame_input.topology().triangle_indices();
-        let a = frame_input.a();
-        let b = frame_input.b().unwrap_or(a);
 
         // linear interpolation between a and b
         let factor_b = frame_input.frame_factor(self.time)?;
         let factor_a = 1. - factor_b;
 
-        let animated_globals = a
-            .animated_globals()
-            .interpolate(b.animated_globals(), factor_b);
-
-        let particle_goal_positions: Vec<Vector3<f32>> = a
-            .particle_goal_positions()
+        let particle_goal_positions: Vec<Vector3<f32>> = frame_input
+            .goal_positions_start()
             .par_iter()
-            .zip(b.particle_goal_positions())
+            .zip(frame_input.goal_positions_end())
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
-        let vertex_positions: Vec<Vector3<f32>> = a
-            .vertex_positions()
+        let vertex_positions: Vec<Vector3<f32>> = frame_input
+            .collider_start()
+            .vertex_positions
             .par_iter()
-            .zip(b.vertex_positions())
+            .zip(&frame_input.collider_end().vertex_positions)
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
@@ -82,26 +77,10 @@ impl CpuState {
             })
             .collect();
 
-        let triangle_frictions: Vec<f32> = a
-            .triangle_frictions()
-            .par_iter()
-            .zip(b.triangle_frictions())
-            .map(|(a, b)| factor_a * a + factor_b * b)
-            .collect();
-        let triangle_dampings: Vec<f32> = a
-            .triangle_dampings()
-            .par_iter()
-            .zip(b.triangle_dampings())
-            .map(|(a, b)| factor_a * a + factor_b * b)
-            .collect();
-
         self.interpolated_input = Some(InterpolatedInput {
-            animated_globals,
             particle_goal_positions,
             vertex_positions,
             vertex_normals,
-            triangle_frictions,
-            triangle_dampings,
             triangle_normals,
         });
 

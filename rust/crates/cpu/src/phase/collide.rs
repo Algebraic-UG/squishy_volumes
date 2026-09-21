@@ -28,13 +28,14 @@ impl CpuState {
         let triangle_opposites = topology.triangle_opposites();
         let triangle_collider = topology.triangle_collider();
 
+        let triangle_frictions = &frame_input.collider_start().triangle_frictions;
+        let triangle_dampings = &frame_input.collider_start().triangle_dampings;
+
         let vertex_velocities = frame_input.vertex_velocities();
 
         let InterpolatedInput {
             vertex_positions,
             vertex_normals,
-            triangle_frictions,
-            triangle_dampings,
             triangle_normals,
             ..
         } = self

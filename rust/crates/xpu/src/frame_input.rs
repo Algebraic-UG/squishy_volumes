@@ -7,10 +7,13 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulk, FrameBulkCollider, InputConsts, InputFrame, InputHeader,
-    InputObjectCollider, InputRangeCollider, InputRanges, InputReader,
+    BulkAttribute, FrameBulk, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
+    InputHeader, InputObjectCollider, InputRangeCollider, InputRangeParticles, InputRanges,
+    InputReader,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
+
+use crate::Collider;
 
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
@@ -45,7 +48,7 @@ pub struct FrameInput {
     input_header: InputHeader,
     input_ranges: InputRanges,
 
-    topology: squishy_volumes_mesh_util::Topology,
+    topology: Topology,
 
     // needs to be rebuilt every frame change
     bvh: squishy_volumes_mesh_util::BoundingVolumeHierarchy,
@@ -56,19 +59,16 @@ pub struct FrameInput {
     // from a to b (or zero)
     vertex_velocities: Vec<nalgebra::Vector3<f32>>,
 
-    next_input_frame: Option<InputFrame>,
-}
+    goal_positions_start: Vec<nalgebra::Vector3<f32>>,
+    goal_positions_end: Vec<nalgebra::Vector3<f32>>,
 
-#[derive(Default, Debug, Clone)]
-pub struct Collider {
-    pub vertex_positions: Vec<nalgebra::Vector3<f32>>,
-    pub triangle_frictions: Vec<f32>,
-    pub triangle_dampings: Vec<f32>,
+    next_input_frame: Option<InputFrame>,
 }
 
 impl FrameInput {
     pub fn new(
         mut input_reader: InputReader,
+        io_goal_positions: Vec<[f32; 3]>,
         io_collider: squishy_volumes_file_frame::Collider,
         frame: usize,
     ) -> Result<Self, FrameInputError> {
@@ -77,21 +77,28 @@ impl FrameInput {
 
         let topology = create_topology(&input_header, &mut input_reader)?;
 
-        let collider_start = collider_from_io(io_collider)?;
+        let collider_start: Collider = io_collider.try_into()?;
+
+        let goal_positions_start = bytemuck::try_cast_vec(io_goal_positions).map_err(|(e, _)| e)?;
 
         let next_input_frame = (frame + 1 < input_reader.len())
             .then(|| input_reader.read_frame(frame + 1))
             .transpose()?;
 
-        let mut collider_end;
+        let mut collider_end = collider_start.clone();
+        let mut goal_positions_end = goal_positions_start.clone();
         let vertex_velocities;
         if let Some(next_input_frame) = next_input_frame.as_ref() {
-            collider_end = collider_start.clone();
             update_collider(&input_ranges, &mut collider_end, &next_input_frame.bulk)?;
             vertex_velocities =
                 linear_vertex_velocities(&input_header.consts, &collider_start, &collider_end);
+
+            update_goal_positions(
+                &input_ranges,
+                &mut goal_positions_end,
+                &next_input_frame.bulk,
+            )?;
         } else {
-            collider_end = collider_start.clone();
             vertex_velocities =
                 vec![nalgebra::Vector3::zeros(); collider_start.vertex_positions.len()];
         };
@@ -114,6 +121,8 @@ impl FrameInput {
             collider_end,
             vertex_velocities,
             next_input_frame,
+            goal_positions_start,
+            goal_positions_end,
         })
     }
 
@@ -129,6 +138,7 @@ impl FrameInput {
         }
 
         self.collider_start = self.collider_end.clone();
+        self.goal_positions_start = self.goal_positions_end.clone();
 
         self.next_input_frame = (self.frame + 1 < self.input_reader.len())
             .then(|| self.input_reader.read_frame(self.frame + 1))
@@ -145,6 +155,12 @@ impl FrameInput {
                 &self.collider_start,
                 &self.collider_end,
             );
+
+            update_goal_positions(
+                &self.input_ranges,
+                &mut self.goal_positions_end,
+                &next_input_frame.bulk,
+            )?;
         } else {
             self.vertex_velocities =
                 vec![nalgebra::Vector3::zeros(); self.collider_start.vertex_positions.len()];
@@ -162,6 +178,22 @@ impl FrameInput {
 
     pub fn consts(&self) -> &InputConsts {
         &self.input_header.consts
+    }
+
+    pub fn collider_start(&self) -> &Collider {
+        &self.collider_start
+    }
+
+    pub fn collider_end(&self) -> &Collider {
+        &self.collider_end
+    }
+
+    pub fn goal_positions_start(&self) -> &[nalgebra::Vector3<f32>] {
+        &self.goal_positions_start
+    }
+
+    pub fn goal_positions_end(&self) -> &[nalgebra::Vector3<f32>] {
+        &self.goal_positions_end
     }
 
     pub fn topology(&self) -> &squishy_volumes_mesh_util::Topology {
@@ -264,20 +296,6 @@ fn create_topology(
     Ok(Topology::new(topology_inputs.into_iter())?)
 }
 
-fn collider_from_io(
-    squishy_volumes_file_frame::Collider {
-        vertex_positions,
-        triangle_frictions,
-        triangle_dampings,
-    }: squishy_volumes_file_frame::Collider,
-) -> Result<Collider, FrameInputError> {
-    Ok(Collider {
-        vertex_positions: bytemuck::try_cast_vec(vertex_positions).map_err(|(e, _)| e)?,
-        triangle_frictions,
-        triangle_dampings,
-    })
-}
-
 fn update_collider(
     input_ranges: &InputRanges,
     collider: &mut Collider,
@@ -307,6 +325,25 @@ fn update_collider(
                     // TODO:
                     tracing::error!("Updating the topology after frame 0 is not supported (yet?)");
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn update_goal_positions(
+    input_ranges: &InputRanges,
+    goal_positions: &mut [nalgebra::Vector3<f32>],
+    bulk: &[FrameBulk],
+) -> Result<(), FrameInputError> {
+    for bulk in bulk {
+        if let BulkAttribute::Particles(ref attr) = bulk.meta.captured_attribute {
+            let InputRangeParticles { particle_range } =
+                input_ranges.get_particle_range(&bulk.meta.object_name)?;
+            if let FrameBulkParticles::GoalPositions = attr {
+                // TODO: clean error for length mismatch
+                goal_positions[particle_range]
+                    .copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?);
             }
         }
     }

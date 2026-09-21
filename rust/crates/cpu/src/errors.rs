@@ -14,6 +14,7 @@ pub enum Error {
     #[error("Something went wron accessing frame input")]
     FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
 
+    // TODO: this needs more debug info
     #[error("Failed to cast a vector")]
     CastFailed,
 
