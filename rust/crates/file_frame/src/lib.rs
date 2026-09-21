@@ -6,12 +6,14 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+mod collider;
 mod errors;
 mod grid_nodes;
 mod io_state;
 mod particles;
 mod stats;
 
+pub use collider::*;
 pub use errors::*;
 pub use grid_nodes::*;
 pub use io_state::*;

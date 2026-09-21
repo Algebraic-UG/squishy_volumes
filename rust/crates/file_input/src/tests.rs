@@ -16,7 +16,10 @@ use std::{
 use rand::{SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::{Builder, TempDir};
 
-use crate::{FrameBulk, InputConsts, InputError, InputObject, InputOffsetReadingError};
+use crate::{
+    FrameBulk, InputConsts, InputError, InputObject, InputObjectCollider, InputObjectParticles,
+    InputOffsetReadingError,
+};
 
 use super::{InputFrame, InputHeader, InputReader, InputWriter};
 
@@ -28,17 +31,24 @@ fn test_file() -> (PathBuf, TempDir) {
     (tmp_dir.path().join("test_input.bin"), tmp_dir)
 }
 
-fn test_header(num_particles: usize, num_vertices: usize, num_triangles: usize) -> InputHeader {
+fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> InputHeader {
     let consts = InputConsts::test_input();
     let objects = [
-        ("foo".to_string(), InputObject::Particles { num_particles }),
-        ("bar".to_string(), InputObject::Particles { num_particles }),
+        (
+            "foo".to_string(),
+            InputObject::Particles(InputObjectParticles { num_particles }),
+        ),
+        (
+            "bar".to_string(),
+            InputObject::Particles(InputObjectParticles { num_particles }),
+        ),
         (
             "car".to_string(),
-            InputObject::Collider {
+            InputObject::Collider(InputObjectCollider {
+                collider_id: 0,
                 num_vertices,
                 num_triangles,
-            },
+            }),
         ),
     ]
     .into_iter()
@@ -47,7 +57,7 @@ fn test_header(num_particles: usize, num_vertices: usize, num_triangles: usize) 
     InputHeader { consts, objects }
 }
 
-fn test_frames(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Vec<InputFrame> {
+fn test_frames(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Vec<InputFrame> {
     vec![
         InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
         InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
@@ -83,9 +93,9 @@ fn test_write_partial() {
 
 fn write_full<P: AsRef<Path> + fmt::Debug>(
     path: P,
-    num_particles: usize,
-    num_vertices: usize,
-    num_triangles: usize,
+    num_particles: u32,
+    num_vertices: u32,
+    num_triangles: u32,
 ) {
     let mut writer = InputWriter::new(
         path,

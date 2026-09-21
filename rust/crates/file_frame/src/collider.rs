@@ -6,17 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use super::*;
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
-pub struct IoState {
-    pub time: f64,
-
-    pub particles: Particles,
-
-    pub collider: Collider,
-
-    // these can be computed from scratch, so they are optional
-    pub bhv: Option<squishy_volumes_mesh_util::BoundingVolumeHierarchy>,
-    pub grid_nodes: Option<GridNodes>,
+pub struct Collider {
+    pub vertex_positions: Vec<[f32; 3]>,
+    pub triangle_frictions: Vec<f32>,
+    pub triangle_dampings: Vec<f32>,
 }

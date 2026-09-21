@@ -71,4 +71,5 @@ pub struct Particles {
     pub velocity_gradients: Vec<[[f32; 3]; 3]>,
 
     pub initial_positions: Vec<[f32; 3]>,
+    pub goal_positions: Vec<[f32; 3]>,
 }

@@ -114,7 +114,7 @@ impl AabbVector for Vector3<i32> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Aabb<V: AabbVector> {
     pub min: V,
     pub max: V,

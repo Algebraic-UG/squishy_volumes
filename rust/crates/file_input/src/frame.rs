@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use crate::{InputObjectCollider, InputObjectParticles};
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub struct FrameBulk {
     pub meta: FrameBulkMeta,
@@ -96,7 +98,7 @@ impl FrameBulkCollider {
 #[cfg(test)]
 pub fn random_particle_bulk(
     object_name: String,
-    num_particles: usize,
+    num_particles: u32,
     rng: &mut impl rand::Rng,
 ) -> Vec<FrameBulk> {
     use rand::RngExt as _;
@@ -107,7 +109,7 @@ pub fn random_particle_bulk(
         },
         data: bytemuck::cast_slice(
             &rng.random_iter::<u32>()
-                .take(num_particles)
+                .take(num_particles as usize)
                 .collect::<Vec<_>>(),
         )
         .to_vec(),
@@ -117,8 +119,8 @@ pub fn random_particle_bulk(
 #[cfg(test)]
 pub fn random_collider_bulk(
     object_name: String,
-    num_vertices: usize,
-    num_triangles: usize,
+    num_vertices: u32,
+    num_triangles: u32,
     rng: &mut impl rand::Rng,
 ) -> Vec<FrameBulk> {
     use rand::RngExt as _;
@@ -130,7 +132,7 @@ pub fn random_collider_bulk(
             },
             data: bytemuck::cast_slice(
                 &rng.random_iter::<[f32; 3]>()
-                    .take(num_vertices)
+                    .take(num_vertices as usize)
                     .collect::<Vec<_>>(),
             )
             .to_vec(),
@@ -142,7 +144,7 @@ pub fn random_collider_bulk(
             },
             data: bytemuck::cast_slice(
                 &rng.random_iter::<[u32; 3]>()
-                    .take(num_triangles)
+                    .take(num_triangles as usize)
                     .collect::<Vec<_>>(),
             )
             .to_vec(),
@@ -166,14 +168,16 @@ impl InputFrame {
             )?;
 
             let num = match (header_obj, &meta.captured_attribute) {
-                (crate::InputObject::Particles { num_particles }, BulkAttribute::Particles(_)) => {
-                    num_particles
-                }
                 (
-                    crate::InputObject::Collider {
+                    crate::InputObject::Particles(InputObjectParticles { num_particles }),
+                    BulkAttribute::Particles(_),
+                ) => num_particles,
+                (
+                    crate::InputObject::Collider(InputObjectCollider {
                         num_vertices,
                         num_triangles,
-                    },
+                        ..
+                    }),
                     BulkAttribute::Collider(frame_bulk_collider),
                 ) => match frame_bulk_collider {
                     FrameBulkCollider::VertexPositions => num_vertices,
@@ -187,7 +191,7 @@ impl InputFrame {
             };
 
             let found = data.len();
-            let expected = num * meta.captured_attribute.elem_size();
+            let expected = *num as usize * meta.captured_attribute.elem_size();
             if expected != found {
                 Err(crate::FrameVerifcationError::LengthMismatch {
                     name: meta.object_name.clone(),
@@ -204,7 +208,7 @@ impl InputFrame {
 
 #[cfg(test)]
 impl InputFrame {
-    pub fn test_input_0(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Self {
+    pub fn test_input_0(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Self {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(42);
         let mut bulk = Vec::new();
@@ -237,7 +241,7 @@ impl InputFrame {
         }
     }
 
-    pub fn test_input_1(num_particles: usize) -> Self {
+    pub fn test_input_1(num_particles: u32) -> Self {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(69);
         let mut bulk = Vec::new();

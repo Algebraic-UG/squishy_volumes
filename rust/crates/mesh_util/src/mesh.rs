@@ -21,7 +21,7 @@ pub struct Topology {
 
 pub struct TopologyInput<'a> {
     pub name: &'a str,
-    pub collider: u32,
+    pub collider_id: u32,
     pub num_vertices: u32,
     pub triangle_indices: &'a [Triangle],
 }
@@ -99,7 +99,7 @@ impl Topology {
             }));
             triangle_collider.resize(
                 triangle_collider.len() + input.triangle_indices.len(),
-                input.collider,
+                input.collider_id,
             );
 
             vertex_index_offset += input.num_vertices;
