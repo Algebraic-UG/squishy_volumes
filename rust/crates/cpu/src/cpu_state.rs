@@ -9,8 +9,9 @@
 use std::num::NonZero;
 
 use squishy_volumes_file_frame::{IoState, ParticleFlags};
+use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, InputRangeParticles};
 use squishy_volumes_util::AnimatedGlobals;
-use squishy_volumes_xpu::FrameInput;
+use squishy_volumes_xpu::{FrameInput, FrameInputError};
 
 use super::*;
 
@@ -117,7 +118,7 @@ impl CpuState {
         let velocity_gradients = permute(p, &self.particles.velocity_gradients);
         let initial_positions = permute(p, &self.particles.initial_positions);
 
-        let goal_positions = bytemuck::cast_slice(&self.frame_input.goal_positions_end()).to_vec();
+        let goal_positions = bytemuck::cast_slice(self.frame_input.goal_positions_end()).to_vec();
 
         let particles = squishy_volumes_file_frame::Particles {
             flags,
@@ -183,7 +184,6 @@ impl CpuState {
     pub fn produce_next_state(
         &mut self,
         harness: &squishy_volumes_xpu::Harness,
-        frame_input: &squishy_volumes_xpu::FrameInput,
         CpuRunParameters {
             target_time,
             max_time_step,
@@ -196,7 +196,7 @@ impl CpuState {
 
         let harness = harness.scope(
             "Simulation Milliseconds to Next Frame".to_string(),
-            NonZero::new(((1000. * frame_input.consts().seconds_per_frame()) as usize).max(1))
+            NonZero::new(((1000. * self.frame_input.consts().seconds_per_frame()) as usize).max(1))
                 .unwrap(),
         )?;
 
@@ -213,7 +213,7 @@ impl CpuState {
                 || (self.phase != Phase::LimitTimeStepBeforeForce
                     && self.phase != Phase::LimitTimeStepBeforeIntegrate);
             if run_phase {
-                match self.run_phase(frame_input) {
+                match self.run_phase() {
                     error @ Err(Error::EnergyError(energy_error)) => {
                         tracing::warn!(?energy_error, "Encountered an energy error.");
                         return Ok((self.to_io_state(store_bvh, store_grid)?, error));
@@ -227,9 +227,53 @@ impl CpuState {
                 self.time += self.adaptive_time_step_state.allowed_time_step() as f64;
             }
             harness.step_to(
-                ((self.time % frame_input.consts().seconds_per_frame()) * 1000.) as usize,
+                ((self.time % self.frame_input.consts().seconds_per_frame()) * 1000.) as usize,
             )?;
         }
+
+        if let Some(next_input_frame) = self.frame_input.next_input_frame() {
+            self.animated_globals = next_input_frame.animated_globals;
+            let input_ranges = self.frame_input.input_ranges();
+            for bulk in next_input_frame.bulk {
+                if let BulkAttribute::Particles(attr) = bulk.meta.captured_attribute {
+                    let InputRangeParticles { particle_range } = input_ranges
+                        .get_particle_range(&bulk.meta.object_name)
+                        .map_err(FrameInputError::ObjectError)?;
+                    match attr {
+                        FrameBulkParticles::Flags => {
+                            let flags: &[ParticleFlags] = bytemuck::try_cast_slice(&bulk.data)
+                                .map_err(FrameInputError::CastFailed)?;
+                            // TODO: this needs to depend on what's recorded
+                            let mask = ParticleFlags::HAS_GOAL;
+                            for (i, flag) in particle_range.into_iter().zip(flags) {
+                                let index = self.particles.reverse_sort_map[i];
+                                self.particles.flags[index as usize] &= !mask;
+                                self.particles.flags[index as usize] |= mask & *flag;
+                            }
+                        }
+
+                        FrameBulkParticles::ColliderBits => todo!(),
+                        FrameBulkParticles::Transforms => todo!(),
+                        FrameBulkParticles::Sizes => todo!(),
+                        FrameBulkParticles::Densities => todo!(),
+                        FrameBulkParticles::YoungsModuluses => todo!(),
+                        FrameBulkParticles::PoissonsRatios => todo!(),
+                        FrameBulkParticles::InitialPositions => todo!(),
+                        FrameBulkParticles::InitialVelocity => todo!(),
+                        FrameBulkParticles::ViscosityDynamic => todo!(),
+                        FrameBulkParticles::ViscosityBulk => todo!(),
+                        FrameBulkParticles::Exponent => todo!(),
+                        FrameBulkParticles::BulkModulus => todo!(),
+                        FrameBulkParticles::SandAlpha => todo!(),
+
+                        // already handled
+                        FrameBulkParticles::GoalPositions => {}
+                    }
+                }
+            }
+        }
+
+        self.frame_input.load_next()?;
 
         Ok((self.to_io_state(store_bvh, store_grid)?, Ok(())))
     }

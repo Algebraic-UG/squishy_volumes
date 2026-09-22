@@ -9,14 +9,15 @@
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_util::profile;
-use squishy_volumes_xpu::FrameInput;
 
 use super::*;
 
 impl CpuState {
-    pub fn cull_particles(&mut self, frame_input: &FrameInput) {
-        let domain_min: nalgebra::Vector3<f32> = frame_input.consts().scaled_domain_min().into();
-        let domain_max: nalgebra::Vector3<f32> = frame_input.consts().scaled_domain_max().into();
+    pub fn cull_particles(&mut self) {
+        let domain_min: nalgebra::Vector3<f32> =
+            self.frame_input.consts().scaled_domain_min().into();
+        let domain_max: nalgebra::Vector3<f32> =
+            self.frame_input.consts().scaled_domain_max().into();
 
         profile!("cull_particles");
         self.particles

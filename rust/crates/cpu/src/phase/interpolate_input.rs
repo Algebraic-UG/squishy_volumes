@@ -10,32 +10,33 @@ use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator as _, IntoParallelRefIterator, ParallelIterator as _};
 use squishy_volumes_mesh_util::Triangle;
 use squishy_volumes_util::{NORMALIZATION_EPS, profile};
-use squishy_volumes_xpu::FrameInput;
 
 use super::*;
 
 impl CpuState {
-    pub fn interpolate_input(&mut self, frame_input: &FrameInput) -> Result<(), Error> {
+    pub fn interpolate_input(&mut self) -> Result<(), Error> {
         profile!("interpolate_input");
 
-        let triangle_indices = frame_input.topology().triangle_indices();
+        let triangle_indices = self.frame_input.topology().triangle_indices();
 
         // linear interpolation between a and b
-        let factor_b = frame_input.frame_factor(self.time)?;
+        let factor_b = self.frame_input.frame_factor(self.time)?;
         let factor_a = 1. - factor_b;
 
-        let particle_goal_positions: Vec<Vector3<f32>> = frame_input
+        let particle_goal_positions: Vec<Vector3<f32>> = self
+            .frame_input
             .goal_positions_start()
             .par_iter()
-            .zip(frame_input.goal_positions_end())
+            .zip(self.frame_input.goal_positions_end())
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
-        let vertex_positions: Vec<Vector3<f32>> = frame_input
+        let vertex_positions: Vec<Vector3<f32>> = self
+            .frame_input
             .collider_start()
             .vertex_positions
             .par_iter()
-            .zip(&frame_input.collider_end().vertex_positions)
+            .zip(&self.frame_input.collider_end().vertex_positions)
             .map(|(a, b)| factor_a * a + factor_b * b)
             .collect();
 
@@ -54,7 +55,8 @@ impl CpuState {
 
         // Important to weigh the normals by angle
         // https://github.com/Algebraic-UG/squishy_volumes/issues/313
-        let vertex_normals: Vec<Vector3<f32>> = frame_input
+        let vertex_normals: Vec<Vector3<f32>> = self
+            .frame_input
             .topology()
             .vertex_triangle_lists()
             .par_iter()

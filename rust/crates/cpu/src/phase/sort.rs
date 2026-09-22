@@ -14,8 +14,10 @@ use super::*;
 
 impl CpuState {
     // This is only to optimize memory access.
-    pub fn sort(&mut self, grid_node_size: f32) {
+    pub fn sort(&mut self) {
         profile!("sort");
+
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
 
         // Probably many other alternatives exist, e.g. one could do a z-order curve.
         // This seemed to be faster though. Maybe try again with cached keys?

@@ -16,8 +16,9 @@ use super::*;
 
 impl CpuState {
     // Update the particles' velocity and velocity gradients to be transported.
-    pub fn collect_velocity(&mut self, grid_node_size: f32) {
+    pub fn collect_velocity(&mut self) {
         profile!("collect_velocity");
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
         self.particles
             .positions
             .par_iter()

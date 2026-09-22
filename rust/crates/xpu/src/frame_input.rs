@@ -8,8 +8,8 @@
 
 use squishy_volumes_file_input::{
     BulkAttribute, FrameBulk, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
-    InputHeader, InputObjectCollider, InputRangeCollider, InputRangeParticles, InputRanges,
-    InputReader,
+    InputHeader, InputObjectCollider, InputRange, InputRangeCollider, InputRangeParticles,
+    InputRanges, InputReader,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
 
@@ -130,6 +130,10 @@ impl FrameInput {
         self.frame
     }
 
+    pub fn next_input_frame(&mut self) -> Option<InputFrame> {
+        self.next_input_frame.take()
+    }
+
     pub fn load_next(&mut self) -> Result<(), FrameInputError> {
         self.frame += 1;
 
@@ -178,6 +182,10 @@ impl FrameInput {
 
     pub fn consts(&self) -> &InputConsts {
         &self.input_header.consts
+    }
+
+    pub fn input_ranges(&self) -> &InputRanges {
+        &self.input_ranges
     }
 
     pub fn collider_start(&self) -> &Collider {

@@ -49,26 +49,20 @@ impl Phase {
 }
 
 impl CpuState {
-    pub fn run_phase(
-        &mut self,
-        frame_input: &squishy_volumes_xpu::FrameInput,
-    ) -> Result<(), Error> {
-        let grid_node_size = frame_input.consts().scaled_grid_node_size();
+    pub fn run_phase(&mut self) -> Result<(), Error> {
         match self.phase {
-            Phase::InterpolateInput => self.interpolate_input(frame_input)?,
-            Phase::Sort => self.sort(grid_node_size),
-            Phase::Collide => self.collide(frame_input),
+            Phase::InterpolateInput => self.interpolate_input()?,
+            Phase::Sort => self.sort(),
+            Phase::Collide => self.collide(),
             Phase::ExternalForce => self.external_force()?,
-            Phase::UpdateGridNodes => self.update_grid_nodes(grid_node_size),
-            Phase::LimitTimeStepBeforeForce => self.limit_time_step_before_force(grid_node_size),
-            Phase::ScatterMomentum => self.scatter_momentum(grid_node_size),
+            Phase::UpdateGridNodes => self.update_grid_nodes(),
+            Phase::LimitTimeStepBeforeForce => self.limit_time_step_before_force(),
+            Phase::ScatterMomentum => self.scatter_momentum(),
             Phase::MeldGrid => self.meld_grid(),
-            Phase::CollectVelocity => self.collect_velocity(grid_node_size),
-            Phase::LimitTimeStepBeforeIntegrate => {
-                self.limit_time_step_before_integrate(grid_node_size)
-            }
+            Phase::CollectVelocity => self.collect_velocity(),
+            Phase::LimitTimeStepBeforeIntegrate => self.limit_time_step_before_integrate(),
             Phase::AdvanceParticles => self.advance_particles()?,
-            Phase::CullParticles => self.cull_particles(frame_input),
+            Phase::CullParticles => self.cull_particles(),
         }
 
         Ok(())
