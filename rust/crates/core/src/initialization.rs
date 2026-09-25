@@ -11,7 +11,7 @@ use squishy_volumes_file_frame::IoState;
 use squishy_volumes_file_input::{
     BulkAttribute, FrameBulkParticles, InputError, InputRangeParticles, InputRanges, InputReader,
 };
-use squishy_volumes_xpu::{FrameInputError, Harness};
+use squishy_volumes_xpu::Harness;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -87,19 +87,19 @@ pub fn initialize_io_state(
     harness: &Harness,
     input_reader: &mut InputReader,
 ) -> Result<IoState, StateInitializationError> {
-    let (input_header, input_frame) = {
+    let input_frame = {
         let _scope = harness.scope("Input reading".to_string(), 1.try_into().unwrap())?;
-        (input_reader.read_header()?, input_reader.read_frame(0)?)
+        input_reader.read_frame(0)?
     };
-    let input_ranges = InputRanges::new(&input_header.objects);
+    let input_ranges = InputRanges::new(&input_reader.header().objects);
 
-    let scale = input_header.consts.simulation_scale;
+    let scale = input_reader.header().consts.simulation_scale;
     let inv_scale = 1. / scale;
 
     harness.check()?;
     let mut io_state = IoState::default();
     let _scope = harness.scope("Allocating Objects".to_string(), 1.try_into().unwrap())?;
-    let n = input_header.total_particles();
+    let n = input_reader.header().total_particles();
 
     let squishy_volumes_file_frame::Particles {
         flags,
@@ -140,13 +140,13 @@ pub fn initialize_io_state(
             })?;
         match attribute {
             FrameBulkParticles::Flags => {
-                flags[particle_range].copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?)
+                flags[particle_range].copy_from_slice(bulk.data.assume_ints()?)
             }
             FrameBulkParticles::ColliderBits => {
-                collider_bits[particle_range].copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?)
+                collider_bits[particle_range].copy_from_slice(bulk.data.assume_ints()?)
             }
             FrameBulkParticles::Transforms => {
-                let transforms: &[[[f32; 4]; 4]] = bytemuck::try_cast_slice(&bulk.data)?;
+                let transforms: &[[[f32; 4]; 4]] = bulk.data.assume_floats()?;
                 for (i, m) in particle_range.into_iter().zip(transforms) {
                     positions[i] = [
                         inv_scale * m[3][0],
@@ -163,7 +163,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::Sizes => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice::<u8, f32>(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].initial_volume = (inv_scale * v).powi(3);
                 }
@@ -171,7 +171,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::Densities => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].density = *v;
                 }
@@ -179,7 +179,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::YoungsModuluses => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].youngs_modulus = *v;
                 }
@@ -187,20 +187,21 @@ pub fn initialize_io_state(
             FrameBulkParticles::PoissonsRatios => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].poissons_ratio = *v;
                 }
             }
-            FrameBulkParticles::InitialPositions => initial_positions[particle_range]
-                .copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?),
+            FrameBulkParticles::InitialPositions => {
+                initial_positions[particle_range].copy_from_slice(bulk.data.assume_floats()?)
+            }
             FrameBulkParticles::InitialVelocity => {
-                velocities[particle_range].copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?)
+                velocities[particle_range].copy_from_slice(bulk.data.assume_floats()?)
             }
             FrameBulkParticles::ViscosityDynamic => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].viscosity_dynamic = *v;
                 }
@@ -208,7 +209,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::ViscosityBulk => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].viscosity_bulk = *v;
                 }
@@ -216,7 +217,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::Exponent => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<i32>()?)
                 {
                     parameters[i].exponent = *v;
                 }
@@ -224,7 +225,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::BulkModulus => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].bulk_modulus = *v;
                 }
@@ -232,7 +233,7 @@ pub fn initialize_io_state(
             FrameBulkParticles::SandAlpha => {
                 for (i, v) in particle_range
                     .into_iter()
-                    .zip(bytemuck::try_cast_slice(&bulk.data)?)
+                    .zip(bulk.data.assume_floats::<f32>()?)
                 {
                     parameters[i].sand_alpha = *v;
                 }

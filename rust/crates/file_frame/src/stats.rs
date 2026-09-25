@@ -14,14 +14,14 @@ pub struct Stats {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct StateStats {
-    pub total_particle_count: usize,
-    pub per_object_count: std::collections::BTreeMap<String, usize>,
-    pub grid_node_count: Option<usize>,
+    pub total_particle_count: u32,
+    pub per_object_count: std::collections::BTreeMap<String, u32>,
+    pub grid_node_count: Option<u32>,
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct ComputeStats {
     pub remaining_time_sec: f32,
     pub last_frame_time_sec: f32,
-    pub last_frame_substeps: usize,
+    pub last_frame_substeps: u32,
 }

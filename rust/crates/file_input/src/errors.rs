@@ -10,6 +10,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum InputError {
+    #[error("Can't record input bulk if no frame is started")]
+    NoFrameStarted,
+    #[error("Expected frame to go to {end} but read to {pos}")]
+    FrameMisalign { end: u64, pos: u64 },
     #[error("Requested frame {requested} but there are only {available}")]
     FrameNotAvailable { requested: usize, available: usize },
     #[error("Index offset mishap")]

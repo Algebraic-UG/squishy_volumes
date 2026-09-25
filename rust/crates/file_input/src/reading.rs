@@ -16,14 +16,14 @@ use std::{
 use bincode::deserialize_from;
 use tracing::info;
 
-use crate::OwnedInputFrame;
-
-use super::{InputError, InputFrame, InputHeader, InputOffsetReadingError, magic_bytes};
+use super::{FrameBulk, InputError, InputFrame, InputHeader, InputOffsetReadingError, magic_bytes};
 
 pub struct InputReader {
     size: u64,
     reader: BufReader<File>,
     frame_offsets: Vec<u64>,
+    index_offset: u64,
+    header: InputHeader,
 }
 
 impl InputReader {
@@ -33,11 +33,16 @@ impl InputReader {
         let size = file.metadata()?.len();
         let mut reader = BufReader::new(file);
         squishy_volumes_file_util::read_magic_and_version(magic_bytes, &mut reader)?;
-        let frame_offsets = read_frame_offsets(&mut reader)?;
+        let index_offset = read_index_offset(&mut reader)?;
+        let frame_offsets = read_frame_offsets(&mut reader, index_offset)?;
+        let header = read_header(&mut reader)?;
+
         Ok(Self {
             size,
             reader,
             frame_offsets,
+            index_offset,
+            header,
         })
     }
 
@@ -53,36 +58,64 @@ impl InputReader {
         self.frame_offsets.len()
     }
 
-    pub fn read_header(&mut self) -> Result<InputHeader, InputError> {
-        self.reader.seek(SeekFrom::Start(
-            squishy_volumes_file_util::DATA_OFFSET.try_into().unwrap(),
-        ))?;
-        Ok(deserialize_from(&mut self.reader)?)
+    pub fn header(&self) -> &InputHeader {
+        &self.header
     }
 
-    pub fn read_owned_frame(&mut self, frame: usize) -> Result<OwnedInputFrame, InputError> {
-        Ok(self.read_frame(frame)?.into())
-    }
-
-    pub fn read_frame(&mut self, frame: usize) -> Result<InputFrame<'_>, InputError> {
+    pub fn read_frame(&mut self, frame: usize) -> Result<InputFrame, InputError> {
         let Some(offset) = self.frame_offsets.get(frame) else {
             return Err(InputError::FrameNotAvailable {
                 requested: frame,
                 available: self.frame_offsets.len(),
             });
         };
+        let end = self
+            .frame_offsets
+            .get(frame + 1)
+            .cloned()
+            .unwrap_or(self.index_offset);
 
         self.reader.seek(SeekFrom::Start(*offset))?;
-        Ok(deserialize_from(&mut self.reader)?)
+
+        let animated_globals = deserialize_from(&mut self.reader)?;
+        let mut bulk = Vec::new();
+        while self.reader.stream_position()? < end {
+            let tmp: FrameBulk = deserialize_from(&mut self.reader)?;
+            tmp.verify(&self.header)
+                .map_err(|error| InputError::FrameVerifcationError { frame, error })?;
+            bulk.push(tmp.into());
+        }
+
+        let pos = self.reader.stream_position()?;
+        if pos != end {
+            return Err(InputError::FrameMisalign { end, pos });
+        }
+
+        Ok(InputFrame {
+            animated_globals,
+            bulk,
+        })
     }
 }
 
-fn read_frame_offsets<R: Read + Seek>(mut r: R) -> Result<Vec<u64>, InputOffsetReadingError> {
+fn read_index_offset<R: Read + Seek>(mut r: R) -> Result<u64, InputOffsetReadingError> {
     let mut bytes: [u8; 8] = [0; 8];
     r.seek(SeekFrom::End(-8))?;
     r.read_exact(&mut bytes)?;
-    let index_offset = u64::from_le_bytes(bytes);
-    r.seek(SeekFrom::Start(index_offset))?;
+    Ok(u64::from_le_bytes(bytes))
+}
 
+fn read_frame_offsets<R: Read + Seek>(
+    mut r: R,
+    index_offset: u64,
+) -> Result<Vec<u64>, InputOffsetReadingError> {
+    r.seek(SeekFrom::Start(index_offset))?;
+    Ok(deserialize_from(&mut r)?)
+}
+
+fn read_header<R: Read + Seek>(mut r: R) -> Result<InputHeader, InputError> {
+    r.seek(SeekFrom::Start(
+        squishy_volumes_file_util::DATA_OFFSET.try_into().unwrap(),
+    ))?;
     Ok(deserialize_from(&mut r)?)
 }

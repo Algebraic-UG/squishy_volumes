@@ -154,54 +154,53 @@ pub fn random_collider_bulk(
     ]
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct InputFrame<'a> {
+#[derive(Clone, Debug, PartialEq)]
+pub struct InputFrame {
     pub animated_globals: squishy_volumes_util::AnimatedGlobals,
-    pub bulk: Vec<FrameBulk<'a>>,
+    pub bulk: Vec<OwnedFrameBulk>,
 }
 
-impl InputFrame<'_> {
+impl FrameBulk<'_> {
+    // TODO: also verify the type
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
-        for FrameBulk { meta, data } in &self.bulk {
-            let header_obj = header.objects.get(&meta.object_name).ok_or(
-                crate::ObjectError::ObjectNotInHeader {
-                    name: meta.object_name.clone(),
-                },
-            )?;
+        let header_obj = header.objects.get(&self.meta.object_name).ok_or(
+            crate::ObjectError::ObjectNotInHeader {
+                name: self.meta.object_name.clone(),
+            },
+        )?;
 
-            let num = match (header_obj, &meta.captured_attribute) {
-                (
-                    crate::InputObject::Particles(InputObjectParticles { num_particles }),
-                    BulkAttribute::Particles(_),
-                ) => num_particles,
-                (
-                    crate::InputObject::Collider(InputObjectCollider {
-                        num_vertices,
-                        num_triangles,
-                        ..
-                    }),
-                    BulkAttribute::Collider(frame_bulk_collider),
-                ) => match frame_bulk_collider {
-                    FrameBulkCollider::VertexPositions => num_vertices,
-                    FrameBulkCollider::Triangles
-                    | FrameBulkCollider::TriangleFrictions
-                    | FrameBulkCollider::TriangleDampings => num_triangles,
-                },
-                _ => Err(crate::ObjectError::ObjectChangedType {
-                    name: meta.object_name.clone(),
-                })?,
-            };
+        let num = match (header_obj, &self.meta.captured_attribute) {
+            (
+                crate::InputObject::Particles(InputObjectParticles { num_particles }),
+                BulkAttribute::Particles(_),
+            ) => num_particles,
+            (
+                crate::InputObject::Collider(InputObjectCollider {
+                    num_vertices,
+                    num_triangles,
+                    ..
+                }),
+                BulkAttribute::Collider(frame_bulk_collider),
+            ) => match frame_bulk_collider {
+                FrameBulkCollider::VertexPositions => num_vertices,
+                FrameBulkCollider::Triangles
+                | FrameBulkCollider::TriangleFrictions
+                | FrameBulkCollider::TriangleDampings => num_triangles,
+            },
+            _ => Err(crate::ObjectError::ObjectChangedType {
+                name: self.meta.object_name.clone(),
+            })?,
+        };
 
-            let found = data.len();
-            let expected = *num as usize * meta.captured_attribute.elem_size();
-            if expected != found {
-                Err(crate::FrameVerifcationError::LengthMismatch {
-                    name: meta.object_name.clone(),
-                    attribute: format!("{:?}", meta.captured_attribute),
-                    found,
-                    expected,
-                })?;
-            }
+        let found = self.data.len();
+        let expected = *num as usize * self.meta.captured_attribute.elem_size();
+        if expected != found {
+            Err(crate::FrameVerifcationError::LengthMismatch {
+                name: self.meta.object_name.clone(),
+                attribute: format!("{:?}", self.meta.captured_attribute),
+                found,
+                expected,
+            })?;
         }
 
         Ok(())
@@ -236,26 +235,6 @@ impl From<FrameBulk<'_>> for OwnedFrameBulk {
         Self {
             meta,
             data: data.into(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct OwnedInputFrame {
-    pub animated_globals: squishy_volumes_util::AnimatedGlobals,
-    pub bulk: Vec<OwnedFrameBulk>,
-}
-
-impl From<InputFrame<'_>> for OwnedInputFrame {
-    fn from(
-        InputFrame {
-            animated_globals,
-            bulk,
-        }: InputFrame<'_>,
-    ) -> Self {
-        Self {
-            animated_globals,
-            bulk: bulk.into_iter().map(Into::into).collect(),
         }
     }
 }

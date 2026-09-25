@@ -16,7 +16,7 @@ use std::{
 use bincode::serialize_into;
 use tracing::info;
 
-use super::{InputError, InputFrame, InputHeader, magic_bytes};
+use super::{FrameBulk, InputError, InputHeader, magic_bytes};
 
 pub struct InputWriter {
     header: InputHeader,
@@ -37,20 +37,30 @@ impl InputWriter {
         })
     }
 
-    pub fn record_frame(&mut self, frame: &InputFrame) -> Result<(), InputError> {
-        frame
-            .verify(&self.header)
-            .map_err(|error| InputError::FrameVerifcationError {
-                frame: self.frame_offsets.len(),
-                error,
-            })?;
+    pub fn start_frame(
+        &mut self,
+        animated_globals: &squishy_volumes_util::AnimatedGlobals,
+    ) -> Result<u64, InputError> {
         let current_offset = self.writer.stream_position()?;
         self.frame_offsets.push(current_offset);
-        serialize_into(&mut self.writer, frame)?;
-        Ok(())
+        serialize_into(&mut self.writer, animated_globals)?;
+
+        Ok(self.writer.stream_position()?)
     }
 
-    pub fn flush(self) -> Result<(), InputError> {
+    pub fn record_bulk(&mut self, bulk: &FrameBulk) -> Result<u64, InputError> {
+        if self.frame_offsets.is_empty() {
+            return Err(InputError::NoFrameStarted);
+        }
+        let frame = self.frame_offsets.len() - 1;
+        bulk.verify(&self.header)
+            .map_err(|error| InputError::FrameVerifcationError { frame, error })?;
+        serialize_into(&mut self.writer, bulk)?;
+
+        Ok(self.writer.stream_position()?)
+    }
+
+    pub fn flush(self) -> Result<u64, InputError> {
         info!("Finish writing input");
         let Self {
             mut writer,
@@ -64,10 +74,6 @@ impl InputWriter {
         writer.write_all(&index_offset.to_le_bytes())?;
         writer.flush()?;
 
-        Ok(())
-    }
-
-    pub fn size(&mut self) -> Result<u64, InputError> {
-        Ok(self.writer.stream_position()?)
+        Ok(writer.stream_position()?)
     }
 }

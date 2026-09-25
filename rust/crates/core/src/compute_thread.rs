@@ -20,7 +20,7 @@ use squishy_volumes_file_frame::{ComputeStats, Frame, Stats};
 use squishy_volumes_file_input::{InputHeader, InputReader};
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_util::panic_payload_to_string;
-use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
+use squishy_volumes_xpu::{Harness, ReportInfo};
 use tracing::info;
 
 #[cfg(feature = "profile")]
@@ -62,8 +62,7 @@ impl ComputeThread {
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
             .map_err(Error::StartInputReading)?;
-        let InputHeader { consts, objects } =
-            input_reader.read_header().map_err(Error::ReadHeader)?;
+        let InputHeader { consts, objects } = input_reader.header().clone();
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;

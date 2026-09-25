@@ -18,8 +18,4 @@ impl squishy_volumes_api::SimulationInput for crate::SimulationInputImpl {
     ) -> anyhow::Result<()> {
         Ok(self.record_input_impl(meta, bulk)?)
     }
-
-    fn finish_frame(&mut self) -> anyhow::Result<()> {
-        Ok(self.finish_frame_impl()?)
-    }
 }

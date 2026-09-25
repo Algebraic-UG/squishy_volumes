@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputConsts, InputHeader,
+    BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
     InputObjectCollider, InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
-    OwnedFrameBulk, OwnedInputFrame,
+    OwnedFrameBulk,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
 
@@ -44,8 +44,6 @@ pub enum FrameInputError {
 pub struct FrameInput {
     frame: usize,
     input_reader: InputReader,
-
-    input_header: InputHeader,
     input_ranges: InputRanges,
 
     topology: Topology,
@@ -62,7 +60,7 @@ pub struct FrameInput {
     goal_positions_start: Vec<nalgebra::Vector3<f32>>,
     goal_positions_end: Vec<nalgebra::Vector3<f32>>,
 
-    next_input_frame: Option<OwnedInputFrame>,
+    next_input_frame: Option<InputFrame>,
 }
 
 impl FrameInput {
@@ -72,17 +70,16 @@ impl FrameInput {
         io_collider: squishy_volumes_file_frame::Collider,
         frame: usize,
     ) -> Result<Self, FrameInputError> {
-        let input_header = input_reader.read_header()?;
-        let input_ranges = InputRanges::new(&input_header.objects);
+        let input_ranges = InputRanges::new(&input_reader.header().objects);
 
-        let topology = create_topology(&input_header, &mut input_reader)?;
+        let topology = create_topology(&mut input_reader)?;
 
         let collider_start: Collider = io_collider.try_into()?;
 
         let goal_positions_start = bytemuck::try_cast_vec(io_goal_positions).map_err(|(e, _)| e)?;
 
         let next_input_frame = (frame + 1 < input_reader.len())
-            .then(|| input_reader.read_owned_frame(frame + 1))
+            .then(|| input_reader.read_frame(frame + 1))
             .transpose()?;
 
         let mut collider_end = collider_start.clone();
@@ -90,8 +87,11 @@ impl FrameInput {
         let vertex_velocities;
         if let Some(next_input_frame) = next_input_frame.as_ref() {
             update_collider(&input_ranges, &mut collider_end, &next_input_frame.bulk)?;
-            vertex_velocities =
-                linear_vertex_velocities(&input_header.consts, &collider_start, &collider_end);
+            vertex_velocities = linear_vertex_velocities(
+                &input_reader.header().consts,
+                &collider_start,
+                &collider_end,
+            );
 
             update_goal_positions(
                 &input_ranges,
@@ -104,7 +104,7 @@ impl FrameInput {
         };
 
         let bvh = update_bvh(
-            &input_header.consts,
+            &input_reader.header().consts,
             &topology,
             &collider_start,
             &collider_end,
@@ -113,7 +113,6 @@ impl FrameInput {
         Ok(Self {
             frame,
             input_reader,
-            input_header,
             input_ranges,
             topology,
             bvh,
@@ -130,7 +129,7 @@ impl FrameInput {
         self.frame
     }
 
-    pub fn next_input_frame(&mut self) -> Option<OwnedInputFrame> {
+    pub fn next_input_frame(&mut self) -> Option<InputFrame> {
         self.next_input_frame.take()
     }
 
@@ -145,7 +144,7 @@ impl FrameInput {
         self.goal_positions_start = self.goal_positions_end.clone();
 
         self.next_input_frame = (self.frame + 1 < self.input_reader.len())
-            .then(|| self.input_reader.read_owned_frame(self.frame + 1))
+            .then(|| self.input_reader.read_frame(self.frame + 1))
             .transpose()?;
 
         if let Some(next_input_frame) = self.next_input_frame.as_ref() {
@@ -154,11 +153,8 @@ impl FrameInput {
                 &mut self.collider_end,
                 &next_input_frame.bulk,
             )?;
-            self.vertex_velocities = linear_vertex_velocities(
-                &self.input_header.consts,
-                &self.collider_start,
-                &self.collider_end,
-            );
+            self.vertex_velocities =
+                linear_vertex_velocities(self.consts(), &self.collider_start, &self.collider_end);
 
             update_goal_positions(
                 &self.input_ranges,
@@ -171,7 +167,7 @@ impl FrameInput {
         };
 
         self.bvh = update_bvh(
-            &self.input_header.consts,
+            self.consts(),
             &self.topology,
             &self.collider_start,
             &self.collider_end,
@@ -181,7 +177,7 @@ impl FrameInput {
     }
 
     pub fn consts(&self) -> &InputConsts {
-        &self.input_header.consts
+        &self.input_reader.header().consts
     }
 
     pub fn input_ranges(&self) -> &InputRanges {
@@ -217,7 +213,7 @@ impl FrameInput {
     }
 
     pub fn frame_factor(&self, time: f64) -> Result<f32, FrameInputError> {
-        let frame_time = time * self.input_header.consts.frames_per_second as f64;
+        let frame_time = time * self.consts().frames_per_second as f64;
         let frame_low = frame_time.floor() as usize;
 
         if self.frame != frame_low {
@@ -278,11 +274,8 @@ fn update_bvh(
     squishy_volumes_mesh_util::BoundingVolumeHierarchy::new(aabbs, consts.leaf_threshold)
 }
 
-fn create_topology(
-    input_header: &InputHeader,
-    input_reader: &mut InputReader,
-) -> Result<Topology, FrameInputError> {
-    let bulk = input_reader.read_owned_frame(0)?.bulk;
+fn create_topology(input_reader: &mut InputReader) -> Result<Topology, FrameInputError> {
+    let bulk = input_reader.read_frame(0)?.bulk;
     let mut topology_inputs = Vec::new();
     for bulk in &bulk {
         if bulk.meta.captured_attribute != BulkAttribute::Collider(FrameBulkCollider::Triangles) {
@@ -292,7 +285,9 @@ fn create_topology(
             collider_id,
             num_vertices,
             ..
-        } = input_header.get_collider_input_object(&bulk.meta.object_name)?;
+        } = input_reader
+            .header()
+            .get_collider_input_object(&bulk.meta.object_name)?;
 
         topology_inputs.push(TopologyInput {
             name: &bulk.meta.object_name,

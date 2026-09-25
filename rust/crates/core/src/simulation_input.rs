@@ -15,28 +15,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::InputBulk;
 use squishy_volumes_directory_lock::DirectoryLock;
-use squishy_volumes_file_input::{InputFrame, InputHeader, InputWriter};
-use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
-use tracing::{debug, error};
+use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta, InputHeader, InputWriter};
+use squishy_volumes_util::AnimatedGlobals;
 
-use crate::{Error, InputBulkError, InputBulkExt};
+use crate::Error;
 
-pub struct SimulationInputImpl<'a> {
+pub struct SimulationInputImpl {
     pub directory_lock: DirectoryLock,
     pub input_writer: InputWriter,
     pub max_bytes_on_disk: u64,
-    pub current_frame: Option<InputFrame<'a>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FrameStart {
     pub animated_globals: AnimatedGlobals,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub struct FrameBulkMeta {
-    object_name: String,
-    captured_attribute: BulkAttribute,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
@@ -95,14 +87,13 @@ impl SimulationInputImpl {
             directory_lock,
             input_writer,
             max_bytes_on_disk,
-            current_frame: None,
         })
     }
 
     pub fn clean_up(self) {
         drop(self.input_writer);
         if let Err(e) = remove_file(simulation_input_path(self.directory_lock.directory())) {
-            error!("failed to clean up input file: {e:?}");
+            tracing::error!("failed to clean up input file: {e:?}");
         }
     }
 }
@@ -112,40 +103,32 @@ impl SimulationInputImpl {
         let FrameStart { animated_globals } =
             from_value(frame_start).map_err(Error::ParsingFrameStart)?;
 
-        let input_frame = InputFrame {
-            animated_globals,
-            bulk: Default::default(),
-        };
-        debug!("starting next frame: {input_frame:?}");
+        let size = self
+            .input_writer
+            .start_frame(&animated_globals)
+            .map_err(Error::StartFrame)?;
 
-        self.current_frame = Some(input_frame);
-
-        Ok(())
+        self.check_vs_max_bytes(size)
     }
 
     pub fn record_input_impl(&mut self, meta: Value, bulk: InputBulk) -> Result<(), Error> {
-        let Some(current_frame) = self.current_frame.as_mut() else {
-            return Err(Error::NoFrameStarted);
-        };
-        debug!("got some input: {meta:?}");
         let meta = from_value::<FrameBulkMeta>(meta).map_err(Error::ParsingBulkMeta)?;
-        let data = 
-    }
 
-    pub fn finish_frame_impl(&mut self) -> Result<(), Error> {
-        let Some(current_frame) = self.current_frame.take() else {
-            return Err(Error::NoFrameStarted);
-        };
-        self.input_writer
-            .record_frame(&current_frame)
+        let size = self
+            .input_writer
+            .record_bulk(&FrameBulk { meta, data: bulk })
             .map_err(Error::RecordFrame)?;
 
-        if self.input_writer.size().map_err(Error::QuerySize)? > self.max_bytes_on_disk {
-            return Err(Error::DiskSpaceExceededWhileRecording(
-                self.max_bytes_on_disk,
-            ));
-        }
+        self.check_vs_max_bytes(size)
+    }
 
-        Ok(())
+    fn check_vs_max_bytes(&self, size: u64) -> Result<(), Error> {
+        if size > self.max_bytes_on_disk {
+            Err(Error::DiskSpaceExceededWhileRecording(
+                self.max_bytes_on_disk,
+            ))
+        } else {
+            Ok(())
         }
+    }
 }

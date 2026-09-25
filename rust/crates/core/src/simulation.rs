@@ -37,17 +37,14 @@ impl SimulationImpl {
             directory_lock,
             input_writer,
             max_bytes_on_disk,
-            current_frame,
             ..
         }: SimulationInputImpl,
     ) -> Result<Self, Error> {
         info!("Creating new simulation");
-        if current_frame.is_some() {
-            return Err(Error::LeftoverInputFrame);
-        }
 
         info!("Finalizing input");
-        input_writer.flush().map_err(Error::FinalizingInput)?;
+        let input_size_in_bytes = input_writer.flush().map_err(Error::FinalizingInput)?;
+        info!(input_size_in_bytes);
 
         Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
     }
@@ -63,9 +60,9 @@ impl SimulationImpl {
         max_bytes_on_disk: u64,
         clean_up: bool,
     ) -> Result<Self, Error> {
-        let mut input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
+        let input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
             .map_err(Error::StartInputReading)?;
-        let input_header = input_reader.read_header().map_err(Error::ReadHeader)?;
+        let input_header = input_reader.header().clone();
         let input_ranges = InputRanges::new(&input_header.objects);
         info!(?input_ranges);
 

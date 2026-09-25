@@ -14,7 +14,6 @@ use serde_json::Value;
 pub trait SimulationInput {
     fn start_frame(&mut self, frame_start: Value) -> Result<()>;
     fn record_input(&mut self, meta: Value, bulk: InputBulk) -> Result<()>;
-    fn finish_frame(&mut self) -> Result<()>;
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]

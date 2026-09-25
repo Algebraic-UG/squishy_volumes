@@ -47,6 +47,8 @@ pub enum Error {
 
     #[error("Failed to start input recording")]
     StartInputWriting(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to start frame")]
+    StartFrame(#[source] squishy_volumes_file_input::InputError),
     #[error("Failed to record frame")]
     RecordFrame(#[source] squishy_volumes_file_input::InputError),
     #[error("Failed to finalize input")]
