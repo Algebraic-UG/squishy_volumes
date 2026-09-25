@@ -7,8 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix3, Vector3};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::ParticleParameters;
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
 #[derive(Default, Debug, Clone)]
 pub struct Particles {

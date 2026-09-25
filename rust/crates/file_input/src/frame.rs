@@ -6,12 +6,14 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::{InputObjectCollider, InputObjectParticles};
+use squishy_volumes_api::InputBulk;
+
+use crate::{InputError, InputObjectCollider, InputObjectParticles};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
-pub struct FrameBulk {
+pub struct FrameBulk<'a> {
     pub meta: FrameBulkMeta,
-    pub data: Vec<u8>,
+    pub data: InputBulk<'a>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
@@ -153,12 +155,12 @@ pub fn random_collider_bulk(
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
-pub struct InputFrame {
+pub struct InputFrame<'a> {
     pub animated_globals: squishy_volumes_util::AnimatedGlobals,
-    pub bulk: Vec<FrameBulk>,
+    pub bulk: Vec<FrameBulk<'a>>,
 }
 
-impl InputFrame {
+impl InputFrame<'_> {
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
         for FrameBulk { meta, data } in &self.bulk {
             let header_obj = header.objects.get(&meta.object_name).ok_or(
@@ -203,6 +205,97 @@ impl InputFrame {
         }
 
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub enum OwnedInputBulk {
+    Bool(Vec<bool>),
+    Floats(Vec<f32>),
+    Ints(Vec<i32>),
+}
+
+impl From<InputBulk<'_>> for OwnedInputBulk {
+    fn from(value: InputBulk) -> Self {
+        match value {
+            InputBulk::Bool(cow) => Self::Bool(cow.into_owned()),
+            InputBulk::Floats(cow) => Self::Floats(cow.into_owned()),
+            InputBulk::Ints(cow) => Self::Ints(cow.into_owned()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub struct OwnedFrameBulk {
+    pub meta: FrameBulkMeta,
+    pub data: OwnedInputBulk,
+}
+
+impl From<FrameBulk<'_>> for OwnedFrameBulk {
+    fn from(FrameBulk { meta, data }: FrameBulk<'_>) -> Self {
+        Self {
+            meta,
+            data: data.into(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct OwnedInputFrame {
+    pub animated_globals: squishy_volumes_util::AnimatedGlobals,
+    pub bulk: Vec<OwnedFrameBulk>,
+}
+
+impl From<InputFrame<'_>> for OwnedInputFrame {
+    fn from(
+        InputFrame {
+            animated_globals,
+            bulk,
+        }: InputFrame<'_>,
+    ) -> Self {
+        Self {
+            animated_globals,
+            bulk: bulk.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+const BOOL: &str = "bool";
+const FLOAT: &str = "float";
+const INT: &str = "int";
+
+impl OwnedInputBulk {
+    #[inline]
+    pub fn assume_bools(&self) -> Result<&[bool], InputError> {
+        let expected = BOOL;
+        let found = match self {
+            Self::Bool(vec) => return Ok(vec.as_slice()),
+            Self::Floats(_) => FLOAT,
+            Self::Ints(_) => INT,
+        };
+        Err(InputError::TypeMismatch { expected, found })
+    }
+
+    #[inline]
+    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], InputError> {
+        let expected = FLOAT;
+        let found = match self {
+            Self::Bool(_) => BOOL,
+            Self::Floats(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
+            Self::Ints(_) => INT,
+        };
+        Err(InputError::TypeMismatch { expected, found })
+    }
+
+    #[inline]
+    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], InputError> {
+        let expected = INT;
+        let found = match self {
+            Self::Bool(_) => BOOL,
+            Self::Floats(_) => FLOAT,
+            Self::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
+        };
+        Err(InputError::TypeMismatch { expected, found })
     }
 }
 

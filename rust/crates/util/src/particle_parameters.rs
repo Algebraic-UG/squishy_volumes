@@ -8,39 +8,47 @@
 
 use crate::T;
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub struct ViscosityParameters {
-    pub dynamic: T,
-    pub bulk: T,
-}
-
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, Default)]
+#[repr(C)]
+#[derive(
+    Clone,
+    Copy,
+    bytemuck::Zeroable,
+    bytemuck::Pod,
+    Debug,
+    PartialEq,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 pub struct ParticleParameters {
-    pub mass: T,
+    pub density: T,
     pub initial_volume: T,
-    pub viscosity: Option<ViscosityParameters>,
-    pub specific: SpecificParticleParameters,
+    pub viscosity_dynamic: T,
+    pub viscosity_bulk: T,
+    pub youngs_modulus: T,
+    pub poissons_ratio: T,
+    pub sand_alpha: T,
+    pub bulk_modulus: T,
+    pub exponent: i32,
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
-pub enum SpecificParticleParameters {
-    Solid {
-        mu: T,
-        lambda: T,
-        sand_alpha: Option<T>,
-    },
-    Fluid {
-        exponent: i32,
-        bulk_modulus: T,
-    },
-}
+impl ParticleParameters {
+    #[inline]
+    pub fn mass(&self) -> T {
+        self.density * self.initial_volume
+    }
 
-impl Default for SpecificParticleParameters {
-    fn default() -> Self {
-        Self::Solid {
-            mu: 0.,
-            lambda: 0.,
-            sand_alpha: None,
-        }
+    // Wikipedia: Lamé parameters (this is the "second")
+    #[inline]
+    pub fn mu(&self) -> T {
+        self.youngs_modulus / 2. / (1. + self.poissons_ratio)
+    }
+
+    // Wikipedia: Lamé parameters (this is the "first")
+    #[inline]
+    pub fn lambda(&self) -> T {
+        self.youngs_modulus * self.poissons_ratio
+            / (1. + self.poissons_ratio)
+            / (1. - 2. * self.poissons_ratio)
     }
 }

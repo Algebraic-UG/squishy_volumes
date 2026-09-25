@@ -16,6 +16,8 @@ use std::{
 use bincode::deserialize_from;
 use tracing::info;
 
+use crate::OwnedInputFrame;
+
 use super::{InputError, InputFrame, InputHeader, InputOffsetReadingError, magic_bytes};
 
 pub struct InputReader {
@@ -58,7 +60,11 @@ impl InputReader {
         Ok(deserialize_from(&mut self.reader)?)
     }
 
-    pub fn read_frame(&mut self, frame: usize) -> Result<InputFrame, InputError> {
+    pub fn read_owned_frame(&mut self, frame: usize) -> Result<OwnedInputFrame, InputError> {
+        Ok(self.read_frame(frame)?.into())
+    }
+
+    pub fn read_frame(&mut self, frame: usize) -> Result<InputFrame<'_>, InputError> {
         let Some(offset) = self.frame_offsets.get(frame) else {
             return Err(InputError::FrameNotAvailable {
                 requested: frame,

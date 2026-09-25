@@ -12,10 +12,9 @@ use std::num::NonZeroU32;
 mod test;
 
 use nalgebra::{Matrix4x3, Vector4};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::ParticleParameters;
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
-use crate::{particle_parameters::ParticleParametersDevice, time_step_limits::TimeStepLimits};
+use crate::time_step_limits::TimeStepLimits;
 
 use super::*;
 
@@ -67,9 +66,6 @@ impl Input {
         check_length!(particle_flags, particle_velocities)?;
         check_length!(particle_flags, particle_velocity_gradients)?;
 
-        let particle_parameters: Vec<ParticleParametersDevice> =
-            particle_parameters.iter().map(Into::into).collect();
-
         let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
@@ -120,12 +116,12 @@ impl PipelinePart for LimitTimeStepPerParticle {
                 context,
                 workgroup_size,
                 bind_group_entries: [
-                    (ParticleFlags::MIN_BINDING_SIZE, false),            // flags
-                    (ParticleParametersDevice::MIN_BINDING_SIZE, false), // parameters
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),         // position_gradients
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),           // velocities
-                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),         // velocity_gradients
-                    (TimeStepLimits::MIN_BINDING_SIZE, false),           // time_step_limits
+                    (ParticleFlags::MIN_BINDING_SIZE, false),      // flags
+                    (ParticleParameters::MIN_BINDING_SIZE, false), // parameters
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),   // position_gradients
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),     // velocities
+                    (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),   // velocity_gradients
+                    (TimeStepLimits::MIN_BINDING_SIZE, false),     // time_step_limits
                 ],
                 immediate_size: 0,
                 constants: [("GRID_NODE_SIZE", grid_node_size as f64),]

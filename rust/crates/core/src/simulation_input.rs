@@ -15,18 +15,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::InputBulk;
 use squishy_volumes_directory_lock::DirectoryLock;
-use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_file_input::{InputFrame, InputHeader, InputWriter};
-use squishy_volumes_util::AnimatedGlobals;
+use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
 use tracing::{debug, error};
 
 use crate::{Error, InputBulkError, InputBulkExt};
 
-pub struct SimulationInputImpl {
+pub struct SimulationInputImpl<'a> {
     pub directory_lock: DirectoryLock,
     pub input_writer: InputWriter,
     pub max_bytes_on_disk: u64,
-    pub current_frame: Option<InputFrame>,
+    pub current_frame: Option<InputFrame<'a>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -115,8 +114,7 @@ impl SimulationInputImpl {
 
         let input_frame = InputFrame {
             animated_globals,
-            particles_inputs: Default::default(),
-            collider_inputs: Default::default(),
+            bulk: Default::default(),
         };
         debug!("starting next frame: {input_frame:?}");
 
@@ -130,125 +128,8 @@ impl SimulationInputImpl {
             return Err(Error::NoFrameStarted);
         };
         debug!("got some input: {meta:?}");
-        let FrameBulkMeta {
-            object_name,
-            captured_attribute,
-        } = from_value::<FrameBulkMeta>(meta).map_err(Error::ParsingBulkMeta)?;
-        let captured_attribute_copy = captured_attribute.clone();
-        (|| -> Result<(), InputBulkError> {
-            match captured_attribute {
-                BulkAttribute::Particles(captured_attribute) => {
-                    let ps = current_frame
-                        .particles_inputs
-                        .entry(object_name.clone())
-                        .or_default();
-
-                    match captured_attribute {
-                        FrameBulkParticles::IsSolid
-                        | FrameBulkParticles::IsFluid
-                        | FrameBulkParticles::UseViscosity
-                        | FrameBulkParticles::UseSandAlpha
-                        | FrameBulkParticles::HasGoal => {
-                            let slice = bulk.as_bools()?;
-                            if ps.flags.is_empty() {
-                                ps.flags.resize(slice.len(), Default::default());
-                            } else {
-                                if ps.flags.len() != bulk.len() {
-                                    tracing::error!(
-                                        before = ps.flags.len(),
-                                        after = bulk.len(),
-                                        "Falgs' length has changed"
-                                    );
-                                    return Err(InputBulkError::FlagsLengthChanged);
-                                }
-                            }
-                            let flag = match captured_attribute {
-                                FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
-                                FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
-                                FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
-                                FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
-                                FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
-                                _ => unreachable!(),
-                            };
-                            ps.flags.iter_mut().zip(slice).for_each(|(flags, &value)| {
-                                if value {
-                                    *flags |= flag.bits()
-                                }
-                            });
-                        }
-                        FrameBulkParticles::Transforms => {
-                            ps.transforms =
-                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
-                        }
-                        FrameBulkParticles::Sizes => ps.sizes = Some(bulk.as_floats()?.to_vec()),
-                        FrameBulkParticles::Densities => {
-                            ps.densities = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::YoungsModuluses => {
-                            ps.youngs_moduluses = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::PoissonsRatios => {
-                            ps.poissons_ratios = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::InitialPositions => {
-                            ps.initial_positions =
-                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
-                        }
-                        FrameBulkParticles::InitialVelocity => {
-                            ps.initial_velocities =
-                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
-                        }
-                        FrameBulkParticles::ViscosityDynamic => {
-                            ps.viscosities_dynamic = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::ViscosityBulk => {
-                            ps.viscosities_bulk = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::Exponent => {
-                            ps.exponents = Some(bytemuck::try_cast_slice(bulk.as_ints()?)?.to_vec())
-                        }
-                        FrameBulkParticles::BulkModulus => {
-                            ps.bulk_moduluses = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::SandAlpha => {
-                            ps.sand_alphas = Some(bulk.as_floats()?.to_vec())
-                        }
-                        FrameBulkParticles::GoalPositions => {
-                            ps.goal_positions =
-                                Some(bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec())
-                        }
-                    }
-                }
-                BulkAttribute::Collider(captured_attribute) => {
-                    let cs = current_frame
-                        .collider_inputs
-                        .entry(object_name.clone())?
-                        .or_default();
-                    match captured_attribute {
-                        FrameBulkCollider::VertexPositions => {
-                            cs.vertex_positions =
-                                bytemuck::try_cast_slice(bulk.as_floats()?)?.to_vec()
-                        }
-                        FrameBulkCollider::Triangles => {
-                            cs.triangle_indices =
-                                bytemuck::try_cast_slice(bulk.as_ints()?)?.to_vec()
-                        }
-                        FrameBulkCollider::TriangleFrictions => {
-                            cs.triangle_frictions = bulk.as_floats()?.to_vec()
-                        }
-                        FrameBulkCollider::TriangleDampings => {
-                            cs.triangle_dampings = bulk.as_floats()?.to_vec()
-                        }
-                    }
-                }
-            }
-            Ok(())
-        })()
-        .map_err(|error| Error::InputBulkError {
-            object_name,
-            attribute: format!("{captured_attribute_copy:?}"),
-            error,
-        })
+        let meta = from_value::<FrameBulkMeta>(meta).map_err(Error::ParsingBulkMeta)?;
+        let data = 
     }
 
     pub fn finish_frame_impl(&mut self) -> Result<(), Error> {
@@ -266,5 +147,5 @@ impl SimulationInputImpl {
         }
 
         Ok(())
-    }
+        }
 }

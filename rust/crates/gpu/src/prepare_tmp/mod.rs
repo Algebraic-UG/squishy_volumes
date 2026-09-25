@@ -12,10 +12,7 @@ use std::num::NonZeroU32;
 mod test;
 
 use nalgebra::{Matrix4, Matrix4x3, Vector4};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::ParticleParameters;
-
-use crate::particle_parameters::ParticleParametersDevice;
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
 use super::*;
 
@@ -75,9 +72,6 @@ impl Input {
         check_length!(particle_flags, particle_velocities)?;
         check_length!(particle_flags, particle_velocity_gradients)?;
 
-        let particle_parameters: Vec<ParticleParametersDevice> =
-            particle_parameters.iter().map(Into::into).collect();
-
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
@@ -136,9 +130,9 @@ impl PipelinePart for PrepareTmp {
                 context,
                 workgroup_size,
                 bind_group_entries: [
-                    (f32::MIN_BINDING_SIZE, false),                      // time_step
-                    (ParticleFlags::MIN_BINDING_SIZE, false),            // flags
-                    (ParticleParametersDevice::MIN_BINDING_SIZE, false), // parameters
+                    (f32::MIN_BINDING_SIZE, false),                     // time_step
+                    (ParticleFlags::MIN_BINDING_SIZE, false),           // flags
+                    (ParticleParameters::MIN_BINDING_SIZE, false),      // parameters
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),        // position_gradients
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // velocities

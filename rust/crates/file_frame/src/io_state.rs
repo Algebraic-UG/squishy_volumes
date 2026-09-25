@@ -18,6 +18,8 @@ pub struct IoState {
 
     pub particles: Particles,
 
+    pub goal_positions: Vec<[f32; 3]>,
+
     pub collider: Collider,
 
     // these can be computed from scratch, so they are optional

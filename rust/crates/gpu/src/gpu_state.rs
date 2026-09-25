@@ -9,47 +9,82 @@
 use std::{mem::swap, num::NonZeroU32, path::PathBuf, time::Duration};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
-use squishy_volumes_file_frame::{IoState, ParticleFlags};
-use squishy_volumes_xpu::{FrameInput, Harness};
+use squishy_volumes_file_frame::IoState;
+use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, InputRangeParticles};
+use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
+use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
 use crate::{
-    particle_parameters::ParticleParametersDevice,
     step::{VariableParticleInput, VariableParticleInputData},
     time_step_limits::TimeStepLimits,
 };
 
 use super::*;
 
+struct PendingInput {
+    animated_globals: AnimatedGlobals,
+    globals: Allocation,
+    next_goal_positions: Allocation,
+    next_collider_input: Option<step::ColliderInput>,
+    particle_updates: Vec<PendingParticleUpdate>,
+}
+
+struct PendingParticleUpdate {
+    attribute: FrameBulkParticles,
+    allocation: Allocation,
+    offset: u32,
+}
+
 pub struct GpuState {
-    start_time: f32,
+    time: f64,
+    animated_globals: AnimatedGlobals,
+
     gpu_context: GpuContext,
+
     update_flags: UpdateFlags,
     pipeline_part: Step,
-    new_flags: Allocation,
-    next_input: step::Input,
+
+    step_input: step::Input,
+
+    pending_input: Option<PendingInput>,
+
     max_num_grid_nodes: NonZeroU32,
 
     steps_per_frame: u32,
     recorded_steps: u32,
 
-    io_state: IoState,
+    frame_input: FrameInput,
+
+    // if we need to redo the frame
+    io_particles: squishy_volumes_file_frame::Particles,
+
     profile_data_csv_writer: Option<ProfileDataCsvWriter>,
 }
 
 pub const BYTES_PER_GRID_NODE: u64 = 300;
 
 impl GpuState {
-    pub fn from_io_state(
+    pub fn new(
+        frame: usize,
+        io_state: IoState,
+        input_reader: squishy_volumes_file_input::InputReader,
         gpu: String,
         harness: &Harness,
-        frame_input: &FrameInput,
         max_time_step: f32,
-        io_state: IoState,
         profiling_output_file: Option<PathBuf>,
     ) -> Result<Self, GpuError> {
         tracing::info!("setting up GPU state");
-        let harness = harness.scope("Setting up GPU State".to_string(), 5.try_into().unwrap())?;
 
+        let harness = harness.scope("Setting up GPU State".to_string(), 5.try_into().unwrap())?;
+        let time = io_state.time;
+        let animated_globals = io_state.animated_globals;
+
+        let frame_input = FrameInput::new(
+            input_reader,
+            io_state.goal_positions,
+            io_state.collider,
+            frame,
+        )?;
         let consts = frame_input.consts();
 
         let max_num_grid_nodes: NonZeroU32 = (io_state.particles.flags.len() as u32)
@@ -117,28 +152,19 @@ impl GpuState {
 
         let num_particles = io_state.particles.flags.len();
         tracing::info!(num_particles, "preparing particles for transfer");
-        let particle_parameters: Vec<ParticleParametersDevice> = io_state
-            .particles
-            .parameters
-            .iter()
-            .map(Into::into)
-            .collect();
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
             len: num_particles as u32,
         });
 
-        let a = frame_input.a();
-        let b = frame_input.b().unwrap_or(a);
-
-        let particle_goals_start = a
-            .particle_goal_positions()
+        let particle_goals_start = frame_input
+            .goal_positions_start()
             .iter()
             .map(|p| p.push(0.))
             .collect::<Vec<_>>();
-        let particle_goals_end = b
-            .particle_goal_positions()
+        let particle_goals_end = frame_input
+            .goal_positions_end()
             .iter()
             .map(|p| p.push(0.))
             .collect::<Vec<_>>();
@@ -149,54 +175,50 @@ impl GpuState {
 
         let start_time =
             (io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
-        let time = Allocation::new(device, "time", &[start_time])?;
-        let step = Allocation::new(device, "step", &[0])?;
+        let io_particles = io_state.particles;
+        let step_input = {
+            let time = Allocation::new(device, "time", &[start_time])?;
+            let step = Allocation::new(device, "step", &[0])?;
 
-        let globals_start = Allocation::new(device, "globals_start", &[*a.animated_globals()])?;
-        let globals_end = Allocation::new(device, "globlas_end", &[*b.animated_globals()])?;
+            let globals = Allocation::new(device, "globals", &[animated_globals])?;
 
-        let new_flags = Allocation::new(device, "new_flags", a.particle_flags())?;
-        let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
-        let indirect_grid_nodes =
-            Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
-        let particle_parameters =
-            Allocation::new(device, "particle_parameters", &particle_parameters)?;
+            let indirect_particles = Allocation::new(device, "indirect_particles", &[indirect])?;
+            let indirect_grid_nodes =
+                Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
 
-        let particle_goals_start =
-            Allocation::new(device, "particle_goals_start", &particle_goals_start)?;
-        let particle_goals_end =
-            Allocation::new(device, "particle_goals_end", &particle_goals_end)?;
+            let particle_goals_start =
+                Allocation::new(device, "particle_goals_start", &particle_goals_start)?;
+            let particle_goals_end =
+                Allocation::new(device, "particle_goals_end", &particle_goals_end)?;
 
-        let variable_particle_input = get_variable_particle_input(device, &io_state)?;
+            let variable_particle_input = get_variable_particle_input(device, &io_particles)?;
 
-        let collider_input = get_collider_input(device, frame_input)?;
+            let collider_input = get_collider_input(device, &frame_input)?;
 
-        let limits_over_time = Allocation::new(
-            device,
-            "limits_over_time",
-            &vec![TimeStepLimits::default(); steps_per_frame as usize],
-        )?;
+            let limits_over_time = Allocation::new(
+                device,
+                "limits_over_time",
+                &vec![TimeStepLimits::default(); steps_per_frame as usize],
+            )?;
 
-        let next_input = step::Input {
-            time,
-            step,
+            step::Input {
+                time,
+                step,
 
-            globals_end,
-            globals_start,
+                globals,
 
-            indirect_particles,
-            indirect_grid_nodes,
+                indirect_particles,
+                indirect_grid_nodes,
 
-            particle_parameters,
+                particle_goals_start,
+                particle_goals_end,
 
-            particle_goals_start,
-            particle_goals_end,
+                variable_particle_input,
 
-            variable_particle_input,
+                collider_input,
 
-            collider_input,
-
-            limits_over_time,
+                limits_over_time,
+            }
         };
 
         let profile_data_csv_writer = profiling_output_file
@@ -207,16 +229,18 @@ impl GpuState {
         harness.step()?;
 
         Ok(Self {
-            start_time,
+            time,
+            animated_globals,
             gpu_context,
             update_flags,
             pipeline_part,
-            new_flags,
-            next_input,
+            step_input,
+            pending_input: None,
             max_num_grid_nodes,
             recorded_steps: 0,
             steps_per_frame,
-            io_state,
+            frame_input,
+            io_particles,
             profile_data_csv_writer,
         })
     }
@@ -224,15 +248,13 @@ impl GpuState {
 
 fn get_variable_particle_input(
     device: &wgpu::Device,
-    io_state: &IoState,
+    io_particles: &squishy_volumes_file_frame::Particles,
 ) -> Result<step::VariableParticleInput, GpuError> {
     tracing::info!("preparing variable particle data for transfer");
-
-    let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = io_state
-        .particles
+    let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = io_particles
         .positions
         .iter()
-        .zip(&io_state.particles.collider_bits)
+        .zip(&io_particles.collider_bits)
         .map(|(&position, &collider_bits)| PositionAndColliderBits {
             position: position.into(),
             collider_bits,
@@ -240,18 +262,18 @@ fn get_variable_particle_input(
         .collect();
     #[allow(clippy::toplevel_ref_arg)]
     let particle_position_gradients: Vec<Matrix4x3<f32>> =
-        bytemuck::cast_slice::<_, Matrix3<f32>>(&io_state.particles.position_gradients)
+        bytemuck::cast_slice::<_, Matrix3<f32>>(&io_particles.position_gradients)
             .iter()
             .map(|m| stack![m; Matrix1x3::zeros()])
             .collect();
     let particle_velocities: Vec<Vector4<f32>> =
-        bytemuck::cast_slice::<_, Vector3<f32>>(&io_state.particles.velocities)
+        bytemuck::cast_slice::<_, Vector3<f32>>(&io_particles.velocities)
             .iter()
             .map(|v| v.push(0.))
             .collect();
     #[allow(clippy::toplevel_ref_arg)]
     let particle_velocity_gradients: Vec<Matrix4x3<f32>> =
-        bytemuck::cast_slice::<_, Matrix3<f32>>(&io_state.particles.velocity_gradients)
+        bytemuck::cast_slice::<_, Matrix3<f32>>(&io_particles.velocity_gradients)
             .iter()
             .map(|m| stack![m; Matrix1x3::zeros()])
             .collect();
@@ -259,7 +281,8 @@ fn get_variable_particle_input(
     VariableParticleInput::new(
         device,
         VariableParticleInputData {
-            particle_flags: &io_state.particles.flags,
+            particle_flags: &io_particles.flags,
+            particle_parameters: &io_particles.parameters,
             particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
             particle_position_gradients: &particle_position_gradients,
             particle_velocities: &particle_velocities,
@@ -276,18 +299,23 @@ fn get_collider_input(
         return Ok(None);
     }
 
-    let a = frame_input.a();
-    let b = frame_input.b().unwrap_or(a);
-
     let topology = frame_input.topology();
     let num_triangles = topology.triangle_indices().len();
     let num_vertices = topology.vertex_triangle_lists().len();
     tracing::info!(num_vertices, num_triangles, "preparing mesh for transfer");
 
-    let vertex_positions_start: Vec<Vector4<f32>> =
-        a.vertex_positions().iter().map(|p| p.push(0.)).collect();
-    let vertex_positions_end: Vec<Vector4<f32>> =
-        b.vertex_positions().iter().map(|p| p.push(0.)).collect();
+    let vertex_positions_start: Vec<Vector4<f32>> = frame_input
+        .collider_start()
+        .vertex_positions
+        .iter()
+        .map(|p| p.push(0.))
+        .collect();
+    let vertex_positions_end: Vec<Vector4<f32>> = frame_input
+        .collider_end()
+        .vertex_positions
+        .iter()
+        .map(|p| p.push(0.))
+        .collect();
     let vertex_velocities: Vec<Vector4<f32>> = frame_input
         .vertex_velocities()
         .iter()
@@ -332,9 +360,16 @@ fn get_collider_input(
     let triangle_opposites =
         Allocation::new(device, "triangle_opposites", topology.triangle_opposites())?;
 
-    // TODO: interpolate that
-    let triangle_frictions = Allocation::new(device, "triangle_frictions", a.triangle_frictions())?;
-    let triangle_dampings = Allocation::new(device, "triangle_dampings", a.triangle_dampings())?;
+    let triangle_frictions = Allocation::new(
+        device,
+        "triangle_frictions",
+        &frame_input.collider_start().triangle_frictions,
+    )?;
+    let triangle_dampings = Allocation::new(
+        device,
+        "triangle_dampings",
+        &frame_input.collider_start().triangle_dampings,
+    )?;
 
     let num_bvh_levels = frame_input.bvh().level();
     let num_bvh_nodes = frame_input.bvh().nodes().len();
@@ -361,8 +396,8 @@ fn get_collider_input(
 }
 
 pub struct GpuRunParameters {
-    pub target_time: f64,
     pub adaptive_time_steps: bool,
+    pub store_bvh: bool,
     pub store_grid: bool,
 }
 
@@ -370,31 +405,24 @@ impl GpuState {
     pub fn produce_next_state(
         &mut self,
         harness: &squishy_volumes_xpu::Harness,
-        frame_input: &mut squishy_volumes_xpu::FrameInput,
-        GpuRunParameters {
-            target_time,
+        gpu_run_parameters @ GpuRunParameters {
             adaptive_time_steps,
+            store_bvh,
             store_grid,
         }: GpuRunParameters,
     ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
         squishy_volumes_util::profile!("produce_next_state");
 
-        if self.io_state.time >= target_time {
-            return Ok((self.io_state.clone(), Ok(())));
-        }
-
-        self.start_time =
-            (self.io_state.time % (1. / frame_input.consts().frames_per_second as f64)) as f32;
-        self.next_input.time =
-            Allocation::new(self.gpu_context.device(), "time", &[self.start_time])?;
-        self.next_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
+        let frame_factor = self.frame_input.frame_factor(self.time)?;
+        let start_time = frame_factor / self.frame_input.consts().frames_per_second as f32;
+        tracing::info!(start_time);
+        self.step_input.time = Allocation::new(self.gpu_context.device(), "time", &[start_time])?;
+        self.step_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
 
         let mut encoder = self
             .gpu_context
             .device()
             .create_command_encoder(&Default::default());
-
-        self.record_update_flags(&mut encoder)?;
 
         let mut profiler =
             wgpu_profiler::GpuProfiler::new(self.gpu_context.device(), Default::default()).unwrap();
@@ -407,14 +435,22 @@ impl GpuState {
         if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
             profile_data_csv_writer.clear();
         }
-        loop {
-            let (output, recorded_steps) =
+
+        let pending_input = loop {
+            let (output, new_recorded_steps) =
                 self.record_steps(harness, adaptive_time_steps, &mut encoder, &profiler)?;
+
+            profiler.resolve_queries(&mut encoder);
+
+            let pending_input = if let Some(prepared) = self.pending_input.take() {
+                prepared
+            } else {
+                self.prepare_pending_input()?
+            };
+            self.record_pending_input(&mut encoder, &pending_input)?;
 
             let downloads = Downloads::new(self, store_grid, output);
             downloads.copy(&mut encoder);
-
-            profiler.resolve_queries(&mut encoder);
 
             tracing::info!("submit final");
             let mut tmp = self
@@ -424,11 +460,9 @@ impl GpuState {
             swap(&mut encoder, &mut tmp);
             self.gpu_context.queue().submit([tmp.finish()]);
 
-            let downloads_ready = downloads.prep();
-
             profiler.end_frame().unwrap();
 
-            self.prepare_for_next_frame(frame_input)?;
+            let downloads_ready = downloads.prep();
 
             self.wait_for_gpu(harness)?;
 
@@ -443,7 +477,7 @@ impl GpuState {
                 profile_data_csv_writer.buffer_data(
                     &self.gpu_context,
                     &mut profiler,
-                    recorded_steps,
+                    new_recorded_steps,
                 )?;
             }
 
@@ -459,13 +493,14 @@ impl GpuState {
                         &vec![TimeStepLimits::default(); self.steps_per_frame as usize],
                     )?;
                     encoder.copy_buffer_to_buffer(
-                        self.next_input.limits_over_time.buffer(),
-                        self.next_input.limits_over_time.offset(),
+                        self.step_input.limits_over_time.buffer(),
+                        self.step_input.limits_over_time.offset(),
                         limits_over_time.buffer(),
                         limits_over_time.offset(),
-                        Some(self.next_input.limits_over_time.size().get()),
+                        Some(self.step_input.limits_over_time.size().get()),
                     );
-                    self.next_input.limits_over_time = limits_over_time;
+                    self.step_input.limits_over_time = limits_over_time;
+                    self.pending_input = Some(pending_input);
                     continue;
                 }
                 Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded {
@@ -490,75 +525,283 @@ impl GpuState {
                 Err(GpuError::Shader(GpuShaderError::FrameTimeReached)) => {}
                 x => x?,
             };
-            break;
-        }
+            break pending_input;
+        };
 
         if redo_frame {
-            if self.max_num_grid_nodes.get() as usize >= self.io_state.particles.flags.len() * 27 {
+            if self.max_num_grid_nodes.get() as usize >= self.io_particles.flags.len() * 27 {
                 return Err(GpuError::MaxGridNodesExceeded);
             }
 
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
             tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
-            frame_input.load(frame_input.frame() - 1)?;
-            self.new_flags = Allocation::new(
-                self.gpu_context.device(),
-                "new_flags",
-                frame_input.a().particle_flags(),
-            )?;
-            self.next_input.globals_end = self.next_input.globals_start.clone();
-            self.next_input.globals_start = Allocation::new(
-                self.gpu_context.device(),
-                "globals_start",
-                &[*frame_input.a().animated_globals()],
-            )?;
-            self.next_input.collider_input =
-                get_collider_input(self.gpu_context.device(), frame_input)?;
-            self.next_input.variable_particle_input =
-                get_variable_particle_input(self.gpu_context.device(), &self.io_state)?;
+
+            self.step_input.variable_particle_input =
+                get_variable_particle_input(self.gpu_context.device(), &self.io_particles)?;
             self.gpu_context.resize_allocator(
                 self.max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE,
                 false,
             )?;
-            return self.produce_next_state(
-                harness,
-                frame_input,
-                GpuRunParameters {
-                    target_time,
-                    adaptive_time_steps,
-                    store_grid,
-                },
-            );
+            self.pending_input = Some(pending_input);
+            return self.produce_next_state(harness, gpu_run_parameters);
         }
+
+        let MappedDownloads {
+            status: _,
+            time,
+            //step: _,
+            //limits_over_time: _,
+            indirect_nodes,
+            particle_flags,
+            particle_positions_and_collider_bits,
+            particle_position_gradients,
+            particle_velocities,
+            grid,
+        } = mapped_downloads;
+
+        let advanced_time = time - start_time;
+        self.time += advanced_time as f64;
+        self.animated_globals = pending_input.animated_globals;
+        self.step_input.globals = pending_input.globals;
+        self.step_input.particle_goals_start = self.step_input.particle_goals_end.clone();
+        self.step_input.particle_goals_end = pending_input.next_goal_positions;
+        self.step_input.collider_input = pending_input.next_collider_input;
 
         if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
             profile_data_csv_writer.write_frame(
-                self.io_state.time
-                    ..self.io_state.time + 1. / frame_input.consts().frames_per_second as f64,
+                self.time..self.time + 1. / self.frame_input.consts().frames_per_second as f64,
             )?;
         };
 
-        update_io_state(self.start_time, &mut self.io_state, mapped_downloads);
+        let particles = {
+            let flags = particle_flags;
+            // TODO: this might be change soon
+            let parameters = self.io_particles.parameters.clone();
+            // TODO
+            let elastic_energies = vec![0.; flags.len()];
+            let (positions, collider_bits) = particle_positions_and_collider_bits
+                .into_iter()
+                .map(
+                    |PositionAndColliderBits {
+                         position,
+                         collider_bits,
+                     }|
+                     -> ([f32; 3], u32) { (position.into(), collider_bits) },
+                )
+                .unzip();
+            let position_gradients = particle_position_gradients
+                .into_iter()
+                .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+                .collect();
+            let velocities = particle_velocities
+                .into_iter()
+                .map(|v| v.xyz().into())
+                .collect();
+            // https://github.com/Algebraic-UG/squishy_volumes/issues/368
+            let velocity_gradients = self.io_particles.velocity_gradients.clone();
 
-        Ok((self.io_state.clone(), buffered_error))
+            // TODO: does it make sense to have this "variable"
+            let initial_positions = self.io_particles.initial_positions.clone();
+
+            squishy_volumes_file_frame::Particles {
+                flags,
+                parameters,
+                elastic_energies,
+                collider_bits,
+                positions,
+                position_gradients,
+                velocities,
+                velocity_gradients,
+                initial_positions,
+            }
+        };
+
+        let collider = self.frame_input.collider_start().to_io_collider();
+        let goal_positions = bytemuck::cast_slice(self.frame_input.goal_positions_end()).to_vec();
+        let bvh = store_bvh.then(|| self.frame_input.bvh().clone());
+        let grid_nodes = grid.map(
+            |MappedDownloadsGrid {
+                 node_ids_and_collider_bits,
+                 node_momentums,
+             }| {
+                let num_grid_nodes = indirect_nodes.len as usize;
+                let node_ids = node_ids_and_collider_bits
+                    .iter()
+                    .take(num_grid_nodes)
+                    .map(|node_id_and_collider_bits| node_id_and_collider_bits.node_id.into())
+                    .collect();
+                let collider_bits = node_ids_and_collider_bits
+                    .iter()
+                    .take(num_grid_nodes)
+                    .map(|node_id_and_collider_bits| node_id_and_collider_bits.collider_bits)
+                    .collect();
+                let masses = node_momentums
+                    .iter()
+                    .take(num_grid_nodes)
+                    .map(|momentum| momentum.w)
+                    .collect();
+                let velocites = node_momentums
+                    .iter()
+                    .take(num_grid_nodes)
+                    .map(|momentum| {
+                        if momentum.w != 0. {
+                            momentum.xyz() / momentum.w
+                        } else {
+                            Vector3::zeros()
+                        }
+                        .into()
+                    })
+                    .collect();
+                squishy_volumes_file_frame::GridNodes {
+                    node_ids,
+                    collider_bits,
+                    masses,
+                    velocites,
+                }
+            },
+        );
+        let io_state = IoState {
+            time: self.time,
+            animated_globals: self.animated_globals,
+            particles,
+            goal_positions,
+            collider,
+            bvh,
+            grid_nodes,
+        };
+
+        Ok((io_state, buffered_error))
     }
 
-    fn record_update_flags(&mut self, encoder: &mut wgpu::CommandEncoder) -> Result<(), GpuError> {
-        // This has to happen just once per frame
-        // It doesn't fit with our other profiling stuff
-        self.update_flags.record(
-            &mut self.gpu_context,
-            &mut encoder.into(),
-            update_flags::Input {
-                new_flags: self.new_flags.clone(),
-                flags: self
-                    .next_input
-                    .variable_particle_input
-                    .particle_flags
-                    .clone(),
-            },
-            update_flags::Parameters,
+    fn prepare_pending_input(&mut self) -> Result<PendingInput, GpuError> {
+        let Some(next_input_frame) = self.frame_input.next_input_frame() else {
+            return Ok(PendingInput {
+                animated_globals: self.animated_globals,
+                globals: self.step_input.globals.clone(),
+                next_goal_positions: self.step_input.particle_goals_end.clone(),
+                next_collider_input: self.step_input.collider_input.clone(),
+                particle_updates: Vec::new(),
+            });
+        };
+
+        let globals = Allocation::new(
+            self.gpu_context.device(),
+            "globals",
+            &[next_input_frame.animated_globals],
         )?;
+
+        let input_ranges = self.frame_input.input_ranges();
+        let mut particle_updates = Vec::new();
+        for bulk in next_input_frame.bulk {
+            if let BulkAttribute::Particles(attribute) = bulk.meta.captured_attribute {
+                let InputRangeParticles { particle_range } = input_ranges
+                    .get_particle_range(&bulk.meta.object_name)
+                    .map_err(FrameInputError::ObjectError)?;
+                let offset = particle_range.start as u32;
+                let allocation = match attribute {
+                    FrameBulkParticles::Flags => {
+                        let flags: &[ParticleFlags] = bulk
+                            .data
+                            .assume_ints()
+                            .map_err(FrameInputError::InputError)?;
+                        Allocation::new(self.gpu_context.device(), "new_flags", flags)?
+                    }
+                    FrameBulkParticles::ColliderBits => todo!(),
+                    FrameBulkParticles::Transforms => todo!(),
+                    FrameBulkParticles::Sizes => todo!(),
+                    FrameBulkParticles::Densities => todo!(),
+                    FrameBulkParticles::YoungsModuluses => todo!(),
+                    FrameBulkParticles::PoissonsRatios => todo!(),
+                    FrameBulkParticles::InitialPositions => todo!(),
+                    FrameBulkParticles::InitialVelocity => todo!(),
+                    FrameBulkParticles::ViscosityDynamic => todo!(),
+                    FrameBulkParticles::ViscosityBulk => todo!(),
+                    FrameBulkParticles::Exponent => todo!(),
+                    FrameBulkParticles::BulkModulus => todo!(),
+                    FrameBulkParticles::SandAlpha => todo!(),
+
+                    // already handled
+                    FrameBulkParticles::GoalPositions => {
+                        continue;
+                    }
+                };
+                particle_updates.push(PendingParticleUpdate {
+                    attribute,
+                    allocation,
+                    offset,
+                });
+            }
+        }
+
+        self.frame_input.load_next()?;
+
+        let next_goal_positions = Allocation::new(
+            self.gpu_context.device(),
+            "particle_goals_end",
+            &self
+                .frame_input
+                .goal_positions_end()
+                .iter()
+                .map(|p| p.push(0.))
+                .collect::<Vec<_>>(),
+        )?;
+
+        let next_collider_input = get_collider_input(self.gpu_context.device(), &self.frame_input)?;
+
+        Ok(PendingInput {
+            animated_globals: next_input_frame.animated_globals,
+            globals,
+            next_goal_positions,
+            next_collider_input,
+            particle_updates,
+        })
+    }
+
+    fn record_pending_input(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        pending_input: &PendingInput,
+    ) -> Result<(), GpuError> {
+        for PendingParticleUpdate {
+            attribute,
+            allocation,
+            offset,
+        } in &pending_input.particle_updates
+        {
+            match attribute {
+                FrameBulkParticles::Flags => {
+                    self.update_flags.record(
+                        &mut self.gpu_context,
+                        &mut encoder.into(),
+                        update_flags::Input {
+                            new_flags: allocation.clone(),
+                            flags: self
+                                .step_input
+                                .variable_particle_input
+                                .particle_flags
+                                .clone(),
+                        },
+                        update_flags::Parameters { offset: *offset },
+                    )?;
+                }
+
+                FrameBulkParticles::ColliderBits => todo!(),
+                FrameBulkParticles::Transforms => todo!(),
+                FrameBulkParticles::Sizes => todo!(),
+                FrameBulkParticles::Densities => todo!(),
+                FrameBulkParticles::YoungsModuluses => todo!(),
+                FrameBulkParticles::PoissonsRatios => todo!(),
+                FrameBulkParticles::InitialPositions => todo!(),
+                FrameBulkParticles::InitialVelocity => todo!(),
+                FrameBulkParticles::ViscosityDynamic => todo!(),
+                FrameBulkParticles::ViscosityBulk => todo!(),
+                FrameBulkParticles::Exponent => todo!(),
+                FrameBulkParticles::BulkModulus => todo!(),
+                FrameBulkParticles::SandAlpha => todo!(),
+
+                FrameBulkParticles::GoalPositions => unreachable!(),
+            }
+        }
         Ok(())
     }
 
@@ -570,14 +813,14 @@ impl GpuState {
         profiler: &wgpu_profiler::GpuProfiler,
     ) -> Result<(step::Output, usize), GpuError> {
         tracing::info!(assumed_steps = self.steps_per_frame, "Recording steps");
-        let mut recorded_steps = 0;
+        let mut new_recorded_steps = 0;
         loop {
             harness.check()?;
             let scope = profiler.scope("run_step", encoder);
             let output = self.pipeline_part.record(
                 &mut self.gpu_context,
                 &mut scope.into(),
-                self.next_input.clone(),
+                self.step_input.clone(),
                 step::Parameters {
                     max_num_grid_nodes: self.max_num_grid_nodes,
                     current_step: self.recorded_steps,
@@ -585,7 +828,7 @@ impl GpuState {
                 },
             )?;
             self.recorded_steps += 1;
-            recorded_steps += 1;
+            new_recorded_steps += 1;
 
             if self.recorded_steps == self.steps_per_frame || self.recorded_steps.is_multiple_of(10)
             {
@@ -599,71 +842,9 @@ impl GpuState {
             }
 
             if self.recorded_steps == self.steps_per_frame {
-                break Ok((output, recorded_steps));
+                break Ok((output, new_recorded_steps));
             }
         }
-    }
-
-    fn prepare_for_next_frame(&mut self, frame_input: &mut FrameInput) -> Result<(), GpuError> {
-        tracing::info!("prepare next frame input");
-        frame_input.load(frame_input.frame() + 1)?;
-
-        let b = frame_input.b().unwrap_or(frame_input.a());
-
-        let particle_goals_end = b
-            .particle_goal_positions()
-            .iter()
-            .map(|p| p.push(0.))
-            .collect::<Vec<_>>();
-
-        self.new_flags =
-            Allocation::new(self.gpu_context.device(), "new_flags", b.particle_flags())?;
-        self.next_input.particle_goals_start = self.next_input.particle_goals_end.clone();
-        self.next_input.particle_goals_end = Allocation::new(
-            self.gpu_context.device(),
-            "particle_goals_end",
-            &particle_goals_end,
-        )?;
-
-        self.next_input.globals_start = Allocation::new(
-            self.gpu_context.device(),
-            "globals_start",
-            &[*frame_input.a().animated_globals()],
-        )?;
-        self.next_input.globals_end = Allocation::new(
-            self.gpu_context.device(),
-            "globals_end",
-            &[*b.animated_globals()],
-        )?;
-
-        if let Some(collider_input) = self.next_input.collider_input.as_mut() {
-            let vertex_positions_end: Vec<Vector4<f32>> =
-                b.vertex_positions().iter().map(|p| p.push(0.)).collect();
-            let vertex_velocities: Vec<Vector4<f32>> = frame_input
-                .vertex_velocities()
-                .iter()
-                .map(|v| v.push(0.))
-                .collect();
-            collider_input.vertex_positions_start = collider_input.vertex_positions_end.clone();
-            collider_input.vertex_positions_end = Allocation::new(
-                self.gpu_context.device(),
-                "vertex_positions_end",
-                &vertex_positions_end,
-            )?;
-            collider_input.vertex_velocities = Allocation::new(
-                self.gpu_context.device(),
-                "vertex_velocities",
-                &vertex_velocities,
-            )?;
-
-            collider_input.bvh = BoundingVolumeHierarchyAllocations::new(
-                self.gpu_context.device(),
-                frame_input.consts().leaf_size,
-                frame_input.bvh(),
-            )?;
-        }
-
-        Ok(())
     }
 
     fn wait_for_gpu(&self, harness: &Harness) -> Result<(), GpuError> {
@@ -696,27 +877,27 @@ impl Downloads {
             &gpu_state.gpu_context,
             [
                 gpu_state.gpu_context.status(),
-                gpu_state.next_input.time.clone(),
+                gpu_state.step_input.time.clone(),
                 //gpu_state.next_input.step.clone(),
                 //gpu_state.next_input.limits_over_time.clone(),
-                gpu_state.next_input.indirect_grid_nodes.clone(),
+                gpu_state.step_input.indirect_grid_nodes.clone(),
                 gpu_state
-                    .next_input
+                    .step_input
                     .variable_particle_input
                     .particle_flags
                     .clone(),
                 gpu_state
-                    .next_input
+                    .step_input
                     .variable_particle_input
                     .particle_positions_and_collider_bits
                     .clone(),
                 gpu_state
-                    .next_input
+                    .step_input
                     .variable_particle_input
                     .particle_position_gradients
                     .clone(),
                 gpu_state
-                    .next_input
+                    .step_input
                     .variable_particle_input
                     .particle_velocities
                     .clone(),
@@ -808,82 +989,4 @@ struct MappedDownloads {
 struct MappedDownloadsGrid {
     node_ids_and_collider_bits: Vec<NodeIdAndColliderBits>,
     node_momentums: Vec<Vector4<f32>>,
-}
-
-fn update_io_state(
-    start_time: f32,
-    io_state: &mut IoState,
-    MappedDownloads {
-        status: _,
-        time,
-        //step: _,
-        //limits_over_time: _,
-        indirect_nodes,
-        particle_flags,
-        particle_positions_and_collider_bits,
-        particle_position_gradients,
-        particle_velocities,
-        grid,
-    }: MappedDownloads,
-) {
-    io_state.time += (time - start_time) as f64;
-    io_state.particles.flags = particle_flags;
-    io_state.particles.collider_bits = particle_positions_and_collider_bits
-        .iter()
-        .map(|position_and_bits| position_and_bits.collider_bits)
-        .collect();
-    io_state.particles.positions = particle_positions_and_collider_bits
-        .into_iter()
-        .map(|position_and_bits| position_and_bits.position.into())
-        .collect();
-    io_state.particles.position_gradients = particle_position_gradients
-        .into_iter()
-        .map(|m| m.fixed_view::<3, 3>(0, 0).into())
-        .collect();
-    io_state.particles.velocities = particle_velocities
-        .into_iter()
-        .map(|v| v.xyz().into())
-        .collect();
-
-    io_state.grid_nodes = grid.map(
-        |MappedDownloadsGrid {
-             node_ids_and_collider_bits,
-             node_momentums,
-         }| {
-            let num_grid_nodes = indirect_nodes.len as usize;
-            let node_ids = node_ids_and_collider_bits
-                .iter()
-                .take(num_grid_nodes)
-                .map(|node_id_and_collider_bits| node_id_and_collider_bits.node_id.into())
-                .collect();
-            let collider_bits = node_ids_and_collider_bits
-                .iter()
-                .take(num_grid_nodes)
-                .map(|node_id_and_collider_bits| node_id_and_collider_bits.collider_bits)
-                .collect();
-            let masses = node_momentums
-                .iter()
-                .take(num_grid_nodes)
-                .map(|momentum| momentum.w)
-                .collect();
-            let velocites = node_momentums
-                .iter()
-                .take(num_grid_nodes)
-                .map(|momentum| {
-                    if momentum.w != 0. {
-                        momentum.xyz() / momentum.w
-                    } else {
-                        Vector3::zeros()
-                    }
-                    .into()
-                })
-                .collect();
-            squishy_volumes_file_frame::GridNodes {
-                node_ids,
-                collider_bits,
-                masses,
-                velocites,
-            }
-        },
-    );
 }

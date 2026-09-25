@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use crate::{
-    ParticleParameters, SINGULAR_VALUE_SEPARATION, SpecificParticleParameters, T,
+    ParticleFlags, ParticleParameters, SINGULAR_VALUE_SEPARATION, T,
     double_partial_elastic_energy_inviscid_by_invariant_3,
     first_piola_stress_inviscid_svd_in_diagonal_space,
     first_piola_stress_neo_hookean_svd_in_diagonal_space,
@@ -19,6 +19,7 @@ use nalgebra::{Matrix3, Vector3};
 
 // Effective time step restrictions for explicit MPM simulation 4.1 Sound Speed
 pub fn limit_time_step_by_speed_of_sound(
+    flags: &ParticleFlags,
     parameters: &ParticleParameters,
     position_gradient: &Matrix3<T>,
     grid_node_size: T,
@@ -37,22 +38,30 @@ pub fn limit_time_step_by_speed_of_sound(
 
     // TODO: do something with viscosity?
 
-    match parameters.specific {
-        SpecificParticleParameters::Solid {
-            mu,
-            lambda,
-            sand_alpha: _,
-        } => {
-            first = first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, &s);
-            second = second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, &s);
-        }
-        SpecificParticleParameters::Fluid {
-            exponent,
-            bulk_modulus,
-        } => {
-            first = first_piola_stress_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, &s);
-            second = second_derivative_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, &s);
-        }
+    if flags.contains(ParticleFlags::IS_SOLID) {
+        first = first_piola_stress_neo_hookean_svd_in_diagonal_space(
+            parameters.mu(),
+            parameters.lambda(),
+            &s,
+        );
+        second = second_derivative_neo_hookean_svd_in_diagonal_space(
+            parameters.mu(),
+            parameters.lambda(),
+            &s,
+        );
+    } else if flags.contains(ParticleFlags::IS_FLUID) {
+        first = first_piola_stress_inviscid_svd_in_diagonal_space(
+            parameters.bulk_modulus,
+            parameters.exponent,
+            &s,
+        );
+        second = second_derivative_inviscid_svd_in_diagonal_space(
+            parameters.bulk_modulus,
+            parameters.exponent,
+            &s,
+        );
+    } else {
+        unreachable!()
     }
 
     let kappa = [
@@ -82,8 +91,7 @@ pub fn limit_time_step_by_speed_of_sound(
     .max_by(T::total_cmp)
     .unwrap()
         / j;
-    let initial_density = parameters.mass / parameters.initial_volume;
-    let current_density = initial_density / j;
+    let current_density = parameters.density / j;
 
     let c = (kappa / current_density).sqrt();
 
@@ -91,46 +99,46 @@ pub fn limit_time_step_by_speed_of_sound(
 }
 
 pub fn limit_time_step_by_isolated_particles(
+    flags: &ParticleFlags,
     parameters: &ParticleParameters,
     position_gradient: &Matrix3<T>,
     grid_node_size: T,
 ) -> T {
     // TODO: do someting with viscosity?
-    match parameters.specific {
-        SpecificParticleParameters::Solid {
-            mu,
-            lambda,
-            sand_alpha: _,
-        } => {
-            // Stability analysis of explicit MPM, Technical document 3.12
-            let xi = 3. / grid_node_size / grid_node_size;
-            const R: T = 1.; // APIC & CPIC
-            const K: T = 1.; // CPIC
-            const D: T = 3.; // 3D
-            (parameters.mass
-                / (parameters.initial_volume * xi * (R - K / 2.) * (mu + D / 2. * lambda)))
-                .sqrt()
-        }
-        SpecificParticleParameters::Fluid {
-            exponent,
-            bulk_modulus,
-        } => {
-            // Effective time step restrictions for explicit MPM simulation,
-            // Technical document "Simple bounds"
-            let initial_density = parameters.mass / parameters.initial_volume;
-            let j = position_gradient.determinant();
-            const K: T = 6.; // quadratic splines
-            const D: T = 3.; // 3D
-            let first = partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, j);
-            if (j - 1.).abs() > SINGULAR_VALUE_SEPARATION {
-                return grid_node_size / j * (initial_density * (j - 1.) / (K * first * D)).sqrt();
-            }
+    if flags.contains(ParticleFlags::IS_SOLID) {
+        // Stability analysis of explicit MPM, Technical document 3.12
+        let xi = 3. / grid_node_size / grid_node_size;
+        const R: T = 1.; // APIC & CPIC
+        const K: T = 1.; // CPIC
+        const D: T = 3.; // 3D
 
-            let second =
-                double_partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, j);
-
-            grid_node_size * (initial_density / (K * second * D)).sqrt()
+        // TODO: re-check this
+        (parameters.density * xi * (R - K / 2.) * (parameters.mu() + D / 2. * parameters.lambda()))
+            .sqrt()
+    } else if flags.contains(ParticleFlags::IS_FLUID) {
+        // Effective time step restrictions for explicit MPM simulation,
+        // Technical document "Simple bounds"
+        let j = position_gradient.determinant();
+        const K: T = 6.; // quadratic splines
+        const D: T = 3.; // 3D
+        let first = partial_elastic_energy_inviscid_by_invariant_3(
+            parameters.bulk_modulus,
+            parameters.exponent,
+            j,
+        );
+        if (j - 1.).abs() > SINGULAR_VALUE_SEPARATION {
+            return grid_node_size / j * (parameters.density * (j - 1.) / (K * first * D)).sqrt();
         }
+
+        let second = double_partial_elastic_energy_inviscid_by_invariant_3(
+            parameters.bulk_modulus,
+            parameters.exponent,
+            j,
+        );
+
+        grid_node_size * (parameters.density / (K * second * D)).sqrt()
+    } else {
+        unreachable!()
     }
 }
 

@@ -11,7 +11,7 @@ mod test;
 
 use std::num::NonZeroU32;
 
-use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::ParticleFlags;
 
 use super::*;
 
@@ -27,7 +27,9 @@ pub struct Settings {
     pub dispatch_limit: NonZeroU32,
 }
 
-pub struct Parameters;
+pub struct Parameters {
+    pub offset: u32,
+}
 
 pub struct Input {
     pub new_flags: Allocation,
@@ -40,7 +42,7 @@ impl Input {
         new_flags: &[ParticleFlags],
         flags: &[ParticleFlags],
     ) -> Result<Self, GpuError> {
-        check_length!(new_flags, flags)?;
+        check_range!(new_flags, flags, 0)?;
 
         let new_flags = Allocation::new(device, "new_flags", new_flags)?;
         let flags = Allocation::new(device, "flags", flags)?;
@@ -73,7 +75,7 @@ impl PipelinePart for UpdateFlags {
                     (ParticleFlags::MIN_BINDING_SIZE, false),
                     (ParticleFlags::MIN_BINDING_SIZE, false),
                 ],
-                immediate_size: 0,
+                immediate_size: 4,
                 constants: []
             }
         );
@@ -90,9 +92,19 @@ impl PipelinePart for UpdateFlags {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input { new_flags, flags }: Input,
-        _: Parameters,
+        Parameters { offset }: Parameters,
     ) -> Result<Output, GpuError> {
         let num_flags = flags.len::<ParticleFlags>();
+        let num_new_flags = new_flags.len::<ParticleFlags>();
+        if num_new_flags.get() + offset as u64 > num_flags.get() {
+            Err(GpuInputError::RangesDoesNotFit {
+                a: "new_flags",
+                a_len: num_new_flags.get() as usize,
+                b: "flags",
+                b_len: num_flags.get() as usize,
+                offset: offset as usize,
+            })?;
+        }
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
@@ -100,13 +112,13 @@ impl PipelinePart for UpdateFlags {
         })
         .direct();
 
-        context
-            .enter_module(
-                encoder,
-                &self.update_flags,
-                [new_flags.binding(), flags.binding()],
-            )
-            .dispatch_workgroups(x, y, z);
+        let mut compute_pass = context.enter_module(
+            encoder,
+            &self.update_flags,
+            [new_flags.binding(), flags.binding()],
+        );
+        compute_pass.set_immediates(0, bytemuck::bytes_of(&offset));
+        compute_pass.dispatch_workgroups(x, y, z);
 
         Ok(Output)
     }

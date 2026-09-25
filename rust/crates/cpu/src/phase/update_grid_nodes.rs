@@ -16,8 +16,7 @@ use rayon::{
 };
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{ParticleFlags, profile};
 use std::{
     sync::{Mutex, mpsc::channel},
     thread::spawn,

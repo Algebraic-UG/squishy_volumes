@@ -12,13 +12,12 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::{Matrix4x3, Vector3, Vector4};
-use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, compute_triangle_lists, triangles_to_leaf_aabbs,
 };
-use squishy_volumes_util::{AnimatedGlobals, ParticleParameters};
+use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, ParticleParameters};
 
-use crate::{particle_parameters::ParticleParametersDevice, time_step_limits::TimeStepLimits};
+use crate::time_step_limits::TimeStepLimits;
 
 use super::*;
 
@@ -81,6 +80,7 @@ pub struct ColliderInput {
 #[derive(Clone)]
 pub struct VariableParticleInput {
     pub particle_flags: Allocation,
+    pub particle_parameters: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_position_gradients: Allocation,
     pub particle_velocities: Allocation,
@@ -92,13 +92,10 @@ pub struct Input {
     pub time: Allocation,
     pub step: Allocation,
 
-    pub globals_start: Allocation,
-    pub globals_end: Allocation,
+    pub globals: Allocation,
 
     pub indirect_particles: Allocation,
     pub indirect_grid_nodes: Allocation,
-
-    pub particle_parameters: Allocation,
 
     pub variable_particle_input: VariableParticleInput,
 
@@ -124,6 +121,7 @@ pub struct ColliderInputData<'a> {
 #[derive(Clone)]
 pub struct VariableParticleInputData<'a> {
     pub particle_flags: &'a [ParticleFlags],
+    pub particle_parameters: &'a [ParticleParameters],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_position_gradients: &'a [Matrix4x3<f32>],
     pub particle_velocities: &'a [Vector4<f32>],
@@ -132,10 +130,7 @@ pub struct VariableParticleInputData<'a> {
 
 #[derive(Clone)]
 pub struct InputData<'a> {
-    pub globals_start: AnimatedGlobals,
-    pub globals_end: AnimatedGlobals,
-
-    pub particle_parameters: &'a [ParticleParameters],
+    pub globals: AnimatedGlobals,
 
     pub particle_goals_start: &'a [Vector4<f32>],
     pub particle_goals_end: &'a [Vector4<f32>],
@@ -257,18 +252,22 @@ impl VariableParticleInput {
         device: &wgpu::Device,
         VariableParticleInputData {
             particle_flags,
+            particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
             particle_velocity_gradients,
         }: VariableParticleInputData,
     ) -> Result<Self, GpuError> {
+        check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
         check_length!(particle_flags, particle_position_gradients)?;
         check_length!(particle_flags, particle_velocities)?;
         check_length!(particle_flags, particle_velocity_gradients)?;
 
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
+        let particle_parameters =
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",
@@ -289,6 +288,7 @@ impl VariableParticleInput {
 
         Ok(Self {
             particle_flags,
+            particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -309,20 +309,15 @@ impl Input {
             ..
         }: Settings,
         InputData {
-            globals_start,
-            globals_end,
-            particle_parameters,
+            globals,
             particle_goals_start,
             particle_goals_end,
             variable_particle_input,
             collider_input,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        check_length!(variable_particle_input.particle_flags, particle_parameters)?;
-        check_length!(
-            variable_particle_input.particle_flags,
-            variable_particle_input.particle_positions_and_collider_bits
-        )?;
+        check_length!(variable_particle_input.particle_flags, particle_goals_start)?;
+        check_length!(variable_particle_input.particle_flags, particle_goals_end)?;
 
         let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
@@ -330,21 +325,13 @@ impl Input {
             len: variable_particle_input.particle_flags.len() as u32,
         });
 
-        let particle_parameters = particle_parameters
-            .iter()
-            .map(Into::into)
-            .collect::<Vec<ParticleParametersDevice>>();
-
         let time = Allocation::new(device, "time", &[0.])?;
         let step = Allocation::new(device, "step", &[0])?;
-        let globals_start = Allocation::new(device, "globals_start", &[globals_start])?;
-        let globals_end = Allocation::new(device, "globals_end", &[globals_end])?;
+        let globals = Allocation::new(device, "globals", &[globals])?;
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
         let indirect_grid_nodes =
             Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
-        let particle_parameters =
-            Allocation::new(device, "particle_parameters", &particle_parameters)?;
 
         let particle_goals_start =
             Allocation::new(device, "particle_goals_start", particle_goals_start)?;
@@ -372,13 +359,10 @@ impl Input {
             time,
             step,
 
-            globals_start,
-            globals_end,
+            globals,
 
             indirect_particles,
             indirect_grid_nodes,
-
-            particle_parameters,
 
             particle_goals_start,
             particle_goals_end,
@@ -556,16 +540,15 @@ impl PipelinePart for Step {
         Input {
             time,
             step,
-            globals_start,
-            globals_end,
+            globals,
             indirect_particles,
             indirect_grid_nodes,
-            particle_parameters,
             particle_goals_start,
             particle_goals_end,
             variable_particle_input:
                 VariableParticleInput {
                     particle_flags,
+                    particle_parameters,
                     particle_positions_and_collider_bits,
                     particle_position_gradients,
                     particle_velocities,
@@ -607,8 +590,7 @@ impl PipelinePart for Step {
             external_force::Input {
                 time: time.clone(),
                 time_step: time_step.clone(),
-                globals_start,
-                globals_end,
+                globals,
                 particle_flags: particle_flags.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_velocities: particle_velocities.clone(),

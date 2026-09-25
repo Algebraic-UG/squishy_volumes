@@ -17,6 +17,8 @@ var<storage, read_write> flags: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
+var<immediate> offset: u32;
+
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
 
@@ -32,17 +34,17 @@ fn main(
     if global_index == 0 {
         set_shader_id();
     }
-    if global_index >= arrayLength(&flags) {
+    if global_index >= arrayLength(&new_flags) {
         return;
     }
 
-    var f = flags[global_index];
+    var f = flags[offset + global_index];
     var new_f = new_flags[global_index];
 
     f &= ~HAS_GOAL;
     f |= new_f & HAS_GOAL;
 
-    flags[global_index] = f;
+    flags[offset + global_index] = f;
 }
 
 fn is_error() -> bool {

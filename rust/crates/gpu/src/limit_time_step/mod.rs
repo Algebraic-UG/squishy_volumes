@@ -12,10 +12,9 @@ use std::num::NonZeroU32;
 mod test;
 
 use nalgebra::{Matrix4x3, Vector4};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::ParticleParameters;
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
-use crate::{particle_parameters::ParticleParametersDevice, time_step_limits::TimeStepLimits};
+use crate::time_step_limits::TimeStepLimits;
 
 use super::*;
 
@@ -85,9 +84,6 @@ impl Input {
             dispatch_limit,
             len: particle_flags.len() as u32,
         });
-
-        let particle_parameters: Vec<ParticleParametersDevice> =
-            particle_parameters.iter().map(Into::into).collect();
 
         let indirect_particles =
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;

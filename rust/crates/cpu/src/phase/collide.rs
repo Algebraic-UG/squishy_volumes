@@ -8,11 +8,10 @@
 
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     DistanceResult, Triangle, distance_to_triangle, segment_distance_result,
 };
-use squishy_volumes_util::{NORMALIZATION_EPS, collider_bits, profile};
+use squishy_volumes_util::{NORMALIZATION_EPS, ParticleFlags, collider_bits, profile};
 
 use super::*;
 

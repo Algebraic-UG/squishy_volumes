@@ -7,8 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{ParticleFlags, profile};
 
 use super::*;
 

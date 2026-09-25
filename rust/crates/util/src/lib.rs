@@ -11,6 +11,7 @@ mod animated_globals;
 pub mod collider_bits;
 mod consts;
 mod elastic;
+mod particle_flags;
 mod flat;
 mod limit_time_step;
 mod panic_to_string;
@@ -27,6 +28,7 @@ pub use flat::*;
 pub use limit_time_step::*;
 pub use panic_to_string::*;
 pub use particle_parameters::*;
+pub use particle_flags::*;
 pub use safe_inverse::*;
 pub use typedefs::*;
 

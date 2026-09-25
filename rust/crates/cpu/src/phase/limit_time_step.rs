@@ -7,8 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{ParticleFlags, profile};
 
 use super::*;
 
@@ -33,9 +32,10 @@ impl CpuState {
             .par_iter()
             .zip(&self.particles.position_gradients)
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
-            .map(|(parameters, position_gradient)| {
+            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .map(|((parameters, position_gradient), flags)| {
                 squishy_volumes_util::limit_time_step_by_speed_of_sound(
+                    flags,
                     parameters,
                     position_gradient,
                     grid_node_size,
@@ -51,9 +51,10 @@ impl CpuState {
             .par_iter()
             .zip(&self.particles.position_gradients)
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
-            .map(|(parameters, position_gradient)| {
+            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .map(|((parameters, position_gradient), flags)| {
                 squishy_volumes_util::limit_time_step_by_isolated_particles(
+                    flags,
                     parameters,
                     position_gradient,
                     grid_node_size,

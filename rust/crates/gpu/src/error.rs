@@ -138,6 +138,16 @@ pub enum GpuPipelineCreationError {
 
 #[derive(Error, Debug)]
 pub enum GpuInputError {
+    #[error(
+        "Range does not fit: '{a}' has length {a_len} and won't fit with offset {offset} into '{b}' (length {b_len})"
+    )]
+    RangesDoesNotFit {
+        a: &'static str,
+        a_len: usize,
+        b: &'static str,
+        b_len: usize,
+        offset: usize,
+    },
     #[error("Length mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}")]
     LengthMismatch {
         a: &'static str,
@@ -145,6 +155,7 @@ pub enum GpuInputError {
         b: &'static str,
         b_len: usize,
     },
+
     #[error(
         "Length multiple mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}, multiple {multiple}"
     )]
@@ -175,6 +186,23 @@ macro_rules! check_length {
                 a_len: $a.len(),
                 b: stringify!($b),
                 b_len: $b.len(),
+            })
+        } else {
+            Ok(())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! check_range {
+    ($a:expr, $b:expr, $offset:expr) => {
+        if $a.len() > $b.len() {
+            Err(GpuInputError::RangesDoesNotFit {
+                a: stringify!($a),
+                a_len: $a.len(),
+                b: stringify!($b),
+                b_len: $b.len(),
+                offset: $offset,
             })
         } else {
             Ok(())

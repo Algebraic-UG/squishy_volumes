@@ -12,10 +12,7 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Matrix4x3;
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::ParticleParameters;
-
-use crate::particle_parameters::ParticleParametersDevice;
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
 use super::*;
 
@@ -51,10 +48,6 @@ impl Input {
             dispatch_limit,
             len: position_gradients.len() as u32,
         });
-        let particle_parameters = particle_parameters
-            .iter()
-            .map(Into::into)
-            .collect::<Vec<ParticleParametersDevice>>();
 
         let indirect = Allocation::new(device, "indirect", &[indirect])?;
         let position_gradients = Allocation::new(device, "position_gradients", position_gradients)?;
@@ -95,7 +88,7 @@ impl PipelinePart for Elastic {
                     (Indirect::MIN_BINDING_SIZE, true),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (ParticleFlags::MIN_BINDING_SIZE, false),
-                    (ParticleParametersDevice::MIN_BINDING_SIZE, false),
+                    (ParticleParameters::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
                 ],

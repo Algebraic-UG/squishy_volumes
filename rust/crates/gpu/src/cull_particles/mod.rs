@@ -9,7 +9,7 @@
 #[cfg(test)]
 mod test;
 
-use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::ParticleFlags;
 use std::num::NonZeroU32;
 
 use super::*;

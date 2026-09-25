@@ -12,10 +12,7 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Matrix4x3;
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::ParticleParameters;
-
-use crate::particle_parameters::ParticleParametersDevice;
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
 use super::*;
 
@@ -48,10 +45,6 @@ impl Input {
     ) -> Result<Self, GpuError> {
         check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_velocity_gradients)?;
-        let particle_parameters = particle_parameters
-            .iter()
-            .map(Into::into)
-            .collect::<Vec<ParticleParametersDevice>>();
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", &particle_parameters)?;
@@ -93,7 +86,7 @@ impl PipelinePart for Viscosity {
                 workgroup_size,
                 bind_group_entries: [
                     (ParticleFlags::MIN_BINDING_SIZE, false),
-                    (ParticleParametersDevice::MIN_BINDING_SIZE, false),
+                    (ParticleParameters::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                 ],
@@ -122,7 +115,7 @@ impl PipelinePart for Viscosity {
     ) -> Result<Output, GpuError> {
         assert_eq!(
             particle_flags.len::<ParticleFlags>(),
-            particle_parameters.len::<ParticleParametersDevice>(),
+            particle_parameters.len::<ParticleParameters>(),
         );
         assert_eq!(
             particle_flags.len::<ParticleFlags>(),
@@ -131,7 +124,7 @@ impl PipelinePart for Viscosity {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,
-            len: particle_parameters.len::<ParticleParametersDevice>().get() as u32,
+            len: particle_parameters.len::<ParticleParameters>().get() as u32,
         })
         .direct();
 

@@ -7,9 +7,9 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulk, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
-    InputHeader, InputObjectCollider, InputRange, InputRangeCollider, InputRangeParticles,
-    InputRanges, InputReader,
+    BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputConsts, InputHeader,
+    InputObjectCollider, InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
+    OwnedFrameBulk, OwnedInputFrame,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
 
@@ -62,7 +62,7 @@ pub struct FrameInput {
     goal_positions_start: Vec<nalgebra::Vector3<f32>>,
     goal_positions_end: Vec<nalgebra::Vector3<f32>>,
 
-    next_input_frame: Option<InputFrame>,
+    next_input_frame: Option<OwnedInputFrame>,
 }
 
 impl FrameInput {
@@ -82,7 +82,7 @@ impl FrameInput {
         let goal_positions_start = bytemuck::try_cast_vec(io_goal_positions).map_err(|(e, _)| e)?;
 
         let next_input_frame = (frame + 1 < input_reader.len())
-            .then(|| input_reader.read_frame(frame + 1))
+            .then(|| input_reader.read_owned_frame(frame + 1))
             .transpose()?;
 
         let mut collider_end = collider_start.clone();
@@ -130,7 +130,7 @@ impl FrameInput {
         self.frame
     }
 
-    pub fn next_input_frame(&mut self) -> Option<InputFrame> {
+    pub fn next_input_frame(&mut self) -> Option<OwnedInputFrame> {
         self.next_input_frame.take()
     }
 
@@ -145,7 +145,7 @@ impl FrameInput {
         self.goal_positions_start = self.goal_positions_end.clone();
 
         self.next_input_frame = (self.frame + 1 < self.input_reader.len())
-            .then(|| self.input_reader.read_frame(self.frame + 1))
+            .then(|| self.input_reader.read_owned_frame(self.frame + 1))
             .transpose()?;
 
         if let Some(next_input_frame) = self.next_input_frame.as_ref() {
@@ -282,7 +282,7 @@ fn create_topology(
     input_header: &InputHeader,
     input_reader: &mut InputReader,
 ) -> Result<Topology, FrameInputError> {
-    let bulk = input_reader.read_frame(0)?.bulk;
+    let bulk = input_reader.read_owned_frame(0)?.bulk;
     let mut topology_inputs = Vec::new();
     for bulk in &bulk {
         if bulk.meta.captured_attribute != BulkAttribute::Collider(FrameBulkCollider::Triangles) {
@@ -298,7 +298,7 @@ fn create_topology(
             name: &bulk.meta.object_name,
             collider_id,
             num_vertices,
-            triangle_indices: bytemuck::try_cast_slice(&bulk.data)?,
+            triangle_indices: bulk.data.assume_ints()?,
         });
     }
     Ok(Topology::new(topology_inputs.into_iter())?)
@@ -307,7 +307,7 @@ fn create_topology(
 fn update_collider(
     input_ranges: &InputRanges,
     collider: &mut Collider,
-    bulk: &[FrameBulk],
+    bulk: &[OwnedFrameBulk],
 ) -> Result<(), FrameInputError> {
     for bulk in bulk {
         if let BulkAttribute::Collider(ref attr) = bulk.meta.captured_attribute {
@@ -319,15 +319,15 @@ fn update_collider(
                 FrameBulkCollider::VertexPositions => {
                     // TODO: clean error for length mismatch
                     collider.vertex_positions[vertex_range]
-                        .copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?);
+                        .copy_from_slice(bulk.data.assume_floats()?);
                 }
                 FrameBulkCollider::TriangleFrictions => {
                     collider.triangle_frictions[triangle_range]
-                        .copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?);
+                        .copy_from_slice(bulk.data.assume_floats()?);
                 }
                 FrameBulkCollider::TriangleDampings => {
                     collider.triangle_dampings[triangle_range]
-                        .copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?);
+                        .copy_from_slice(bulk.data.assume_floats()?);
                 }
                 FrameBulkCollider::Triangles => {
                     // TODO:
@@ -342,7 +342,7 @@ fn update_collider(
 fn update_goal_positions(
     input_ranges: &InputRanges,
     goal_positions: &mut [nalgebra::Vector3<f32>],
-    bulk: &[FrameBulk],
+    bulk: &[OwnedFrameBulk],
 ) -> Result<(), FrameInputError> {
     for bulk in bulk {
         if let BulkAttribute::Particles(ref attr) = bulk.meta.captured_attribute {
@@ -350,8 +350,7 @@ fn update_goal_positions(
                 input_ranges.get_particle_range(&bulk.meta.object_name)?;
             if let FrameBulkParticles::GoalPositions = attr {
                 // TODO: clean error for length mismatch
-                goal_positions[particle_range]
-                    .copy_from_slice(bytemuck::try_cast_slice(&bulk.data)?);
+                goal_positions[particle_range].copy_from_slice(bulk.data.assume_floats()?);
             }
         }
     }

@@ -28,6 +28,15 @@ pub enum InputError {
     },
     #[error("Too many different colliders.")]
     TooManyColliders,
+
+    #[error("Input bulk data type mismatch: expected {expected} but found {found}")]
+    TypeMismatch {
+        expected: &'static str,
+        found: &'static str,
+    },
+
+    #[error("Input bulk data cast failed")]
+    CastFailed(#[from] bytemuck::PodCastError),
 }
 
 #[derive(Error, Debug)]

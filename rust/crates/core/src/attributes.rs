@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{InputHeader, InputRanges, ObjectError};
+use squishy_volumes_file_input::{InputHeader, InputRangeParticles, InputRanges, ObjectError};
 use std::iter::empty;
 use thiserror::Error;
 
@@ -98,13 +98,13 @@ pub fn fetch_flat_attribute_f32(
             _ => Err(AttributeError::NotFloatAttribute(format!("{attribute:?}")))?,
         },
         Attribute::Object { name, attribute } => {
-            let particle_range = input_ranges.get_particle_range(name)?;
+            let InputRangeParticles { particle_range } = input_ranges.get_particle_range(name)?;
 
             match attribute {
                 AttributeParticles::Masses => io_state.particles.parameters.as_slice()
                     [particle_range]
                     .iter()
-                    .map(|parameters| parameters.mass)
+                    .map(|parameters| parameters.mass())
                     .collect(),
                 AttributeParticles::InitialVolumes => io_state.particles.parameters.as_slice()
                     [particle_range]
@@ -202,7 +202,7 @@ pub fn fetch_flat_attribute_i32(
             _ => Err(AttributeError::NotIntAttribute(format!("{attribute:?}")))?,
         },
         Attribute::Object { name, attribute } => {
-            let particle_range = input_ranges.get_particle_range(name)?;
+            let InputRangeParticles { particle_range } = input_ranges.get_particle_range(name)?;
 
             match attribute {
                 AttributeParticles::Flags => {

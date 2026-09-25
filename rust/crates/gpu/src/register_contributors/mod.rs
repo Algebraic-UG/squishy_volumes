@@ -11,7 +11,7 @@ use std::{num::NonZeroU32, sync::atomic::AtomicU32};
 #[cfg(test)]
 mod test;
 
-use squishy_volumes_file_frame::ParticleFlags;
+use squishy_volumes_util::ParticleFlags;
 
 use super::*;
 

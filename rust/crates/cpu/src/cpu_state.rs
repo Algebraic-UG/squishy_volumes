@@ -8,9 +8,9 @@
 
 use std::num::NonZero;
 
-use squishy_volumes_file_frame::{IoState, ParticleFlags};
+use squishy_volumes_file_frame::IoState;
 use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, InputRangeParticles};
-use squishy_volumes_util::AnimatedGlobals;
+use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
 use squishy_volumes_xpu::{FrameInput, FrameInputError};
 
 use super::*;
@@ -73,7 +73,7 @@ impl CpuState {
 
         let frame_input = FrameInput::new(
             input_reader,
-            io_state.particles.goal_positions,
+            io_state.goal_positions,
             io_state.collider,
             frame,
         )?;
@@ -130,7 +130,6 @@ impl CpuState {
             velocities,
             velocity_gradients,
             initial_positions,
-            goal_positions,
         };
 
         let collider = self.frame_input.collider_start().to_io_collider();
@@ -165,6 +164,7 @@ impl CpuState {
             time,
             animated_globals,
             particles,
+            goal_positions,
             collider,
             bvh,
             grid_nodes,
@@ -241,8 +241,10 @@ impl CpuState {
                         .map_err(FrameInputError::ObjectError)?;
                     match attr {
                         FrameBulkParticles::Flags => {
-                            let flags: &[ParticleFlags] = bytemuck::try_cast_slice(&bulk.data)
-                                .map_err(FrameInputError::CastFailed)?;
+                            let flags: &[ParticleFlags] = bulk
+                                .data
+                                .assume_ints()
+                                .map_err(FrameInputError::InputError)?;
                             // TODO: this needs to depend on what's recorded
                             let mask = ParticleFlags::HAS_GOAL;
                             for (i, flag) in particle_range.into_iter().zip(flags) {
