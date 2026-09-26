@@ -31,42 +31,6 @@ pub struct FrameStart {
     pub animated_globals: AnimatedGlobals,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub enum BulkAttribute {
-    Particles(FrameBulkParticles),
-    Collider(FrameBulkCollider),
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub enum FrameBulkParticles {
-    IsSolid,
-    IsFluid,
-    UseViscosity,
-    UseSandAlpha,
-    HasGoal,
-    Transforms,
-    Sizes,
-    Densities,
-    YoungsModuluses,
-    PoissonsRatios,
-    InitialPositions,
-    InitialVelocity,
-    ViscosityDynamic,
-    ViscosityBulk,
-    Exponent,
-    BulkModulus,
-    SandAlpha,
-    GoalPositions,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub enum FrameBulkCollider {
-    VertexPositions,
-    Triangles,
-    TriangleFrictions,
-    TriangleDampings,
-}
-
 pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
     cache_dir.as_ref().join("simulation_input.bin")
 }
@@ -112,12 +76,15 @@ impl SimulationInputImpl {
     }
 
     pub fn record_input_impl(&mut self, meta: Value, bulk: InputBulk) -> Result<(), Error> {
+        tracing::info!("Before meta");
         let meta = from_value::<FrameBulkMeta>(meta).map_err(Error::ParsingBulkMeta)?;
+        tracing::info!(?meta);
 
         let size = self
             .input_writer
             .record_bulk(&FrameBulk { meta, data: bulk })
             .map_err(Error::RecordFrame)?;
+        tracing::info!(size);
 
         self.check_vs_max_bytes(size)
     }

@@ -84,10 +84,6 @@ class SimulationInputHandle:
         self.handle.record_input_int(meta=json.dumps(meta), bulk=bulk)
 
     @hint_at_info
-    def finish_frame(self):
-        self.handle.finish_frame()
-
-    @hint_at_info
     def drop(self):
         self.handle.drop()
 

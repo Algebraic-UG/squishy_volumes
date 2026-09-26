@@ -49,14 +49,18 @@ impl InputWriter {
     }
 
     pub fn record_bulk(&mut self, bulk: &FrameBulk) -> Result<u64, InputError> {
+        tracing::info!("checking offsets");
         if self.frame_offsets.is_empty() {
             return Err(InputError::NoFrameStarted);
         }
         let frame = self.frame_offsets.len() - 1;
+        tracing::info!(frame);
         bulk.verify(&self.header)
             .map_err(|error| InputError::FrameVerifcationError { frame, error })?;
+        tracing::info!("verified");
         serialize_into(&mut self.writer, bulk)?;
 
+        tracing::info!("done");
         Ok(self.writer.stream_position()?)
     }
 

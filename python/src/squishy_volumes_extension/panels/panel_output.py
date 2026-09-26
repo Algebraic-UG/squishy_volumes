@@ -172,53 +172,35 @@ each frame."""
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        if self.output_type == GRID:
+        def add_output(op, input_name, output_name):
             bpy.ops.scene.squishy_volumes_add_output_object(
                 "INVOKE_DEFAULT",
-                uuid=self.uuid,
-                input_name="",
-                output_name="Grid - Output",
-                add_default_visualization=self.add_default_visualization,
-                output_type=self.output_type,
-                grid_collider_bits=self.grid_collider_bits,
-                grid_masses=self.grid_masses,
-                grid_velocities=self.grid_velocities,
-                particle_flags=self.particle_flags,
-                particle_masses=self.particle_masses,
-                particle_initial_volumes=self.particle_initial_volumes,
-                particle_initial_positions=self.particle_initial_positions,
-                particle_velocities=self.particle_velocities,
-                particle_sizes=self.particle_sizes,
-                particle_transformations=self.particle_transformations,
-                particle_energies=self.particle_energies,
-                particle_collider_bits=self.particle_collider_bits,
+                uuid=op.uuid,
+                input_name=input_name,
+                output_name=output_name,
+                add_default_visualization=op.add_default_visualization,
+                output_type=op.output_type,
+                grid_collider_bits=op.grid_collider_bits,
+                grid_masses=op.grid_masses,
+                grid_velocities=op.grid_velocities,
+                particle_flags=op.particle_flags,
+                particle_masses=op.particle_masses,
+                particle_initial_volumes=op.particle_initial_volumes,
+                particle_initial_positions=op.particle_initial_positions,
+                particle_velocities=op.particle_velocities,
+                particle_sizes=op.particle_sizes,
+                particle_transformations=op.particle_transformations,
+                particle_energies=op.particle_energies,
+                particle_collider_bits=op.particle_collider_bits,
             )
+
+        if self.output_type == GRID:
+            add_output(self, "", "Grid - Output")
 
         if self.output_type == PARTICLES:
             for output in self.particle_outputs:
-                if not output.select:
-                    continue
-
-                bpy.ops.scene.squishy_volumes_add_output_object(
-                    "INVOKE_DEFAULT",
-                    uuid=self.uuid,
-                    input_name=output.input_name,
-                    output_name=output.output_name,
-                    add_default_visualization=self.add_default_visualization,
-                    output_type=self.output_type,
-                    grid_collider_bits=self.grid_collider_bits,
-                    grid_masses=self.grid_masses,
-                    grid_velocities=self.grid_velocities,
-                    particle_flags=self.particle_flags,
-                    particle_masses=self.particle_masses,
-                    particle_initial_volumes=self.particle_initial_volumes,
-                    particle_initial_positions=self.particle_initial_positions,
-                    particle_velocities=self.particle_velocities,
-                    particle_sizes=self.particle_sizes,
-                    particle_transformations=self.particle_transformations,
-                    particle_energies=self.particle_energies,
-                    particle_collider_bits=self.particle_collider_bits,
-                )
+                if output.select:
+                    add_output(self, output.input_name, output.output_name)
 
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         if sim_handle is not None:

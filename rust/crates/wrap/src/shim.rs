@@ -1,11 +1,3 @@
-// SPDX-License-Identifier: MIT
-//
-// Copyright 2025  Algebraic UG (haftungsbeschränkt)
-//
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE_MIT file or at
-// https://opensource.org/licenses/MIT.
-
 // This file is generated to alleviate https://github.com/Algebraic-UG/squishy_volumes/issues/83
 
 use pyo3::prelude::*;

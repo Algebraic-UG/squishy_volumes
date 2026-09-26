@@ -29,10 +29,10 @@ pub enum BulkAttribute {
 }
 
 impl BulkAttribute {
-    fn elem_size(&self) -> usize {
+    fn elem_count(&self) -> usize {
         match self {
-            Self::Particles(inner) => inner.elem_size(),
-            Self::Collider(inner) => inner.elem_size(),
+            Self::Particles(inner) => inner.elem_count(),
+            Self::Collider(inner) => inner.elem_count(),
         }
     }
 }
@@ -57,23 +57,21 @@ pub enum FrameBulkParticles {
 }
 
 impl FrameBulkParticles {
-    fn elem_size(&self) -> usize {
+    fn elem_count(&self) -> usize {
         match self {
-            Self::Flags => size_of::<u32>(),
-            Self::ColliderBits => size_of::<u32>(),
-            Self::Transforms => size_of::<[[f32; 4]; 4]>(),
-            Self::Sizes => size_of::<f32>(),
-            Self::Densities => size_of::<f32>(),
-            Self::YoungsModuluses => size_of::<f32>(),
-            Self::PoissonsRatios => size_of::<f32>(),
-            Self::InitialPositions => size_of::<[f32; 3]>(),
-            Self::InitialVelocity => size_of::<[f32; 3]>(),
-            Self::ViscosityDynamic => size_of::<f32>(),
-            Self::ViscosityBulk => size_of::<f32>(),
-            Self::Exponent => size_of::<u32>(),
-            Self::BulkModulus => size_of::<f32>(),
-            Self::SandAlpha => size_of::<f32>(),
-            Self::GoalPositions => size_of::<[f32; 3]>(),
+            Self::Flags
+            | Self::ColliderBits
+            | Self::Sizes
+            | Self::Densities
+            | Self::YoungsModuluses
+            | Self::PoissonsRatios
+            | Self::ViscosityDynamic
+            | Self::ViscosityBulk
+            | Self::Exponent
+            | Self::BulkModulus
+            | Self::SandAlpha => 1,
+            Self::InitialPositions | Self::InitialVelocity | Self::GoalPositions => 3,
+            Self::Transforms => 16,
         }
     }
 }
@@ -87,12 +85,10 @@ pub enum FrameBulkCollider {
 }
 
 impl FrameBulkCollider {
-    fn elem_size(&self) -> usize {
+    fn elem_count(&self) -> usize {
         match self {
-            FrameBulkCollider::VertexPositions => size_of::<[f32; 3]>(),
-            FrameBulkCollider::Triangles => size_of::<[u32; 3]>(),
-            FrameBulkCollider::TriangleFrictions => size_of::<f32>(),
-            FrameBulkCollider::TriangleDampings => size_of::<f32>(),
+            FrameBulkCollider::VertexPositions | FrameBulkCollider::Triangles => 3,
+            FrameBulkCollider::TriangleFrictions | FrameBulkCollider::TriangleDampings => 1,
         }
     }
 }
@@ -163,11 +159,13 @@ pub struct InputFrame {
 impl FrameBulk<'_> {
     // TODO: also verify the type
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
+        tracing::info!("verifying");
         let header_obj = header.objects.get(&self.meta.object_name).ok_or(
             crate::ObjectError::ObjectNotInHeader {
                 name: self.meta.object_name.clone(),
             },
         )?;
+        tracing::info!(?header_obj);
 
         let num = match (header_obj, &self.meta.captured_attribute) {
             (
@@ -192,8 +190,12 @@ impl FrameBulk<'_> {
             })?,
         };
 
+        tracing::info!(num);
+
         let found = self.data.len();
-        let expected = *num as usize * self.meta.captured_attribute.elem_size();
+        tracing::info!(found);
+        let expected = *num as usize * self.meta.captured_attribute.elem_count();
+        tracing::info!(expected);
         if expected != found {
             Err(crate::FrameVerifcationError::LengthMismatch {
                 name: self.meta.object_name.clone(),
@@ -203,6 +205,7 @@ impl FrameBulk<'_> {
             })?;
         }
 
+        tracing::info!("done verifying");
         Ok(())
     }
 }

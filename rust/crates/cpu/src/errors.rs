@@ -11,7 +11,7 @@ pub enum Error {
     #[error("The computation was canceled")]
     Canceled,
 
-    #[error("Something went wron accessing frame input")]
+    #[error("Something went wrong accessing frame input")]
     FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
 
     // TODO: this needs more debug info

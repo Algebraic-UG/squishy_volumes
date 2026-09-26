@@ -1,0 +1,12 @@
+schema_version = "1.0.0"
+id = "squishy_volumes_extension"
+name = "Squishy Volumes"
+tagline = "MPM Physics Extension"
+maintainer = "Algebraic <squishy.volumes@algebraic.games>"
+type = "add-on"
+blender_version_min = "5.0.0"
+blender_version_max = "5.4.0"
+license = [ "SPDX:GPL-3.0-or-later",]
+platforms = [ "windows-x64", "macos-arm64", "linux-x64",]
+wheels = [ "./wheels/squishy_volumes_wrap-0.3.6-cp311-abi3-manylinux_2_34_x86_64.whl",]
+version = "0.3.6"

@@ -1,0 +1,56 @@
+{
+  "version": "v1",
+  "blocklist": [],
+  "data": [
+    {
+      "schema_version": "1.0.0",
+      "id": "squishy_volumes_extension",
+      "name": "Squishy Volumes",
+      "tagline": "MPM Physics Extension",
+      "version": "0.3.2",
+      "type": "add-on",
+      "maintainer": "Algebraic <squishy.volumes@algebraic.games>",
+      "license": [
+        "SPDX:GPL-3.0-or-later"
+      ],
+      "blender_version_min": "5.0.0",
+      "blender_version_max": "5.3.0",
+      "platforms": [
+        "windows-x64",
+        "macos-arm64",
+        "linux-x64"
+      ],
+      "python_versions": [
+        "3"
+      ],
+      "archive_url": "./squishy_volumes_extension-0.3.2.zip",
+      "archive_size": 22366687,
+      "archive_hash": "sha256:2113f4e2b0195a50f561854c7fdffe4fb68f00ff7115d8838fc17ede20d41cd0"
+    },
+    {
+      "schema_version": "1.0.0",
+      "id": "squishy_volumes_extension",
+      "name": "Squishy Volumes",
+      "tagline": "MPM Physics Extension",
+      "version": "0.2.0",
+      "type": "add-on",
+      "maintainer": "Algebraic <squishy.volumes@algebraic.games>",
+      "license": [
+        "SPDX:GPL-3.0-or-later"
+      ],
+      "blender_version_min": "5.0.0",
+      "blender_version_max": "5.2.0",
+      "platforms": [
+        "windows-x64",
+        "macos-arm64",
+        "linux-x64"
+      ],
+      "python_versions": [
+        "3"
+      ],
+      "archive_url": "./squishy_volumes_extension-0.2.0.zip",
+      "archive_size": 5397826,
+      "archive_hash": "sha256:899e08431899472ed7d4df97e26e97dbdcea3f3f3f655f7f2cf6eb2ac78e546c"
+    }
+  ]
+}

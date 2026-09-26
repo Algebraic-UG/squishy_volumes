@@ -63,13 +63,14 @@ def create_input_header(sim_props):
                 INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}
             }
         if ty == INPUT_TYPE_COLLIDER:
-            collider_inputs += 1
             objects[name] = {
                 INPUT_TYPE_COLLIDER: {
+                    "collider_id": collider_inputs,
                     "num_vertices": len(mesh.vertices),
                     "num_triangles": len(mesh.loop_triangles),
                 }
             }
+            collider_inputs += 1
 
     if collider_inputs > 16:
         raise RuntimeError(f"""More than 16 colliders (you have {collider_inputs})
@@ -154,6 +155,7 @@ def capture_input_frame(
     sim_input_handle.start_frame(frame_start=frame_start)
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
+    depsgraph.update()
 
     for input_obj in get_input_objects_with_uuid(sim_props.uuid):
         evaluated_obj = input_obj.evaluated_get(depsgraph)
@@ -200,15 +202,7 @@ If that is what you want, enable the addon preference
 Or apply the object scale."""
                 )
 
-            record(python_name="squishy_volumes_is_solid", rust_name="IsSolid")
-            record(python_name="squishy_volumes_is_fluid", rust_name="IsFluid")
-            record(
-                python_name="squishy_volumes_use_viscosity", rust_name="UseViscosity"
-            )
-            record(
-                python_name="squishy_volumes_use_sand_alpha", rust_name="UseSandAlpha"
-            )
-            record(python_name="squishy_volumes_has_goal", rust_name="HasGoal")
+            record(python_name="squishy_volumes_flags", rust_name="Flags")
             record(python_name="squishy_volumes_transform", rust_name="Transforms")
             record(python_name="squishy_volumes_size", rust_name="Sizes")
             record(python_name="squishy_volumes_density", rust_name="Densities")
@@ -244,12 +238,14 @@ Or apply the object scale."""
             )
 
             record(python_name="squishy_volumes_position", rust_name="VertexPositions")
-            record(python_name=None, rust_name="Triangles", triangle_indices=True)
+
+            # the topology is recorded only once and can't change (yet?)
+            if sim_props.capture_start_frame == bpy.context.scene.frame_current:
+                record(python_name=None, rust_name="Triangles", triangle_indices=True)
+
             record(
                 python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
             )
             record(python_name="squishy_volumes_damping", rust_name="TriangleDampings")
-
-    sim_input_handle.finish_frame()
 
     return True
