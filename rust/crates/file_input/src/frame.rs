@@ -159,13 +159,11 @@ pub struct InputFrame {
 impl FrameBulk<'_> {
     // TODO: also verify the type
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
-        tracing::info!("verifying");
         let header_obj = header.objects.get(&self.meta.object_name).ok_or(
             crate::ObjectError::ObjectNotInHeader {
                 name: self.meta.object_name.clone(),
             },
         )?;
-        tracing::info!(?header_obj);
 
         let num = match (header_obj, &self.meta.captured_attribute) {
             (
@@ -190,12 +188,8 @@ impl FrameBulk<'_> {
             })?,
         };
 
-        tracing::info!(num);
-
         let found = self.data.len();
-        tracing::info!(found);
         let expected = *num as usize * self.meta.captured_attribute.elem_count();
-        tracing::info!(expected);
         if expected != found {
             Err(crate::FrameVerifcationError::LengthMismatch {
                 name: self.meta.object_name.clone(),
@@ -205,7 +199,6 @@ impl FrameBulk<'_> {
             })?;
         }
 
-        tracing::info!("done verifying");
         Ok(())
     }
 }

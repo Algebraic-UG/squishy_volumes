@@ -38,7 +38,6 @@ impl CpuState {
                     flags,
                 )|
                  -> Result<(), Error> {
-                    tracing::info!(?velocity, "advecting");
                     *position += velocity * time_step;
                     *position_gradient += velocity_gradient * *position_gradient * time_step;
 
