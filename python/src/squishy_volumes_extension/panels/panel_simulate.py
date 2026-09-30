@@ -100,6 +100,14 @@ Note that this also discards all computed frames in the cache."""
         if sim_handle is not None:
             sim_handle.drop()
 
+        prior_frame = context.scene.frame_current
+        animation_was_playing = False
+        if context.screen is not None:
+            animation_was_playing = context.screen.is_animation_playing
+        bpy.ops.screen.animation_cancel()
+
+        context.scene.frame_set(sim_props.capture_start_frame)
+
         input_header = with_popup(
             uuid=self.uuid, f=lambda: create_input_header(sim_props)
         )
@@ -126,18 +134,13 @@ Note that this also discards all computed frames in the cache."""
             global SIMULATION_INPUT
             SIMULATION_INPUT = sim_input_handle
             bpy.ops.scene.squishy_volumes_record_input_to_cache_modal(
-                "INVOKE_DEFAULT", uuid=self.uuid, start_baking=self.start_baking
+                "INVOKE_DEFAULT",
+                uuid=self.uuid,
+                prior_frame=prior_frame,
+                animation_was_playing=animation_was_playing,
+                start_baking=self.start_baking,
             )
             return {"FINISHED"}
-
-        prior_frame = context.scene.frame_current
-        animation_was_playing = False
-        if context.screen is not None:
-            animation_was_playing = context.screen.is_animation_playing
-
-        bpy.ops.screen.animation_cancel()
-
-        context.scene.frame_set(sim_props.capture_start_frame)
 
         for i in range(sim_props.capture_frames):
             capture_input_frame(
@@ -188,20 +191,15 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
     bl_options = set()  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()  # type: ignore
+    prior_frame: bpy.props.IntProperty()  # type: ignore
+    animation_was_playing: bpy.props.BoolProperty()  # type: ignore
     start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
 
     _timer = None
-    prior_frame = None
-    animation_was_playing = False
 
     def invoke(self, context, event):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         sim_props = sim_obj.squishy_volumes
-
-        self.prior_frame = context.scene.frame_current
-        if context.screen is not None:
-            self.animation_was_playing = context.screen.is_animation_playing
-        bpy.ops.screen.animation_cancel()
 
         context.scene.frame_set(sim_props.capture_start_frame)
 
