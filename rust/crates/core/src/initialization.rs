@@ -235,7 +235,7 @@ pub fn initialize_io_state(
                         FrameBulkParticles::Exponent => {
                             for (i, v) in particle_range
                                 .into_iter()
-                                .zip(bulk.data.assume_floats::<i32>()?)
+                                .zip(bulk.data.assume_ints::<i32>()?)
                             {
                                 parameters[i].exponent = *v;
                             }
