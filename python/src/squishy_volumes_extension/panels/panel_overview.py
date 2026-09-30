@@ -68,8 +68,8 @@ class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(bpy.types.Operator):
 The UI will be blocked for a few seconds.""",
             ),
         ],
-        name="Chose Example Simulation",
-        description="Chose one of the example simulations to set up.",
+        name="Choose Example Simulation",
+        description="Choose one of the example simulations to set up.",
         default=EXAMPLE_BOING_BLOCK,
         options=set(),
     )  # type: ignore

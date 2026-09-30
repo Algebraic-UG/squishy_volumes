@@ -22,7 +22,7 @@ Click the 'Example Setup' button in the 'Overview' panel:
 
 <img src="example_setup.svg" alt="Example Setup">
 
-Currently, there is really only one example setup: 'Boing Block'. Chose that one and click 'Ok'.
+There are two example setups: 'Boing Block' and 'Benchmark'. Choose 'Boing Block' and click 'Ok'.
 
 <center>
 <outlined-img src="choose_boing_block.png" alt="Choose Boing Block"></outlined-img>

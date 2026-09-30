@@ -55,7 +55,7 @@ def start_compute(
 Squishy Volumes is allowed to use up to {allowed:.2f} GB,
 but only {free:.2f} GB are free.
 
-This check can be disabled in the add-on peferences."""
+This check can be disabled in the add-on preferences."""
             )
 
     compute_settings = {

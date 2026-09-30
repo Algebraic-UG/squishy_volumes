@@ -67,7 +67,7 @@ def setup_example_benchmark(context: bpy.types.Context):
             name=obj.name,
         )
 
-    def add_monekey(location, rotation):
+    def add_monkey(location, rotation):
         bpy.ops.mesh.primitive_monkey_add(
             size=4,
             enter_editmode=False,
@@ -78,35 +78,35 @@ def setup_example_benchmark(context: bpy.types.Context):
         )
         add_particles(context.active_object)
 
-    add_monekey(
+    add_monkey(
         location=(-2, -2, 0),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
-    add_monekey(
+    add_monkey(
         location=(-2, 2, 0),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
-    add_monekey(
+    add_monkey(
         location=(2, 2, 0),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
-    add_monekey(
+    add_monkey(
         location=(2, -2, 0),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
-    add_monekey(
+    add_monkey(
         location=(-2, -2, 4),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
-    add_monekey(
+    add_monkey(
         location=(-2, 2, 4),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
-    add_monekey(
+    add_monkey(
         location=(2, 2, 4),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
-    add_monekey(
+    add_monkey(
         location=(2, -2, 4),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )

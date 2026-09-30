@@ -140,7 +140,7 @@ Most outputs are point-based and the object will be populated
 with certain attributes and geometry node modifier.
 
 As long as the object is an active output
-and the current frame is availbe in the cache,
+and the current frame is available in the cache,
 the positions and attributes are synchronized
 each frame."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
