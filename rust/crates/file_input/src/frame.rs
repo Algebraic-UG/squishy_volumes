@@ -8,7 +8,7 @@
 
 use squishy_volumes_api::InputBulk;
 
-use crate::{InputError, InputObjectCollider, InputObjectParticles};
+use crate::{AttributeError, InputObjectCollider, InputObjectParticles};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub struct FrameBulk<'a> {
@@ -22,7 +22,7 @@ pub struct FrameBulkMeta {
     pub captured_attribute: BulkAttribute,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum BulkAttribute {
     Particles(FrameBulkParticles),
     Collider(FrameBulkCollider),
@@ -37,7 +37,7 @@ impl BulkAttribute {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkParticles {
     Flags,
     ColliderBits,
@@ -76,7 +76,7 @@ impl FrameBulkParticles {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkCollider {
     VertexPositions,
     Triangles,
@@ -160,43 +160,38 @@ impl FrameBulk<'_> {
     // TODO: also verify the type
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
         let header_obj = header.objects.get(&self.meta.object_name).ok_or(
-            crate::ObjectError::ObjectNotInHeader {
-                name: self.meta.object_name.clone(),
-            },
+            crate::ObjectError::ObjectNotInHeader.attach_name(self.meta.object_name.clone()),
         )?;
 
-        let num = match (header_obj, &self.meta.captured_attribute) {
-            (
-                crate::InputObject::Particles(InputObjectParticles { num_particles }),
-                BulkAttribute::Particles(_),
-            ) => num_particles,
-            (
-                crate::InputObject::Collider(InputObjectCollider {
-                    num_vertices,
-                    num_triangles,
-                    ..
-                }),
-                BulkAttribute::Collider(frame_bulk_collider),
-            ) => match frame_bulk_collider {
-                FrameBulkCollider::VertexPositions => num_vertices,
-                FrameBulkCollider::Triangles
-                | FrameBulkCollider::TriangleFrictions
-                | FrameBulkCollider::TriangleDampings => num_triangles,
-            },
-            _ => Err(crate::ObjectError::ObjectChangedType {
-                name: self.meta.object_name.clone(),
-            })?,
-        };
+        let num =
+            match (header_obj, &self.meta.captured_attribute) {
+                (
+                    crate::InputObject::Particles(InputObjectParticles { num_particles }),
+                    BulkAttribute::Particles(_),
+                ) => num_particles,
+                (
+                    crate::InputObject::Collider(InputObjectCollider {
+                        num_vertices,
+                        num_triangles,
+                        ..
+                    }),
+                    BulkAttribute::Collider(frame_bulk_collider),
+                ) => match frame_bulk_collider {
+                    FrameBulkCollider::VertexPositions => num_vertices,
+                    FrameBulkCollider::Triangles
+                    | FrameBulkCollider::TriangleFrictions
+                    | FrameBulkCollider::TriangleDampings => num_triangles,
+                },
+                _ => Err(crate::ObjectError::ObjectChangedType
+                    .attach_name(self.meta.object_name.clone()))?,
+            };
 
         let found = self.data.len();
         let expected = *num as usize * self.meta.captured_attribute.elem_count();
         if expected != found {
-            Err(crate::FrameVerifcationError::LengthMismatch {
-                name: self.meta.object_name.clone(),
-                attribute: format!("{:?}", self.meta.captured_attribute),
-                found,
-                expected,
-            })?;
+            Err(crate::AttributeError::LengthMismatch { found, expected }
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone()))?;
         }
 
         Ok(())
@@ -241,36 +236,36 @@ const INT: &str = "int";
 
 impl OwnedInputBulk {
     #[inline]
-    pub fn assume_bools(&self) -> Result<&[bool], InputError> {
+    pub fn assume_bools(&self) -> Result<&[bool], AttributeError> {
         let expected = BOOL;
         let found = match self {
             Self::Bool(vec) => return Ok(vec.as_slice()),
             Self::Floats(_) => FLOAT,
             Self::Ints(_) => INT,
         };
-        Err(InputError::TypeMismatch { expected, found })
+        Err(AttributeError::TypeMismatch { expected, found })
     }
 
     #[inline]
-    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], InputError> {
+    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
         let expected = FLOAT;
         let found = match self {
             Self::Bool(_) => BOOL,
             Self::Floats(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
             Self::Ints(_) => INT,
         };
-        Err(InputError::TypeMismatch { expected, found })
+        Err(AttributeError::TypeMismatch { expected, found })
     }
 
     #[inline]
-    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], InputError> {
+    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
         let expected = INT;
         let found = match self {
             Self::Bool(_) => BOOL,
             Self::Floats(_) => FLOAT,
             Self::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
         };
-        Err(InputError::TypeMismatch { expected, found })
+        Err(AttributeError::TypeMismatch { expected, found })
     }
 }
 

@@ -238,12 +238,19 @@ impl CpuState {
                 if let BulkAttribute::Particles(attr) = bulk.meta.captured_attribute {
                     let InputRangeParticles { particle_range } = input_ranges
                         .get_particle_range(&bulk.meta.object_name)
-                        .map_err(FrameInputError::ObjectError)?;
+                        .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
+                        .map_err(FrameInputError::InputError)?;
                     match attr {
                         FrameBulkParticles::Flags => {
                             let flags: &[ParticleFlags] = bulk
                                 .data
                                 .assume_ints()
+                                .map_err(|error| {
+                                    error
+                                        .attach_attr(bulk.meta.captured_attribute)
+                                        .attach_name(bulk.meta.object_name.clone())
+                                        .attach_frame(self.frame_input.frame() + 1)
+                                })
                                 .map_err(FrameInputError::InputError)?;
                             // TODO: this needs to depend on what's recorded
                             let mask = ParticleFlags::HAS_GOAL;

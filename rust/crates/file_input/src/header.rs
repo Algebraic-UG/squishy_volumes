@@ -101,35 +101,18 @@ pub struct InputHeader {
 }
 
 impl InputHeader {
-    pub fn total_particles(&self) -> usize {
-        self.objects
-            .values()
-            .map(|object| {
-                if let InputObject::Particles(InputObjectParticles { num_particles }) = object {
-                    *num_particles
-                } else {
-                    0
-                }
-            })
-            .sum::<u32>() as usize
-    }
-
     pub fn get_collider_input_object(
         &self,
         name: &str,
-    ) -> Result<InputObjectCollider, crate::ObjectError> {
-        if let InputObject::Collider(object) =
-            self.objects
-                .get(name)
-                .ok_or(crate::ObjectError::ObjectNotInHeader {
-                    name: name.to_string(),
-                })?
+    ) -> Result<InputObjectCollider, crate::FrameVerifcationError> {
+        if let InputObject::Collider(object) = self
+            .objects
+            .get(name)
+            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
             Ok(object.clone())
         } else {
-            Err(crate::ObjectError::ObjectChangedType {
-                name: name.to_string(),
-            })
+            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
     }
 }
@@ -199,35 +182,30 @@ impl InputRanges {
     pub fn get_particle_range(
         &self,
         name: &str,
-    ) -> Result<InputRangeParticles, crate::ObjectError> {
-        if let InputRange::Particles(range) =
-            self.objects
-                .get(name)
-                .ok_or(crate::ObjectError::ObjectNotInHeader {
-                    name: name.to_string(),
-                })?
+    ) -> Result<InputRangeParticles, crate::FrameVerifcationError> {
+        if let InputRange::Particles(range) = self
+            .objects
+            .get(name)
+            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
             Ok(range.clone())
         } else {
-            Err(crate::ObjectError::ObjectChangedType {
-                name: name.to_string(),
-            })
+            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
     }
 
-    pub fn get_collider_range(&self, name: &str) -> Result<InputRangeCollider, crate::ObjectError> {
-        if let InputRange::Collider(range) =
-            self.objects
-                .get(name)
-                .ok_or(crate::ObjectError::ObjectNotInHeader {
-                    name: name.to_string(),
-                })?
+    pub fn get_collider_range(
+        &self,
+        name: &str,
+    ) -> Result<InputRangeCollider, crate::FrameVerifcationError> {
+        if let InputRange::Collider(range) = self
+            .objects
+            .get(name)
+            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
             Ok(range.clone())
         } else {
-            Err(crate::ObjectError::ObjectChangedType {
-                name: name.to_string(),
-            })
+            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
     }
 }

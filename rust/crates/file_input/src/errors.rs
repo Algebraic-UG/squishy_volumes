@@ -8,6 +8,8 @@
 
 use thiserror::Error;
 
+use crate::BulkAttribute;
+
 #[derive(Error, Debug)]
 pub enum InputError {
     #[error("Can't record input bulk if no frame is started")]
@@ -32,15 +34,6 @@ pub enum InputError {
     },
     #[error("Too many different colliders.")]
     TooManyColliders,
-
-    #[error("Input bulk data type mismatch: expected {expected} but found {found}")]
-    TypeMismatch {
-        expected: &'static str,
-        found: &'static str,
-    },
-
-    #[error("Input bulk data cast failed")]
-    CastFailed(#[from] bytemuck::PodCastError),
 }
 
 #[derive(Error, Debug)]
@@ -53,23 +46,55 @@ pub enum InputOffsetReadingError {
 
 #[derive(Error, Debug)]
 pub enum FrameVerifcationError {
-    #[error(
-        "'{name}': Recorded attribute '{attribute}' has length {found} but expected {expected}"
-    )]
-    LengthMismatch {
+    #[error("Object '{name}' error")]
+    ObjectError {
         name: String,
-        attribute: String,
-        found: usize,
-        expected: usize,
+        #[source]
+        error: ObjectError,
     },
-    #[error("Object error")]
-    ObjectError(#[from] ObjectError),
+}
+
+impl FrameVerifcationError {
+    pub fn attach_frame(self, frame: usize) -> InputError {
+        InputError::FrameVerifcationError { frame, error: self }
+    }
 }
 
 #[derive(Error, Debug)]
 pub enum ObjectError {
-    #[error("'{name}': Changed to/from Particles/Collider")]
-    ObjectChangedType { name: String },
-    #[error("'{name}': Was not declared in input header")]
-    ObjectNotInHeader { name: String },
+    #[error("This object changed type to/from Particles/Collider")]
+    ObjectChangedType,
+    #[error("This object was not declared in input header")]
+    ObjectNotInHeader,
+    #[error("Attribute '{attr:?}' error")]
+    AttributeError {
+        attr: BulkAttribute,
+        #[source]
+        error: AttributeError,
+    },
+}
+
+impl ObjectError {
+    pub fn attach_name(self, name: String) -> FrameVerifcationError {
+        FrameVerifcationError::ObjectError { name, error: self }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum AttributeError {
+    #[error("Atttribute data type mismatch: expected {expected} but found {found}")]
+    TypeMismatch {
+        expected: &'static str,
+        found: &'static str,
+    },
+    #[error("Attribute data cast failed")]
+    CastFailed(#[from] bytemuck::PodCastError),
+    #[error("Attribute Lengh mismatch, expected {expected} but found {found}")]
+    LengthMismatch { found: usize, expected: usize },
+}
+
+impl AttributeError {
+    pub fn attach_attr(self, attr: BulkAttribute) -> ObjectError {
+        ObjectError::AttributeError { attr, error: self }
+    }
 }

@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
+    AttributeError, BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
     InputObjectCollider, InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
     OwnedFrameBulk,
 };
@@ -23,22 +23,8 @@ pub enum FrameInputError {
     #[error("Failed to input from file")]
     InputError(#[from] squishy_volumes_file_input::InputError),
 
-    #[error("'{name}': length mismatch between '{attribute_a}' and '{attribute_b}'")]
-    AttributeLengthMismatch {
-        name: String,
-        attribute_a: String,
-        attribute_b: String,
-    },
-
     #[error("Something is wrong with the mesh inputs")]
     MeshError(#[from] squishy_volumes_mesh_util::Error),
-
-    #[error("Object error")]
-    ObjectError(#[from] squishy_volumes_file_input::ObjectError),
-
-    // TODO: this needs more debug info
-    #[error("Failed to cast data")]
-    CastFailed(#[from] bytemuck::PodCastError),
 }
 
 pub struct FrameInput {
@@ -74,9 +60,9 @@ impl FrameInput {
 
         let topology = create_topology(&mut input_reader)?;
 
-        let collider_start: Collider = io_collider.try_into()?;
+        let collider_start: Collider = io_collider.into();
 
-        let goal_positions_start = bytemuck::try_cast_vec(io_goal_positions).map_err(|(e, _)| e)?;
+        let goal_positions_start = bytemuck::cast_vec(io_goal_positions);
 
         let next_input_frame = (frame + 1 < input_reader.len())
             .then(|| input_reader.read_frame(frame + 1))
@@ -86,7 +72,8 @@ impl FrameInput {
         let mut goal_positions_end = goal_positions_start.clone();
         let vertex_velocities;
         if let Some(next_input_frame) = next_input_frame.as_ref() {
-            update_collider(&input_ranges, &mut collider_end, &next_input_frame.bulk)?;
+            update_collider(&input_ranges, &mut collider_end, &next_input_frame.bulk)
+                .map_err(|error| error.attach_frame(frame + 1))?;
             vertex_velocities = linear_vertex_velocities(
                 &input_reader.header().consts,
                 &collider_start,
@@ -97,7 +84,8 @@ impl FrameInput {
                 &input_ranges,
                 &mut goal_positions_end,
                 &next_input_frame.bulk,
-            )?;
+            )
+            .map_err(|error| error.attach_frame(frame + 1))?;
         } else {
             vertex_velocities =
                 vec![nalgebra::Vector3::zeros(); collider_start.vertex_positions.len()];
@@ -152,7 +140,8 @@ impl FrameInput {
                 &self.input_ranges,
                 &mut self.collider_end,
                 &next_input_frame.bulk,
-            )?;
+            )
+            .map_err(|error| error.attach_frame(self.frame + 1))?;
             self.vertex_velocities =
                 linear_vertex_velocities(self.consts(), &self.collider_start, &self.collider_end);
 
@@ -160,7 +149,8 @@ impl FrameInput {
                 &self.input_ranges,
                 &mut self.goal_positions_end,
                 &next_input_frame.bulk,
-            )?;
+            )
+            .map_err(|error| error.attach_frame(self.frame + 1))?;
         } else {
             self.vertex_velocities =
                 vec![nalgebra::Vector3::zeros(); self.collider_start.vertex_positions.len()];
@@ -277,25 +267,34 @@ fn update_bvh(
 fn create_topology(input_reader: &mut InputReader) -> Result<Topology, FrameInputError> {
     let bulk = input_reader.read_frame(0)?.bulk;
     let mut topology_inputs = Vec::new();
-    for bulk in &bulk {
-        if bulk.meta.captured_attribute != BulkAttribute::Collider(FrameBulkCollider::Triangles) {
-            continue;
-        }
-        let InputObjectCollider {
-            collider_id,
-            num_vertices,
-            ..
-        } = input_reader
-            .header()
-            .get_collider_input_object(&bulk.meta.object_name)?;
+    (|| -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
+        for bulk in &bulk {
+            if bulk.meta.captured_attribute != BulkAttribute::Collider(FrameBulkCollider::Triangles)
+            {
+                continue;
+            }
+            let InputObjectCollider {
+                collider_id,
+                num_vertices,
+                ..
+            } = input_reader
+                .header()
+                .get_collider_input_object(&bulk.meta.object_name)?;
 
-        topology_inputs.push(TopologyInput {
-            name: &bulk.meta.object_name,
-            collider_id,
-            num_vertices,
-            triangle_indices: bulk.data.assume_ints()?,
-        });
-    }
+            topology_inputs.push(TopologyInput {
+                name: &bulk.meta.object_name,
+                collider_id,
+                num_vertices,
+                triangle_indices: bulk.data.assume_ints().map_err(|error| {
+                    error
+                        .attach_attr(bulk.meta.captured_attribute)
+                        .attach_name(bulk.meta.object_name.clone())
+                })?,
+            });
+        }
+        Ok(())
+    })()
+    .map_err(|error| error.attach_frame(0))?;
     Ok(Topology::new(topology_inputs.into_iter())?)
 }
 
@@ -303,32 +302,43 @@ fn update_collider(
     input_ranges: &InputRanges,
     collider: &mut Collider,
     bulk: &[OwnedFrameBulk],
-) -> Result<(), FrameInputError> {
+) -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
     for bulk in bulk {
         if let BulkAttribute::Collider(ref attr) = bulk.meta.captured_attribute {
             let InputRangeCollider {
                 vertex_range,
                 triangle_range,
             } = input_ranges.get_collider_range(&bulk.meta.object_name)?;
-            match attr {
-                FrameBulkCollider::VertexPositions => {
-                    // TODO: clean error for length mismatch
-                    collider.vertex_positions[vertex_range]
-                        .copy_from_slice(bulk.data.assume_floats()?);
+
+            (|| -> Result<(), AttributeError> {
+                match attr {
+                    FrameBulkCollider::VertexPositions => {
+                        // TODO: clean error for length mismatch
+                        collider.vertex_positions[vertex_range]
+                            .copy_from_slice(bulk.data.assume_floats()?);
+                    }
+                    FrameBulkCollider::TriangleFrictions => {
+                        collider.triangle_frictions[triangle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?);
+                    }
+                    FrameBulkCollider::TriangleDampings => {
+                        collider.triangle_dampings[triangle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?);
+                    }
+                    FrameBulkCollider::Triangles => {
+                        // TODO:
+                        tracing::error!(
+                            "Updating the topology after frame 0 is not supported (yet?)"
+                        );
+                    }
                 }
-                FrameBulkCollider::TriangleFrictions => {
-                    collider.triangle_frictions[triangle_range]
-                        .copy_from_slice(bulk.data.assume_floats()?);
-                }
-                FrameBulkCollider::TriangleDampings => {
-                    collider.triangle_dampings[triangle_range]
-                        .copy_from_slice(bulk.data.assume_floats()?);
-                }
-                FrameBulkCollider::Triangles => {
-                    // TODO:
-                    tracing::error!("Updating the topology after frame 0 is not supported (yet?)");
-                }
-            }
+                Ok(())
+            })()
+            .map_err(|error| {
+                error
+                    .attach_attr(bulk.meta.captured_attribute)
+                    .attach_name(bulk.meta.object_name.clone())
+            })?;
         }
     }
     Ok(())
@@ -338,14 +348,20 @@ fn update_goal_positions(
     input_ranges: &InputRanges,
     goal_positions: &mut [nalgebra::Vector3<f32>],
     bulk: &[OwnedFrameBulk],
-) -> Result<(), FrameInputError> {
+) -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
     for bulk in bulk {
         if let BulkAttribute::Particles(ref attr) = bulk.meta.captured_attribute {
             let InputRangeParticles { particle_range } =
                 input_ranges.get_particle_range(&bulk.meta.object_name)?;
             if let FrameBulkParticles::GoalPositions = attr {
                 // TODO: clean error for length mismatch
-                goal_positions[particle_range].copy_from_slice(bulk.data.assume_floats()?);
+                goal_positions[particle_range].copy_from_slice(bulk.data.assume_floats().map_err(
+                    |error| {
+                        error
+                            .attach_attr(bulk.meta.captured_attribute)
+                            .attach_name(bulk.meta.object_name.clone())
+                    },
+                )?);
             }
         }
     }

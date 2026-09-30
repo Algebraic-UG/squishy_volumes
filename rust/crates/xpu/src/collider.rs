@@ -13,21 +13,19 @@ pub struct Collider {
     pub triangle_dampings: Vec<f32>,
 }
 
-impl TryFrom<squishy_volumes_file_frame::Collider> for Collider {
-    type Error = crate::FrameInputError;
-
-    fn try_from(
+impl From<squishy_volumes_file_frame::Collider> for Collider {
+    fn from(
         squishy_volumes_file_frame::Collider {
             vertex_positions,
             triangle_frictions,
             triangle_dampings,
         }: squishy_volumes_file_frame::Collider,
-    ) -> Result<Self, Self::Error> {
-        Ok(Collider {
-            vertex_positions: bytemuck::try_cast_vec(vertex_positions).map_err(|(e, _)| e)?,
+    ) -> Self {
+        Collider {
+            vertex_positions: bytemuck::cast_vec(vertex_positions),
             triangle_frictions,
             triangle_dampings,
-        })
+        }
     }
 }
 

@@ -9,8 +9,8 @@
 use nalgebra::Matrix3;
 use squishy_volumes_file_frame::IoState;
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputError, InputRangeCollider,
-    InputRangeParticles, InputRanges, InputReader,
+    AttributeError, BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError,
+    InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
 };
 use squishy_volumes_xpu::Harness;
 use thiserror::Error;
@@ -19,11 +19,6 @@ use thiserror::Error;
 pub enum StateInitializationError {
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
-
-    #[error("The object is missing in the header: {0}")]
-    ObjectMissing(String),
-    #[error("The object's type doesn't match the one in the header: {0}")]
-    ObjectTypeMismatch(String),
 
     #[error("'{name}': input particle #{particle_index} invalid")]
     ParticleInvalid {
@@ -39,8 +34,8 @@ pub enum StateInitializationError {
         expected: usize,
     },
 
-    #[error("Failed to read input for state initialization")]
-    InputError(#[from] squishy_volumes_file_input::InputError),
+    #[error("Failed to read frame for state initialization")]
+    InputErrorFrame(#[from] squishy_volumes_file_input::InputError),
 
     #[error("'{name}': missing input for {attribute}")]
     MissingInput {
@@ -90,7 +85,9 @@ pub fn initialize_io_state(
 ) -> Result<IoState, StateInitializationError> {
     let input_frame = {
         let _scope = harness.scope("Input reading".to_string(), 1.try_into().unwrap())?;
-        input_reader.read_frame(0)?
+        input_reader
+            .read_frame(0)
+            .map_err(StateInitializationError::InputErrorFrame)?
     };
     let input_ranges = InputRanges::new(&input_reader.header().objects);
 
@@ -144,143 +141,159 @@ pub fn initialize_io_state(
         "Applying initial bulk".to_string(),
         input_frame.bulk.len().max(1).try_into().unwrap(),
     )?;
+
+    #[derive(Error, Debug)]
+    enum E {
+        #[error("")]
+        F(#[from] FrameVerifcationError),
+        #[error("")]
+        A(#[from] AttributeError),
+    }
+
     for bulk in input_frame.bulk {
-        match bulk.meta.captured_attribute {
-            BulkAttribute::Particles(attribute) => {
-                let InputRangeParticles { particle_range } = input_ranges
-                    .get_particle_range(&bulk.meta.object_name)
-                    .map_err(|error| InputError::FrameVerifcationError {
-                        frame: 0,
-                        error: error.into(),
-                    })?;
-                match attribute {
-                    FrameBulkParticles::Flags => {
-                        flags[particle_range].copy_from_slice(bulk.data.assume_ints()?)
-                    }
-                    FrameBulkParticles::ColliderBits => {
-                        collider_bits[particle_range].copy_from_slice(bulk.data.assume_ints()?)
-                    }
-                    FrameBulkParticles::Transforms => {
-                        let transforms: &[[[f32; 4]; 4]] = bulk.data.assume_floats()?;
-                        for (i, m) in particle_range.into_iter().zip(transforms) {
-                            positions[i] = [
-                                inv_scale * m[3][0],
-                                inv_scale * m[3][1],
-                                inv_scale * m[3][2],
-                            ];
-                            position_gradients[i] = [
-                                [m[0][0], m[0][1], m[0][2]], //
-                                [m[1][0], m[1][1], m[1][2]], //
-                                [m[2][0], m[2][1], m[2][2]], //
-                            ];
+        (|| -> Result<(), E> {
+            match bulk.meta.captured_attribute {
+                BulkAttribute::Particles(attribute) => {
+                    let InputRangeParticles { particle_range } =
+                        input_ranges.get_particle_range(&bulk.meta.object_name)?;
+
+                    match attribute {
+                        FrameBulkParticles::Flags => {
+                            flags[particle_range].copy_from_slice(bulk.data.assume_ints()?)
                         }
-                    }
-                    FrameBulkParticles::Sizes => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].initial_volume = (inv_scale * v).powi(3);
+                        FrameBulkParticles::ColliderBits => {
+                            collider_bits[particle_range].copy_from_slice(bulk.data.assume_ints()?)
                         }
-                    }
-                    FrameBulkParticles::Densities => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].density = *v;
+                        FrameBulkParticles::Transforms => {
+                            let transforms: &[[[f32; 4]; 4]] = bulk.data.assume_floats()?;
+                            for (i, m) in particle_range.into_iter().zip(transforms) {
+                                positions[i] = [
+                                    inv_scale * m[3][0],
+                                    inv_scale * m[3][1],
+                                    inv_scale * m[3][2],
+                                ];
+                                position_gradients[i] = [
+                                    [m[0][0], m[0][1], m[0][2]], //
+                                    [m[1][0], m[1][1], m[1][2]], //
+                                    [m[2][0], m[2][1], m[2][2]], //
+                                ];
+                            }
                         }
-                    }
-                    FrameBulkParticles::YoungsModuluses => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].youngs_modulus = *v;
+                        FrameBulkParticles::Sizes => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].initial_volume = (inv_scale * v).powi(3);
+                            }
                         }
-                    }
-                    FrameBulkParticles::PoissonsRatios => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].poissons_ratio = *v;
+                        FrameBulkParticles::Densities => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].density = *v;
+                            }
                         }
-                    }
-                    FrameBulkParticles::InitialPositions => initial_positions[particle_range]
-                        .copy_from_slice(bulk.data.assume_floats()?),
-                    FrameBulkParticles::InitialVelocity => {
-                        velocities[particle_range].copy_from_slice(bulk.data.assume_floats()?)
-                    }
-                    FrameBulkParticles::ViscosityDynamic => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].viscosity_dynamic = *v;
+                        FrameBulkParticles::YoungsModuluses => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].youngs_modulus = *v;
+                            }
                         }
-                    }
-                    FrameBulkParticles::ViscosityBulk => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].viscosity_bulk = *v;
+                        FrameBulkParticles::PoissonsRatios => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].poissons_ratio = *v;
+                            }
                         }
-                    }
-                    FrameBulkParticles::Exponent => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<i32>()?)
-                        {
-                            parameters[i].exponent = *v;
+                        FrameBulkParticles::InitialPositions => initial_positions[particle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?),
+                        FrameBulkParticles::InitialVelocity => {
+                            velocities[particle_range].copy_from_slice(bulk.data.assume_floats()?)
                         }
-                    }
-                    FrameBulkParticles::BulkModulus => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].bulk_modulus = *v;
+                        FrameBulkParticles::ViscosityDynamic => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].viscosity_dynamic = *v;
+                            }
                         }
-                    }
-                    FrameBulkParticles::SandAlpha => {
-                        for (i, v) in particle_range
-                            .into_iter()
-                            .zip(bulk.data.assume_floats::<f32>()?)
-                        {
-                            parameters[i].sand_alpha = *v;
+                        FrameBulkParticles::ViscosityBulk => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].viscosity_bulk = *v;
+                            }
                         }
+                        FrameBulkParticles::Exponent => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<i32>()?)
+                            {
+                                parameters[i].exponent = *v;
+                            }
+                        }
+                        FrameBulkParticles::BulkModulus => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].bulk_modulus = *v;
+                            }
+                        }
+                        FrameBulkParticles::SandAlpha => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].sand_alpha = *v;
+                            }
+                        }
+                        FrameBulkParticles::GoalPositions => {}
                     }
-                    FrameBulkParticles::GoalPositions => {}
                 }
-            }
-            BulkAttribute::Collider(attribute) => {
-                let InputRangeCollider {
-                    vertex_range,
-                    triangle_range,
-                } = input_ranges
-                    .get_collider_range(&bulk.meta.object_name)
-                    .map_err(|error| InputError::FrameVerifcationError {
-                        frame: 0,
-                        error: error.into(),
-                    })?;
-                match attribute {
-                    FrameBulkCollider::VertexPositions => {
-                        vertex_positions[vertex_range].copy_from_slice(bulk.data.assume_floats()?);
-                    }
-                    FrameBulkCollider::Triangles => {}
-                    FrameBulkCollider::TriangleFrictions => {
-                        triangle_frictions[triangle_range]
-                            .copy_from_slice(bulk.data.assume_floats()?);
-                    }
-                    FrameBulkCollider::TriangleDampings => {
-                        triangle_dampings[triangle_range]
-                            .copy_from_slice(bulk.data.assume_floats()?);
+                BulkAttribute::Collider(attribute) => {
+                    let InputRangeCollider {
+                        vertex_range,
+                        triangle_range,
+                    } = input_ranges.get_collider_range(&bulk.meta.object_name)?;
+
+                    match attribute {
+                        FrameBulkCollider::VertexPositions => {
+                            vertex_positions[vertex_range]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                        }
+                        FrameBulkCollider::Triangles => {}
+                        FrameBulkCollider::TriangleFrictions => {
+                            triangle_frictions[triangle_range]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                        }
+                        FrameBulkCollider::TriangleDampings => {
+                            triangle_dampings[triangle_range]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                        }
                     }
                 }
             }
-        }
+            Ok(())
+        })()
+        .map_err(|e| {
+            match e {
+                E::F(error) => error,
+                E::A(error) => error
+                    .attach_attr(bulk.meta.captured_attribute)
+                    .attach_name(bulk.meta.object_name.clone()),
+            }
+            .attach_frame(0)
+        })?;
+
         harness.step()?;
     }
 

@@ -10,7 +10,9 @@ use std::{mem::swap, num::NonZeroU32, path::PathBuf, time::Duration};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, InputRangeParticles};
+use squishy_volumes_file_input::{
+    BulkAttribute, FrameBulkParticles, FrameVerifcationError, InputRangeParticles,
+};
 use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
 use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
@@ -696,14 +698,23 @@ impl GpuState {
             if let BulkAttribute::Particles(attribute) = bulk.meta.captured_attribute {
                 let InputRangeParticles { particle_range } = input_ranges
                     .get_particle_range(&bulk.meta.object_name)
-                    .map_err(FrameInputError::ObjectError)?;
+                    .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
+                    .map_err(FrameInputError::InputError)?;
+
                 let offset = particle_range.start as u32;
                 let allocation = match attribute {
                     FrameBulkParticles::Flags => {
                         let flags: &[ParticleFlags] = bulk
                             .data
                             .assume_ints()
+                            .map_err(|error| {
+                                error
+                                    .attach_attr(bulk.meta.captured_attribute)
+                                    .attach_name(bulk.meta.object_name.clone())
+                                    .attach_frame(self.frame_input.frame() + 1)
+                            })
                             .map_err(FrameInputError::InputError)?;
+
                         Allocation::new(self.gpu_context.device(), "new_flags", flags)?
                     }
                     FrameBulkParticles::ColliderBits => todo!(),
