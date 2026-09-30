@@ -31,6 +31,7 @@ from .squishy_volumes_properties import (
 
 def create_input_header(sim_props):
     depsgraph = bpy.context.evaluated_depsgraph_get()
+    depsgraph.update()
 
     grid_node_size = sim_props.grid_node_size
     simulation_scale = sim_props.simulation_scale
@@ -55,9 +56,11 @@ def create_input_header(sim_props):
 
     collider_inputs = 0
     for input_obj in get_input_objects_with_uuid(sim_props.uuid):
-        mesh = input_obj.evaluated_get(depsgraph).data
-        name = input_obj.name
-        ty = input_obj.squishy_volumes.input_type
+        evaluated_obj = input_obj.evaluated_get(depsgraph)
+
+        mesh = evaluated_obj.evaluated_get(depsgraph).data
+        name = evaluated_obj.name
+        ty = evaluated_obj.squishy_volumes.input_type
         if ty == INPUT_TYPE_PARTICLES:
             objects[name] = {
                 INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}
@@ -161,13 +164,13 @@ def capture_input_frame(
         evaluated_obj = input_obj.evaluated_get(depsgraph)
         mesh = evaluated_obj.data
         attributes = mesh.attributes
-        input_type = input_obj.squishy_volumes.input_type
+        input_type = evaluated_obj.squishy_volumes.input_type
 
         def record(
             *, python_name: str | None, rust_name: str, triangle_indices: bool = False
         ):
             meta = {
-                "object_name": input_obj.name,  # noqa: B023
+                "object_name": evaluated_obj.name,  # noqa: B023
                 "captured_attribute": {input_type: rust_name},  # noqa: B023
             }
             if triangle_indices:
