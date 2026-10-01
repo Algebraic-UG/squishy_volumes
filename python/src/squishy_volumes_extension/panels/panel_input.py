@@ -70,6 +70,7 @@ def _can_add(obj: bpy.types.ID) -> bool:
 
 def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
     sim_obj = get_simulation_object_with_uuid(uuid)
+    sim_props = sim_obj.squishy_volumes
     input_obj = bpy.data.objects[name]
     if not _can_add(input_obj):
         raise RuntimeError(f"Can't add {input_obj.name}")
@@ -90,6 +91,20 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
     modifier = input_obj.modifiers.new("Squishy Volumes Input", type="NODES")
     if input_props.input_type == INPUT_TYPE_PARTICLES:
         modifier.node_group = create_geometry_nodes_generate_particles()
+        record_socket = "Socket_6"
+        data_path = (
+            f'modifiers["{modifier.name}"].properties.inputs.{record_socket}.value'
+        )
+        getattr(modifier.properties.inputs, record_socket).value = False
+        input_obj.keyframe_insert(
+            data_path=data_path,
+            frame=sim_props.capture_start_frame + 1,
+        )
+        getattr(modifier.properties.inputs, record_socket).value = True
+        input_obj.keyframe_insert(
+            data_path=data_path,
+            frame=sim_props.capture_start_frame,
+        )
     elif input_props.input_type == INPUT_TYPE_COLLIDER:
         modifier.node_group = create_geometry_nodes_generate_collider()
     else:
