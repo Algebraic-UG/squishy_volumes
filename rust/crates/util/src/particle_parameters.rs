@@ -10,16 +10,9 @@ use crate::T;
 
 #[repr(C)]
 #[derive(
-    Clone,
-    Copy,
-    bytemuck::Zeroable,
-    bytemuck::Pod,
-    Debug,
-    PartialEq,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
+    Clone, Copy, bytemuck::Zeroable, Debug, PartialEq, Default, serde::Serialize, serde::Deserialize,
 )]
+#[cfg_attr(not(use_f64), derive(bytemuck::Pod))]
 pub struct ParticleParameters {
     pub density: T,
     pub initial_volume: T,
