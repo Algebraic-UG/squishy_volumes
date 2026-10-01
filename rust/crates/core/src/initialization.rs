@@ -89,15 +89,16 @@ pub fn initialize_io_state(
             .read_frame(0)
             .map_err(StateInitializationError::InputErrorFrame)?
     };
+    let animated_globals = input_frame.animated_globals;
     let input_ranges = InputRanges::new(&input_reader.header().objects);
 
     let scale = input_reader.header().consts.simulation_scale;
     let inv_scale = 1. / scale;
 
     harness.check()?;
-    let mut io_state = IoState::default();
     let scope = harness.scope("Allocating Objects".to_string(), 1.try_into().unwrap())?;
 
+    let mut particles = Default::default();
     let squishy_volumes_file_frame::Particles {
         flags,
         parameters,
@@ -108,7 +109,7 @@ pub fn initialize_io_state(
         velocities,
         velocity_gradients,
         initial_positions,
-    } = &mut io_state.particles;
+    } = &mut particles;
 
     let total_particles = input_ranges.total_particles;
     flags.resize(total_particles, Default::default());
@@ -121,15 +122,14 @@ pub fn initialize_io_state(
     velocity_gradients.resize(total_particles, Default::default());
     initial_positions.resize(total_particles, Default::default());
 
-    io_state
-        .goal_positions
-        .resize(total_particles, Default::default());
+    let mut goal_positions = vec![Default::default(); total_particles];
 
+    let mut collider = Default::default();
     let squishy_volumes_file_frame::Collider {
         vertex_positions,
         triangle_frictions,
         triangle_dampings,
-    } = &mut io_state.collider;
+    } = &mut collider;
 
     vertex_positions.resize(input_ranges.total_vertices, Default::default());
     triangle_frictions.resize(input_ranges.total_triangles, Default::default());
@@ -256,7 +256,8 @@ pub fn initialize_io_state(
                                 parameters[i].sand_alpha = *v;
                             }
                         }
-                        FrameBulkParticles::GoalPositions => {}
+                        FrameBulkParticles::GoalPositions => goal_positions[particle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?),
                     }
                 }
                 BulkAttribute::Collider(attribute) => {
@@ -356,7 +357,13 @@ pub fn initialize_io_state(
     }
     */
 
-    io_state.grid_nodes = Some(Default::default());
-
-    Ok(io_state)
+    Ok(IoState {
+        time: 0.,
+        animated_globals,
+        particles,
+        goal_positions,
+        collider,
+        bvh: None,
+        grid_nodes: None,
+    })
 }
