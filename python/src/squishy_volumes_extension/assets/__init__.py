@@ -70,7 +70,7 @@ def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:
 
 
 def create_geometry_nodes_generate_particles() -> bpy.types.NodeTree:
-    return _load_tree_2("Generate Particles")
+    return _load_tree_2("Squishy Volumes Generate Particles")
 
 
 def create_geometry_nodes_generate_collider() -> bpy.types.NodeTree:
