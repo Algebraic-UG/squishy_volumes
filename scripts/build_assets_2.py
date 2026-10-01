@@ -1,3 +1,5 @@
+import glob
+import uuid
 import bpy
 import sys
 from pathlib import Path
@@ -38,7 +40,12 @@ from nodebpy.builder import (
 scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."
 asset_dir = repo_root / "python" / "src" / "squishy_volumes_extension" / "assets"
-asset_file = asset_dir / "assets.blend"
+unique = uuid.uuid4().hex[:8]
+asset_file = asset_dir / f"assets-{unique}.blend"
+
+for stale_asset in glob.glob(pathname="assets-*.blend", root_dir=asset_dir):
+    print(f"Removing stale asset: {stale_asset}")
+    (asset_dir / stale_asset).unlink()
 
 
 _DataType = Literal[

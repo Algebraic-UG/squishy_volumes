@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import glob
 from pathlib import Path
 
 import bpy  # ty: ignore[unresolved-import]
@@ -43,7 +44,10 @@ def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:
 
 
 def _load_tree_2(name: str) -> bpy.types.NodeTree:
-    file_path = Path(__file__).parent / "assets.blend"
+    asset_dir = Path(__file__).parent
+    potential_assets = glob.glob(pathname="assets-*.blend", root_dir=asset_dir)
+    assert len(potential_assets) == 1, "Found multiple potential assets"
+    file_path = Path(__file__).parent / potential_assets[0]
     with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
         _data_src,
         data_dst,
