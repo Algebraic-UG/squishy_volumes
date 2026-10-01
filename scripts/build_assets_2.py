@@ -179,8 +179,7 @@ class GenerateGrid(CustomGeometryGroup):
         geometry = tree.inputs.geometry()
         sep = geometry >> g.GetGeometryBundle() >> g.SeparateBundle()
 
-        grid_node_size = sep.items.float("Grid Node Size")
-        sampling_factor = sep.items.float("Sampling Factor")
+        spacing = sep.items.float("Spacing")
         random = sep.items.float("Random")
 
         with g.Frame("Calculate Extents") as _:
@@ -193,10 +192,7 @@ class GenerateGrid(CustomGeometryGroup):
             xyz = (
                 g.Math.divide(
                     value=1.0,
-                    value_001=g.Math.divide(
-                        grid_node_size,
-                        sampling_factor,
-                    ),
+                    value_001=spacing,
                 )
                 >> g.VectorMath.scale(extents)
                 >> g.SeparateXYZ()
@@ -430,6 +426,7 @@ class Record(CustomGeometryGroup):
         material_type = items.integer("Type")
         viscosity = items.boolean("Viscosity")
         sand_alpha = items.boolean("Sand Alpha")
+        size = items.float("Size")
 
         with g.Frame("Object Transform") as _:
             info = g.SelfObject() >> g.ObjectInfo()
@@ -460,6 +457,7 @@ class Record(CustomGeometryGroup):
         with g.Frame("Common Parameters") as _:
             geometry = (
                 geometry
+                >> StoreNamedAttributeIfRecord.float(name="size", value=size)
                 >> StoreNamedAttributeIfRecord.float(name="density", value=density)
                 >> StoreNamedAttributeIfRecord.float(
                     name="viscosity_dynamic", value=viscosity_dynamic
@@ -525,14 +523,17 @@ def make_bundle(inputs) -> CombineBundle:
     return g.CombineBundle({i.name: i for i in inputs})
 
 
-with g.tree("Generate Particles", split_inputs=True, arrange=SimpleOptions()) as tree:
+with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
     with tree.inputs.panel("Sampling"):
-        sampling_bundle = make_bundle(
-            [
-                tree.inputs.float("Grid Node Size", default_value=0.5),
-                tree.inputs.float("Sampling Factor", default_value=2.0),
-                tree.inputs.float("Random", default_value=0.5),
-            ]
+        spacing = g.Math.divide(
+            value=tree.inputs.float("Grid Node Size", default_value=0.5),
+            value_001=tree.inputs.float("Sampling Factor", default_value=2.0),
+        )
+        sampling_bundle = g.CombineBundle(
+            {
+                "Spacing": spacing,
+                "Random": tree.inputs.float("Random", default_value=0.5),
+            }
         )
 
     points = (
@@ -558,6 +559,8 @@ with g.tree("Generate Particles", split_inputs=True, arrange=SimpleOptions()) as
         )
 
     parameters = dict()
+    parameters["Size"] = spacing
+
     with tree.inputs.panel("Parameters"):
         parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
         type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
