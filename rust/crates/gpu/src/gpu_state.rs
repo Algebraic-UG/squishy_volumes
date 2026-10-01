@@ -10,9 +10,7 @@ use std::{mem::swap, num::NonZeroU32, path::PathBuf, time::Duration};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkParticles, FrameVerifcationError, InputRangeParticles,
-};
+use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, InputRangeParticles};
 use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
 use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
