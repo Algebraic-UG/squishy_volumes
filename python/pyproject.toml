@@ -5,7 +5,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = []
 classifiers = ["Private :: Do Not Upload"]
 
-[project.optional-dependencies]
+[dependency-groups]
 lint = [
   "ruff>=0.16.6",
 ]
@@ -15,4 +15,5 @@ dev = [
   "fake-bpy-module>=20251003",
   "numpy==1.26.4", # should match what blender uses
   "tree-clipper==0.1.12",
+  "nodebpy==520.31.0"
 ]
