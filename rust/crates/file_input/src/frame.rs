@@ -7,6 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_api::InputBulk;
+#[cfg(test)]
+use squishy_volumes_util::AnimatedGlobals;
 
 use crate::{AttributeError, InputObjectCollider, InputObjectParticles};
 
@@ -94,23 +96,25 @@ impl FrameBulkCollider {
 }
 
 #[cfg(test)]
+use std::borrow::Cow;
+
+#[cfg(test)]
 pub fn random_particle_bulk(
     object_name: String,
     num_particles: u32,
     rng: &mut impl rand::Rng,
-) -> Vec<FrameBulk> {
+) -> Vec<FrameBulk<'static>> {
     use rand::RngExt as _;
     vec![FrameBulk {
         meta: FrameBulkMeta {
             object_name,
             captured_attribute: BulkAttribute::Particles(FrameBulkParticles::Flags),
         },
-        data: bytemuck::cast_slice(
-            &rng.random_iter::<u32>()
+        data: InputBulk::Ints(Cow::Owned(
+            rng.random_iter::<i32>()
                 .take(num_particles as usize)
-                .collect::<Vec<_>>(),
-        )
-        .to_vec(),
+                .collect(),
+        )),
     }]
 }
 
@@ -120,7 +124,7 @@ pub fn random_collider_bulk(
     num_vertices: u32,
     num_triangles: u32,
     rng: &mut impl rand::Rng,
-) -> Vec<FrameBulk> {
+) -> Vec<FrameBulk<'static>> {
     use rand::RngExt as _;
     vec![
         FrameBulk {
@@ -128,24 +132,22 @@ pub fn random_collider_bulk(
                 object_name: object_name.clone(),
                 captured_attribute: BulkAttribute::Collider(FrameBulkCollider::VertexPositions),
             },
-            data: bytemuck::cast_slice(
-                &rng.random_iter::<[f32; 3]>()
-                    .take(num_vertices as usize)
-                    .collect::<Vec<_>>(),
-            )
-            .to_vec(),
+            data: InputBulk::Floats(Cow::Owned(
+                rng.random_iter::<f32>()
+                    .take(3 * num_vertices as usize)
+                    .collect(),
+            )),
         },
         FrameBulk {
             meta: FrameBulkMeta {
                 object_name: object_name.clone(),
                 captured_attribute: BulkAttribute::Collider(FrameBulkCollider::Triangles),
             },
-            data: bytemuck::cast_slice(
-                &rng.random_iter::<[u32; 3]>()
-                    .take(num_triangles as usize)
-                    .collect::<Vec<_>>(),
-            )
-            .to_vec(),
+            data: InputBulk::Ints(Cow::Owned(
+                rng.random_iter::<i32>()
+                    .take(3 * num_triangles as usize)
+                    .collect(),
+            )),
         },
     ]
 }
@@ -271,7 +273,11 @@ impl OwnedInputBulk {
 
 #[cfg(test)]
 impl InputFrame {
-    pub fn test_input_0(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Self {
+    pub fn test_input_0(
+        num_particles: u32,
+        num_vertices: u32,
+        num_triangles: u32,
+    ) -> (AnimatedGlobals, Vec<FrameBulk<'static>>) {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(42);
         let mut bulk = Vec::new();
@@ -291,8 +297,8 @@ impl InputFrame {
             num_triangles,
             &mut rng,
         ));
-        Self {
-            animated_globals: squishy_volumes_util::AnimatedGlobals {
+        (
+            AnimatedGlobals {
                 gravity_x: 1.,
                 gravity_y: 2.,
                 gravity_z: 3.,
@@ -301,10 +307,10 @@ impl InputFrame {
                 damping: 1.23,
             },
             bulk,
-        }
+        )
     }
 
-    pub fn test_input_1(num_particles: u32) -> Self {
+    pub fn test_input_1(num_particles: u32) -> (AnimatedGlobals, Vec<FrameBulk<'static>>) {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(69);
         let mut bulk = Vec::new();
@@ -324,8 +330,8 @@ impl InputFrame {
             &mut rng,
         ));
 
-        Self {
-            animated_globals: squishy_volumes_util::AnimatedGlobals {
+        (
+            AnimatedGlobals {
                 gravity_x: 2.,
                 gravity_y: 3.,
                 gravity_z: 4.,
@@ -334,12 +340,12 @@ impl InputFrame {
                 damping: 1.2,
             },
             bulk,
-        }
+        )
     }
 
-    pub fn test_input_2() -> Self {
-        Self {
-            animated_globals: squishy_volumes_util::AnimatedGlobals {
+    pub fn test_input_2() -> (AnimatedGlobals, Vec<FrameBulk<'static>>) {
+        (
+            AnimatedGlobals {
                 gravity_x: 3.,
                 gravity_y: 4.,
                 gravity_z: 5.,
@@ -347,7 +353,7 @@ impl InputFrame {
                 goal_damping: 0.1,
                 damping: 0.,
             },
-            bulk: Default::default(),
-        }
+            Default::default(),
+        )
     }
 }
