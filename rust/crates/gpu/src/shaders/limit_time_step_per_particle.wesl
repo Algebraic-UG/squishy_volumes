@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, TimeStepLimits, SINGULAR_VALUE_SEPARATION, first_piola_stress_neo_hookean_svd_in_diagonal_space, first_piola_stress_inviscid_svd_in_diagonal_space, second_derivative_neo_hookean_svd_in_diagonal_space, second_derivative_inviscid_svd_in_diagonal_space, F32_MIN, partial_elastic_energy_inviscid_by_invariant_3, double_partial_elastic_energy_inviscid_by_invariant_3, mat3x3f_max_elem, mat3x3f_abs, F32_MAX};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, TimeStepLimits, SINGULAR_VALUE_SEPARATION, first_piola_stress_neo_hookean_svd_in_diagonal_space, first_piola_stress_inviscid_svd_in_diagonal_space, second_derivative_neo_hookean_svd_in_diagonal_space, second_derivative_inviscid_svd_in_diagonal_space, F32_MIN, partial_elastic_energy_inviscid_by_invariant_3, double_partial_elastic_energy_inviscid_by_invariant_3, mat3x3f_max_elem, mat3x3f_abs, F32_MAX, lambda, mu};
 import super::external::wgebra::svd3::{Svd, svd, recompose};
 
 @group(0) @binding(0)
@@ -86,8 +86,8 @@ fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, p
     var second = mat3x3f();
 
     if (flag & IS_SOLID) > 0 {
-        first = first_piola_stress_neo_hookean_svd_in_diagonal_space(parameter.mu, parameter.lambda, s);
-        second = second_derivative_neo_hookean_svd_in_diagonal_space(parameter.mu, parameter.lambda, s);
+        first = first_piola_stress_neo_hookean_svd_in_diagonal_space(mu(parameter), lambda(parameter), s);
+        second = second_derivative_neo_hookean_svd_in_diagonal_space(mu(parameter), lambda(parameter), s);
     }
 
     if (flag & IS_FLUID) > 0 {
@@ -119,8 +119,7 @@ fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, p
 
     kappa /= j;
 
-    let initial_density = parameter.mass / parameter.initial_volume;
-    let current_density = initial_density / j;
+    let current_density = parameter.density / j;
 
     let c = sqrt(kappa / current_density);
 
@@ -134,24 +133,23 @@ fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, positi
         const R: f32 = 1.; // APIC & CPIC
         const K: f32 = 1.; // CPIC
         const D: f32 = 3.; // 3D
-        return sqrt(parameters.mass / (parameters.initial_volume * xi * (R - K / 2.) * (parameters.mu + D / 2. * parameters.lambda)));
+        return sqrt(parameters.density / (xi * (R - K / 2.) * (mu(parameters) + D / 2. * lambda(parameters))));
     }
 
     if (flag & IS_FLUID) > 0 {
         // Effective time step restrictions for explicit MPM simulation,
         // Technical document "Simple bounds"
-        let initial_density = parameters.mass / parameters.initial_volume;
         let j = determinant(position_gradient);
         const K: f32 = 6.; // quadratic splines
         const D: f32 = 3.; // 3D
         let first = partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
         if abs(j - 1.) > SINGULAR_VALUE_SEPARATION {
-            return GRID_NODE_SIZE / j * sqrt(initial_density * (j - 1.) / (K * first * D));
+            return GRID_NODE_SIZE / j * sqrt(parameters.density * (j - 1.) / (K * first * D));
         }
 
         let second = double_partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
 
-        return sqrt(GRID_NODE_SIZE * (initial_density / (K * second * D)));
+        return sqrt(GRID_NODE_SIZE * (parameters.density / (K * second * D)));
     }
 
     return 0.;

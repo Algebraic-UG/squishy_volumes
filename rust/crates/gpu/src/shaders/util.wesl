@@ -194,12 +194,12 @@ fn kernel_cubic(signed_x: f32) -> f32 {
 }
 
 struct ParticleParameters {
-    mass: f32,
+    density: f32,
     initial_volume: f32,
     viscosity_dynamic: f32,
     viscosity_bulk: f32,
-    mu: f32,
-    lambda: f32,
+    youngs_modulus: f32,
+    poissons_ratio: f32,
     sand_alpha: f32,
     bulk_modulus: f32,
     exponent: i32,
@@ -212,6 +212,20 @@ const USE_SAND_ALPHA: u32 = 1 << 3;
 const HAS_GOAL: u32 = 1 << 4;
 const TOMBSTONED: u32 = 1 << 5;
 const FAILED: u32 = 1 << 6;
+
+fn mass(p: ParticleParameters) -> f32 {
+    return p.density * p.initial_volume;
+}
+
+fn mu(p: ParticleParameters) -> f32 {
+    return p.youngs_modulus / 2. / (1. + p.poissons_ratio);
+}
+
+fn lambda(p: ParticleParameters) -> f32 {
+    return p.youngs_modulus * p.poissons_ratio
+            / (1. + p.poissons_ratio)
+            / (1. - 2. * p.poissons_ratio);
+}
 
 fn invariant_2(position_gradient: mat3x3f) -> f32 {
     return dot(position_gradient[0], position_gradient[0]) +

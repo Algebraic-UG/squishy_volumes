@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, ParticleParameters, IS_SOLID, USE_SAND_ALPHA};
+import super::util::{Indirect, get_global_index, ParticleParameters, IS_SOLID, USE_SAND_ALPHA, mu, lambda};
 import super::external::wgebra::svd3::{Svd, svd, recompose};
 
 @group(0) @binding(0)
@@ -51,8 +51,8 @@ fn main(
     }
 
     particle_position_gradients[global_index] = sand_plasticity(
-        parameters.mu,
-        parameters.lambda,
+        mu(parameters),
+        lambda(parameters),
         parameters.sand_alpha,
         particle_position_gradients[global_index],
     );
