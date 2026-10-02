@@ -579,7 +579,7 @@ with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
 
         parameters["Type"] = type_switch.o.output
         parameters["Young's Modulus"] = is_solid.switch.float(
-            true=tree.inputs.float("Young's Modulus", default_value=1000.0)
+            true=tree.inputs.float("Young's Modulus", default_value=10000.0)
         )
         parameters["Poissons's Ratio"] = is_solid.switch.float(
             true=tree.inputs.float("Poisson's Ratio", default_value=0.3)
