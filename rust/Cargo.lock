@@ -3933,6 +3933,7 @@ dependencies = [
 name = "squishy_volumes_util_test_with_f64"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.13.1",
  "bytemuck",
  "coarse-prof",
  "nalgebra",
