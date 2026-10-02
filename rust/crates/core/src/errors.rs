@@ -27,14 +27,6 @@ pub enum Error {
     #[error("Cpu compute error")]
     CpuCompute(#[from] squishy_volumes_cpu::Error),
 
-    #[error("'{object_name}': Failed to interpret input bulk '{attribute}'")]
-    InputBulkError {
-        object_name: String,
-        attribute: String,
-        #[source]
-        error: crate::InputBulkError,
-    },
-
     #[error("The last input frame was not completed")]
     LeftoverInputFrame,
 
