@@ -31,7 +31,6 @@ pub struct Settings {
 pub struct Parameters;
 
 pub struct Input {
-    pub particle_flags: Allocation,
     pub particle_parameters: Allocation,
     pub particle_position_gradients: Allocation,
 }
@@ -39,15 +38,12 @@ pub struct Input {
 impl Input {
     pub fn new(
         device: &wgpu::Device,
-        particle_flags: &[ParticleFlags],
         particle_parameters: &[ParticleParameters],
         particle_position_gradients: &[Matrix4x3<f32>],
     ) -> Result<Self, GpuError> {
-        check_length!(particle_flags, particle_parameters)?;
-        check_length!(particle_flags, particle_position_gradients)?;
-        let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
+        check_length!(particle_parameters, particle_position_gradients)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", &particle_parameters)?;
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_position_gradients = Allocation::new(
             device,
             "particle_position_gradients",
@@ -55,7 +51,6 @@ impl Input {
         )?;
 
         Ok(Self {
-            particle_flags,
             particle_parameters,
             particle_position_gradients,
         })
@@ -83,7 +78,6 @@ impl PipelinePart for Sand {
                 context,
                 workgroup_size,
                 bind_group_entries: [
-                    (ParticleFlags::MIN_BINDING_SIZE, false),
                     (ParticleParameters::MIN_BINDING_SIZE, false),
                     (Matrix4x3::<f32>::MIN_BINDING_SIZE, false),
                 ],
@@ -104,18 +98,13 @@ impl PipelinePart for Sand {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            particle_flags,
             particle_parameters,
             particle_position_gradients,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
         assert_eq!(
-            particle_flags.len::<ParticleFlags>(),
             particle_parameters.len::<ParticleParameters>(),
-        );
-        assert_eq!(
-            particle_flags.len::<ParticleFlags>(),
             particle_position_gradients.len::<Matrix4x3<f32>>()
         );
         let [x, y, z] = Indirect::new(DispatchSettings {
@@ -130,7 +119,6 @@ impl PipelinePart for Sand {
                 encoder,
                 &self.sand,
                 [
-                    particle_flags.binding(),
                     particle_parameters.binding(),
                     particle_position_gradients.binding(),
                 ],
