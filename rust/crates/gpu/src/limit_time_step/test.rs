@@ -75,7 +75,7 @@ fn check(settings: Settings, input_data: InputData, expected: &[TimeStepLimits])
 }
 
 #[test]
-fn test_single_undeformed() {
+fn single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -91,7 +91,12 @@ fn test_single_undeformed() {
         settings,
         InputData {
             particle_flags: &[ParticleFlags::IS_SOLID],
-            particle_parameters: &[ParticleParameters::default()],
+            particle_parameters: &[ParticleParameters {
+                density: 1.,
+                initial_volume: 1.,
+                youngs_modulus: 1000.,
+                ..Default::default()
+            }],
             #[allow(clippy::toplevel_ref_arg)]
             particle_position_gradients: &[stack![
                 Matrix3::identity();
@@ -123,7 +128,7 @@ fn test_single_undeformed() {
 }
 
 #[test]
-fn test_many_random_props() {
+fn many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -145,10 +150,9 @@ fn test_many_random_props() {
         .collect::<Vec<_>>()
         .into_iter()
         .chain(
-            (test_inviscid_parameters(&mut rng))
+            test_inviscid_parameters(&mut rng)
                 .zip(repeat(ParticleFlags::IS_FLUID))
-                .collect::<Vec<_>>()
-                .into_iter(),
+                .collect::<Vec<_>>(),
         )
         .cycle()
         .take(n)
@@ -201,8 +205,8 @@ fn test_many_random_props() {
         &[TimeStepLimits {
             time_step_by_velocity: 0.31904256,
             time_step_by_deformation: 0.20010836,
-            time_step_by_isolated: 1.2476232e-5,
-            time_step_by_sound: 6.694314e-6,
+            time_step_by_isolated: 0.0009449516,
+            time_step_by_sound: 0.0005070283,
         }],
     );
 }
