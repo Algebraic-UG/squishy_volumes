@@ -675,6 +675,7 @@ impl GpuState {
 
     fn prepare_pending_input(&mut self) -> Result<PendingInput, GpuError> {
         let Some(next_input_frame) = self.frame_input.next_input_frame() else {
+            self.frame_input.load_next()?;
             return Ok(PendingInput {
                 animated_globals: self.animated_globals,
                 globals: self.step_input.globals.clone(),
