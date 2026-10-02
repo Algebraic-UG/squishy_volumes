@@ -116,51 +116,51 @@ fn check(
 }
 
 #[test]
-fn test_solid_simple() {
+fn solid_simple() {
     let mut rng = ChaCha8Rng::seed_from_u64(40);
-    let position_gradients = test_position_gradients_simple();
+    let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
-        &position_gradients,
-        &vec![ParticleFlags::IS_SOLID; position_gradients.len()],
-        &test_lame_parameters(&mut rng).collect::<Vec<_>>(),
+        &test_position_gradients_simple(),
+        &vec![ParticleFlags::IS_SOLID; parameters.len()],
+        &parameters,
     );
 }
 
 #[test]
-fn test_solid_random() {
+fn solid_random() {
     let mut rng = ChaCha8Rng::seed_from_u64(41);
-    let n = 100;
+    let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
-        &test_position_gradients_random(n),
-        &vec![ParticleFlags::IS_SOLID; n],
-        &test_lame_parameters(&mut rng).collect::<Vec<_>>(),
+        &test_position_gradients_random(100),
+        &vec![ParticleFlags::IS_SOLID; parameters.len()],
+        &parameters,
     );
 }
 
 #[test]
-fn test_fluid_simple() {
+fn fluid_simple() {
     let mut rng = ChaCha8Rng::seed_from_u64(41);
-    let position_gradients = test_position_gradients_simple();
+    let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
-        &position_gradients,
-        &vec![ParticleFlags::IS_FLUID; position_gradients.len()],
-        &test_inviscid_parameters(&mut rng).collect::<Vec<_>>(),
+        &test_position_gradients_simple(),
+        &vec![ParticleFlags::IS_FLUID; parameters.len()],
+        &parameters,
     );
 }
 
 #[test]
-fn test_fluid_random() {
+fn fluid_random() {
     let mut rng = ChaCha8Rng::seed_from_u64(43);
-    let n = 100;
+    let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
-        &test_position_gradients_random(n),
-        &vec![ParticleFlags::IS_FLUID; n],
-        &test_inviscid_parameters(&mut rng).collect::<Vec<_>>(),
+        &test_position_gradients_random(100),
+        &vec![ParticleFlags::IS_FLUID; parameters.len()],
+        &parameters,
     );
 }
 
 #[test]
-fn test_mixed_random() {
+fn mixed_random() {
     let mut rng = ChaCha8Rng::seed_from_u64(42);
     let n = 100;
     let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = test_lame_parameters(&mut rng)
