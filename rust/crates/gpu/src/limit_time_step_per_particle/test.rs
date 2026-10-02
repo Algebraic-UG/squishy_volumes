@@ -67,6 +67,7 @@ fn check(
 
     let gpu_time_step_limits = run(settings, input_data.clone());
 
+    println!("{cpu_time_step_limits:#?}");
     println!("{gpu_time_step_limits:#?}");
 
     for (cpu, gpu) in cpu_time_step_limits.into_iter().zip(gpu_time_step_limits) {
@@ -98,7 +99,7 @@ fn check(
 }
 
 #[test]
-fn test_single_undeformed() {
+fn single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -129,7 +130,7 @@ fn test_single_undeformed() {
 }
 
 #[test]
-fn test_many_random_props() {
+fn many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -147,10 +148,9 @@ fn test_many_random_props() {
         .collect::<Vec<_>>()
         .into_iter()
         .chain(
-            (test_inviscid_parameters(&mut rng))
+            test_inviscid_parameters(&mut rng)
                 .zip(repeat(ParticleFlags::IS_FLUID))
-                .collect::<Vec<_>>()
-                .into_iter(),
+                .collect::<Vec<_>>(),
         )
         .cycle()
         .take(n)

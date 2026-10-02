@@ -112,9 +112,9 @@ pub fn limit_time_step_by_isolated_particles(
         const K: T = 1.; // CPIC
         const D: T = 3.; // 3D
 
-        // TODO: re-check this
-        (parameters.density * xi * (R - K / 2.) * (parameters.mu() + D / 2. * parameters.lambda()))
-            .sqrt()
+        (parameters.density
+            / (xi * (R - K / 2.) * (parameters.mu() + D / 2. * parameters.lambda())))
+        .sqrt()
     } else if flags.contains(ParticleFlags::IS_FLUID) {
         // Effective time step restrictions for explicit MPM simulation,
         // Technical document "Simple bounds"
