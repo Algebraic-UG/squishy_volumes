@@ -10,7 +10,7 @@ use crate::T;
 
 #[repr(C)]
 #[derive(
-    Clone, Copy, bytemuck::Zeroable, Debug, PartialEq, Default, serde::Serialize, serde::Deserialize,
+    Clone, Copy, bytemuck::Zeroable, Debug, PartialEq, serde::Serialize, serde::Deserialize,
 )]
 #[cfg_attr(not(use_f64), derive(bytemuck::Pod))]
 pub struct ParticleParameters {
@@ -23,6 +23,22 @@ pub struct ParticleParameters {
     pub sand_alpha: T,
     pub bulk_modulus: T,
     pub exponent: i32,
+}
+
+impl Default for ParticleParameters {
+    fn default() -> Self {
+        Self {
+            density: 1000.,
+            initial_volume: 0.01,
+            viscosity_dynamic: 3.,
+            viscosity_bulk: 3.,
+            youngs_modulus: 10000.,
+            poissons_ratio: 0.3,
+            sand_alpha: 0.3,
+            bulk_modulus: 10000.,
+            exponent: 2,
+        }
+    }
 }
 
 impl ParticleParameters {

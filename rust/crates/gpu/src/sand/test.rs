@@ -74,15 +74,10 @@ fn random() {
         &squishy_volumes_util::test_lame_parameters()
             .cycle()
             .take(n)
-            .map(|[mu, lambda]| ParticleParameters {
-                mass: 1.,
-                initial_volume: 1.,
-                viscosity: None,
-                specific: SpecificParticleParameters::Solid {
-                    mu,
-                    lambda,
-                    sand_alpha: Some(0.3),
-                },
+            .map(|[youngs_modulus, poissons_ratio]| ParticleParameters {
+                youngs_modulus,
+                poissons_ratio,
+                ..Default::default()
             })
             .collect::<Vec<_>>(),
         #[allow(clippy::toplevel_ref_arg)]

@@ -8,7 +8,11 @@
 
 use super::*;
 
-fn check(new_flags: &[ParticleFlags], flags: &[ParticleFlags]) {
+fn check(
+    new_flags: &[ParticleFlags],
+    flags: &[ParticleFlags],
+    parameters @ Parameters { offset }: Parameters,
+) {
     let gpu_flags = run(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
@@ -16,11 +20,12 @@ fn check(new_flags: &[ParticleFlags], flags: &[ParticleFlags]) {
         },
         new_flags,
         flags,
+        parameters,
     );
 
     let cpu_flags: Vec<ParticleFlags> = new_flags
         .iter()
-        .zip(flags)
+        .zip(flags.iter().skip(offset as usize))
         .map(|(new_flags, flags)| {
             let mut f = *flags;
             f.set(
@@ -41,6 +46,7 @@ fn simple() {
     check(
         &[ParticleFlags::IS_SOLID | ParticleFlags::USE_VISCOSITY | ParticleFlags::TOMBSTONED],
         &[ParticleFlags::HAS_GOAL],
+        Parameters { offset: 0 },
     );
 }
 
@@ -48,6 +54,7 @@ fn run(
     settings: Settings,
     new_falgs: &[ParticleFlags],
     flags: &[ParticleFlags],
+    parameters: Parameters,
 ) -> Vec<ParticleFlags> {
     let mut context = get_shared_context();
 
@@ -58,7 +65,7 @@ fn run(
     let mut encoder = context.device().create_command_encoder(&Default::default());
 
     let Output = update_flags
-        .record(&mut context, &mut (&mut encoder).into(), input, Parameters)
+        .record(&mut context, &mut (&mut encoder).into(), input, parameters)
         .unwrap();
 
     let download = DownloadToHost::new(&context, flags);

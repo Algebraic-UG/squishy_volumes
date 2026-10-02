@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Vector3, stack};
-use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use super::*;
 
@@ -20,14 +19,13 @@ fn check(
     input_data: InputData,
 ) {
     let InputData {
-        globals_end: _,   // TODO
-        globals_start: _, // TODO
-        particle_parameters,
+        globals: _,              // TODO
         particle_goals_start: _, // TODO
         particle_goals_end: _,   // TODO
         variable_particle_input:
             VariableParticleInputData {
                 particle_flags,
+                particle_parameters,
                 particle_positions_and_collider_bits,
                 particle_position_gradients,
                 particle_velocities,
@@ -145,40 +143,19 @@ fn specific() {
         domain_min: Vector3::repeat(-100.),
         domain_max: Vector3::repeat(100.),
     };
-    let globals_start = AnimatedGlobals {
-        gravity_x: 0.,
-        gravity_y: 0.,
-        gravity_z: -9.8,
-        goal_stiffness: 1000.,
-        goal_damping: 0.5,
-        damping: 0.,
-    };
-    let globals_end = globals_start;
 
     let particle_positions_and_collider_bits = specific_positions_and_collider_bits();
     let n = particle_positions_and_collider_bits.len();
 
-    let particle_parameters = ParticleParameters {
-        mass: 1.,
-        initial_volume: 1.,
-        viscosity: None,
-        specific: SpecificParticleParameters::Solid {
-            mu: mu(1000., 0.3).unwrap(),
-            lambda: lambda(1000., 0.3).unwrap(),
-            sand_alpha: None,
-        },
-    };
-
     check(
         settings,
         InputData {
-            globals_start,
-            globals_end,
-            particle_parameters: &vec![particle_parameters; n],
+            globals: Default::default(),
             particle_goals_start: &vec![Vector4::zeros(); n],
             particle_goals_end: &vec![Vector4::zeros(); n],
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &vec![ParticleFlags::IS_SOLID; n],
+                particle_parameters: &vec![Default::default(); n],
                 particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
                 #[allow(clippy::toplevel_ref_arg)]
                 particle_position_gradients: &vec![
@@ -223,37 +200,16 @@ fn test_single_undeformed() {
         domain_min: Vector3::repeat(-100.),
         domain_max: Vector3::repeat(100.),
     };
-    let globals_start = AnimatedGlobals {
-        gravity_x: 0.,
-        gravity_y: 0.,
-        gravity_z: -9.8,
-        goal_stiffness: 1000.,
-        goal_damping: 0.5,
-        damping: 0.,
-    };
-    let globals_end = globals_start;
-
-    let particle_parameters = ParticleParameters {
-        mass: 1.,
-        initial_volume: 1.,
-        viscosity: None,
-        specific: SpecificParticleParameters::Solid {
-            mu: mu(1000., 0.3).unwrap(),
-            lambda: lambda(1000., 0.3).unwrap(),
-            sand_alpha: None,
-        },
-    };
 
     check(
         settings,
         InputData {
-            globals_start,
-            globals_end,
-            particle_parameters: &[particle_parameters],
+            globals: Default::default(),
             particle_goals_start: &[Vector4::zeros()],
             particle_goals_end: &[Vector4::zeros()],
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &[ParticleFlags::IS_SOLID],
+                particle_parameters: &[Default::default()],
                 particle_positions_and_collider_bits: &[PositionAndColliderBits {
                     position: Vector3::zeros(),
                     collider_bits: 0,
@@ -360,7 +316,7 @@ fn test_many_random_props() {
 
 fn run(settings: Settings, data: InputData) -> OutputData {
     let mut context = get_shared_context();
-    let max_num_grid_nodes = (data.particle_parameters.len() as u32 * 27)
+    let max_num_grid_nodes = (data.variable_particle_input.particle_flags.len() as u32 * 27)
         .try_into()
         .unwrap();
     let input = Input::new(

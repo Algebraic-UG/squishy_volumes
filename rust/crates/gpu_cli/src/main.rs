@@ -500,7 +500,7 @@ fn main() {
             );
         }
         Task::Step => {
-            let globals_start = AnimatedGlobals {
+            let globals = AnimatedGlobals {
                 gravity_x: 0.,
                 gravity_y: 0.,
                 gravity_z: -9.8,
@@ -508,7 +508,6 @@ fn main() {
                 goal_damping: 0.5,
                 damping: 0.,
             };
-            let globals_end = globals_start;
             let aabb = Aabb {
                 min: Vector3::repeat(-100.),
                 max: Vector3::repeat(100.),
@@ -542,13 +541,12 @@ fn main() {
                 frames_per_second,
                 settings,
                 gpu::step::InputData {
-                    globals_start,
-                    globals_end,
-                    particle_parameters: &test_particles.particle_parameters,
+                    globals,
                     particle_goals_start: &test_particles.particle_goals_start,
                     particle_goals_end: &test_particles.particle_goals_end,
                     variable_particle_input: gpu::step::VariableParticleInputData {
                         particle_flags: &test_particles.particle_flags,
+                        particle_parameters: &test_particles.particle_parameters,
                         particle_positions_and_collider_bits: &test_particles
                             .particle_positions_and_collider_bits,
                         particle_position_gradients: &test_particles.particle_position_gradients,

@@ -6,10 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat;
+
 use approx::assert_relative_eq;
 use nalgebra::{Matrix1x3, Matrix3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use crate::test_data::{
     test_inviscid_parameters, test_lame_parameters, test_position_gradients_random,
@@ -90,16 +91,7 @@ fn test_single_undeformed() {
         settings,
         InputData {
             particle_flags: &[ParticleFlags::IS_SOLID],
-            particle_parameters: &[ParticleParameters {
-                mass: 1.,
-                initial_volume: 1.,
-                viscosity: None,
-                specific: SpecificParticleParameters::Solid {
-                    mu: mu(1000., 0.3).unwrap(),
-                    lambda: lambda(1000., 0.3).unwrap(),
-                    sand_alpha: None,
-                },
-            }],
+            particle_parameters: &[ParticleParameters::default()],
             #[allow(clippy::toplevel_ref_arg)]
             particle_position_gradients: &[stack![
                 Matrix3::identity();
@@ -148,19 +140,19 @@ fn test_many_random_props() {
 
     let mut rng = ChaCha8Rng::seed_from_u64(42);
 
-    let particle_parameters = test_lame_parameters(&mut rng)
+    let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = test_lame_parameters(&mut rng)
+        .zip(repeat(ParticleFlags::IS_SOLID))
         .collect::<Vec<_>>()
         .into_iter()
-        .chain(test_inviscid_parameters(&mut rng))
-        .collect::<Vec<_>>()
-        .into_iter()
+        .chain(
+            (test_inviscid_parameters(&mut rng))
+                .zip(repeat(ParticleFlags::IS_FLUID))
+                .collect::<Vec<_>>()
+                .into_iter(),
+        )
         .cycle()
         .take(n)
-        .collect::<Vec<_>>();
-    let particle_flags = particle_parameters
-        .iter()
-        .map(Into::into)
-        .collect::<Vec<_>>();
+        .unzip();
     #[allow(clippy::toplevel_ref_arg)]
     let position_gradients = test_position_gradients_random(n)
         .into_iter()

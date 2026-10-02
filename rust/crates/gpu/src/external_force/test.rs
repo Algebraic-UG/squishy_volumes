@@ -17,8 +17,7 @@ fn check(
     input_data @ InputData {
         time,
         time_step,
-        globals_start,
-        globals_end,
+        globals,
         particle_flags,
         particle_positions_and_collider_bits,
         particle_velocities,
@@ -36,7 +35,7 @@ fn check(
         goal_stiffness,
         goal_damping,
         damping,
-    } = globals_start.interpolate(&globals_end, factor);
+    } = globals;
 
     let mut cpu_particle_velocites = particle_velocities.to_vec();
     izip!(
@@ -112,7 +111,7 @@ fn simple() {
     ];
 
     let time_step = 0.01;
-    let globals_start = AnimatedGlobals {
+    let globals = AnimatedGlobals {
         gravity_x: 0.,
         gravity_y: 0.,
         gravity_z: -9.8,
@@ -120,7 +119,6 @@ fn simple() {
         goal_damping: 0.5,
         damping: 0.,
     };
-    let globals_end = globals_start;
 
     check(
         Settings {
@@ -131,8 +129,7 @@ fn simple() {
         InputData {
             time: 0.5,
             time_step,
-            globals_start,
-            globals_end,
+            globals,
             particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_goals_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
