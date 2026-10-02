@@ -76,15 +76,12 @@ impl SimulationInputImpl {
     }
 
     pub fn record_input_impl(&mut self, meta: Value, bulk: InputBulk) -> Result<(), Error> {
-        tracing::info!("Before meta");
         let meta = from_value::<FrameBulkMeta>(meta).map_err(Error::ParsingBulkMeta)?;
-        tracing::info!(?meta);
 
         let size = self
             .input_writer
             .record_bulk(&FrameBulk { meta, data: bulk })
             .map_err(Error::RecordFrame)?;
-        tracing::info!(size);
 
         self.check_vs_max_bytes(size)
     }
