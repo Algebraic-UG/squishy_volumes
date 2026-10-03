@@ -56,6 +56,7 @@ impl FrameInput {
         io_collider: squishy_volumes_file_frame::Collider,
         frame: usize,
     ) -> Result<Self, FrameInputError> {
+        let inv_scale = 1. / input_reader.header().consts.simulation_scale;
         let input_ranges = InputRanges::new(&input_reader.header().objects);
 
         let topology = create_topology(&mut input_reader)?;
@@ -72,8 +73,13 @@ impl FrameInput {
         let mut goal_positions_end = goal_positions_start.clone();
         let vertex_velocities;
         if let Some(next_input_frame) = next_input_frame.as_ref() {
-            update_collider(&input_ranges, &mut collider_end, &next_input_frame.bulk)
-                .map_err(|error| error.attach_frame(frame + 1))?;
+            update_collider(
+                inv_scale,
+                &input_ranges,
+                &mut collider_end,
+                &next_input_frame.bulk,
+            )
+            .map_err(|error| error.attach_frame(frame + 1))?;
             vertex_velocities = linear_vertex_velocities(
                 &input_reader.header().consts,
                 &collider_start,
@@ -81,6 +87,7 @@ impl FrameInput {
             );
 
             update_goal_positions(
+                inv_scale,
                 &input_ranges,
                 &mut goal_positions_end,
                 &next_input_frame.bulk,
@@ -135,8 +142,10 @@ impl FrameInput {
             .then(|| self.input_reader.read_frame(self.frame + 1))
             .transpose()?;
 
+        let inv_scale = 1. / self.input_reader.header().consts.simulation_scale;
         if let Some(next_input_frame) = self.next_input_frame.as_ref() {
             update_collider(
+                inv_scale,
                 &self.input_ranges,
                 &mut self.collider_end,
                 &next_input_frame.bulk,
@@ -146,6 +155,7 @@ impl FrameInput {
                 linear_vertex_velocities(self.consts(), &self.collider_start, &self.collider_end);
 
             update_goal_positions(
+                inv_scale,
                 &self.input_ranges,
                 &mut self.goal_positions_end,
                 &next_input_frame.bulk,
@@ -299,6 +309,7 @@ fn create_topology(input_reader: &mut InputReader) -> Result<Topology, FrameInpu
 }
 
 fn update_collider(
+    inv_scale: f32,
     input_ranges: &InputRanges,
     collider: &mut Collider,
     bulk: &[OwnedFrameBulk],
@@ -314,8 +325,15 @@ fn update_collider(
                 match attr {
                     FrameBulkCollider::VertexPositions => {
                         // TODO: clean error for length mismatch
-                        collider.vertex_positions[vertex_range]
+                        collider.vertex_positions[vertex_range.clone()]
                             .copy_from_slice(bulk.data.assume_floats()?);
+                        collider.vertex_positions[vertex_range]
+                            .iter_mut()
+                            .for_each(|p| {
+                                p[0] *= inv_scale;
+                                p[1] *= inv_scale;
+                                p[2] *= inv_scale;
+                            });
                     }
                     FrameBulkCollider::TriangleFrictions => {
                         collider.triangle_frictions[triangle_range]
@@ -345,6 +363,7 @@ fn update_collider(
 }
 
 fn update_goal_positions(
+    inv_scale: f32,
     input_ranges: &InputRanges,
     goal_positions: &mut [nalgebra::Vector3<f32>],
     bulk: &[OwnedFrameBulk],
@@ -355,13 +374,18 @@ fn update_goal_positions(
                 input_ranges.get_particle_range(&bulk.meta.object_name)?;
             if let FrameBulkParticles::GoalPositions = attr {
                 // TODO: clean error for length mismatch
-                goal_positions[particle_range].copy_from_slice(bulk.data.assume_floats().map_err(
-                    |error| {
+                goal_positions[particle_range.clone()].copy_from_slice(
+                    bulk.data.assume_floats().map_err(|error| {
                         error
                             .attach_attr(bulk.meta.captured_attribute)
                             .attach_name(bulk.meta.object_name.clone())
-                    },
-                )?);
+                    })?,
+                );
+                goal_positions[particle_range].iter_mut().for_each(|p| {
+                    p[0] *= inv_scale;
+                    p[1] *= inv_scale;
+                    p[2] *= inv_scale;
+                });
             }
         }
     }

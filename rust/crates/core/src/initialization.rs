@@ -122,7 +122,7 @@ pub fn initialize_io_state(
     velocity_gradients.resize(total_particles, Default::default());
     initial_positions.resize(total_particles, Default::default());
 
-    let mut goal_positions = vec![Default::default(); total_particles];
+    let mut goal_positions = vec![[0.; 3]; total_particles];
 
     let mut collider = Default::default();
     let squishy_volumes_file_frame::Collider {
@@ -256,8 +256,15 @@ pub fn initialize_io_state(
                                 parameters[i].sand_alpha = *v;
                             }
                         }
-                        FrameBulkParticles::GoalPositions => goal_positions[particle_range]
-                            .copy_from_slice(bulk.data.assume_floats()?),
+                        FrameBulkParticles::GoalPositions => {
+                            goal_positions[particle_range.clone()]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                            goal_positions[particle_range].iter_mut().for_each(|p| {
+                                p[0] *= inv_scale;
+                                p[1] *= inv_scale;
+                                p[2] *= inv_scale;
+                            });
+                        }
                     }
                 }
                 BulkAttribute::Collider(attribute) => {
@@ -268,8 +275,13 @@ pub fn initialize_io_state(
 
                     match attribute {
                         FrameBulkCollider::VertexPositions => {
-                            vertex_positions[vertex_range]
+                            vertex_positions[vertex_range.clone()]
                                 .copy_from_slice(bulk.data.assume_floats()?);
+                            vertex_positions[vertex_range].iter_mut().for_each(|p| {
+                                p[0] *= inv_scale;
+                                p[1] *= inv_scale;
+                                p[2] *= inv_scale;
+                            });
                         }
                         FrameBulkCollider::Triangles => {}
                         FrameBulkCollider::TriangleFrictions => {
