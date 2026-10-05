@@ -63,22 +63,6 @@ pub enum ParticleInvalid {
     EnergyError(#[from] squishy_volumes_util::EnergyError),
 }
 
-macro_rules! object_missing_input {
-    ($name:expr, $attribute:expr) => {
-        $attribute.ok_or(StateInitializationError::MissingInput {
-            name: $name.clone(),
-            attribute: stringify!($attribute),
-        })
-    };
-}
-macro_rules! particle_missing_input {
-    ($name:expr) => {
-        $name.as_ref().ok_or(ParticleInvalid::MissingInput {
-            attribute: stringify!($name),
-        })
-    };
-}
-
 pub fn initialize_io_state(
     harness: &Harness,
     input_reader: &mut InputReader,
