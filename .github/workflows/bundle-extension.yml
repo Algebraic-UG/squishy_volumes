@@ -37,8 +37,17 @@ jobs:
 
       - uses: astral-sh/setup-uv@v8.3.2
 
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --group tools
+
       - name: Build assets from Tree Clipper JSONs
-        run: uv run --python 3.11 --with "tree-clipper==0.1.12" --with "bpy==5.0.1" scripts/build_assets.py
+        working-directory: python
+        run: uv run ../scripts/build_assets.py
+
+      - name: Build assets via nodebpy
+        working-directory: python
+        run: uv run ../scripts/build_assets_2.py
 
       # =================================================================
       # Download all wheel artifacts
