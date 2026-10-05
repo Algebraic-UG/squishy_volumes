@@ -13,7 +13,7 @@ dev = [
   "ty>=0.0.79",
   "requests==2.32.5",
   "fake-bpy-module>=20251003",
-  "numpy==1.26.4", # should match what blender uses
+  "numpy==2.3.4", # should match what blender uses
 ]
 tools = [
   "tree-clipper==0.1.12",
