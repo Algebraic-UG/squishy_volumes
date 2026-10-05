@@ -28,7 +28,7 @@ jobs:
 
           - name: Install dependencies
             working-directory: python
-            run: uv sync --extra lint
+            run: uv sync --group lint
 
           - name: Check formatting
             working-directory: python
