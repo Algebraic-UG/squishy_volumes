@@ -29,16 +29,9 @@ def add_drivers(sim_obj, modifier):
     tree = modifier.node_group.interface.items_tree
     if "Grid Node Size" in tree:
         identifier = tree["Grid Node Size"].identifier
-
-        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
-            driver = modifier.driver_add(f'["{identifier}"]').driver
-        else:
-            driver = (
-                getattr(modifier.properties.inputs, identifier)
-                .driver_add("value")
-                .driver
-            )
-
+        driver = (
+            getattr(modifier.properties.inputs, identifier).driver_add("value").driver
+        )
         driver.expression = "grid_node_size"
         var = driver.variables.new()
         var.name = "grid_node_size"
