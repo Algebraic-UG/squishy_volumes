@@ -17,10 +17,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
+import tomllib
 from pathlib import Path
 
 import bpy
-import tomllib
 
 from .append_hander import register_append_handler, unregister_append_handler
 from .assets import reload_assets
