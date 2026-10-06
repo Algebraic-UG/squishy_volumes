@@ -48,6 +48,7 @@ from .progress_update import (
 from .script_utils import register_script_utils, unregister_script_utils
 from .squishy_volumes_properties import register_properties, unregister_properties
 from .view_utils import register_view_utils, unregister_view_utils
+from .assets import reload_assets
 
 bl_info = {
     "name": "Squishy Volumes",
@@ -105,6 +106,8 @@ def register():
     register_append_handler()
     register_prune_simulation_handles()
     register_drivers()
+
+    bpy.app.timers.register(reload_assets, first_interval=0)
 
 
 def unregister():

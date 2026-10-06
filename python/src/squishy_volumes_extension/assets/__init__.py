@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import glob
 from pathlib import Path
 
 import bpy  # ty: ignore[unresolved-import]
@@ -43,12 +42,12 @@ def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:
     return bpy.data.node_groups[name]
 
 
+ASSET_FILE_NAME = "assets.blend"
+ASSET_FILE_PATH = Path(__file__).parent / "assets.blend"
+
+
 def _load_tree_2(name: str) -> bpy.types.NodeTree:
-    asset_dir = Path(__file__).parent
-    potential_assets = glob.glob(pathname="assets-*.blend", root_dir=asset_dir)
-    assert len(potential_assets) == 1, "Found multiple potential assets"
-    file_path = Path(__file__).parent / potential_assets[0]
-    with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
+    with bpy.data.libraries.load(str(ASSET_FILE_PATH), link=True, pack=False) as (
         _data_src,
         data_dst,
     ):
@@ -85,3 +84,8 @@ def create_geometry_nodes_generate_goal_positions() -> bpy.types.NodeTree:
     return _load_tree(
         "geometry_nodes_generate_goal_positions", "Squishy Volumes Set Goals"
     )
+
+
+def reload_assets():
+    if ASSET_FILE_NAME in bpy.data.libraries:
+        bpy.data.libraries[ASSET_FILE_NAME].reload()
