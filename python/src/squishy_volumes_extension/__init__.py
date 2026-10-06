@@ -17,12 +17,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
-import tomllib
 from pathlib import Path
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
+import tomllib
 
 from .append_hander import register_append_handler, unregister_append_handler
+from .assets import reload_assets
 from .bridge import (
     SimulationHandle,
     build_info,
@@ -48,7 +49,6 @@ from .progress_update import (
 from .script_utils import register_script_utils, unregister_script_utils
 from .squishy_volumes_properties import register_properties, unregister_properties
 from .view_utils import register_view_utils, unregister_view_utils
-from .assets import reload_assets
 
 bl_info = {
     "name": "Squishy Volumes",

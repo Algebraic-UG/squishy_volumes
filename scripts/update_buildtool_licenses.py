@@ -1,8 +1,8 @@
-import subprocess
 import platform
+import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime
-import sys
 from pathlib import Path
 
 scripts_dir = Path(sys.argv[0]).parent

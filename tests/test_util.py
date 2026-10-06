@@ -17,13 +17,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import bpy
-import requests
-import tempfile
-from pathlib import Path
 import logging
 import platform
+import tempfile
+from pathlib import Path
 
+import bpy
+import requests
 
 PKG_ID = "squishy_volumes_extension"
 
