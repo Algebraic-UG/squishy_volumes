@@ -345,107 +345,107 @@ class Record(CustomGeometryGroup):
         geometry >> tree.outputs.geometry()
 
 
-materials = []
-node_groups = []
-
-
-with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
-    with tree.inputs.panel("Sampling"):
-        spacing = g.Math.divide(
-            value=tree.inputs.float("Grid Node Size", default_value=0.5),
-            value_001=tree.inputs.float("Sampling Factor", default_value=2.0),
-        )
-        sampling_bundle = g.CombineBundle(
-            {
-                "Spacing": spacing,
-                "Random": tree.inputs.float("Random", default_value=0.5),
-            }
-        )
-
-    points = (
-        tree.inputs.geometry()
-        >> g.SetGeometryBundle(bundle=sampling_bundle)
-        >> SampleParticles()
-    )
-
-    parameters = dict()
-    parameters["Size"] = spacing
-
-    with tree.inputs.panel("Initial Parameters"):
-        start_frame = tree.inputs.integer("Start Frame", default_value=1)
-
-        parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
-        type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
-        is_solid = type_switch.add_item("Solid", 0).output
-        is_fluid = type_switch.add_item("Fluid", 1).output
-
-        assert isinstance(is_solid, BooleanSocket)
-        assert isinstance(is_fluid, BooleanSocket)
-
-        parameters["Type"] = type_switch.o.output
-        parameters["Young's Modulus"] = is_solid.switch.float(
-            true=tree.inputs.float("Young's Modulus", default_value=10000.0)
-        )
-        parameters["Poissons's Ratio"] = is_solid.switch.float(
-            true=tree.inputs.float("Poisson's Ratio", default_value=0.3)
-        )
-        parameters["Bulk Modulus"] = is_fluid.switch.float(
-            true=tree.inputs.float("Bulk Modulus", default_value=1000.0)
-        )
-        parameters["Exponent"] = is_fluid.switch.integer(
-            true=tree.inputs.integer("Exponent", default_value=2)
-        )
-
-        with tree.inputs.panel(name="Viscosity") as _:
-            viscosity = tree.inputs.boolean(name="Viscosity", is_panel_toggle=True)
-            parameters["Viscosity"] = viscosity
-            parameters["Viscosity Dynamic"] = viscosity.switch.float(
-                true=tree.inputs.float("Viscosity Dynamic", default_value=3.0)
+def generate_particles() -> str:
+    with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
+        with tree.inputs.panel("Sampling"):
+            spacing = g.Math.divide(
+                value=tree.inputs.float("Grid Node Size", default_value=0.5),
+                value_001=tree.inputs.float("Sampling Factor", default_value=2.0),
             )
-            parameters["Viscosity Bulk"] = viscosity.switch.float(
-                true=tree.inputs.float("Viscosity Bulk", default_value=3.0)
+            sampling_bundle = g.CombineBundle(
+                {
+                    "Spacing": spacing,
+                    "Random": tree.inputs.float("Random", default_value=0.5),
+                }
             )
 
-        with tree.inputs.panel(name="Sand Alpha") as _:
-            sand_alpha = tree.inputs.boolean(name="Sand Alpha", is_panel_toggle=True)
-            parameters["Sand Alpha"] = sand_alpha
-            parameters["Sand Alpha Value"] = sand_alpha.switch.float(
-                true=tree.inputs.float("Sand Alpha Value", default_value=0.3)
+        points = (
+            tree.inputs.geometry()
+            >> g.SetGeometryBundle(bundle=sampling_bundle)
+            >> SampleParticles()
+        )
+
+        parameters = dict()
+        parameters["Size"] = spacing
+
+        with tree.inputs.panel("Initial Parameters"):
+            start_frame = tree.inputs.integer("Start Frame", default_value=1)
+
+            parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
+            type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
+            is_solid = type_switch.add_item("Solid", 0).output
+            is_fluid = type_switch.add_item("Fluid", 1).output
+
+            assert isinstance(is_solid, BooleanSocket)
+            assert isinstance(is_fluid, BooleanSocket)
+
+            parameters["Type"] = type_switch.o.output
+            parameters["Young's Modulus"] = is_solid.switch.float(
+                true=tree.inputs.float("Young's Modulus", default_value=10000.0)
+            )
+            parameters["Poissons's Ratio"] = is_solid.switch.float(
+                true=tree.inputs.float("Poisson's Ratio", default_value=0.3)
+            )
+            parameters["Bulk Modulus"] = is_fluid.switch.float(
+                true=tree.inputs.float("Bulk Modulus", default_value=1000.0)
+            )
+            parameters["Exponent"] = is_fluid.switch.integer(
+                true=tree.inputs.integer("Exponent", default_value=2)
             )
 
-        with tree.inputs.panel(name="Initial Velocity") as _:
-            initial_velocity = tree.inputs.boolean(
-                name="Initial Velocity", is_panel_toggle=True
-            )
-            parameters["Initial Velocity"] = initial_velocity
-            parameters["Initial Velocity Linear"] = initial_velocity.switch.vector(
-                true=tree.inputs.vector("Initial Velcoity Linear")
-            )
-            parameters["Initial Velocity Angular"] = initial_velocity.switch.vector(
-                true=tree.inputs.vector("Initial Velcoity Angular")
-            )
+            with tree.inputs.panel(name="Viscosity") as _:
+                viscosity = tree.inputs.boolean(name="Viscosity", is_panel_toggle=True)
+                parameters["Viscosity"] = viscosity
+                parameters["Viscosity Dynamic"] = viscosity.switch.float(
+                    true=tree.inputs.float("Viscosity Dynamic", default_value=3.0)
+                )
+                parameters["Viscosity Bulk"] = viscosity.switch.float(
+                    true=tree.inputs.float("Viscosity Bulk", default_value=3.0)
+                )
 
-    (
+            with tree.inputs.panel(name="Sand Alpha") as _:
+                sand_alpha = tree.inputs.boolean(
+                    name="Sand Alpha", is_panel_toggle=True
+                )
+                parameters["Sand Alpha"] = sand_alpha
+                parameters["Sand Alpha Value"] = sand_alpha.switch.float(
+                    true=tree.inputs.float("Sand Alpha Value", default_value=0.3)
+                )
+
+            with tree.inputs.panel(name="Initial Velocity") as _:
+                initial_velocity = tree.inputs.boolean(
+                    name="Initial Velocity", is_panel_toggle=True
+                )
+                parameters["Initial Velocity"] = initial_velocity
+                parameters["Initial Velocity Linear"] = initial_velocity.switch.vector(
+                    true=tree.inputs.vector("Initial Velcoity Linear")
+                )
+                parameters["Initial Velocity Angular"] = initial_velocity.switch.vector(
+                    true=tree.inputs.vector("Initial Velcoity Angular")
+                )
+
         (
-            g.SceneTime().o.frame >> g.Compare.integer.equal(b=start_frame)
-        ).o.result.switch.geometry(
-            false=points,
-            true=points
-            >> g.SetGeometryBundle(bundle=g.CombineBundle(parameters))
-            >> Record(),
+            (
+                g.SceneTime().o.frame >> g.Compare.integer.equal(b=start_frame)
+            ).o.result.switch.geometry(
+                false=points,
+                true=points
+                >> g.SetGeometryBundle(bundle=g.CombineBundle(parameters))
+                >> Record(),
+            )
+            >> tree.outputs.geometry()
         )
-        >> tree.outputs.geometry()
-    )
 
-tree.tree.is_modifier = True
-node_groups.append(tree.tree.name)
+    tree.tree.is_modifier = True
+    return tree.tree.name
+
 
 datablocks: set[bpy.types.ID] = set()
-for name in materials:
+for name in []:
     material = bpy.data.materials[name]
     material.asset_mark()
     datablocks.add(material)
-for name in node_groups:
+for name in [generate_particles()]:
     node_group = bpy.data.node_groups[name]
     node_group.asset_mark()
     datablocks.add(node_group)
