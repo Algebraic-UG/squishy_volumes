@@ -16,7 +16,7 @@ from nodebpy.builder import (
     StringSocket,
     VectorSocket,
 )
-from nodebpy.nodes.geometry import CombineBundle
+from nodebpy.nodes.geometry import CombineBundle, StoreNamedAttribute
 from nodebpy.types import (
     InputAny,
     InputBoolean,
@@ -33,133 +33,6 @@ scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."
 asset_dir = repo_root / "python" / "src" / "squishy_volumes_extension" / "assets"
 asset_file = asset_dir / "assets.blend"
-
-_DataType = Literal[
-    "FLOAT",
-    "INT",
-    "BOOLEAN",
-    "FLOAT_VECTOR",
-    "FLOAT_COLOR",
-    "QUATERNION",
-    "FLOAT4X4",
-]
-
-# data_type → tree.inputs / tree.outputs factory name
-_INTERFACE_METHOD = {
-    "FLOAT": "float",
-    "INT": "integer",
-    "BOOLEAN": "boolean",
-    "FLOAT_VECTOR": "vector",
-    "FLOAT_COLOR": "color",
-    "QUATERNION": "rotation",
-    "FLOAT4X4": "matrix",
-}
-
-
-class StoreNamedAttributeIfRecord[T](CustomGeometryGroup):
-    _name = "Store Named Attribute If Record"
-    _data_type: _DataType = "FLOAT"
-    _color_tag = "ATTRIBUTE"
-
-    class _Inputs[S](SocketAccessor):
-        geometry: GeometrySocket
-        """Geometry"""
-        name: StringSocket
-        """Name"""
-        value: S
-        """Value"""
-
-    class _Outputs(SocketAccessor):
-        geometry: GeometrySocket
-        """Geometry"""
-
-    if TYPE_CHECKING:
-
-        @property
-        def i(self) -> _Inputs[T]: ...
-        @property
-        def o(self) -> _Outputs: ...
-
-    def __init__(
-        self,
-        geometry: InputGeometry = None,
-        name: InputString = "",
-        value: InputAny = None,
-        *,
-        data_type: _DataType = "FLOAT",
-    ):
-        # Set before super().__init__(): it picks and builds the inner tree.
-        self._data_type = data_type
-        super().__init__(Geometry=geometry, Name=name, Value=value)
-
-    @property
-    def data_type(self) -> _DataType:
-        """Read-only: the group's socket types are fixed once built, so a
-        different data type needs a new node."""
-        return self._data_type
-
-    def _group_name(self) -> str:
-        return f"{self._name} ({self.data_type})"
-
-    def _build_group(self, tree: TreeBuilder[Any]) -> None:
-        geometry = tree.inputs.geometry("Geometry")
-        name = tree.inputs.string("Name")
-        value = getattr(tree.inputs, _INTERFACE_METHOD[self.data_type])("Value")
-
-        (
-            (
-                geometry
-                >> g.GetGeometryBundle()
-                >> g.GetBundleItem.bundle(path="Record")
-            ).o.item
-            >> g.GetBundleItem.boolean(path=name)
-        ).o.item.switch.geometry(
-            geometry,
-            g.StoreNamedAttribute(
-                geometry=geometry,
-                data_type=self.data_type,
-                name=g.JoinStrings(["squishy_volumes", name], "_").o.string,
-                value=value,
-            ),
-        ) >> tree.outputs.geometry("Geometry")
-
-    @classmethod
-    def float(
-        cls,
-        geometry: InputGeometry = None,
-        name: InputString = "",
-        value: InputFloat = 0.0,
-    ) -> "StoreNamedAttributeIfRecord[FloatSocket]":
-        return StoreNamedAttributeIfRecord(geometry, name, value, data_type="FLOAT")
-
-    @classmethod
-    def integer(
-        cls,
-        geometry: InputGeometry = None,
-        name: InputString = "",
-        value: InputInteger = 0,
-    ) -> "StoreNamedAttributeIfRecord[IntegerSocket]":
-        return StoreNamedAttributeIfRecord(geometry, name, value, data_type="INT")
-
-    @classmethod
-    def vector(
-        cls,
-        geometry: InputGeometry = None,
-        name: InputString = "",
-        value: InputVector = (0.0, 0.0, 0.0),
-    ) -> "StoreNamedAttributeIfRecord[VectorSocket]":
-        return StoreNamedAttributeIfRecord(
-            geometry, name, value, data_type="FLOAT_VECTOR"
-        )
-
-    @classmethod
-    def matrix(
-        cls,
-        geometry: InputGeometry = None,
-        name: InputString = "",
-        value: InputMatrix = None,
-    ) -> "StoreNamedAttributeIfRecord[MatrixSocket]":
-        return StoreNamedAttributeIfRecord(geometry, name, value, data_type="FLOAT4X4")
 
 
 class GenerateGrid(CustomGeometryGroup):
@@ -257,9 +130,7 @@ class IsInsideObject(CustomGeometryGroup):
         position: InputVector = (0.0,) * 3,
         seed: InputInteger = 0,
     ):
-        super().__init__(
-            Geometry=geometry, Position=position, Seed=seed
-        )
+        super().__init__(Geometry=geometry, Position=position, Seed=seed)
 
     def _build_group(self, tree):
         geometry = tree.inputs.geometry("Geometry")
@@ -312,28 +183,6 @@ class SampleParticles(CustomGeometryGroup):
         )
 
 
-sna = g.StoreNamedAttribute.point
-
-
-RECORDED = [
-    ("Flags", "flags", sna.integer),
-    ("Collider Bits", "collider_bits", sna.integer),
-    ("Transform", "transform", sna.matrix),
-    ("Size", "size", sna.float),
-    ("Density", "density", sna.float),
-    ("Young's Modulus", "youngs_modulus", sna.float),
-    ("Poisson's Ratio", "poissons_ratio", sna.float),
-    ("Initial Position", "initial_position", sna.vector),
-    ("Initial Velocity", "initial_velocity", sna.vector),
-    ("Viscosity Dynamic", "viscosity_dynamic", sna.float),
-    ("Viscosity Bulk", "viscosity_bulk", sna.float),
-    ("Exponent", "exponent", sna.integer),
-    ("Bulk Modulus", "bulk_modulus", sna.float),
-    ("Sand Alpha", "sand_alpha_value", sna.float),
-    ("Goal Position", "goal_position", sna.vector),
-]
-
-
 class SetFlag(CustomGeometryGroup):
     _name = "Set Flag"
     _color_tag = "ATTRIBUTE"
@@ -344,9 +193,7 @@ class SetFlag(CustomGeometryGroup):
         flag: InputMenu = ...,
         value: InputBoolean = False,
     ):
-        super().__init__(
-            Geometry=geometry, Flag=flag, Value=value
-        )
+        super().__init__(Geometry=geometry, Flag=flag, Value=value)
 
     def _build_group(self, tree):
         geometry = tree.inputs.geometry("Geometry")
@@ -370,8 +217,8 @@ class SetFlag(CustomGeometryGroup):
         )
         (
             geometry
-            >> StoreNamedAttributeIfRecord.integer(
-                name="flags",
+            >> StoreNamedAttribute.point.integer(
+                name="squishy_volumes_flags",
                 value=g.NamedAttribute.integer(name="squishy_volumes_flags")
                 >> g.BitMath.l_and(b=g.BitMath.l_not(bit))
                 >> g.BitMath.l_or(b=bit),
@@ -390,13 +237,7 @@ class Record(CustomGeometryGroup):
         geometry = tree.inputs.geometry()
 
         items = (
-            (
-                (geometry >> g.GetGeometryBundle()).o.bundle
-                >> g.GetBundleItem.bundle(
-                    path="Parameter",
-                )
-            ).o.item
-            >> g.SeparateBundle()
+            (geometry >> g.GetGeometryBundle()).o.bundle >> g.SeparateBundle()
         ).items
         initial_velocity_linear = items.vector("Initial Velocity Linear")
         initial_velocity_angular = items.vector("Initial Velocity Angular")
@@ -415,8 +256,8 @@ class Record(CustomGeometryGroup):
 
         with g.Frame("Object Transform") as _:
             info = g.SelfObject() >> g.ObjectInfo()
-            geometry = geometry >> StoreNamedAttributeIfRecord.matrix(
-                name="transform",
+            geometry = geometry >> StoreNamedAttribute.point.matrix(
+                name="squishy_volumes_transform",
                 value=g.CombineTransform(
                     g.TransformPoint(g.Position(), info.o.transform),
                     info.o.rotation,
@@ -425,8 +266,8 @@ class Record(CustomGeometryGroup):
             )
 
         with g.Frame("Initial Velocity") as _:
-            geometry = geometry >> StoreNamedAttributeIfRecord.vector(
-                name="initial_velocity",
+            geometry = geometry >> StoreNamedAttribute.point.vector(
+                name="squishy_volumes_initial_velocity",
                 value=g.VectorMath.add(
                     initial_velocity_linear,
                     g.VectorMath.cross_product(
@@ -442,29 +283,33 @@ class Record(CustomGeometryGroup):
         with g.Frame("Common Parameters") as _:
             geometry = (
                 geometry
-                >> StoreNamedAttributeIfRecord.float(name="size", value=size)
-                >> StoreNamedAttributeIfRecord.float(name="density", value=density)
-                >> StoreNamedAttributeIfRecord.float(
-                    name="viscosity_dynamic", value=viscosity_dynamic
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_size", value=size
                 )
-                >> StoreNamedAttributeIfRecord.float(
-                    name="viscosity_bulk", value=viscosity_bulk
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_density", value=density
+                )
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_viscosity_dynamic", value=viscosity_dynamic
+                )
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_viscosity_bulk", value=viscosity_bulk
                 )
             )
 
         with g.Frame("Solid Parameters") as _:
             solid = (
                 geometry
-                >> StoreNamedAttributeIfRecord.float(
-                    name="youngs_modulus",
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_youngs_modulus",
                     value=youngs_modulus,
                 )
-                >> StoreNamedAttributeIfRecord.float(
-                    name="poissons_ratio",
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_poissons_ratio",
                     value=poissons_ratio,
                 )
-                >> StoreNamedAttributeIfRecord.float(
-                    name="sand_alpha_value",
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_sand_alpha_value",
                     value=sand_alpha_value,
                 )
             )
@@ -472,12 +317,12 @@ class Record(CustomGeometryGroup):
         with g.Frame("Fluid Parameters") as _:
             fluid = (
                 geometry
-                >> StoreNamedAttributeIfRecord.float(
-                    name="bulk_modulus",
+                >> StoreNamedAttribute.point.float(
+                    name="squishy_volumes_bulk_modulus",
                     value=bulk_modulus,
                 )
-                >> StoreNamedAttributeIfRecord.integer(
-                    name="exponent",
+                >> StoreNamedAttribute.point.integer(
+                    name="squishy_volumes_exponent",
                     value=exponent,
                 )
             )
@@ -504,10 +349,6 @@ materials = []
 node_groups = []
 
 
-def make_bundle(inputs) -> CombineBundle:
-    return g.CombineBundle({i.name: i for i in inputs})
-
-
 with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
     with tree.inputs.panel("Sampling"):
         spacing = g.Math.divide(
@@ -527,26 +368,12 @@ with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
         >> SampleParticles()
     )
 
-    with tree.inputs.panel("Record"):
-        record = tree.inputs.boolean(
-            "Record",
-            is_panel_toggle=True,
-            structure_type="SINGLE",
-            default_value=True,
-        )
-        record_bundle = make_bundle(
-            tree.inputs.boolean(
-                attribute,
-                structure_type="SINGLE",
-                default_value=True,
-            )
-            for _label, attribute, _node in RECORDED
-        )
-
     parameters = dict()
     parameters["Size"] = spacing
 
-    with tree.inputs.panel("Parameters"):
+    with tree.inputs.panel("Initial Parameters"):
+        start_frame = tree.inputs.integer("Start Frame", default_value=1)
+
         parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
         type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
         is_solid = type_switch.add_item("Solid", 0).output
@@ -599,14 +426,12 @@ with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
             )
 
     (
-        record.switch.geometry(
+        (
+            g.SceneTime().o.frame >> g.Compare.integer.equal(b=start_frame)
+        ).o.result.switch.geometry(
             false=points,
             true=points
-            >> g.SetGeometryBundle(
-                bundle=g.CombineBundle(
-                    {"Record": record_bundle, "Parameter": g.CombineBundle(parameters)}
-                )
-            )
+            >> g.SetGeometryBundle(bundle=g.CombineBundle(parameters))
             >> Record(),
         )
         >> tree.outputs.geometry()
