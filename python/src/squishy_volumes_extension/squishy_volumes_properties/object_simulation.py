@@ -290,7 +290,7 @@ Note that first frame is defined by the state at the set start frame.
     # display settings
     # ----------------------------------------------------------------
     display_start_frame: bpy.props.IntProperty(
-        name="Start Diplaying at Frame",
+        name="Start Displaying at Frame",
         description="""When loading the simulated frames, start at this frame.
 Usually the same as the start of the input objects' evaluation.
 

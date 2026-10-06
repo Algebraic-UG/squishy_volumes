@@ -125,7 +125,7 @@ def extension_disable(remote_url):
 
 
 def download_from_git(url, path):
-    logging.info("Dowloading: %s to %s", url, path)
+    logging.info("Downloading: %s to %s", url, path)
     session = requests.Session()
     session.headers.update({"Accept": "application/vnd.github+json"})
     with session.get(url=url, timeout=300, stream=True) as res:

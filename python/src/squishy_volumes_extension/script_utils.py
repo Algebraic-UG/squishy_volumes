@@ -17,7 +17,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import time
-import timeit
 
 import bpy  # ty: ignore[unresolved-import]
 
@@ -37,14 +36,14 @@ This is only useful for scripting."""
     timeout_sec: bpy.props.FloatProperty(name="Timeout", min=0.0)  # type: ignore
 
     def execute(self, context):
-        start = timeit.timeit()
+        start = time.monotonic()
 
         sim_obj = get_simulation_object_with_uuid(self.simulation_uuid)
         sim_handle = SimulationHandle.get(uuid=self.simulation_uuid)
         assert isinstance(sim_handle, SimulationHandle)
 
         while sim_handle.computing():
-            if (timeit.timeit() - start) > self.timeout_sec:
+            if (time.monotonic() - start) > self.timeout_sec:
                 raise RuntimeError("Timed out")
             time.sleep(0.01)
         self.report({"INFO"}, f"Simulation no longer computing: {sim_obj.name}")

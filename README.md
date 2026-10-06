@@ -20,7 +20,7 @@ The Material Point Method (MPM) in Blender!
 
 Here you can download ready-to-use releases, report bugs, and get the source code.
 
-Works in Blender 5.0, 5.1., and 5.2.
+Works in Blender 5.0, 5.1, and 5.2.
 
 ## Where to Get the Extension
 
@@ -42,7 +42,7 @@ Third-party licenses can be found in the binary artifacts (Python wheels) includ
 ## Building
 
 > [!WARNING]
-> Building is only documented to a certain extend.
+> Building is only documented to a certain extent.
 > Ubuntu 24.04 is tested rigorously, and builds on other operating systems are automated in GitHub's workflows.
 > The extension is not meant to be built by the average user.
 
