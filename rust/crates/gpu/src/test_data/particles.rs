@@ -6,10 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat;
+
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use rand::{RngExt, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::{Aabb, ParticleParameters, SpecificParticleParameters};
+use squishy_volumes_util::{Aabb, ParticleFlags, ParticleParameters};
 
 use crate::PositionAndColliderBits;
 
@@ -84,15 +85,14 @@ pub fn test_velocity_gradients_random(n: usize) -> Vec<Matrix4x3<f32>> {
 pub fn test_lame_parameters<T: rand::Rng>(
     rng: &mut T,
 ) -> impl Iterator<Item = ParticleParameters> + use<'_, T> {
-    squishy_volumes_util::test_lame_parameters().map(|[mu, lambda]| ParticleParameters {
-        mass: rng.random_range(0.1..1.0),
-        initial_volume: rng.random_range(0.1..1.0),
-        viscosity: None,
-        specific: SpecificParticleParameters::Solid {
-            mu,
-            lambda,
-            sand_alpha: None,
-        },
+    squishy_volumes_util::test_lame_parameters().map(|[youngs_modulus, poissons_ratio]| {
+        ParticleParameters {
+            density: rng.random_range(100.0..10000.0),
+            initial_volume: rng.random_range(0.1..1.0),
+            youngs_modulus,
+            poissons_ratio,
+            ..Default::default()
+        }
     })
 }
 
@@ -101,13 +101,11 @@ pub fn test_inviscid_parameters(
 ) -> impl Iterator<Item = ParticleParameters> {
     squishy_volumes_util::test_inviscid_parameters().map(|(bulk_modulus, exponent)| {
         ParticleParameters {
-            mass: rng.random_range(0.1..1.0),
+            density: rng.random_range(100.0..10000.0),
             initial_volume: rng.random_range(0.1..1.0),
-            viscosity: None,
-            specific: SpecificParticleParameters::Fluid {
-                exponent,
-                bulk_modulus,
-            },
+            exponent,
+            bulk_modulus,
+            ..Default::default()
         }
     })
 }
@@ -115,23 +113,17 @@ pub fn test_inviscid_parameters(
 impl TestParticles {
     pub fn new(num_particles: usize, aabb: Aabb<Vector3<f32>>, sampling: ParticleSampling) -> Self {
         let mut rng = ChaCha8Rng::seed_from_u64(33);
-        let particle_parameters = test_lame_parameters(&mut rng)
+        let (particle_parameters, particle_flags) = test_lame_parameters(&mut rng)
             .collect::<Vec<_>>()
             .into_iter()
-            .chain(test_inviscid_parameters(&mut rng))
+            .zip(repeat(ParticleFlags::IS_SOLID))
+            .chain(test_inviscid_parameters(&mut rng).zip(repeat(ParticleFlags::IS_FLUID)))
             .collect::<Vec<_>>()
             .into_iter()
             .cycle()
             .take(num_particles)
-            .collect::<Vec<_>>();
+            .unzip();
 
-        let particle_flags = particle_parameters
-            .iter()
-            .map(|p| match p.specific {
-                SpecificParticleParameters::Solid { .. } => ParticleFlags::IS_SOLID,
-                SpecificParticleParameters::Fluid { .. } => ParticleFlags::IS_FLUID,
-            })
-            .collect::<Vec<_>>();
         let particle_goals_start = vec![Vector4::zeros(); num_particles];
         let particle_goals_end = vec![Vector4::zeros(); num_particles];
         let particle_positions_and_collider_bits = match sampling {

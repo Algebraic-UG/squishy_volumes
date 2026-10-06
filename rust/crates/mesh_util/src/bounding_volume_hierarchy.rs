@@ -8,13 +8,15 @@
 
 use std::array::from_fn;
 
+use serde_big_array::BigArray;
+
 use nalgebra::Vector3;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use squishy_volumes_util::{Aabb, AabbVector as _};
 
 use crate::Triangle;
 
-#[derive(Default)]
+#[derive(Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BoundingVolumeHierarchy {
     level: u32,
     nodes: Vec<Node>,
@@ -33,7 +35,7 @@ impl BoundingVolumeHierarchy {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Node {
     Internal(Internal),
     Leaf(Leaf),
@@ -57,9 +59,10 @@ fn aabb_from_offset_and_level(offset: &Vector3<i32>, level: u32) -> Aabb<Vector3
 
 const NUM_CHILDREN: usize = 64;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Internal {
     aabb: Aabb<Vector3<i32>>,
+    #[serde(with = "BigArray")]
     children: [Option<u32>; NUM_CHILDREN],
 }
 
@@ -69,7 +72,7 @@ impl Internal {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Leaf {
     aabb: Aabb<Vector3<i32>>,
     indices: Vec<u32>,

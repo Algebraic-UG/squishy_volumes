@@ -7,25 +7,18 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::Matrix3;
-use squishy_volumes_file_frame::{IoState, ParticleFlags};
-use squishy_volumes_file_input::{InputRange, InputRanges, InputReader};
+use squishy_volumes_file_frame::IoState;
+use squishy_volumes_file_input::{
+    AttributeError, BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError,
+    InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
+};
 use squishy_volumes_xpu::Harness;
 use thiserror::Error;
-
-use squishy_volumes_util::{
-    SpecificParticleParameters, ViscosityParameters, bulk_modulus_in_bounds, exponent_in_bounds,
-    lambda, mu,
-};
 
 #[derive(Error, Debug)]
 pub enum StateInitializationError {
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
-
-    #[error("The object is missing in the header: {0}")]
-    ObjectMissing(String),
-    #[error("The object's type doesn't match the one in the header: {0}")]
-    ObjectTypeMismatch(String),
 
     #[error("'{name}': input particle #{particle_index} invalid")]
     ParticleInvalid {
@@ -41,14 +34,18 @@ pub enum StateInitializationError {
         expected: usize,
     },
 
-    #[error("Failed to read input for state initialization")]
-    InpuError(#[from] squishy_volumes_file_input::InputError),
+    #[error("Failed to read frame for state initialization")]
+    InputErrorFrame(#[from] squishy_volumes_file_input::InputError),
 
     #[error("'{name}': missing input for {attribute}")]
     MissingInput {
         name: String,
         attribute: &'static str,
     },
+
+    // TODO: duplicate from frame_input
+    #[error("Failed to cast data")]
+    CastFailed(#[from] bytemuck::PodCastError),
 }
 
 #[derive(Error, Debug, Clone, Copy)]
@@ -66,213 +63,303 @@ pub enum ParticleInvalid {
     EnergyError(#[from] squishy_volumes_util::EnergyError),
 }
 
-macro_rules! object_missing_input {
-    ($name:expr, $attribute:expr) => {
-        $attribute.ok_or(StateInitializationError::MissingInput {
-            name: $name.clone(),
-            attribute: stringify!($attribute),
-        })
-    };
-}
-macro_rules! particle_missing_input {
-    ($name:expr) => {
-        $name.as_ref().ok_or(ParticleInvalid::MissingInput {
-            attribute: stringify!($name),
-        })
-    };
-}
-
 pub fn initialize_io_state(
     harness: &Harness,
     input_reader: &mut InputReader,
 ) -> Result<IoState, StateInitializationError> {
-    let (input_header, input_frame) = {
+    let input_frame = {
         let _scope = harness.scope("Input reading".to_string(), 1.try_into().unwrap())?;
-        (input_reader.read_header()?, input_reader.read_frame(0)?)
+        input_reader
+            .read_frame(0)
+            .map_err(StateInitializationError::InputErrorFrame)?
     };
-    let input_ranges = InputRanges::new(&input_header.objects);
+    let animated_globals = input_frame.animated_globals;
+    let input_ranges = InputRanges::new(&input_reader.header().objects);
 
-    let scale = input_header.consts.simulation_scale;
+    let scale = input_reader.header().consts.simulation_scale;
     let inv_scale = 1. / scale;
 
     harness.check()?;
-    let mut io_state = IoState::default();
-    {
-        let _scope = harness.scope("Allocating Objects".to_string(), 1.try_into().unwrap())?;
-        let n = input_header.total_particles();
+    let scope = harness.scope("Allocating Objects".to_string(), 1.try_into().unwrap())?;
 
-        let squishy_volumes_file_frame::Particles {
-            flags,
-            parameters,
-            elastic_energies,
-            collider_bits,
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-            initial_positions,
-        } = &mut io_state.particles;
+    let mut particles = Default::default();
+    let squishy_volumes_file_frame::Particles {
+        flags,
+        parameters,
+        elastic_energies,
+        collider_bits,
+        positions,
+        position_gradients,
+        velocities,
+        velocity_gradients,
+        initial_positions,
+    } = &mut particles;
 
-        flags.resize(n, Default::default());
-        parameters.resize(n, Default::default());
-        elastic_energies.resize(n, Default::default());
-        collider_bits.resize(n, Default::default());
-        positions.resize(n, Default::default());
-        position_gradients.resize(n, Matrix3::identity().into());
-        velocities.resize(n, Default::default());
-        velocity_gradients.resize(n, Default::default());
-        initial_positions.resize(n, Default::default());
-    }
+    let total_particles = input_ranges.total_particles;
+    flags.resize(total_particles, Default::default());
+    parameters.resize(total_particles, Default::default());
+    elastic_energies.resize(total_particles, Default::default());
+    collider_bits.resize(total_particles, Default::default());
+    positions.resize(total_particles, Default::default());
+    position_gradients.resize(total_particles, Matrix3::identity().into());
+    velocities.resize(total_particles, Default::default());
+    velocity_gradients.resize(total_particles, Default::default());
+    initial_positions.resize(total_particles, Default::default());
+
+    let mut goal_positions = vec![[0.; 3]; total_particles];
+
+    let mut collider = Default::default();
+    let squishy_volumes_file_frame::Collider {
+        vertex_positions,
+        triangle_frictions,
+        triangle_dampings,
+    } = &mut collider;
+
+    vertex_positions.resize(input_ranges.total_vertices, Default::default());
+    triangle_frictions.resize(input_ranges.total_triangles, Default::default());
+    triangle_dampings.resize(input_ranges.total_triangles, Default::default());
+
+    drop(scope);
 
     let harness = harness.scope(
-        "Initializing Objects".to_string(),
-        input_frame
-            .particles_inputs
-            .len()
-            .max(1)
-            .try_into()
-            .unwrap(),
+        "Applying initial bulk".to_string(),
+        input_frame.bulk.len().max(1).try_into().unwrap(),
     )?;
-    for (name, input) in input_frame.particles_inputs {
-        harness.check()?;
 
-        let InputRange::Particles { particle_range } = input_ranges
-            .objects
-            .get(&name)
-            .ok_or(StateInitializationError::ObjectMissing(name.clone()))?
-        else {
-            return Err(StateInitializationError::ObjectTypeMismatch(name.clone()));
-        };
+    #[derive(Error, Debug)]
+    enum E {
+        #[error("")]
+        F(#[from] FrameVerifcationError),
+        #[error("")]
+        A(#[from] AttributeError),
+    }
 
-        let squishy_volumes_file_input::ParticlesInput {
-            flags: input_flags,
-            transforms: input_transforms,
-            sizes: input_sizes,
-            densities: input_densities,
-            youngs_moduluses: input_youngs_moduluses,
-            poissons_ratios: input_poissons_ratios,
-            initial_positions: input_initial_positions,
-            initial_velocities: input_initial_velocities,
-            viscosities_dynamic: input_viscosities_dynamic,
-            viscosities_bulk: input_viscosities_bulk,
-            exponents: input_exponents,
-            bulk_moduluses: input_bulk_moduluses,
-            sand_alphas: input_sand_alphas,
-            goal_positions: _,
-        } = input;
-        let input_transforms = object_missing_input!(name, input_transforms)?;
-        let input_sizes = object_missing_input!(name, input_sizes)?;
-        let input_densities = object_missing_input!(name, input_densities)?;
+    for bulk in input_frame.bulk {
+        (|| -> Result<(), E> {
+            match bulk.meta.captured_attribute {
+                BulkAttribute::Particles(attribute) => {
+                    let InputRangeParticles { particle_range } =
+                        input_ranges.get_particle_range(&bulk.meta.object_name)?;
 
-        let input_youngs_moduluses = particle_missing_input!(input_youngs_moduluses);
-        let input_poissons_ratios = particle_missing_input!(input_poissons_ratios);
-        let input_viscosities_dynamic = particle_missing_input!(input_viscosities_dynamic);
-        let input_viscosities_bulk = particle_missing_input!(input_viscosities_bulk);
-        let input_exponents = particle_missing_input!(input_exponents);
-        let input_bulk_moduluses = particle_missing_input!(input_bulk_moduluses);
-        let input_sand_alphas = particle_missing_input!(input_sand_alphas);
-
-        let squishy_volumes_file_frame::Particles {
-            flags,
-            parameters,
-            elastic_energies: _, // TODO
-            collider_bits: _,    // TODO
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients: _, // TODO
-            initial_positions,
-        } = &mut io_state.particles;
-
-        flags.as_mut_slice()[particle_range.clone()]
-            .copy_from_slice(bytemuck::cast_slice(&input_flags));
-        for (particle_index, parameters) in parameters.as_mut_slice()[particle_range.clone()]
-            .iter_mut()
-            .enumerate()
-        {
-            (|| {
-                let flags = input_flags[particle_index];
-                let flags = ParticleFlags::from_bits(flags)
-                    .ok_or(ParticleInvalid::UnknownFlagsSet(flags))?;
-                if !(flags.contains(ParticleFlags::IS_SOLID)
-                    ^ flags.contains(ParticleFlags::IS_FLUID))
-                {
-                    return Err(ParticleInvalid::SolidXorFluid);
+                    match attribute {
+                        FrameBulkParticles::Flags => {
+                            flags[particle_range].copy_from_slice(bulk.data.assume_ints()?)
+                        }
+                        FrameBulkParticles::ColliderBits => {
+                            collider_bits[particle_range].copy_from_slice(bulk.data.assume_ints()?)
+                        }
+                        FrameBulkParticles::Transforms => {
+                            let transforms: &[[[f32; 4]; 4]] = bulk.data.assume_floats()?;
+                            for (i, m) in particle_range.into_iter().zip(transforms) {
+                                positions[i] = [
+                                    inv_scale * m[3][0],
+                                    inv_scale * m[3][1],
+                                    inv_scale * m[3][2],
+                                ];
+                                position_gradients[i] = [
+                                    [m[0][0], m[0][1], m[0][2]], //
+                                    [m[1][0], m[1][1], m[1][2]], //
+                                    [m[2][0], m[2][1], m[2][2]], //
+                                ];
+                            }
+                        }
+                        FrameBulkParticles::Sizes => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].initial_volume = (inv_scale * v).powi(3);
+                            }
+                        }
+                        FrameBulkParticles::Densities => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].density = *v;
+                            }
+                        }
+                        FrameBulkParticles::YoungsModuluses => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].youngs_modulus = *v;
+                            }
+                        }
+                        FrameBulkParticles::PoissonsRatios => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].poissons_ratio = *v;
+                            }
+                        }
+                        FrameBulkParticles::InitialPositions => initial_positions[particle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?),
+                        FrameBulkParticles::InitialVelocity => {
+                            velocities[particle_range].copy_from_slice(bulk.data.assume_floats()?)
+                        }
+                        FrameBulkParticles::ViscosityDynamic => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].viscosity_dynamic = *v;
+                            }
+                        }
+                        FrameBulkParticles::ViscosityBulk => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].viscosity_bulk = *v;
+                            }
+                        }
+                        FrameBulkParticles::Exponent => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_ints::<i32>()?)
+                            {
+                                parameters[i].exponent = *v;
+                            }
+                        }
+                        FrameBulkParticles::BulkModulus => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].bulk_modulus = *v;
+                            }
+                        }
+                        FrameBulkParticles::SandAlpha => {
+                            for (i, v) in particle_range
+                                .into_iter()
+                                .zip(bulk.data.assume_floats::<f32>()?)
+                            {
+                                parameters[i].sand_alpha = *v;
+                            }
+                        }
+                        FrameBulkParticles::GoalPositions => {
+                            goal_positions[particle_range.clone()]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                            goal_positions[particle_range].iter_mut().for_each(|p| {
+                                p[0] *= inv_scale;
+                                p[1] *= inv_scale;
+                                p[2] *= inv_scale;
+                            });
+                        }
+                    }
                 }
+                BulkAttribute::Collider(attribute) => {
+                    let InputRangeCollider {
+                        vertex_range,
+                        triangle_range,
+                    } = input_ranges.get_collider_range(&bulk.meta.object_name)?;
 
-                parameters.initial_volume = (inv_scale * input_sizes[particle_index]).powi(3);
-                parameters.mass = parameters.initial_volume * input_densities[particle_index];
-                parameters.viscosity = flags
-                    .contains(ParticleFlags::USE_VISCOSITY)
-                    .then(|| {
-                        Ok::<ViscosityParameters, ParticleInvalid>(ViscosityParameters {
-                            dynamic: input_viscosities_dynamic?[particle_index],
-                            bulk: input_viscosities_bulk?[particle_index],
-                        })
-                    })
-                    .transpose()?;
-
-                parameters.specific = if flags.contains(ParticleFlags::IS_SOLID) {
-                    let youngs_modulus = input_youngs_moduluses?[particle_index];
-                    let poisson_ratio = input_poissons_ratios?[particle_index];
-                    SpecificParticleParameters::Solid {
-                        mu: mu(youngs_modulus, poisson_ratio)?,
-                        lambda: lambda(youngs_modulus, poisson_ratio)?,
-                        sand_alpha: flags
-                            .contains(ParticleFlags::USE_SAND_ALPHA)
-                            .then(|| Ok::<f32, ParticleInvalid>(input_sand_alphas?[particle_index]))
-                            .transpose()?,
+                    match attribute {
+                        FrameBulkCollider::VertexPositions => {
+                            vertex_positions[vertex_range.clone()]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                            vertex_positions[vertex_range].iter_mut().for_each(|p| {
+                                p[0] *= inv_scale;
+                                p[1] *= inv_scale;
+                                p[2] *= inv_scale;
+                            });
+                        }
+                        FrameBulkCollider::Triangles => {}
+                        FrameBulkCollider::TriangleFrictions => {
+                            triangle_frictions[triangle_range]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                        }
+                        FrameBulkCollider::TriangleDampings => {
+                            triangle_dampings[triangle_range]
+                                .copy_from_slice(bulk.data.assume_floats()?);
+                        }
                     }
-                } else {
-                    let exponent = input_exponents?[particle_index] as i32;
-                    let bulk_modulus = input_bulk_moduluses?[particle_index];
-                    exponent_in_bounds(exponent)?;
-                    bulk_modulus_in_bounds(bulk_modulus)?;
-                    SpecificParticleParameters::Fluid {
-                        exponent,
-                        bulk_modulus,
-                    }
-                };
-
-                Ok(())
-            })()
-            .map_err(|error| StateInitializationError::ParticleInvalid {
-                name: name.clone(),
-                particle_index,
-                error,
-            })?;
-        }
-
-        positions.as_mut_slice()[particle_range.clone()]
-            .iter_mut()
-            .zip(position_gradients.as_mut_slice()[particle_range.clone()].iter_mut())
-            .zip(input_transforms)
-            .for_each(|((position, position_gradient), transform)| {
-                *position_gradient = [
-                    [transform[0][0], transform[0][1], transform[0][2]], //
-                    [transform[1][0], transform[1][1], transform[1][2]], //
-                    [transform[2][0], transform[2][1], transform[2][2]], //
-                ];
-                *position = [
-                    inv_scale * transform[3][0],
-                    inv_scale * transform[3][1],
-                    inv_scale * transform[3][2],
-                ];
-            });
-
-        if let Some(input_initial_velocities) = input_initial_velocities {
-            velocities.as_mut_slice()[particle_range.clone()]
-                .copy_from_slice(&input_initial_velocities);
-        }
-        if let Some(input_initial_positions) = input_initial_positions {
-            initial_positions.as_mut_slice()[particle_range.clone()]
-                .copy_from_slice(&input_initial_positions);
-        }
+                }
+            }
+            Ok(())
+        })()
+        .map_err(|e| {
+            match e {
+                E::F(error) => error,
+                E::A(error) => error
+                    .attach_attr(bulk.meta.captured_attribute)
+                    .attach_name(bulk.meta.object_name.clone()),
+            }
+            .attach_frame(0)
+        })?;
 
         harness.step()?;
     }
 
-    io_state.grid_nodes = Some(Default::default());
+    // TODO: verify?
+    /*
+    for (particle_index, parameters) in parameters.as_mut_slice()[particle_range.clone()]
+        .iter_mut()
+        .enumerate()
+    {
+        (|| {
+            let flags = input_flags[particle_index];
+            let flags =
+                ParticleFlags::from_bits(flags).ok_or(ParticleInvalid::UnknownFlagsSet(flags))?;
+            if !(flags.contains(ParticleFlags::IS_SOLID) ^ flags.contains(ParticleFlags::IS_FLUID))
+            {
+                return Err(ParticleInvalid::SolidXorFluid);
+            }
 
-    Ok(io_state)
+            parameters.initial_volume = (inv_scale * input_sizes[particle_index]).powi(3);
+            parameters.mass = parameters.initial_volume * input_densities[particle_index];
+            parameters.viscosity = flags
+                .contains(ParticleFlags::USE_VISCOSITY)
+                .then(|| {
+                    Ok::<ViscosityParameters, ParticleInvalid>(ViscosityParameters {
+                        dynamic: input_viscosities_dynamic?[particle_index],
+                        bulk: input_viscosities_bulk?[particle_index],
+                    })
+                })
+                .transpose()?;
+
+            parameters.specific = if flags.contains(ParticleFlags::IS_SOLID) {
+                let youngs_modulus = input_youngs_moduluses?[particle_index];
+                let poisson_ratio = input_poissons_ratios?[particle_index];
+                SpecificParticleParameters::Solid {
+                    mu: mu(youngs_modulus, poisson_ratio)?,
+                    lambda: lambda(youngs_modulus, poisson_ratio)?,
+                    sand_alpha: flags
+                        .contains(ParticleFlags::USE_SAND_ALPHA)
+                        .then(|| Ok::<f32, ParticleInvalid>(input_sand_alphas?[particle_index]))
+                        .transpose()?,
+                }
+            } else {
+                let exponent = input_exponents?[particle_index] as i32;
+                let bulk_modulus = input_bulk_moduluses?[particle_index];
+                exponent_in_bounds(exponent)?;
+                bulk_modulus_in_bounds(bulk_modulus)?;
+                SpecificParticleParameters::Fluid {
+                    exponent,
+                    bulk_modulus,
+                }
+            };
+
+            Ok(())
+        })()
+        .map_err(|error| StateInitializationError::ParticleInvalid {
+            name: name.clone(),
+            particle_index,
+            error,
+        })?;
+    }
+    */
+
+    Ok(IoState {
+        time: 0.,
+        animated_globals,
+        particles,
+        goal_positions,
+        collider,
+        bvh: None,
+        grid_nodes: None,
+    })
 }

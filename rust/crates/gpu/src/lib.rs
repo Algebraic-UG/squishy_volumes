@@ -69,7 +69,6 @@ pub mod limit_time_step;
 pub mod limit_time_step_per_particle;
 pub mod meld_grid;
 pub mod node_ids_to_murmur;
-pub mod particle_parameters;
 pub mod partition_nodes;
 pub mod prefix_sum;
 pub mod prepare_grid;

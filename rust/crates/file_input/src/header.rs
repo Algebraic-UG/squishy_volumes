@@ -78,13 +78,20 @@ impl InputConsts {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub enum InputObject {
-    Particles {
-        num_particles: usize,
-    },
-    Collider {
-        num_vertices: usize,
-        num_triangles: usize,
-    },
+    Particles(InputObjectParticles),
+    Collider(InputObjectCollider),
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct InputObjectParticles {
+    pub num_particles: u32,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct InputObjectCollider {
+    pub collider_id: u32,
+    pub num_vertices: u32,
+    pub num_triangles: u32,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -94,29 +101,37 @@ pub struct InputHeader {
 }
 
 impl InputHeader {
-    pub fn total_particles(&self) -> usize {
-        self.objects
-            .values()
-            .map(|object| {
-                if let InputObject::Particles { num_particles } = object {
-                    *num_particles
-                } else {
-                    0
-                }
-            })
-            .sum()
+    pub fn get_collider_input_object(
+        &self,
+        name: &str,
+    ) -> Result<InputObjectCollider, crate::FrameVerifcationError> {
+        if let InputObject::Collider(object) = self
+            .objects
+            .get(name)
+            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
+        {
+            Ok(object.clone())
+        } else {
+            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum InputRange {
-    Particles {
-        particle_range: std::ops::Range<usize>,
-    },
-    Collider {
-        vertex_range: std::ops::Range<usize>,
-        triangle_range: std::ops::Range<usize>,
-    },
+    Particles(InputRangeParticles),
+    Collider(InputRangeCollider),
+}
+
+#[derive(Clone, Debug)]
+pub struct InputRangeParticles {
+    pub particle_range: std::ops::Range<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct InputRangeCollider {
+    pub vertex_range: std::ops::Range<usize>,
+    pub triangle_range: std::ops::Range<usize>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -133,25 +148,30 @@ impl InputRanges {
             .iter()
             .fold(Self::default(), |mut result, (name, object)| {
                 let range = match object {
-                    InputObject::Particles { num_particles } => {
+                    InputObject::Particles(InputObjectParticles { num_particles }) => {
+                        let num_particles = *num_particles as usize;
                         result.total_particles += num_particles;
-                        InputRange::Particles {
+                        InputRange::Particles(InputRangeParticles {
                             particle_range: result.total_particles - num_particles
                                 ..result.total_particles,
-                        }
+                        })
                     }
-                    InputObject::Collider {
+                    InputObject::Collider(InputObjectCollider {
                         num_vertices,
                         num_triangles,
-                    } => {
+                        ..
+                    }) => {
+                        let num_vertices = *num_vertices as usize;
+                        let num_triangles = *num_triangles as usize;
+
                         result.total_vertices += num_vertices;
                         result.total_triangles += num_triangles;
-                        InputRange::Collider {
+                        InputRange::Collider(InputRangeCollider {
                             vertex_range: result.total_vertices - num_vertices
                                 ..result.total_vertices,
                             triangle_range: result.total_triangles - num_triangles
                                 ..result.total_triangles,
-                        }
+                        })
                     }
                 };
                 result.objects.insert(name.clone(), range);
@@ -162,19 +182,30 @@ impl InputRanges {
     pub fn get_particle_range(
         &self,
         name: &str,
-    ) -> Result<std::ops::Range<usize>, crate::ObjectError> {
-        if let InputRange::Particles { particle_range } =
-            self.objects
-                .get(name)
-                .ok_or(crate::ObjectError::ObjectNotInHeader {
-                    name: name.to_string(),
-                })?
+    ) -> Result<InputRangeParticles, crate::FrameVerifcationError> {
+        if let InputRange::Particles(range) = self
+            .objects
+            .get(name)
+            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
-            Ok(particle_range.clone())
+            Ok(range.clone())
         } else {
-            Err(crate::ObjectError::ObjectChangedType {
-                name: name.to_string(),
-            })
+            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
+        }
+    }
+
+    pub fn get_collider_range(
+        &self,
+        name: &str,
+    ) -> Result<InputRangeCollider, crate::FrameVerifcationError> {
+        if let InputRange::Collider(range) = self
+            .objects
+            .get(name)
+            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
+        {
+            Ok(range.clone())
+        } else {
+            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
     }
 }

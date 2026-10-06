@@ -27,14 +27,6 @@ pub enum Error {
     #[error("Cpu compute error")]
     CpuCompute(#[from] squishy_volumes_cpu::Error),
 
-    #[error("'{object_name}': Failed to interpret input bulk '{attribute}'")]
-    InputBulkError {
-        object_name: String,
-        attribute: String,
-        #[source]
-        error: crate::InputBulkError,
-    },
-
     #[error("The last input frame was not completed")]
     LeftoverInputFrame,
 
@@ -47,6 +39,8 @@ pub enum Error {
 
     #[error("Failed to start input recording")]
     StartInputWriting(#[source] squishy_volumes_file_input::InputError),
+    #[error("Failed to start frame")]
+    StartFrame(#[source] squishy_volumes_file_input::InputError),
     #[error("Failed to record frame")]
     RecordFrame(#[source] squishy_volumes_file_input::InputError),
     #[error("Failed to finalize input")]

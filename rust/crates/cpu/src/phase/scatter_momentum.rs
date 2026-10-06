@@ -9,8 +9,8 @@
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator as _, ParallelIterator};
 use squishy_volumes_util::{
-    SpecificParticleParameters, ViscosityParameters, cauchy_stress_general_viscosity,
-    first_piola_stress_inviscid, first_piola_stress_neo_hookean, profile,
+    ParticleFlags, cauchy_stress_general_viscosity, first_piola_stress_inviscid,
+    first_piola_stress_neo_hookean, profile,
 };
 
 use super::*;
@@ -18,8 +18,9 @@ use super::*;
 impl CpuState {
     // Mass and velocity transported by particles is scattered to the grids.
     // In explicit time integration the forces can be applied at the same time.
-    pub fn scatter_momentum(&mut self, grid_node_size: f32) {
+    pub fn scatter_momentum(&mut self) {
         profile!("scatter_momentum");
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
         let scaling =
             self.adaptive_time_step_state.allowed_time_step() * 4. / grid_node_size.powi(2);
 
@@ -42,32 +43,33 @@ impl CpuState {
 
                         let to_grid_node = to_grid_node_normalized * grid_node_size;
 
+                        let flags = self.particles.flags[particle_idx];
                         let parameters = self.particles.parameters[particle_idx];
                         let mut imparted_momentum = (self.particles.velocities[particle_idx]
                             + self.particles.velocity_gradients[particle_idx] * to_grid_node)
-                            * parameters.mass;
+                            * parameters.mass();
 
                         let position_gradient = &self.particles.position_gradients[particle_idx];
-                        let stress = match parameters.specific {
-                            SpecificParticleParameters::Solid {
-                                mu,
-                                lambda,
-                                sand_alpha: _,
-                            } => first_piola_stress_neo_hookean(mu, lambda, position_gradient),
-                            SpecificParticleParameters::Fluid {
-                                exponent,
-                                bulk_modulus,
-                            } => first_piola_stress_inviscid(
-                                bulk_modulus,
-                                exponent,
+                        let stress = if flags.contains(ParticleFlags::IS_SOLID) {
+                            first_piola_stress_neo_hookean(
+                                parameters.mu(),
+                                parameters.lambda(),
                                 position_gradient,
-                            ),
+                            )
+                        } else if flags.contains(ParticleFlags::IS_FLUID) {
+                            first_piola_stress_inviscid(
+                                parameters.bulk_modulus,
+                                parameters.exponent,
+                                position_gradient,
+                            )
+                        } else {
+                            unreachable!()
                         };
 
-                        if let Some(ViscosityParameters { dynamic, bulk }) = parameters.viscosity {
+                        if flags.contains(ParticleFlags::USE_VISCOSITY) {
                             let cauchy_stress = cauchy_stress_general_viscosity(
-                                dynamic,
-                                bulk,
+                                parameters.viscosity_dynamic,
+                                parameters.viscosity_bulk,
                                 &self.particles.velocity_gradients[particle_idx],
                             );
 
@@ -84,7 +86,7 @@ impl CpuState {
 
                         imparted_momentum *= weight;
 
-                        *mass += weight * parameters.mass;
+                        *mass += weight * parameters.mass();
                         *velocity += imparted_momentum;
                     }
                 },

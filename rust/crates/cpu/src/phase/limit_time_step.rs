@@ -7,14 +7,16 @@
 // https://opensource.org/licenses/MIT.
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{ParticleFlags, profile};
 
 use super::*;
 
 impl CpuState {
-    pub fn limit_time_step_before_force(&mut self, grid_node_size: f32) {
+    pub fn limit_time_step_before_force(&mut self) {
         profile!("limit_time_step_before_force");
+
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
+
         self.adaptive_time_step_state.time_step_by_sound =
             self.limit_time_step_by_speed_of_sound(grid_node_size);
         self.adaptive_time_step_state.time_step_by_isolated =
@@ -30,9 +32,10 @@ impl CpuState {
             .par_iter()
             .zip(&self.particles.position_gradients)
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
-            .map(|(parameters, position_gradient)| {
+            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .map(|((parameters, position_gradient), flags)| {
                 squishy_volumes_util::limit_time_step_by_speed_of_sound(
+                    flags,
                     parameters,
                     position_gradient,
                     grid_node_size,
@@ -48,9 +51,10 @@ impl CpuState {
             .par_iter()
             .zip(&self.particles.position_gradients)
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
-            .map(|(parameters, position_gradient)| {
+            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .map(|((parameters, position_gradient), flags)| {
                 squishy_volumes_util::limit_time_step_by_isolated_particles(
+                    flags,
                     parameters,
                     position_gradient,
                     grid_node_size,
@@ -59,8 +63,9 @@ impl CpuState {
             .min_by(f32::total_cmp)
     }
 
-    pub fn limit_time_step_before_integrate(&mut self, grid_node_size: f32) {
+    pub fn limit_time_step_before_integrate(&mut self) {
         profile!("limit_time_step_before_integrate");
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
         self.adaptive_time_step_state.time_step_by_velocity =
             self.limit_time_step_by_velocity(grid_node_size);
         self.adaptive_time_step_state.time_step_by_deformation =

@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, elastic_energy_neo_hookean, elastic_energy_inviscid, ParticleParameters, IS_SOLID, IS_FLUID};
+import super::util::{Indirect, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, elastic_energy_neo_hookean, elastic_energy_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, mu, lambda};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
@@ -54,13 +54,13 @@ fn main(
 
     if (flags & IS_SOLID) > 0 {
         stresses[global_index] = first_piola_stress_neo_hookean(
-            parameters.mu,
-            parameters.lambda,
+            mu(parameters),
+            lambda(parameters),
             position_gradient,
         );
         energies[global_index] = elastic_energy_neo_hookean(
-            parameters.mu,
-            parameters.lambda,
+            mu(parameters),
+            lambda(parameters),
             position_gradient,
         );
         return;

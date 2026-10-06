@@ -158,9 +158,12 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
             new_output_obj.data = output_obj.data.copy()
             new_output_obj.squishy_volumes.uuid = new_uuid
             context.collection.objects.link(new_output_obj)
-            new_output_obj.squishy_volumes.input_name = input_mapping[
-                new_output_obj.squishy_volumes.input_name
-            ]
+
+            # can be missing for grid outputs
+            if new_output_obj.squishy_volumes.input_name in input_mapping:
+                new_output_obj.squishy_volumes.input_name = input_mapping[
+                    new_output_obj.squishy_volumes.input_name
+                ]
 
         self.report({"INFO"}, f"Cloned {sim_obj.name}.")
         return {"FINISHED"}

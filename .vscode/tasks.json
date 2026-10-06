@@ -19,6 +19,21 @@
                 "tree-clipper==0.1.12",
                 "./scripts/build_assets.py"
             ]
+        },
+        {
+            "label": "build-assets-2",
+            "type": "shell",
+            "command": "uv",
+            "args": [
+                "run",
+                "--python",
+                "3.13",
+                "--with",
+                "bpy==5.2",
+                "--with",
+                "nodebpy==520.31.0",
+                "./scripts/build_assets_2.py"
+            ]
         }
     ]
 }

@@ -34,22 +34,6 @@ from ..magic_consts import (
 )
 
 
-def optional_attributes_set_all(optional_attributes, value):
-    optional_attributes.grid_collider_bits = value
-    optional_attributes.grid_masses = value
-    optional_attributes.grid_velocities = value
-
-    optional_attributes.particle_flags = value
-    optional_attributes.particle_masses = value
-    optional_attributes.particle_initial_volumes = value
-    optional_attributes.particle_initial_positions = value
-    optional_attributes.particle_velocities = value
-    optional_attributes.particle_sizes = value
-    optional_attributes.particle_transformations = value
-    optional_attributes.particle_energies = value
-    optional_attributes.particle_collider_bits = value
-
-
 class Squishy_Volumes_Properties_Output(bpy.types.PropertyGroup):
     output_type: bpy.props.EnumProperty(
         name="Output Type",

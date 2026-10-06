@@ -7,25 +7,17 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, stack};
-use squishy_volumes_util::SpecificParticleParameters;
 
 use crate::test_data::test_position_gradients_random;
 
 use super::*;
 
-fn check(
-    particle_parameters: &[ParticleParameters],
-    particle_position_gradients: &[Matrix4x3<f32>],
-) {
-    let particle_flags: Vec<ParticleFlags> = particle_parameters.iter().map(Into::into).collect();
-
+fn check(particle_position_gradients: &[Matrix4x3<f32>]) {
     let gpu_particle_position_gradients = run(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
         },
-        &particle_flags,
-        particle_parameters,
         particle_position_gradients,
     );
 
@@ -34,14 +26,9 @@ fn check(
         .map(|m| m.fixed_view::<3, 3>(0, 0).into())
         .collect();
 
-    particle_parameters
-        .iter()
-        .zip(&mut cpu_particle_position_gradients)
-        .for_each(|(parameters, position_gradient)| {
-            let SpecificParticleParameters::Fluid { .. } = parameters.specific else {
-                return;
-            };
-
+    cpu_particle_position_gradients
+        .iter_mut()
+        .for_each(|position_gradient| {
             let mut svd = position_gradient.svd(true, true);
             svd.singular_values
                 .fill(svd.singular_values.product().powf(1. / 3.));
@@ -60,21 +47,7 @@ fn check(
 
 #[test]
 fn random() {
-    let n = 1000;
     check(
-        &squishy_volumes_util::test_inviscid_parameters()
-            .cycle()
-            .take(n)
-            .map(|(bulk_modulus, exponent)| ParticleParameters {
-                mass: 1.,
-                initial_volume: 1.,
-                viscosity: None,
-                specific: SpecificParticleParameters::Fluid {
-                    bulk_modulus,
-                    exponent,
-                },
-            })
-            .collect::<Vec<_>>(),
         #[allow(clippy::toplevel_ref_arg)]
         &test_position_gradients_random(1000)
             .into_iter()
@@ -83,21 +56,10 @@ fn random() {
     );
 }
 
-fn run(
-    settings: Settings,
-    particle_flags: &[ParticleFlags],
-    particle_parameters: &[ParticleParameters],
-    particle_position_gradients: &[Matrix4x3<f32>],
-) -> Vec<Matrix4x3<f32>> {
+fn run(settings: Settings, particle_position_gradients: &[Matrix4x3<f32>]) -> Vec<Matrix4x3<f32>> {
     let mut context = get_shared_context();
 
-    let input = Input::new(
-        context.device(),
-        particle_flags,
-        particle_parameters,
-        particle_position_gradients,
-    )
-    .unwrap();
+    let input = Input::new(context.device(), particle_position_gradients).unwrap();
     let particle_position_gradients = input.particle_position_gradients.clone();
 
     let fluid = Fluid::new(&mut context, settings).unwrap();

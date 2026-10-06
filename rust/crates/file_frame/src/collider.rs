@@ -6,12 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-mod collider;
-mod errors;
-mod frame_input;
-mod harness;
-
-pub use collider::*;
-pub use errors::*;
-pub use frame_input::*;
-pub use harness::*;
+#[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
+pub struct Collider {
+    pub vertex_positions: Vec<[f32; 3]>,
+    pub triangle_frictions: Vec<f32>,
+    pub triangle_dampings: Vec<f32>,
+}

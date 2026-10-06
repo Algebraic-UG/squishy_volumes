@@ -8,7 +8,7 @@
 
 use nalgebra::{Matrix4, Matrix4x3, Vector4};
 use squishy_volumes_mesh_util::{Opposites, Triangle};
-use squishy_volumes_util::AnimatedGlobals;
+use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, ParticleParameters};
 use std::num::NonZeroU64;
 use std::sync::atomic::AtomicU32;
 
@@ -46,4 +46,8 @@ impl AllowedInBinding for Opposites {
 
 impl AllowedInBinding for AnimatedGlobals {
     const ALIGNMENT: std::num::NonZeroU64 = f32::ALIGNMENT;
+}
+impl AllowedInBinding for ParticleFlags {}
+impl AllowedInBinding for ParticleParameters {
+    const ALIGNMENT: NonZeroU64 = u32::ALIGNMENT;
 }

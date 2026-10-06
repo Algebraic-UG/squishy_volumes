@@ -18,5 +18,8 @@ tracing.workspace = true
 bytemuck.workspace = true
 rustc-hash.workspace = true
 smallvec.workspace = true
+serde.workspace = true
+
+serde-big-array = "0.5.1"
 
 squishy_volumes_util.path = "../util"

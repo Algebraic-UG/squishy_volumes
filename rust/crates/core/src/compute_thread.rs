@@ -20,7 +20,7 @@ use squishy_volumes_file_frame::{ComputeStats, Frame, Stats};
 use squishy_volumes_file_input::{InputHeader, InputReader};
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_util::panic_payload_to_string;
-use squishy_volumes_xpu::{FrameInput, Harness, ReportInfo};
+use squishy_volumes_xpu::{Harness, ReportInfo};
 use tracing::info;
 
 #[cfg(feature = "profile")]
@@ -62,8 +62,7 @@ impl ComputeThread {
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
             .map_err(Error::StartInputReading)?;
-        let InputHeader { consts, objects } =
-            input_reader.read_header().map_err(Error::ReadHeader)?;
+        let InputHeader { consts, objects } = input_reader.header().clone();
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
@@ -100,8 +99,6 @@ impl ComputeThread {
                 };
                 harness.check()?;
 
-                let mut frame_input = FrameInput::new(input_reader, next_frame - 1)?;
-
                 #[allow(clippy::large_enum_variant)]
                 enum ComputeState {
                     Cpu(CpuState),
@@ -109,16 +106,17 @@ impl ComputeThread {
                 }
 
                 let mut compute_state = if let Some(gpu) = gpu {
-                    ComputeState::Gpu(GpuState::from_io_state(
+                    ComputeState::Gpu(GpuState::new(
+                        next_frame - 1,
+                        io_state,
+                        input_reader,
                         gpu,
                         &harness,
-                        &frame_input,
                         max_time_step,
-                        io_state,
                         Some(cache.directory().join("gpu_profile.csv")),
                     )?)
                 } else {
-                    ComputeState::Cpu(CpuState::from_io_state(io_state)?)
+                    ComputeState::Cpu(CpuState::new(next_frame - 1, io_state, input_reader)?)
                 };
 
                 #[cfg(feature = "profile")]
@@ -133,8 +131,7 @@ impl ComputeThread {
 
                     let start_compute_frame = Instant::now();
 
-                    frame_input.load(next_frame - 1)?;
-
+                    // TODO: remove
                     let target_time = next_frame as f64 / consts.frames_per_second as f64;
 
                     let result: Result<(), Error>;
@@ -142,12 +139,12 @@ impl ComputeThread {
                         ComputeState::Cpu(cpu_state) => {
                             let (io_state, cpu_result) = cpu_state.produce_next_state(
                                 &harness,
-                                &frame_input,
                                 CpuRunParameters {
                                     target_time,
                                     max_time_step,
                                     adaptive_time_steps,
                                     store_grid: true,
+                                    store_bvh: true,
                                 },
                             )?;
                             result = cpu_result.map_err(Error::CpuCompute);
@@ -156,11 +153,10 @@ impl ComputeThread {
                         ComputeState::Gpu(gpu_state) => {
                             let (io_state, gpu_result) = gpu_state.produce_next_state(
                                 &harness,
-                                &mut frame_input,
                                 GpuRunParameters {
-                                    target_time,
                                     adaptive_time_steps,
                                     store_grid: true,
+                                    store_bvh: true,
                                 },
                             )?;
                             result = gpu_result.map_err(Error::GpuError);

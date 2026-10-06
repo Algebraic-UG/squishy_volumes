@@ -6,14 +6,15 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat;
+
 use approx::assert_relative_eq;
 use itertools::izip;
 use nalgebra::{Matrix1x3, Matrix3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 use squishy_volumes_util::{
-    SpecificParticleParameters, lambda, limit_time_step_by_deformation,
-    limit_time_step_by_isolated_particles, limit_time_step_by_speed_of_sound,
-    limit_time_step_by_velocity, mu,
+    limit_time_step_by_deformation, limit_time_step_by_isolated_particles,
+    limit_time_step_by_speed_of_sound, limit_time_step_by_velocity,
 };
 
 use crate::test_data::{
@@ -25,6 +26,7 @@ use super::*;
 fn check(
     settings @ Settings { grid_node_size, .. }: Settings,
     input_data @ InputData {
+        particle_flags,
         particle_parameters,
         particle_position_gradients,
         particle_velocities,
@@ -33,24 +35,27 @@ fn check(
     }: InputData,
 ) {
     let cpu_time_step_limits: Vec<_> = izip!(
+        particle_flags,
         particle_parameters,
         particle_position_gradients,
         particle_velocities,
         particle_velocity_gradients,
     )
     .map(
-        |(parameters, position_gradient, velocity, velocity_gradient)| {
+        |(flags, parameters, position_gradient, velocity, velocity_gradient)| {
             let position_gradient: Matrix3<f32> = position_gradient.fixed_view::<3, 3>(0, 0).into();
             let velocity_gradient: Matrix3<f32> = velocity_gradient.fixed_view::<3, 3>(0, 0).into();
             TimeStepLimits {
                 time_step_by_velocity: limit_time_step_by_velocity(&velocity.xyz(), grid_node_size),
                 time_step_by_deformation: limit_time_step_by_deformation(&velocity_gradient),
                 time_step_by_isolated: limit_time_step_by_isolated_particles(
+                    flags,
                     parameters,
                     &position_gradient,
                     grid_node_size,
                 ),
                 time_step_by_sound: limit_time_step_by_speed_of_sound(
+                    flags,
                     parameters,
                     &position_gradient,
                     grid_node_size,
@@ -62,6 +67,7 @@ fn check(
 
     let gpu_time_step_limits = run(settings, input_data.clone());
 
+    println!("{cpu_time_step_limits:#?}");
     println!("{gpu_time_step_limits:#?}");
 
     for (cpu, gpu) in cpu_time_step_limits.into_iter().zip(gpu_time_step_limits) {
@@ -93,7 +99,7 @@ fn check(
 }
 
 #[test]
-fn test_single_undeformed() {
+fn single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -107,16 +113,7 @@ fn test_single_undeformed() {
         settings,
         InputData {
             particle_flags: &[ParticleFlags::IS_SOLID],
-            particle_parameters: &[ParticleParameters {
-                mass: 1.,
-                initial_volume: 1.,
-                viscosity: None,
-                specific: SpecificParticleParameters::Solid {
-                    mu: mu(1000., 0.3).unwrap(),
-                    lambda: lambda(1000., 0.3).unwrap(),
-                    sand_alpha: None,
-                },
-            }],
+            particle_parameters: &[ParticleParameters::default()],
             #[allow(clippy::toplevel_ref_arg)]
             particle_position_gradients: &[stack![
                 Matrix3::identity();
@@ -133,7 +130,7 @@ fn test_single_undeformed() {
 }
 
 #[test]
-fn test_many_random_props() {
+fn many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -146,19 +143,19 @@ fn test_many_random_props() {
     let n = 1000;
     let mut rng = ChaCha8Rng::seed_from_u64(42);
 
-    let particle_parameters = test_lame_parameters(&mut rng)
+    let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = test_lame_parameters(&mut rng)
+        .zip(repeat(ParticleFlags::IS_SOLID))
         .collect::<Vec<_>>()
         .into_iter()
-        .chain(test_inviscid_parameters(&mut rng))
-        .collect::<Vec<_>>()
-        .into_iter()
+        .chain(
+            test_inviscid_parameters(&mut rng)
+                .zip(repeat(ParticleFlags::IS_FLUID))
+                .collect::<Vec<_>>(),
+        )
         .cycle()
         .take(n)
-        .collect::<Vec<_>>();
-    let particle_flags = particle_parameters
-        .iter()
-        .map(Into::into)
-        .collect::<Vec<_>>();
+        .unzip();
+
     #[allow(clippy::toplevel_ref_arg)]
     let position_gradients = test_position_gradients_random(n)
         .into_iter()

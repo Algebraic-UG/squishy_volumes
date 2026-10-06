@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, mu, lambda, mass};
 import super::sand::sand_plasticity;
 import super::fluid::fluid_plasticity;
 import super::viscosity::cauchy_stress_general_viscosity;
@@ -81,15 +81,15 @@ fn main(
     if (flag & IS_SOLID) > 0 {
         if (flag & USE_SAND_ALPHA) > 0 {
             position_gradient = sand_plasticity(
-                parameter.mu,
-                parameter.lambda,
+                mu(parameter),
+                lambda(parameter),
                 parameter.sand_alpha,
                 position_gradient,
             );
             position_gradients[global_index] = position_gradient;
         }
 
-        stress = first_piola_stress_neo_hookean(parameter.mu, parameter.lambda, position_gradient);
+        stress = first_piola_stress_neo_hookean(mu(parameter), lambda(parameter), position_gradient);
     }
     if (flag & IS_FLUID) > 0 {
         position_gradient = fluid_plasticity(position_gradient);
@@ -107,14 +107,14 @@ fn main(
         matrix_part = -scaling * determinant(position_gradient) * parameter.initial_volume * cauchy_stress;
     }
 
-    matrix_part += velocity_gradient * parameter.mass - stress * transpose(position_gradient) * scaling * parameter.initial_volume;
-    let vector_part = velocity * parameter.mass;
+    matrix_part += velocity_gradient * mass(parameter) - stress * transpose(position_gradient) * scaling * parameter.initial_volume;
+    let vector_part = velocity * mass(parameter);
 
     tmp[global_index] = mat4x4f(
         vec4f(matrix_part[0], position.x / GRID_NODE_SIZE),
         vec4f(matrix_part[1], position.y / GRID_NODE_SIZE),
         vec4f(matrix_part[2], position.z / GRID_NODE_SIZE),
-        vec4f(vector_part, parameter.mass),
+        vec4f(vector_part, mass(parameter)),
     );
 }
 

@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{get_global_index, HAS_GOAL};
+import super::util::{get_global_index, HAS_GOAL, REACHED_FRAME_TIME};
 
 @group(0) @binding(0)
 var<storage, read_write> new_flags: array<u32>;
@@ -17,6 +17,8 @@ var<storage, read_write> flags: array<u32>;
 @group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
+var<immediate> offset: u32;
+
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
 
@@ -25,28 +27,26 @@ fn main(
     @builtin(global_invocation_id) global_invocation_id: vec3<u32>,
     @builtin(num_workgroups) num_workgroups: vec3<u32>,
 ) {
-    if is_error() {
+    let error = atomicLoad(&status) & 0x0000FFFFu;
+    if error != REACHED_FRAME_TIME {
         return;
     }
+
     let global_index = get_global_index(WORKGROUP_SIZE, num_workgroups, global_invocation_id);
     if global_index == 0 {
         set_shader_id();
     }
-    if global_index >= arrayLength(&flags) {
+    if global_index >= arrayLength(&new_flags) {
         return;
     }
 
-    var f = flags[global_index];
+    var f = flags[offset + global_index];
     var new_f = new_flags[global_index];
 
     f &= ~HAS_GOAL;
     f |= new_f & HAS_GOAL;
 
-    flags[global_index] = f;
-}
-
-fn is_error() -> bool {
-    return (atomicLoad(&status) & 0x0000FFFFu) != 0;
+    flags[offset + global_index] = f;
 }
 
 fn set_shader_id() {

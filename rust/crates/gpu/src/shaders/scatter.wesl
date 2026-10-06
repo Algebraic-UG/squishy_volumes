@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, div_ceil, murmur_of_cell, block_offset, kernel_quadratic, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters};
+import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, div_ceil, murmur_of_cell, block_offset, kernel_quadratic, first_piola_stress_neo_hookean, first_piola_stress_inviscid};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;

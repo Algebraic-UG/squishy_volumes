@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::borrow::Cow;
+
 use anyhow::{Context, Result};
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
@@ -60,7 +62,7 @@ impl SimulationInput {
                 .context("Not recording input")?
                 .record_input(
                     from_str(meta).context("Meta string isn't valid JSON")?,
-                    InputBulk::Bool(bulk.as_slice()?),
+                    InputBulk::Bool(Cow::Borrowed(bulk.as_slice()?)),
                 )
         })
     }
@@ -77,7 +79,7 @@ impl SimulationInput {
                 .context("Not recording input")?
                 .record_input(
                     from_str(meta).context("Meta string isn't valid JSON")?,
-                    InputBulk::Floats(bulk.as_slice()?),
+                    InputBulk::Floats(Cow::Borrowed(bulk.as_slice()?)),
                 )
         })
     }
@@ -94,17 +96,8 @@ impl SimulationInput {
                 .context("Not recording input")?
                 .record_input(
                     from_str(meta).context("Meta string isn't valid JSON")?,
-                    InputBulk::Ints(bulk.as_slice()?),
+                    InputBulk::Ints(Cow::Borrowed(bulk.as_slice()?)),
                 )
-        })
-    }
-
-    pub fn finish_frame(&self) -> Result<()> {
-        try_with_context(|context| {
-            context
-                .get_simulation_input()
-                .context("Not recording input")?
-                .finish_frame()
         })
     }
 

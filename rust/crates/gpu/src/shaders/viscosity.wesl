@@ -9,18 +9,15 @@
 import super::util::{Indirect, get_global_index, ParticleParameters, USE_VISCOSITY, trace, from_diagonal_element};
 
 @group(0) @binding(0)
-var<storage, read_write> particle_flags: array<u32>;
-
-@group(0) @binding(1)
 var<storage, read_write> particle_parameters: array<ParticleParameters>;
 
-@group(0) @binding(2)
+@group(0) @binding(1)
 var<storage, read_write> particle_velocity_gradients: array<mat3x3f>;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> particle_stresses: array<mat3x3f>;
 
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -38,18 +35,12 @@ fn main(
     if global_index == 0 {
         set_shader_id();
     }
-    if global_index >= arrayLength(&particle_flags) {
+    if global_index >= arrayLength(&particle_parameters) {
         return;
     }
 
-    let flags = particle_flags[global_index];
     let parameters = particle_parameters[global_index];
     let velocity_gradient = particle_velocity_gradients[global_index];
-
-    if (flags & USE_VISCOSITY) == 0 {
-        particle_stresses[global_index] = mat3x3f();
-        return;
-    }
 
     particle_stresses[global_index] = cauchy_stress_general_viscosity(
         parameters.viscosity_dynamic,
@@ -72,9 +63,10 @@ fn cauchy_stress_general_viscosity(
     bulk_viscosity: f32,
     velocity_gradient: mat3x3f,
 ) -> mat3x3f {
-    let dynamic_part: mat3x3f = dynamic_viscosity * (velocity_gradient + transpose(velocity_gradient));
-    let bulk_part: mat3x3f = bulk_viscosity * from_diagonal_element(trace(velocity_gradient));
+    let d = 0.5 * (velocity_gradient + transpose(velocity_gradient));
+    let divergence = trace(velocity_gradient);
+    let deviatoric_d = d - from_diagonal_element(divergence / 3.);
 
-    return dynamic_part + bulk_part;
+    return 2. * dynamic_viscosity * deviatoric_d + bulk_viscosity * from_diagonal_element(divergence);
 }
 

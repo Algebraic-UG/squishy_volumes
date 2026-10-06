@@ -8,33 +8,32 @@
 
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     DistanceResult, Triangle, distance_to_triangle, segment_distance_result,
 };
-use squishy_volumes_util::{NORMALIZATION_EPS, collider_bits, profile};
-use squishy_volumes_xpu::FrameInput;
+use squishy_volumes_util::{NORMALIZATION_EPS, ParticleFlags, collider_bits, profile};
 
 use super::*;
 
 impl CpuState {
-    pub fn collide(&mut self, frame_input: &FrameInput) {
+    pub fn collide(&mut self) {
         profile!("collect_insides");
 
         let time_step = self.adaptive_time_step_state.allowed_time_step();
 
-        let topology = frame_input.topology();
+        let topology = self.frame_input.topology();
         let triangle_indices = topology.triangle_indices();
         let triangle_opposites = topology.triangle_opposites();
         let triangle_collider = topology.triangle_collider();
 
-        let vertex_velocities = frame_input.vertex_velocities();
+        let triangle_frictions = &self.frame_input.collider_start().triangle_frictions;
+        let triangle_dampings = &self.frame_input.collider_start().triangle_dampings;
+
+        let vertex_velocities = self.frame_input.vertex_velocities();
 
         let InterpolatedInput {
             vertex_positions,
             vertex_normals,
-            triangle_frictions,
-            triangle_dampings,
             triangle_normals,
             ..
         } = self
@@ -50,8 +49,8 @@ impl CpuState {
             .zip(&self.particles.flags)
             .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
             .for_each(|((p, velocity), collider_bits)| {
-                let leaf = p.map(|c| (c / frame_input.consts().leaf_size).floor() as i32);
-                let triangles_to_check = frame_input.bvh().query(&leaf);
+                let leaf = p.map(|c| (c / self.frame_input.consts().leaf_size).floor() as i32);
+                let triangles_to_check = self.frame_input.bvh().query(&leaf);
                 if triangles_to_check.is_empty() {
                     *collider_bits = 0;
                     return;
@@ -76,7 +75,7 @@ impl CpuState {
                         n,
                     );
 
-                    if distance >= frame_input.consts().forget_distance() {
+                    if distance >= self.frame_input.consts().forget_distance() {
                         continue;
                     }
 
@@ -167,7 +166,7 @@ impl CpuState {
 
                     let new_side = 0. <= to_p.dot(&normal);
                     let Some(prior_side) = collider_bits::get(*collider_bits, collider) else {
-                        if distance < frame_input.consts().accept_distance() {
+                        if distance < self.frame_input.consts().accept_distance() {
                             collider_bits::set(collider_bits, collider, Some(new_side));
                         }
                         continue;

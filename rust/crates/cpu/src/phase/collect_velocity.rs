@@ -8,16 +8,16 @@
 
 use nalgebra::{Matrix3, Vector3};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{ParticleFlags, profile};
 use std::array::from_fn;
 
 use super::*;
 
 impl CpuState {
     // Update the particles' velocity and velocity gradients to be transported.
-    pub fn collect_velocity(&mut self, grid_node_size: f32) {
+    pub fn collect_velocity(&mut self) {
         profile!("collect_velocity");
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
         self.particles
             .positions
             .par_iter()

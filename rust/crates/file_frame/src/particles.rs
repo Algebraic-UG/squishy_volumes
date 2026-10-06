@@ -6,53 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use squishy_volumes_util::{ParticleParameters, SpecificParticleParameters};
-
-#[repr(C)]
-#[derive(
-    Clone,
-    Copy,
-    bytemuck::Zeroable,
-    bytemuck::Pod,
-    Debug,
-    PartialEq,
-    Default,
-    serde::Serialize,
-    serde::Deserialize,
-)]
-pub struct ParticleFlags(u32);
-
-bitflags::bitflags! {
-    impl ParticleFlags: u32{
-        const IS_SOLID = 1 << 0;
-        const IS_FLUID = 1 << 1;
-        const USE_VISCOSITY = 1 << 2;
-        const USE_SAND_ALPHA = 1 << 3;
-        const HAS_GOAL = 1 << 4;
-        const TOMBSTONED = 1 << 5;
-        const FAILED = 1 << 6;
-    }
-}
-
-impl From<&ParticleParameters> for ParticleFlags {
-    fn from(value: &ParticleParameters) -> Self {
-        (if value.viscosity.is_some() {
-            Self::USE_VISCOSITY
-        } else {
-            Self::default()
-        }) | match value.specific {
-            SpecificParticleParameters::Solid { sand_alpha, .. } => {
-                Self::IS_SOLID
-                    | if sand_alpha.is_some() {
-                        Self::USE_SAND_ALPHA
-                    } else {
-                        Self::default()
-                    }
-            }
-            SpecificParticleParameters::Fluid { .. } => Self::IS_FLUID,
-        }
-    }
-}
+use squishy_volumes_util::{ParticleFlags, ParticleParameters};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Particles {

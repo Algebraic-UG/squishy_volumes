@@ -6,10 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::iter::repeat;
+
 use approx::assert_relative_eq;
 use nalgebra::{Matrix1x3, Matrix3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
-use squishy_volumes_util::{SpecificParticleParameters, lambda, mu};
 
 use crate::test_data::{
     test_inviscid_parameters, test_lame_parameters, test_position_gradients_random,
@@ -74,7 +75,7 @@ fn check(settings: Settings, input_data: InputData, expected: &[TimeStepLimits])
 }
 
 #[test]
-fn test_single_undeformed() {
+fn single_undeformed() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -91,14 +92,10 @@ fn test_single_undeformed() {
         InputData {
             particle_flags: &[ParticleFlags::IS_SOLID],
             particle_parameters: &[ParticleParameters {
-                mass: 1.,
+                density: 1.,
                 initial_volume: 1.,
-                viscosity: None,
-                specific: SpecificParticleParameters::Solid {
-                    mu: mu(1000., 0.3).unwrap(),
-                    lambda: lambda(1000., 0.3).unwrap(),
-                    sand_alpha: None,
-                },
+                youngs_modulus: 1000.,
+                ..Default::default()
             }],
             #[allow(clippy::toplevel_ref_arg)]
             particle_position_gradients: &[stack![
@@ -131,7 +128,7 @@ fn test_single_undeformed() {
 }
 
 #[test]
-fn test_many_random_props() {
+fn many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
     let grid_node_size = 1.;
@@ -148,19 +145,18 @@ fn test_many_random_props() {
 
     let mut rng = ChaCha8Rng::seed_from_u64(42);
 
-    let particle_parameters = test_lame_parameters(&mut rng)
+    let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = test_lame_parameters(&mut rng)
+        .zip(repeat(ParticleFlags::IS_SOLID))
         .collect::<Vec<_>>()
         .into_iter()
-        .chain(test_inviscid_parameters(&mut rng))
-        .collect::<Vec<_>>()
-        .into_iter()
+        .chain(
+            test_inviscid_parameters(&mut rng)
+                .zip(repeat(ParticleFlags::IS_FLUID))
+                .collect::<Vec<_>>(),
+        )
         .cycle()
         .take(n)
-        .collect::<Vec<_>>();
-    let particle_flags = particle_parameters
-        .iter()
-        .map(Into::into)
-        .collect::<Vec<_>>();
+        .unzip();
     #[allow(clippy::toplevel_ref_arg)]
     let position_gradients = test_position_gradients_random(n)
         .into_iter()
@@ -209,8 +205,8 @@ fn test_many_random_props() {
         &[TimeStepLimits {
             time_step_by_velocity: 0.31904256,
             time_step_by_deformation: 0.20010836,
-            time_step_by_isolated: 1.2476232e-5,
-            time_step_by_sound: 6.694314e-6,
+            time_step_by_isolated: 0.0009449516,
+            time_step_by_sound: 0.0005070283,
         }],
     );
 }

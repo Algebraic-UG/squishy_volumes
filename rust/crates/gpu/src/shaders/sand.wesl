@@ -6,19 +6,16 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{Indirect, get_global_index, ParticleParameters, IS_SOLID, USE_SAND_ALPHA};
+import super::util::{Indirect, get_global_index, ParticleParameters, IS_SOLID, USE_SAND_ALPHA, mu, lambda};
 import super::external::wgebra::svd3::{Svd, svd, recompose};
 
 @group(0) @binding(0)
-var<storage, read_write> particle_flags: array<u32>;
-
-@group(0) @binding(1)
 var<storage, read_write> particle_parameters: array<ParticleParameters>;
 
-@group(0) @binding(2)
+@group(0) @binding(1)
 var<storage, read_write> particle_position_gradients: array<mat3x3f>;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
 override WORKGROUP_SIZE: u32;
@@ -40,19 +37,11 @@ fn main(
         return;
     }
 
-    let flags = particle_flags[global_index];
     let parameters = particle_parameters[global_index];
 
-    if (flags & IS_SOLID) == 0 {
-        return;
-    }
-    if (flags & USE_SAND_ALPHA) == 0 {
-        return;
-    }
-
     particle_position_gradients[global_index] = sand_plasticity(
-        parameters.mu,
-        parameters.lambda,
+        mu(parameters),
+        lambda(parameters),
         parameters.sand_alpha,
         particle_position_gradients[global_index],
     );

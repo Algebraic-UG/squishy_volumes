@@ -15,27 +15,24 @@ var<storage, read_write> time: f32;
 var<storage, read_write> time_step: f32;
 
 @group(0) @binding(2)
-var<storage, read_write> globals_start: AnimatedGlobals;
+var<storage, read_write> globals: AnimatedGlobals;
 
 @group(0) @binding(3)
-var<storage, read_write> globals_end: AnimatedGlobals;
-
-@group(0) @binding(4)
 var<storage, read_write> particle_flags: array<u32>;
 
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
-@group(0) @binding(6)
+@group(0) @binding(5)
 var<storage, read_write> particle_velocities: array<vec3f>;
 
-@group(0) @binding(7)
+@group(0) @binding(6)
 var<storage, read_write> particle_goals_start: array<vec3f>;
 
-@group(0) @binding(8)
+@group(0) @binding(7)
 var<storage, read_write> particle_goals_end: array<vec3f>;
 
-@group(0) @binding(9)
+@group(0) @binding(8)
 var<storage, read_write> status: atomic<u32>;
 
 override FRAMES_PER_SECOND: u32;
@@ -64,7 +61,6 @@ fn main(
     }
 
     let factor = time * f32(FRAMES_PER_SECOND);
-    let globals = interpolate_globals(factor);
     var velocity = particle_velocities[global_index];
 
     velocity -= time_step * globals.damping * velocity;
@@ -85,17 +81,6 @@ fn main(
     }
 
     particle_velocities[global_index] = velocity;
-}
-
-fn interpolate_globals(factor: f32) -> AnimatedGlobals {
-    var result: AnimatedGlobals;
-    result.gravity_x = (1. - factor) * globals_start.gravity_x + factor * globals_end.gravity_x;
-    result.gravity_y = (1. - factor) * globals_start.gravity_y + factor * globals_end.gravity_y;
-    result.gravity_z = (1. - factor) * globals_start.gravity_z + factor * globals_end.gravity_z;
-    result.goal_stiffness = (1. - factor) * globals_start.goal_stiffness + factor * globals_end.goal_stiffness;
-    result.goal_damping = (1. - factor) * globals_start.goal_damping + factor * globals_end.goal_damping;
-    result.damping = (1. - factor) * globals_start.damping + factor * globals_end.damping;
-    return result;
 }
 
 fn is_error() -> bool {

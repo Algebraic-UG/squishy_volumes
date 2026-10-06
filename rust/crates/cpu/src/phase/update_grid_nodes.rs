@@ -16,8 +16,7 @@ use rayon::{
 };
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
-use squishy_volumes_file_frame::ParticleFlags;
-use squishy_volumes_util::profile;
+use squishy_volumes_util::{ParticleFlags, profile};
 use std::{
     sync::{Mutex, mpsc::channel},
     thread::spawn,
@@ -28,8 +27,10 @@ use super::*;
 impl CpuState {
     // Update the hash map that allows to index into all the vectors of each momentum grid
     // with the node's 3d integer position. The data vectors are effectively invalidated.
-    pub fn update_grid_nodes(&mut self, grid_node_size: f32) {
+    pub fn update_grid_nodes(&mut self) {
         profile!("update_grid_nodes");
+
+        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
 
         {
             // remove those entries that didn't receive any particles

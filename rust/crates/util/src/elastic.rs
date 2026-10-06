@@ -47,22 +47,6 @@ pub fn poissons_ratio_in_bounds(value: T) -> Result<(), EnergyError> {
     }
 }
 
-// Wikipedia: Lamé parameters (this is the "second")
-#[inline]
-pub fn mu(youngs_modulus: T, poissons_ratio: T) -> Result<T, EnergyError> {
-    youngs_modulus_in_bounds(youngs_modulus)?;
-    poissons_ratio_in_bounds(poissons_ratio)?;
-    Ok(youngs_modulus / 2. / (1. + poissons_ratio))
-}
-
-// Wikipedia: Lamé parameters (this is the "first")
-#[inline]
-pub fn lambda(youngs_modulus: T, poissons_ratio: T) -> Result<T, EnergyError> {
-    youngs_modulus_in_bounds(youngs_modulus)?;
-    poissons_ratio_in_bounds(poissons_ratio)?;
-    Ok(youngs_modulus * poissons_ratio / (1. + poissons_ratio) / (1. - 2. * poissons_ratio))
-}
-
 // Stable Neo-Hookean Flesh Simulation 3.4 Lamé Reparameterization
 #[inline]
 pub fn mu_stable_neo_hookean(mu: T) -> T {
@@ -672,19 +656,17 @@ pub fn cauchy_stress_general_viscosity(
     bulk_viscosity: T,
     velocity_gradient: &Matrix3<T>,
 ) -> Matrix3<T> {
-    2. * dynamic_viscosity * rate_of_strain(velocity_gradient)
-        + bulk_viscosity * Matrix3::from_diagonal_element(velocity_divergence(velocity_gradient))
+    let d = rate_of_strain(velocity_gradient);
+    let divergence = velocity_gradient.trace();
+
+    let deviatoric_d = d - Matrix3::from_diagonal_element(divergence / 3.);
+
+    2. * dynamic_viscosity * deviatoric_d
+        + bulk_viscosity * Matrix3::from_diagonal_element(divergence)
 }
 
 pub fn test_lame_parameters() -> impl Iterator<Item = [T; 2]> + Clone {
-    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]]
-        .into_iter()
-        .map(|[youngs_modulus, poissons_ratio]| {
-            [
-                mu(youngs_modulus, poissons_ratio).unwrap(),
-                lambda(youngs_modulus, poissons_ratio).unwrap(),
-            ]
-        })
+    [[10000., 0.3], [1000000., 0.3], [10000., 0.], [0., 0.4]].into_iter()
 }
 
 pub fn test_inviscid_parameters() -> impl Iterator<Item = (T, i32)> + Clone {

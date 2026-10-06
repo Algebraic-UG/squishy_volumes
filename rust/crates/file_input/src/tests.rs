@@ -14,9 +14,14 @@ use std::{
 };
 
 use rand::{SeedableRng, rngs::SmallRng, seq::SliceRandom};
+use squishy_volumes_api::InputBulk;
+use squishy_volumes_util::AnimatedGlobals;
 use tempfile::{Builder, TempDir};
 
-use crate::{InputConsts, InputError, InputObject, InputOffsetReadingError};
+use crate::{
+    FrameBulk, InputConsts, InputError, InputObject, InputObjectCollider, InputObjectParticles,
+    InputOffsetReadingError, OwnedFrameBulk,
+};
 
 use super::{InputFrame, InputHeader, InputReader, InputWriter};
 
@@ -28,17 +33,24 @@ fn test_file() -> (PathBuf, TempDir) {
     (tmp_dir.path().join("test_input.bin"), tmp_dir)
 }
 
-fn test_header(num_particles: usize, num_vertices: usize, num_triangles: usize) -> InputHeader {
+fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> InputHeader {
     let consts = InputConsts::test_input();
     let objects = [
-        ("foo".to_string(), InputObject::Particles { num_particles }),
-        ("bar".to_string(), InputObject::Particles { num_particles }),
+        (
+            "foo".to_string(),
+            InputObject::Particles(InputObjectParticles { num_particles }),
+        ),
+        (
+            "bar".to_string(),
+            InputObject::Particles(InputObjectParticles { num_particles }),
+        ),
         (
             "car".to_string(),
-            InputObject::Collider {
+            InputObject::Collider(InputObjectCollider {
+                collider_id: 0,
                 num_vertices,
                 num_triangles,
-            },
+            }),
         ),
     ]
     .into_iter()
@@ -47,7 +59,11 @@ fn test_header(num_particles: usize, num_vertices: usize, num_triangles: usize) 
     InputHeader { consts, objects }
 }
 
-fn test_frames(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Vec<InputFrame> {
+fn test_frames(
+    num_particles: u32,
+    num_vertices: u32,
+    num_triangles: u32,
+) -> Vec<(AnimatedGlobals, Vec<FrameBulk<'static>>)> {
     vec![
         InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
         InputFrame::test_input_0(num_particles, num_vertices, num_triangles),
@@ -76,24 +92,30 @@ fn test_write_start() {
 fn test_write_partial() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(100, 99, 33)).unwrap();
-    for frame in test_frames(100, 99, 33).iter().take(2) {
-        writer.record_frame(frame).unwrap();
+    for (animated_globals, bulk) in test_frames(100, 99, 33).iter().take(2) {
+        writer.start_frame(&animated_globals).unwrap();
+        for bulk in bulk {
+            writer.record_bulk(bulk).unwrap();
+        }
     }
 }
 
 fn write_full<P: AsRef<Path> + fmt::Debug>(
     path: P,
-    num_particles: usize,
-    num_vertices: usize,
-    num_triangles: usize,
+    num_particles: u32,
+    num_vertices: u32,
+    num_triangles: u32,
 ) {
     let mut writer = InputWriter::new(
         path,
         test_header(num_particles, num_vertices, num_triangles),
     )
     .unwrap();
-    for frame in &test_frames(num_particles, num_vertices, num_triangles) {
-        writer.record_frame(frame).unwrap();
+    for (animated_globals, bulk) in &test_frames(num_particles, num_vertices, num_triangles) {
+        writer.start_frame(animated_globals).unwrap();
+        for bulk in bulk {
+            writer.record_bulk(bulk).unwrap();
+        }
     }
     writer.flush().unwrap();
 }
@@ -112,26 +134,21 @@ fn test_read_start() {
 }
 
 #[test]
-fn test_read_header() {
-    let (path, _guard) = test_file();
-    write_full(&path, 10, 9, 3);
-    let mut reader = InputReader::new(path).unwrap();
-    assert_eq!(test_header(10, 9, 3), reader.read_header().unwrap());
-}
-
-#[test]
 fn test_read_header_and_random_frames() {
     let (path, _guard) = test_file();
     write_full(&path, 10, 9, 3);
     let mut reader = InputReader::new(path).unwrap();
-    assert_eq!(test_header(10, 9, 3), reader.read_header().unwrap());
+    assert_eq!(test_header(10, 9, 3), *reader.header());
 
     let mut rng = SmallRng::seed_from_u64(42);
     let mut frames: Vec<_> = test_frames(10, 9, 3).into_iter().enumerate().collect();
     frames.shuffle(&mut rng);
 
-    for (idx, frame) in frames {
-        assert_eq!(frame, reader.read_frame(idx).unwrap());
+    for (idx, (animated_globals, bulk)) in frames {
+        let frame = reader.read_frame(idx).unwrap();
+        assert_eq!(animated_globals, frame.animated_globals);
+        let bulk: Vec<OwnedFrameBulk> = bulk.into_iter().map(Into::into).collect();
+        assert_eq!(bulk, frame.bulk);
     }
 }
 
@@ -224,25 +241,18 @@ fn test_length_mismatch() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
 
+    let (animated_globals, bulk) = InputFrame::test_input_0(1, 2, 3);
+    writer.start_frame(&animated_globals).unwrap();
     assert!(matches!(
-        writer.record_frame(&InputFrame::test_input_0(1, 2, 3)),
+        writer.record_bulk(&bulk[0]),
         Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::LengthMismatch { .. },
-            ..
-        }),
-    ));
-}
-
-#[test]
-fn test_collider_missing() {
-    let (path, _guard) = test_file();
-    let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
-    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
-    input_frame.collider_inputs.clear();
-    assert!(matches!(
-        writer.record_frame(&input_frame),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ColliderInputMissing(_),
+            error: crate::FrameVerifcationError::ObjectError {
+                error: crate::ObjectError::AttributeError {
+                    error: crate::AttributeError::LengthMismatch { .. },
+                    ..
+                },
+                ..
+            },
             ..
         }),
     ));
@@ -252,18 +262,24 @@ fn test_collider_missing() {
 fn test_object_changed_type() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
-    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
-    input_frame.particles_inputs.clear();
-    input_frame
-        .collider_inputs
-        .insert("foo".to_string(), Default::default())
-        .unwrap();
-    assert!(matches!(
-        writer.record_frame(&input_frame),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectError(
-                crate::ObjectError::ObjectChangedType { .. }
+    let (animated_globals, _) = InputFrame::test_input_0(10, 9, 3);
+    let bulk = FrameBulk {
+        meta: crate::FrameBulkMeta {
+            object_name: "foo".to_string(),
+            captured_attribute: crate::BulkAttribute::Collider(
+                crate::FrameBulkCollider::VertexPositions,
             ),
+        },
+        data: InputBulk::Floats(Default::default()),
+    };
+    writer.start_frame(&animated_globals).unwrap();
+    assert!(matches!(
+        writer.record_bulk(&bulk),
+        Err(InputError::FrameVerifcationError {
+            error: crate::FrameVerifcationError::ObjectError {
+                error: crate::ObjectError::ObjectChangedType,
+                ..
+            },
             ..
         }),
     ));
@@ -273,17 +289,24 @@ fn test_object_changed_type() {
 fn test_object_not_in_header() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(10, 9, 3)).unwrap();
-    let mut input_frame = InputFrame::test_input_0(10, 9, 3);
-    input_frame
-        .collider_inputs
-        .insert("newfoo".to_string(), Default::default())
-        .unwrap();
-    assert!(matches!(
-        writer.record_frame(&input_frame),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectError(
-                crate::ObjectError::ObjectNotInHeader { .. },
+    let (animated_globals, _) = InputFrame::test_input_0(10, 9, 3);
+    let bulk = FrameBulk {
+        meta: crate::FrameBulkMeta {
+            object_name: "newfoo".to_string(),
+            captured_attribute: crate::BulkAttribute::Collider(
+                crate::FrameBulkCollider::VertexPositions,
             ),
+        },
+        data: InputBulk::Floats(Default::default()),
+    };
+    writer.start_frame(&animated_globals).unwrap();
+    assert!(matches!(
+        writer.record_bulk(&bulk),
+        Err(InputError::FrameVerifcationError {
+            error: crate::FrameVerifcationError::ObjectError {
+                error: crate::ObjectError::ObjectNotInHeader,
+                ..
+            },
             ..
         }),
     ));

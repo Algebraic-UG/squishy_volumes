@@ -6,190 +6,299 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Default)]
-pub struct ParticlesInput {
-    pub flags: Vec<u32>,
-    pub transforms: Option<Vec<[[f32; 4]; 4]>>,
-    pub sizes: Option<Vec<f32>>,
-    pub densities: Option<Vec<f32>>,
-    pub youngs_moduluses: Option<Vec<f32>>,
-    pub poissons_ratios: Option<Vec<f32>>,
-    pub initial_positions: Option<Vec<[f32; 3]>>,
-    pub initial_velocities: Option<Vec<[f32; 3]>>,
-    pub viscosities_dynamic: Option<Vec<f32>>,
-    pub viscosities_bulk: Option<Vec<f32>>,
-    pub exponents: Option<Vec<u32>>,
-    pub bulk_moduluses: Option<Vec<f32>>,
-    pub sand_alphas: Option<Vec<f32>>,
-    pub goal_positions: Option<Vec<[f32; 3]>>,
+use squishy_volumes_api::InputBulk;
+#[cfg(test)]
+use squishy_volumes_util::AnimatedGlobals;
+
+use crate::{AttributeError, InputObjectCollider, InputObjectParticles};
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub struct FrameBulk<'a> {
+    pub meta: FrameBulkMeta,
+    pub data: InputBulk<'a>,
 }
 
-#[cfg(test)]
-impl ParticlesInput {
-    fn random(n: usize, rng: &mut impl rand::Rng) -> Self {
-        use rand::RngExt as _;
-        Self {
-            flags: rng.random_iter().take(n).collect(),
-            transforms: Some(rng.random_iter().take(n).collect()),
-            sizes: Some(rng.random_iter().take(n).collect()),
-            densities: Some(rng.random_iter().take(n).collect()),
-            youngs_moduluses: Some(rng.random_iter().take(n).collect()),
-            poissons_ratios: Some(rng.random_iter().take(n).collect()),
-            initial_positions: Some(rng.random_iter().take(n).collect()),
-            initial_velocities: Some(rng.random_iter().take(n).collect()),
-            viscosities_dynamic: Some(rng.random_iter().take(n).collect()),
-            viscosities_bulk: Some(rng.random_iter().take(n).collect()),
-            exponents: Some(rng.random_iter().take(n).collect()),
-            bulk_moduluses: Some(rng.random_iter().take(n).collect()),
-            sand_alphas: Some(rng.random_iter().take(n).collect()),
-            goal_positions: Some(rng.random_iter().take(n).collect()),
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub struct FrameBulkMeta {
+    pub object_name: String,
+    pub captured_attribute: BulkAttribute,
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub enum BulkAttribute {
+    Particles(FrameBulkParticles),
+    Collider(FrameBulkCollider),
+}
+
+impl BulkAttribute {
+    fn elem_count(&self) -> usize {
+        match self {
+            Self::Particles(inner) => inner.elem_count(),
+            Self::Collider(inner) => inner.elem_count(),
         }
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub enum FrameBulkParticles {
+    Flags,
+    ColliderBits,
+    Transforms,
+    Sizes,
+    Densities,
+    YoungsModuluses,
+    PoissonsRatios,
+    InitialPositions,
+    InitialVelocity,
+    ViscosityDynamic,
+    ViscosityBulk,
+    Exponent,
+    BulkModulus,
+    SandAlpha,
+    GoalPositions,
+}
+
+impl FrameBulkParticles {
+    fn elem_count(&self) -> usize {
+        match self {
+            Self::Flags
+            | Self::ColliderBits
+            | Self::Sizes
+            | Self::Densities
+            | Self::YoungsModuluses
+            | Self::PoissonsRatios
+            | Self::ViscosityDynamic
+            | Self::ViscosityBulk
+            | Self::Exponent
+            | Self::BulkModulus
+            | Self::SandAlpha => 1,
+            Self::InitialPositions | Self::InitialVelocity | Self::GoalPositions => 3,
+            Self::Transforms => 16,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub enum FrameBulkCollider {
+    VertexPositions,
+    Triangles,
+    TriangleFrictions,
+    TriangleDampings,
+}
+
+impl FrameBulkCollider {
+    fn elem_count(&self) -> usize {
+        match self {
+            FrameBulkCollider::VertexPositions | FrameBulkCollider::Triangles => 3,
+            FrameBulkCollider::TriangleFrictions | FrameBulkCollider::TriangleDampings => 1,
+        }
+    }
+}
+
+#[cfg(test)]
+use std::borrow::Cow;
+
+#[cfg(test)]
+pub fn random_particle_bulk(
+    object_name: String,
+    num_particles: u32,
+    rng: &mut impl rand::Rng,
+) -> Vec<FrameBulk<'static>> {
+    use rand::RngExt as _;
+    vec![FrameBulk {
+        meta: FrameBulkMeta {
+            object_name,
+            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::Flags),
+        },
+        data: InputBulk::Ints(Cow::Owned(
+            rng.random_iter::<i32>()
+                .take(num_particles as usize)
+                .collect(),
+        )),
+    }]
+}
+
+#[cfg(test)]
+pub fn random_collider_bulk(
+    object_name: String,
+    num_vertices: u32,
+    num_triangles: u32,
+    rng: &mut impl rand::Rng,
+) -> Vec<FrameBulk<'static>> {
+    use rand::RngExt as _;
+    vec![
+        FrameBulk {
+            meta: FrameBulkMeta {
+                object_name: object_name.clone(),
+                captured_attribute: BulkAttribute::Collider(FrameBulkCollider::VertexPositions),
+            },
+            data: InputBulk::Floats(Cow::Owned(
+                rng.random_iter::<f32>()
+                    .take(3 * num_vertices as usize)
+                    .collect(),
+            )),
+        },
+        FrameBulk {
+            meta: FrameBulkMeta {
+                object_name: object_name.clone(),
+                captured_attribute: BulkAttribute::Collider(FrameBulkCollider::Triangles),
+            },
+            data: InputBulk::Ints(Cow::Owned(
+                rng.random_iter::<i32>()
+                    .take(3 * num_triangles as usize)
+                    .collect(),
+            )),
+        },
+    ]
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct InputFrame {
     pub animated_globals: squishy_volumes_util::AnimatedGlobals,
-    pub particles_inputs: std::collections::BTreeMap<String, ParticlesInput>,
-    pub collider_inputs: crate::ColliderInputs,
+    pub bulk: Vec<OwnedFrameBulk>,
 }
 
-macro_rules! check_length {
-    ($name:expr, $expected:expr, $field:expr) => {
-        if $field.len() != $expected {
-            Err(crate::FrameVerifcationError::LengthMismatch {
-                name: $name.clone(),
-                attribute: stringify!($field),
-                found: $field.len(),
-                expected: $expected,
-            })
-        } else {
-            Ok(())
-        }
-    };
-}
-
-impl InputFrame {
+impl FrameBulk<'_> {
+    // TODO: also verify the type
     pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
-        for name in self.particles_inputs.keys() {
-            if !matches!(
-                header
-                    .objects
-                    .get(name)
-                    .ok_or(crate::ObjectError::ObjectNotInHeader { name: name.clone() })?,
-                crate::InputObject::Particles { .. }
-            ) {
-                Err(crate::ObjectError::ObjectChangedType { name: name.clone() })?;
-            }
-        }
-        for name in self.collider_inputs.keys() {
-            if !matches!(
-                header
-                    .objects
-                    .get(name)
-                    .ok_or(crate::ObjectError::ObjectNotInHeader { name: name.clone() })?,
-                crate::InputObject::Collider { .. }
-            ) {
-                Err(crate::ObjectError::ObjectChangedType { name: name.clone() })?;
-            }
-        }
+        let header_obj = header.objects.get(&self.meta.object_name).ok_or(
+            crate::ObjectError::ObjectNotInHeader.attach_name(self.meta.object_name.clone()),
+        )?;
 
-        for (name, object) in header.objects.iter() {
-            match object {
-                crate::InputObject::Particles { num_particles } => {
-                    let Some(ParticlesInput {
-                        flags,
-                        transforms,
-                        sizes,
-                        densities,
-                        youngs_moduluses,
-                        poissons_ratios,
-                        initial_positions,
-                        initial_velocities,
-                        viscosities_dynamic,
-                        viscosities_bulk,
-                        exponents,
-                        bulk_moduluses,
-                        sand_alphas,
-                        goal_positions,
-                    }) = self.particles_inputs.get(name)
-                    else {
-                        continue;
-                    };
-                    check_length!(name, *num_particles, flags)?;
-                    if let Some(transforms) = transforms {
-                        check_length!(name, *num_particles, transforms)?;
-                    }
-                    if let Some(sizes) = sizes {
-                        check_length!(name, *num_particles, sizes)?;
-                    }
-                    if let Some(densities) = densities {
-                        check_length!(name, *num_particles, densities)?;
-                    }
-                    if let Some(youngs_moduluses) = youngs_moduluses {
-                        check_length!(name, *num_particles, youngs_moduluses)?;
-                    }
-                    if let Some(poissons_ratios) = poissons_ratios {
-                        check_length!(name, *num_particles, poissons_ratios)?;
-                    }
-                    if let Some(initial_positions) = initial_positions {
-                        check_length!(name, *num_particles, initial_positions)?;
-                    }
-                    if let Some(initial_velocities) = initial_velocities {
-                        check_length!(name, *num_particles, initial_velocities)?;
-                    }
-                    if let Some(viscosities_bulk) = viscosities_bulk {
-                        check_length!(name, *num_particles, viscosities_bulk)?;
-                    }
-                    if let Some(viscosities_dynamic) = viscosities_dynamic {
-                        check_length!(name, *num_particles, viscosities_dynamic)?;
-                    }
-                    if let Some(exponents) = exponents {
-                        check_length!(name, *num_particles, exponents)?;
-                    }
-                    if let Some(bulk_moduluses) = bulk_moduluses {
-                        check_length!(name, *num_particles, bulk_moduluses)?;
-                    }
-                    if let Some(sand_alphas) = sand_alphas {
-                        check_length!(name, *num_particles, sand_alphas)?;
-                    }
-                    if let Some(goal_positions) = goal_positions {
-                        check_length!(name, *num_particles, goal_positions)?;
-                    }
-                }
-                crate::InputObject::Collider {
-                    num_vertices,
-                    num_triangles,
-                } => {
-                    let crate::ColliderInput {
-                        vertex_positions,
-                        triangle_indices,
-                        triangle_frictions,
-                        triangle_dampings,
-                    } = self.collider_inputs.get(name).ok_or(
-                        crate::FrameVerifcationError::ColliderInputMissing(name.clone()),
-                    )?;
-                    check_length!(name, *num_vertices, vertex_positions)?;
-                    check_length!(name, *num_triangles, triangle_indices)?;
-                    check_length!(name, *num_triangles, triangle_frictions)?;
-                    check_length!(name, *num_triangles, triangle_dampings)?;
-                }
-            }
+        let num =
+            match (header_obj, &self.meta.captured_attribute) {
+                (
+                    crate::InputObject::Particles(InputObjectParticles { num_particles }),
+                    BulkAttribute::Particles(_),
+                ) => num_particles,
+                (
+                    crate::InputObject::Collider(InputObjectCollider {
+                        num_vertices,
+                        num_triangles,
+                        ..
+                    }),
+                    BulkAttribute::Collider(frame_bulk_collider),
+                ) => match frame_bulk_collider {
+                    FrameBulkCollider::VertexPositions => num_vertices,
+                    FrameBulkCollider::Triangles
+                    | FrameBulkCollider::TriangleFrictions
+                    | FrameBulkCollider::TriangleDampings => num_triangles,
+                },
+                _ => Err(crate::ObjectError::ObjectChangedType
+                    .attach_name(self.meta.object_name.clone()))?,
+            };
+
+        let found = self.data.len();
+        let expected = *num as usize * self.meta.captured_attribute.elem_count();
+        if expected != found {
+            Err(crate::AttributeError::LengthMismatch { found, expected }
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone()))?;
         }
 
         Ok(())
     }
 }
 
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub enum OwnedInputBulk {
+    Bool(Vec<bool>),
+    Floats(Vec<f32>),
+    Ints(Vec<i32>),
+}
+
+impl From<InputBulk<'_>> for OwnedInputBulk {
+    fn from(value: InputBulk) -> Self {
+        match value {
+            InputBulk::Bool(cow) => Self::Bool(cow.into_owned()),
+            InputBulk::Floats(cow) => Self::Floats(cow.into_owned()),
+            InputBulk::Ints(cow) => Self::Ints(cow.into_owned()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+pub struct OwnedFrameBulk {
+    pub meta: FrameBulkMeta,
+    pub data: OwnedInputBulk,
+}
+
+impl From<FrameBulk<'_>> for OwnedFrameBulk {
+    fn from(FrameBulk { meta, data }: FrameBulk<'_>) -> Self {
+        Self {
+            meta,
+            data: data.into(),
+        }
+    }
+}
+
+const BOOL: &str = "bool";
+const FLOAT: &str = "float";
+const INT: &str = "int";
+
+impl OwnedInputBulk {
+    #[inline]
+    pub fn assume_bools(&self) -> Result<&[bool], AttributeError> {
+        let expected = BOOL;
+        let found = match self {
+            Self::Bool(vec) => return Ok(vec.as_slice()),
+            Self::Floats(_) => FLOAT,
+            Self::Ints(_) => INT,
+        };
+        Err(AttributeError::TypeMismatch { expected, found })
+    }
+
+    #[inline]
+    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
+        let expected = FLOAT;
+        let found = match self {
+            Self::Bool(_) => BOOL,
+            Self::Floats(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
+            Self::Ints(_) => INT,
+        };
+        Err(AttributeError::TypeMismatch { expected, found })
+    }
+
+    #[inline]
+    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
+        let expected = INT;
+        let found = match self {
+            Self::Bool(_) => BOOL,
+            Self::Floats(_) => FLOAT,
+            Self::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
+        };
+        Err(AttributeError::TypeMismatch { expected, found })
+    }
+}
+
 #[cfg(test)]
 impl InputFrame {
-    pub fn test_input_0(num_particles: usize, num_vertices: usize, num_triangles: usize) -> Self {
-        use std::collections::BTreeMap;
-
+    pub fn test_input_0(
+        num_particles: u32,
+        num_vertices: u32,
+        num_triangles: u32,
+    ) -> (AnimatedGlobals, Vec<FrameBulk<'static>>) {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(42);
-        Self {
-            animated_globals: squishy_volumes_util::AnimatedGlobals {
+        let mut bulk = Vec::new();
+        bulk.append(&mut random_particle_bulk(
+            "foo".to_string(),
+            num_particles,
+            &mut rng,
+        ));
+        bulk.append(&mut random_particle_bulk(
+            "bar".to_string(),
+            num_particles,
+            &mut rng,
+        ));
+        bulk.append(&mut random_collider_bulk(
+            "car".to_string(),
+            num_vertices,
+            num_triangles,
+            &mut rng,
+        ));
+        (
+            AnimatedGlobals {
                 gravity_x: 1.,
                 gravity_y: 2.,
                 gravity_z: 3.,
@@ -197,34 +306,32 @@ impl InputFrame {
                 goal_damping: 0.5,
                 damping: 1.23,
             },
-            particles_inputs: [
-                (
-                    "foo".to_string(),
-                    ParticlesInput::random(num_particles, &mut rng),
-                ),
-                (
-                    "bar".to_string(),
-                    ParticlesInput::random(num_particles, &mut rng),
-                ),
-            ]
-            .into_iter()
-            .collect(),
-            collider_inputs: [(
-                "car".to_string(),
-                crate::ColliderInput::random(num_vertices, num_triangles, &mut rng),
-            )]
-            .into_iter()
-            .collect::<BTreeMap<_, _>>()
-            .try_into()
-            .unwrap(),
-        }
+            bulk,
+        )
     }
 
-    pub fn test_input_1(num_particles: usize) -> Self {
+    pub fn test_input_1(num_particles: u32) -> (AnimatedGlobals, Vec<FrameBulk<'static>>) {
         use rand::{SeedableRng, rngs::ChaCha8Rng};
         let mut rng = ChaCha8Rng::seed_from_u64(69);
-        Self {
-            animated_globals: squishy_volumes_util::AnimatedGlobals {
+        let mut bulk = Vec::new();
+        bulk.append(&mut random_particle_bulk(
+            "foo".to_string(),
+            num_particles,
+            &mut rng,
+        ));
+        bulk.append(&mut random_particle_bulk(
+            "bar".to_string(),
+            num_particles,
+            &mut rng,
+        ));
+        bulk.append(&mut &mut random_particle_bulk(
+            "car".to_string(),
+            num_particles,
+            &mut rng,
+        ));
+
+        (
+            AnimatedGlobals {
                 gravity_x: 2.,
                 gravity_y: 3.,
                 gravity_z: 4.,
@@ -232,29 +339,13 @@ impl InputFrame {
                 goal_damping: 0.8,
                 damping: 1.2,
             },
-            particles_inputs: [
-                (
-                    "foo".to_string(),
-                    ParticlesInput::random(num_particles, &mut rng),
-                ),
-                (
-                    "bar".to_string(),
-                    ParticlesInput::random(num_particles, &mut rng),
-                ),
-                (
-                    "car".to_string(),
-                    ParticlesInput::random(num_particles, &mut rng),
-                ),
-            ]
-            .into_iter()
-            .collect(),
-            collider_inputs: Default::default(),
-        }
+            bulk,
+        )
     }
 
-    pub fn test_input_2() -> Self {
-        Self {
-            animated_globals: squishy_volumes_util::AnimatedGlobals {
+    pub fn test_input_2() -> (AnimatedGlobals, Vec<FrameBulk<'static>>) {
+        (
+            AnimatedGlobals {
                 gravity_x: 3.,
                 gravity_y: 4.,
                 gravity_z: 5.,
@@ -262,8 +353,7 @@ impl InputFrame {
                 goal_damping: 0.1,
                 damping: 0.,
             },
-            particles_inputs: Default::default(),
-            collider_inputs: Default::default(),
-        }
+            Default::default(),
+        )
     }
 }

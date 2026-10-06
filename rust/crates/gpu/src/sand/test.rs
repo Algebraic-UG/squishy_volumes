@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, stack};
-use squishy_volumes_util::SpecificParticleParameters;
 
 use crate::test_data::test_position_gradients_random;
 
@@ -17,14 +16,11 @@ fn check(
     particle_parameters: &[ParticleParameters],
     particle_position_gradients: &[Matrix4x3<f32>],
 ) {
-    let particle_flags: Vec<ParticleFlags> = particle_parameters.iter().map(Into::into).collect();
-
     let gpu_particle_position_gradients = run(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
         },
-        &particle_flags,
         particle_parameters,
         particle_position_gradients,
     );
@@ -38,24 +34,17 @@ fn check(
         .iter()
         .zip(&mut cpu_particle_position_gradients)
         .for_each(|(parameters, position_gradient)| {
-            let SpecificParticleParameters::Solid {
-                mu,
-                lambda,
-                sand_alpha: Some(sand_alpha),
-            } = parameters.specific
-            else {
-                return;
-            };
-
             let mut svd = position_gradient.svd(true, true);
             let e = svd.singular_values.map(f32::ln);
             let e_tr = e.sum();
             let e_hat = e - Vector3::repeat(e_tr / 3.);
             let e_hat_norm = e_hat.norm();
-            if mu > 0. && e_tr < 0. && e_hat_norm > 0. {
+            if parameters.mu() > 0. && e_tr < 0. && e_hat_norm > 0. {
                 if e_hat_norm != 0. {
-                    let delta_gamma =
-                        e_hat_norm + (3. * lambda + 2. * mu) / 2. / mu * e_tr * sand_alpha;
+                    let delta_gamma = e_hat_norm
+                        + (3. * parameters.lambda() + 2. * parameters.mu()) / 2. / parameters.mu()
+                            * e_tr
+                            * parameters.sand_alpha;
                     if delta_gamma > 0. {
                         let big_h = e - delta_gamma / e_hat_norm * e_hat;
                         svd.singular_values = big_h.map(f32::exp);
@@ -85,15 +74,10 @@ fn random() {
         &squishy_volumes_util::test_lame_parameters()
             .cycle()
             .take(n)
-            .map(|[mu, lambda]| ParticleParameters {
-                mass: 1.,
-                initial_volume: 1.,
-                viscosity: None,
-                specific: SpecificParticleParameters::Solid {
-                    mu,
-                    lambda,
-                    sand_alpha: Some(0.3),
-                },
+            .map(|[youngs_modulus, poissons_ratio]| ParticleParameters {
+                youngs_modulus,
+                poissons_ratio,
+                ..Default::default()
             })
             .collect::<Vec<_>>(),
         #[allow(clippy::toplevel_ref_arg)]
@@ -106,7 +90,6 @@ fn random() {
 
 fn run(
     settings: Settings,
-    particle_flags: &[ParticleFlags],
     particle_parameters: &[ParticleParameters],
     particle_position_gradients: &[Matrix4x3<f32>],
 ) -> Vec<Matrix4x3<f32>> {
@@ -114,7 +97,6 @@ fn run(
 
     let input = Input::new(
         context.device(),
-        particle_flags,
         particle_parameters,
         particle_position_gradients,
     )

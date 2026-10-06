@@ -12,10 +12,10 @@ mod test;
 use std::num::NonZeroU32;
 
 use nalgebra::Vector4;
-use squishy_volumes_file_frame::ParticleFlags;
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, triangles_to_leaf_aabbs,
 };
+use squishy_volumes_util::ParticleFlags;
 
 use super::*;
 

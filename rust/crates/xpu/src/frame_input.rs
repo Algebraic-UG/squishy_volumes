@@ -6,7 +6,14 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use squishy_volumes_file_input::InputError;
+use squishy_volumes_file_input::{
+    AttributeError, BulkAttribute, FrameBulkCollider, FrameBulkParticles, InputConsts, InputFrame,
+    InputObjectCollider, InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
+    OwnedFrameBulk,
+};
+use squishy_volumes_mesh_util::{Topology, TopologyInput};
+
+use crate::Collider;
 
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
@@ -16,194 +23,100 @@ pub enum FrameInputError {
     #[error("Failed to input from file")]
     InputError(#[from] squishy_volumes_file_input::InputError),
 
-    #[error("'{name}': length mismatch between '{attribute_a}' and '{attribute_b}'")]
-    AttributeLengthMismatch {
-        name: String,
-        attribute_a: String,
-        attribute_b: String,
-    },
-
     #[error("Something is wrong with the mesh inputs")]
     MeshError(#[from] squishy_volumes_mesh_util::Error),
-
-    #[error("Object error")]
-    ObjectError(#[from] squishy_volumes_file_input::ObjectError),
 }
 
 pub struct FrameInput {
     frame: usize,
+    input_reader: InputReader,
+    input_ranges: InputRanges,
 
-    consts: squishy_volumes_file_input::InputConsts,
-    input_ranges: squishy_volumes_file_input::InputRanges,
-
-    input_reader: squishy_volumes_file_input::InputReader,
-
-    topology: squishy_volumes_mesh_util::Topology,
+    topology: Topology,
 
     // needs to be rebuilt every frame change
     bvh: squishy_volumes_mesh_util::BoundingVolumeHierarchy,
 
-    // b could be none (end of input)
-    a: InputInterpolationPoint,
-    b: Option<InputInterpolationPoint>,
+    collider_start: Collider,
+    collider_end: Collider,
 
     // from a to b (or zero)
     vertex_velocities: Vec<nalgebra::Vector3<f32>>,
-}
 
-#[derive(Default)]
-pub struct InputInterpolationPoint {
-    frame: usize,
+    goal_positions_start: Vec<nalgebra::Vector3<f32>>,
+    goal_positions_end: Vec<nalgebra::Vector3<f32>>,
 
-    animated_globals: squishy_volumes_util::AnimatedGlobals,
-
-    particle_flags: Vec<squishy_volumes_file_frame::ParticleFlags>,
-    particle_goal_positions: Vec<nalgebra::Vector3<f32>>,
-
-    vertex_positions: Vec<nalgebra::Vector3<f32>>,
-    triangle_frictions: Vec<f32>,
-    triangle_dampings: Vec<f32>,
-}
-
-impl InputInterpolationPoint {
-    fn new(
-        consts: &squishy_volumes_file_input::InputConsts,
-        input_ranges: &squishy_volumes_file_input::InputRanges,
-        frame: usize,
-        squishy_volumes_file_input::InputFrame {
-            animated_globals,
-            particles_inputs,
-            collider_inputs,
-        }: squishy_volumes_file_input::InputFrame,
-    ) -> Result<Self, FrameInputError> {
-        let mut particle_flags: Vec<squishy_volumes_file_frame::ParticleFlags> =
-            vec![Default::default(); input_ranges.total_particles];
-        let mut particle_goal_positions: Vec<nalgebra::Vector3<f32>> =
-            vec![Default::default(); input_ranges.total_particles];
-        for (name, input) in particles_inputs.into_iter() {
-            let particle_range = input_ranges.get_particle_range(&name)?;
-
-            particle_flags.as_mut_slice()[particle_range.clone()]
-                .copy_from_slice(bytemuck::cast_slice(&input.flags));
-
-            if let Some(goal_positions) = input.goal_positions {
-                if input.flags.len() != goal_positions.len() {
-                    tracing::error!(
-                        flags_len = input.flags.len(),
-                        goal_positions_len = goal_positions.len()
-                    );
-                    return Err(FrameInputError::AttributeLengthMismatch {
-                        name,
-                        attribute_a: "Particle Flags".to_string(),
-                        attribute_b: "Particle Goal Positions".to_string(),
-                    });
-                }
-
-                particle_goal_positions.as_mut_slice()[particle_range.clone()]
-                    .copy_from_slice(bytemuck::cast_slice(&goal_positions));
-            }
-        }
-
-        let mut vertex_positions: Vec<nalgebra::Vector3<f32>> = Default::default();
-        let mut triangle_frictions: Vec<f32> = Default::default();
-        let mut triangle_dampings: Vec<f32> = Default::default();
-        for mut input in collider_inputs.into_values() {
-            vertex_positions.extend_from_slice(bytemuck::cast_slice(&input.vertex_positions));
-            triangle_frictions.append(&mut input.triangle_frictions);
-            triangle_dampings.append(&mut input.triangle_dampings);
-        }
-
-        particle_goal_positions
-            .iter_mut()
-            .for_each(|p| *p /= consts.simulation_scale);
-        vertex_positions
-            .iter_mut()
-            .for_each(|p| *p /= consts.simulation_scale);
-
-        Ok(Self {
-            frame,
-            animated_globals,
-            particle_flags,
-            particle_goal_positions,
-            vertex_positions,
-            triangle_frictions,
-            triangle_dampings,
-        })
-    }
-
-    pub fn animated_globals(&self) -> &squishy_volumes_util::AnimatedGlobals {
-        &self.animated_globals
-    }
-
-    pub fn particle_flags(&self) -> &[squishy_volumes_file_frame::ParticleFlags] {
-        &self.particle_flags
-    }
-    pub fn particle_goal_positions(&self) -> &[nalgebra::Vector3<f32>] {
-        &self.particle_goal_positions
-    }
-
-    pub fn vertex_positions(&self) -> &[nalgebra::Vector3<f32>] {
-        &self.vertex_positions
-    }
-    pub fn triangle_frictions(&self) -> &[f32] {
-        &self.triangle_frictions
-    }
-    pub fn triangle_dampings(&self) -> &[f32] {
-        &self.triangle_dampings
-    }
+    next_input_frame: Option<InputFrame>,
 }
 
 impl FrameInput {
     pub fn new(
-        mut input_reader: squishy_volumes_file_input::InputReader,
+        mut input_reader: InputReader,
+        io_goal_positions: Vec<[f32; 3]>,
+        io_collider: squishy_volumes_file_frame::Collider,
         frame: usize,
     ) -> Result<Self, FrameInputError> {
-        let input_header = input_reader.read_header()?;
-        let consts = input_header.consts;
-        let input_ranges = squishy_volumes_file_input::InputRanges::new(&input_header.objects);
+        let inv_scale = 1. / input_reader.header().consts.simulation_scale;
+        let input_ranges = InputRanges::new(&input_reader.header().objects);
 
-        let collider_inputs = input_reader.read_frame(0)?.collider_inputs;
-        // This shouldn't happen, maybe if someone messed with the serialization?
-        if collider_inputs.len() > 16 {
-            Err(InputError::TooManyColliders)?
-        }
+        let topology = create_topology(&mut input_reader)?;
 
-        let topology =
-            squishy_volumes_mesh_util::Topology::new(collider_inputs.iter().enumerate().map(
-                |(collider, (name, collider_input))| squishy_volumes_mesh_util::TopologyInput {
-                    name,
-                    collider: collider as u32,
-                    num_vertices: collider_input.vertex_positions.len() as u32,
-                    triangle_indices: bytemuck::cast_slice(&collider_input.triangle_indices),
-                },
-            ))?;
+        let collider_start: Collider = io_collider.into();
 
-        let mut a = Default::default();
-        let mut b = Default::default();
-        load_points(
-            &mut input_reader,
-            &mut a,
-            &mut b,
-            &consts,
-            &input_ranges,
-            frame,
-        )?;
-        let a = a.expect("a missing");
+        let goal_positions_start = bytemuck::cast_vec(io_goal_positions);
 
-        let vertex_velocities = linear_vertex_velocities(&consts, &a, b.as_ref());
+        let next_input_frame = (frame + 1 < input_reader.len())
+            .then(|| input_reader.read_frame(frame + 1))
+            .transpose()?;
 
-        let bvh = update_bvh(&consts, &topology, &a, b.as_ref());
+        let mut collider_end = collider_start.clone();
+        let mut goal_positions_end = goal_positions_start.clone();
+        let vertex_velocities;
+        if let Some(next_input_frame) = next_input_frame.as_ref() {
+            update_collider(
+                inv_scale,
+                &input_ranges,
+                &mut collider_end,
+                &next_input_frame.bulk,
+            )
+            .map_err(|error| error.attach_frame(frame + 1))?;
+            vertex_velocities = linear_vertex_velocities(
+                &input_reader.header().consts,
+                &collider_start,
+                &collider_end,
+            );
+
+            update_goal_positions(
+                inv_scale,
+                &input_ranges,
+                &mut goal_positions_end,
+                &next_input_frame.bulk,
+            )
+            .map_err(|error| error.attach_frame(frame + 1))?;
+        } else {
+            vertex_velocities =
+                vec![nalgebra::Vector3::zeros(); collider_start.vertex_positions.len()];
+        };
+
+        let bvh = update_bvh(
+            &input_reader.header().consts,
+            &topology,
+            &collider_start,
+            &collider_end,
+        );
 
         Ok(Self {
             frame,
-            consts,
-            input_ranges,
             input_reader,
+            input_ranges,
             topology,
             bvh,
-            a,
-            b,
+            collider_start,
+            collider_end,
             vertex_velocities,
+            next_input_frame,
+            goal_positions_start,
+            goal_positions_end,
         })
     }
 
@@ -211,34 +124,80 @@ impl FrameInput {
         self.frame
     }
 
-    pub fn load(&mut self, frame: usize) -> Result<(), FrameInputError> {
-        let prior_frame = self.a.frame;
+    pub fn next_input_frame(&mut self) -> Option<InputFrame> {
+        self.next_input_frame.take()
+    }
 
-        // weird little dance s.t. the type of a can be non-option
-        let mut a = Some(std::mem::take(&mut self.a));
-        load_points(
-            &mut self.input_reader,
-            &mut a,
-            &mut self.b,
-            &self.consts,
-            &self.input_ranges,
-            frame,
-        )?;
-        self.a = a.expect("a missing");
+    pub fn load_next(&mut self) -> Result<(), FrameInputError> {
+        self.frame += 1;
 
-        if prior_frame != self.a.frame {
-            self.vertex_velocities =
-                linear_vertex_velocities(&self.consts, &self.a, self.b.as_ref());
-            self.bvh = update_bvh(&self.consts, &self.topology, &self.a, self.b.as_ref());
+        if self.frame >= self.input_reader.len() {
+            return Ok(());
         }
 
-        self.frame = frame;
+        self.collider_start = self.collider_end.clone();
+        self.goal_positions_start = self.goal_positions_end.clone();
+
+        self.next_input_frame = (self.frame + 1 < self.input_reader.len())
+            .then(|| self.input_reader.read_frame(self.frame + 1))
+            .transpose()?;
+
+        let inv_scale = 1. / self.input_reader.header().consts.simulation_scale;
+        if let Some(next_input_frame) = self.next_input_frame.as_ref() {
+            update_collider(
+                inv_scale,
+                &self.input_ranges,
+                &mut self.collider_end,
+                &next_input_frame.bulk,
+            )
+            .map_err(|error| error.attach_frame(self.frame + 1))?;
+            self.vertex_velocities =
+                linear_vertex_velocities(self.consts(), &self.collider_start, &self.collider_end);
+
+            update_goal_positions(
+                inv_scale,
+                &self.input_ranges,
+                &mut self.goal_positions_end,
+                &next_input_frame.bulk,
+            )
+            .map_err(|error| error.attach_frame(self.frame + 1))?;
+        } else {
+            self.vertex_velocities =
+                vec![nalgebra::Vector3::zeros(); self.collider_start.vertex_positions.len()];
+        };
+
+        self.bvh = update_bvh(
+            self.consts(),
+            &self.topology,
+            &self.collider_start,
+            &self.collider_end,
+        );
 
         Ok(())
     }
 
-    pub fn consts(&self) -> &squishy_volumes_file_input::InputConsts {
-        &self.consts
+    pub fn consts(&self) -> &InputConsts {
+        &self.input_reader.header().consts
+    }
+
+    pub fn input_ranges(&self) -> &InputRanges {
+        &self.input_ranges
+    }
+
+    pub fn collider_start(&self) -> &Collider {
+        &self.collider_start
+    }
+
+    pub fn collider_end(&self) -> &Collider {
+        &self.collider_end
+    }
+
+    pub fn goal_positions_start(&self) -> &[nalgebra::Vector3<f32>] {
+        &self.goal_positions_start
+    }
+
+    pub fn goal_positions_end(&self) -> &[nalgebra::Vector3<f32>] {
+        &self.goal_positions_end
     }
 
     pub fn topology(&self) -> &squishy_volumes_mesh_util::Topology {
@@ -249,20 +208,12 @@ impl FrameInput {
         &self.bvh
     }
 
-    pub fn a(&self) -> &InputInterpolationPoint {
-        &self.a
-    }
-
-    pub fn b(&self) -> Option<&InputInterpolationPoint> {
-        self.b.as_ref()
-    }
-
     pub fn vertex_velocities(&self) -> &[nalgebra::Vector3<f32>] {
         &self.vertex_velocities
     }
 
     pub fn frame_factor(&self, time: f64) -> Result<f32, FrameInputError> {
-        let frame_time = time * self.consts.frames_per_second as f64;
+        let frame_time = time * self.consts().frames_per_second as f64;
         let frame_low = frame_time.floor() as usize;
 
         if self.frame != frame_low {
@@ -276,80 +227,24 @@ impl FrameInput {
     }
 }
 
-// after this, a is always Some
-fn load_points(
-    input_reader: &mut squishy_volumes_file_input::InputReader,
-    a: &mut Option<InputInterpolationPoint>,
-    b: &mut Option<InputInterpolationPoint>,
-    consts: &squishy_volumes_file_input::InputConsts,
-    input_ranges: &squishy_volumes_file_input::InputRanges,
-    frame: usize,
-) -> Result<(), FrameInputError> {
-    let max_frame = input_reader.len() - 1;
-
-    // if we're too far, just use the last available and skip b
-    let frame = frame.min(max_frame);
-
-    // a already correct, so b must be as well (could be none)
-    if a.as_ref().is_some_and(|point| point.frame == frame) {
-        return Ok(());
-    }
-
-    // always load something into a
-    // could be that we already have the next in b
-    if let Some(b) = b.take()
-        && b.frame == frame
-    {
-        *a = Some(b);
-    } else {
-        let input_frame = input_reader.read_frame(frame)?;
-        *a = Some(InputInterpolationPoint::new(
-            consts,
-            input_ranges,
-            frame,
-            input_frame,
-        )?);
-    }
-
-    // might skip b
-    if frame == max_frame {
-        return Ok(());
-    }
-
-    // load b
-    let frame = frame + 1;
-    let input_frame = input_reader.read_frame(frame)?;
-    *b = Some(InputInterpolationPoint::new(
-        consts,
-        input_ranges,
-        frame,
-        input_frame,
-    )?);
-
-    Ok(())
-}
-
 fn linear_vertex_velocities(
-    consts: &squishy_volumes_file_input::InputConsts,
-    a: &InputInterpolationPoint,
-    b: Option<&InputInterpolationPoint>,
+    consts: &InputConsts,
+    collider_start: &Collider,
+    collider_end: &Collider,
 ) -> Vec<nalgebra::Vector3<f32>> {
-    if let Some(b) = b {
-        a.vertex_positions
-            .iter()
-            .zip(&b.vertex_positions)
-            .map(|(a, b)| (b - a) * consts.frames_per_second as f32)
-            .collect()
-    } else {
-        vec![nalgebra::Vector3::zeros(); a.vertex_positions.len()]
-    }
+    collider_start
+        .vertex_positions
+        .iter()
+        .zip(&collider_end.vertex_positions)
+        .map(|(start, end)| (end - start) * consts.frames_per_second as f32)
+        .collect()
 }
 
 fn update_bvh(
-    consts: &squishy_volumes_file_input::InputConsts,
+    consts: &InputConsts,
     topology: &squishy_volumes_mesh_util::Topology,
-    a: &InputInterpolationPoint,
-    b: Option<&InputInterpolationPoint>,
+    collider_start: &Collider,
+    collider_end: &Collider,
 ) -> squishy_volumes_mesh_util::BoundingVolumeHierarchy {
     use squishy_volumes_util::Aabb;
 
@@ -358,20 +253,12 @@ fn update_bvh(
         .triangle_indices()
         .iter()
         .map(|triangle| {
-            let aabb = if let Some(b) = b {
-                Aabb::new_from_ref(triangle.iter().flat_map(|vertex_index| {
-                    [
-                        &a.vertex_positions[*vertex_index as usize],
-                        &b.vertex_positions[*vertex_index as usize],
-                    ]
-                }))
-            } else {
-                Aabb::new_from_ref(
-                    triangle
-                        .iter()
-                        .map(|vertex_index| &a.vertex_positions[*vertex_index as usize]),
-                )
-            };
+            let aabb = Aabb::new_from_ref(triangle.iter().flat_map(|vertex_index| {
+                [
+                    &collider_start.vertex_positions[*vertex_index as usize],
+                    &collider_end.vertex_positions[*vertex_index as usize],
+                ]
+            }));
 
             Aabb {
                 min: aabb
@@ -385,4 +272,122 @@ fn update_bvh(
         .collect();
 
     squishy_volumes_mesh_util::BoundingVolumeHierarchy::new(aabbs, consts.leaf_threshold)
+}
+
+fn create_topology(input_reader: &mut InputReader) -> Result<Topology, FrameInputError> {
+    let bulk = input_reader.read_frame(0)?.bulk;
+    let mut topology_inputs = Vec::new();
+    (|| -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
+        for bulk in &bulk {
+            if bulk.meta.captured_attribute != BulkAttribute::Collider(FrameBulkCollider::Triangles)
+            {
+                continue;
+            }
+            let InputObjectCollider {
+                collider_id,
+                num_vertices,
+                ..
+            } = input_reader
+                .header()
+                .get_collider_input_object(&bulk.meta.object_name)?;
+
+            topology_inputs.push(TopologyInput {
+                name: &bulk.meta.object_name,
+                collider_id,
+                num_vertices,
+                triangle_indices: bulk.data.assume_ints().map_err(|error| {
+                    error
+                        .attach_attr(bulk.meta.captured_attribute)
+                        .attach_name(bulk.meta.object_name.clone())
+                })?,
+            });
+        }
+        Ok(())
+    })()
+    .map_err(|error| error.attach_frame(0))?;
+    Ok(Topology::new(topology_inputs.into_iter())?)
+}
+
+fn update_collider(
+    inv_scale: f32,
+    input_ranges: &InputRanges,
+    collider: &mut Collider,
+    bulk: &[OwnedFrameBulk],
+) -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
+    for bulk in bulk {
+        if let BulkAttribute::Collider(ref attr) = bulk.meta.captured_attribute {
+            let InputRangeCollider {
+                vertex_range,
+                triangle_range,
+            } = input_ranges.get_collider_range(&bulk.meta.object_name)?;
+
+            (|| -> Result<(), AttributeError> {
+                match attr {
+                    FrameBulkCollider::VertexPositions => {
+                        // TODO: clean error for length mismatch
+                        collider.vertex_positions[vertex_range.clone()]
+                            .copy_from_slice(bulk.data.assume_floats()?);
+                        collider.vertex_positions[vertex_range]
+                            .iter_mut()
+                            .for_each(|p| {
+                                p[0] *= inv_scale;
+                                p[1] *= inv_scale;
+                                p[2] *= inv_scale;
+                            });
+                    }
+                    FrameBulkCollider::TriangleFrictions => {
+                        collider.triangle_frictions[triangle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?);
+                    }
+                    FrameBulkCollider::TriangleDampings => {
+                        collider.triangle_dampings[triangle_range]
+                            .copy_from_slice(bulk.data.assume_floats()?);
+                    }
+                    FrameBulkCollider::Triangles => {
+                        // TODO:
+                        tracing::error!(
+                            "Updating the topology after frame 0 is not supported (yet?)"
+                        );
+                    }
+                }
+                Ok(())
+            })()
+            .map_err(|error| {
+                error
+                    .attach_attr(bulk.meta.captured_attribute)
+                    .attach_name(bulk.meta.object_name.clone())
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn update_goal_positions(
+    inv_scale: f32,
+    input_ranges: &InputRanges,
+    goal_positions: &mut [nalgebra::Vector3<f32>],
+    bulk: &[OwnedFrameBulk],
+) -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
+    for bulk in bulk {
+        if let BulkAttribute::Particles(ref attr) = bulk.meta.captured_attribute {
+            let InputRangeParticles { particle_range } =
+                input_ranges.get_particle_range(&bulk.meta.object_name)?;
+            if let FrameBulkParticles::GoalPositions = attr {
+                // TODO: clean error for length mismatch
+                goal_positions[particle_range.clone()].copy_from_slice(
+                    bulk.data.assume_floats().map_err(|error| {
+                        error
+                            .attach_attr(bulk.meta.captured_attribute)
+                            .attach_name(bulk.meta.object_name.clone())
+                    })?,
+                );
+                goal_positions[particle_range].iter_mut().for_each(|p| {
+                    p[0] *= inv_scale;
+                    p[1] *= inv_scale;
+                    p[2] *= inv_scale;
+                });
+            }
+        }
+    }
+    Ok(())
 }

@@ -8,7 +8,6 @@
 
 #[repr(C)]
 #[derive(
-    Default,
     Clone,
     Copy,
     bytemuck::Zeroable,
@@ -25,6 +24,19 @@ pub struct AnimatedGlobals {
     pub goal_stiffness: f32,
     pub goal_damping: f32,
     pub damping: f32,
+}
+
+impl Default for AnimatedGlobals {
+    fn default() -> Self {
+        Self {
+            gravity_x: 0.,
+            gravity_y: 0.,
+            gravity_z: -9.8,
+            goal_stiffness: 1000.,
+            goal_damping: 0.5,
+            damping: 0.,
+        }
+    }
 }
 
 impl AnimatedGlobals {

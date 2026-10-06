@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import glob
 from pathlib import Path
 
 import bpy  # ty: ignore[unresolved-import]
@@ -42,6 +43,20 @@ def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:
     return bpy.data.node_groups[name]
 
 
+def _load_tree_2(name: str) -> bpy.types.NodeTree:
+    asset_dir = Path(__file__).parent
+    potential_assets = glob.glob(pathname="assets-*.blend", root_dir=asset_dir)
+    assert len(potential_assets) == 1, "Found multiple potential assets"
+    file_path = Path(__file__).parent / potential_assets[0]
+    with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
+        _data_src,
+        data_dst,
+    ):
+        data_dst.node_groups = [name]
+
+    return bpy.data.node_groups[name]
+
+
 def create_material_display_uvw() -> bpy.types.Material:
     return _load_material("material_display_uvw", "Squishy Volumes Display UVW")
 
@@ -59,9 +74,7 @@ def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:
 
 
 def create_geometry_nodes_generate_particles() -> bpy.types.NodeTree:
-    return _load_tree(
-        "geometry_nodes_generate_particles", "Squishy Volumes Generate Particles"
-    )
+    return _load_tree_2("Squishy Volumes Generate Particles")
 
 
 def create_geometry_nodes_generate_collider() -> bpy.types.NodeTree:
