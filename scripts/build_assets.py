@@ -1,12 +1,10 @@
-import bpy
 import sys
 from pathlib import Path
-import tree_clipper
-from tree_clipper.import_to_asset_file import import_to_asset_file
+
+import bpy
 from tree_clipper.import_nodes import ImportIntermediate, ImportParameters, ImportReport
 from tree_clipper.import_to_asset_file import import_to_asset_file
 from tree_clipper.specific_handlers import BUILT_IN_IMPORTER
-
 
 scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."

@@ -1,8 +1,7 @@
-from tkinter import W
 import argparse
-import plotly.graph_objects as go
 import csv
-from pathlib import Path
+
+import plotly.graph_objects as go
 
 parser = argparse.ArgumentParser()
 parser.add_argument("input")

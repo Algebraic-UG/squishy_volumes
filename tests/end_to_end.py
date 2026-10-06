@@ -16,13 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy
-import os
 import argparse
 import logging
+import os
 import urllib
 from pathlib import Path
 
+import bpy
 from test_util import (
     extension_install,
     extension_repo_add,

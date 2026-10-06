@@ -1,52 +1,38 @@
-import glob
-import uuid
-import bpy
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
 
-from ntpath import split
-from typing import Any, Literal, Set, TYPE_CHECKING
-
-from nodebpy import SimpleOptions, TreeBuilder, arrange, SugiyamaOptions
+import bpy
+from nodebpy import TreeBuilder
 from nodebpy import geometry as g
-from nodebpy.types import (
-    InputGeometry,
-    InputString,
-    InputMenu,
-    InputFloat,
-    InputBoolean,
-    InputInteger,
-    InputVector,
-    InputColor,
-    InputRotation,
-    InputMatrix,
-    InputAny,
-    InputBundle,
-)
-from nodebpy.nodes.geometry import CombineBundle
 from nodebpy.builder import (
-    InputInterfaceContext,
+    BooleanSocket,
     CustomGeometryGroup,
     FloatSocket,
+    GeometrySocket,
     IntegerSocket,
-    VectorSocket,
     MatrixSocket,
     SocketAccessor,
-    GeometrySocket,
     StringSocket,
-    BooleanSocket,
+    VectorSocket,
+)
+from nodebpy.nodes.geometry import CombineBundle
+from nodebpy.types import (
+    InputAny,
+    InputBoolean,
+    InputFloat,
+    InputGeometry,
+    InputInteger,
+    InputMatrix,
+    InputMenu,
+    InputString,
+    InputVector,
 )
 
 scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."
 asset_dir = repo_root / "python" / "src" / "squishy_volumes_extension" / "assets"
-unique = uuid.uuid4().hex[:8]
-asset_file = asset_dir / f"assets-{unique}.blend"
-
-for stale_asset in glob.glob(pathname="assets-*.blend", root_dir=asset_dir):
-    print(f"Removing stale asset: {stale_asset}")
-    (asset_dir / stale_asset).unlink()
-
+asset_file = asset_dir / "assets.blend"
 
 _DataType = Literal[
     "FLOAT",
@@ -272,11 +258,7 @@ class IsInsideObject(CustomGeometryGroup):
         seed: InputInteger = 0,
     ):
         super().__init__(
-            **{
-                "Geometry": geometry,
-                "Position": position,
-                "Seed": seed,
-            }
+            Geometry=geometry, Position=position, Seed=seed
         )
 
     def _build_group(self, tree):
@@ -363,11 +345,7 @@ class SetFlag(CustomGeometryGroup):
         value: InputBoolean = False,
     ):
         super().__init__(
-            **{
-                "Geometry": geometry,
-                "Flag": flag,
-                "Value": value,
-            }
+            Geometry=geometry, Flag=flag, Value=value
         )
 
     def _build_group(self, tree):

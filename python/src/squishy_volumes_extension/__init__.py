@@ -20,9 +20,10 @@ import json
 import tomllib
 from pathlib import Path
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from .append_hander import register_append_handler, unregister_append_handler
+from .assets import reload_assets
 from .bridge import (
     SimulationHandle,
     build_info,
@@ -105,6 +106,8 @@ def register():
     register_append_handler()
     register_prune_simulation_handles()
     register_drivers()
+
+    bpy.app.timers.register(reload_assets, first_interval=0)
 
 
 def unregister():

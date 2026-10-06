@@ -17,12 +17,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import bpy
 import argparse
 import logging
 import urllib
 from pathlib import Path
 
+import bpy
 from test_util import (
     extension_install,
     extension_repo_add,

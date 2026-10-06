@@ -1,6 +1,7 @@
-import toml
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import toml
 
 scripts_dir = Path(sys.argv[0]).parent
 repo_root = scripts_dir / ".."

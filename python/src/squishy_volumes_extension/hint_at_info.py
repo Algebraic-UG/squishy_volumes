@@ -24,7 +24,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-def hint_at_info(func: Callable[P, R]) -> Callable[P, R]:  # noqa UP047
+def hint_at_info[**P, R](func: Callable[P, R]) -> Callable[P, R]:
     @wraps(func)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         try:

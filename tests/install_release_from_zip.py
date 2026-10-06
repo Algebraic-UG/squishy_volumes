@@ -17,10 +17,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import bpy
 import argparse
 import logging
 
+import bpy
 from test_util import (
     PKG_ID,
     addon_filename_and_url,
