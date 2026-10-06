@@ -41,6 +41,20 @@ def add_drivers(sim_obj, modifier):
         target.data_path = "squishy_volumes.grid_node_size"
         target.id_type = "OBJECT"
         target.id = sim_obj
+    if "Start Frame" in tree:
+        identifier = tree["Start Frame"].identifier
+        driver = (
+            getattr(modifier.properties.inputs, identifier).driver_add("value").driver
+        )
+        driver.expression = "start_frame"
+        var = driver.variables.new()
+        var.name = "start_frame"
+        var.type = "SINGLE_PROP"
+        target = var.targets[0]
+        target.fallback_value = 1
+        target.data_path = "squishy_volumes.capture_start_frame"
+        target.id_type = "OBJECT"
+        target.id = sim_obj
 
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers(bpy.types.Operator):
