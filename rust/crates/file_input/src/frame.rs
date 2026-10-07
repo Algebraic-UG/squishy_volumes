@@ -118,10 +118,10 @@ pub fn random_particle_bulk(
     vec![FrameBulk {
         meta: FrameBulkMeta {
             object_name,
-            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::Flags),
+            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::IsSolid),
         },
-        data: InputBulk::Ints(Cow::Owned(
-            rng.random_iter::<i32>()
+        data: InputBulk::Bool(Cow::Owned(
+            rng.random_iter::<bool>()
                 .take(num_particles as usize)
                 .collect(),
         )),
