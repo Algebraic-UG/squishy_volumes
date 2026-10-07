@@ -382,9 +382,7 @@ fn update_goal_positions(
                     })?,
                 );
                 goal_positions[particle_range].iter_mut().for_each(|p| {
-                    p[0] *= inv_scale;
-                    p[1] *= inv_scale;
-                    p[2] *= inv_scale;
+                    *p *= inv_scale;
                 });
             }
         }

@@ -14,6 +14,13 @@ use crate::{AllowedInBinding, GpuContext, GpuError};
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
 pub struct GpuStatus(u32);
 
+#[cfg(test)]
+impl GpuStatus {
+    pub fn reached_frame_time() -> Self {
+        Self(REACHED_FRAME_TIME)
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum GpuShaderError {
     #[error("{reporting_shader} exceeded table tries")]

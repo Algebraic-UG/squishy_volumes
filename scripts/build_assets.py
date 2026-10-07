@@ -37,7 +37,7 @@ def _load_tree_clipper_to_asset(
     print(f"Importing to asset {file_path}")
     intermediate = ImportIntermediate(file_path=file_path)
     intermediate.set_external(iter(externals))
-    report, asset_file_path = import_to_asset_file(
+    report, _asset_file_path = import_to_asset_file(
         import_intermediate=intermediate,
         parameters=ImportParameters(
             specific_handlers=BUILT_IN_IMPORTER,

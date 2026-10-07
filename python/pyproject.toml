@@ -17,6 +17,6 @@ dev = [
 ]
 tools = [
   "tree-clipper==0.1.12",
-  "nodebpy==520.33.0",
+  "nodebpy==520.34.0",
   "bpy==5.2",
 ]

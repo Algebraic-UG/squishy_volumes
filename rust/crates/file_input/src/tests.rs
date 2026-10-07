@@ -93,7 +93,7 @@ fn test_write_partial() {
     let (path, _guard) = test_file();
     let mut writer = InputWriter::new(path, test_header(100, 99, 33)).unwrap();
     for (animated_globals, bulk) in test_frames(100, 99, 33).iter().take(2) {
-        writer.start_frame(&animated_globals).unwrap();
+        writer.start_frame(animated_globals).unwrap();
         for bulk in bulk {
             writer.record_bulk(bulk).unwrap();
         }

@@ -1,0 +1,27 @@
+#!/bin/sh
+
+echo "Running basic checks as pre-push hook, these should match what CI checks for"
+echo "to skip this:"
+echo ""
+echo "  git push --no-verify"
+echo ""
+
+set -e
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+echo ""
+echo "====================================="
+echo "Python Checks"
+echo "====================================="
+echo ""
+uv run --project "${REPO_ROOT}/python" ruff format --diff
+uv run --project "${REPO_ROOT}/python" ruff check
+
+echo ""
+echo "====================================="
+echo "Rust Checks"
+echo "====================================="
+echo ""
+cd "${REPO_ROOT}/rust"
+cargo fmt --check
+cargo clippy --all-targets

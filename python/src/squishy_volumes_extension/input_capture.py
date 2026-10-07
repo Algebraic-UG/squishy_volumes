@@ -205,7 +205,16 @@ If that is what you want, enable the addon preference
 Or apply the object scale."""
                 )
 
-            record(python_name="squishy_volumes_flags", rust_name="Flags")
+            record(python_name="squishy_volumes_is_solid", rust_name="IsSolid")
+            record(python_name="squishy_volumes_is_fluid", rust_name="IsFluid")
+            record(
+                python_name="squishy_volumes_use_viscosity", rust_name="UseViscosity"
+            )
+            record(
+                python_name="squishy_volumes_use_sand_alpha", rust_name="UseSandAlpha"
+            )
+            record(python_name="squishy_volumes_has_goal", rust_name="HasGoal")
+
             record(python_name="squishy_volumes_transform", rust_name="Transforms")
             record(python_name="squishy_volumes_size", rust_name="Sizes")
             record(python_name="squishy_volumes_density", rust_name="Densities")

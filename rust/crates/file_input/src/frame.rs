@@ -41,7 +41,12 @@ impl BulkAttribute {
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkParticles {
-    Flags,
+    IsSolid,
+    IsFluid,
+    UseViscosity,
+    UseSandAlpha,
+    HasGoal,
+    IsActive,
     ColliderBits,
     Transforms,
     Sizes,
@@ -61,7 +66,12 @@ pub enum FrameBulkParticles {
 impl FrameBulkParticles {
     fn elem_count(&self) -> usize {
         match self {
-            Self::Flags
+            Self::IsSolid
+            | Self::IsFluid
+            | Self::UseViscosity
+            | Self::UseSandAlpha
+            | Self::HasGoal
+            | Self::IsActive
             | Self::ColliderBits
             | Self::Sizes
             | Self::Densities
@@ -108,10 +118,10 @@ pub fn random_particle_bulk(
     vec![FrameBulk {
         meta: FrameBulkMeta {
             object_name,
-            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::Flags),
+            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::IsSolid),
         },
-        data: InputBulk::Ints(Cow::Owned(
-            rng.random_iter::<i32>()
+        data: InputBulk::Bool(Cow::Owned(
+            rng.random_iter::<bool>()
                 .take(num_particles as usize)
                 .collect(),
         )),
@@ -324,7 +334,7 @@ impl InputFrame {
             num_particles,
             &mut rng,
         ));
-        bulk.append(&mut &mut random_particle_bulk(
+        bulk.append(&mut random_particle_bulk(
             "car".to_string(),
             num_particles,
             &mut rng,

@@ -12,6 +12,7 @@ use squishy_volumes_file_input::{
     AttributeError, BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError,
     InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
 };
+use squishy_volumes_util::ParticleFlags;
 use squishy_volumes_xpu::Harness;
 use thiserror::Error;
 
@@ -142,8 +143,25 @@ pub fn initialize_io_state(
                         input_ranges.get_particle_range(&bulk.meta.object_name)?;
 
                     match attribute {
-                        FrameBulkParticles::Flags => {
-                            flags[particle_range].copy_from_slice(bulk.data.assume_ints()?)
+                        FrameBulkParticles::IsSolid
+                        | FrameBulkParticles::IsFluid
+                        | FrameBulkParticles::UseViscosity
+                        | FrameBulkParticles::UseSandAlpha
+                        | FrameBulkParticles::HasGoal
+                        | FrameBulkParticles::IsActive => {
+                            let flag = match attribute {
+                                FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
+                                FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
+                                FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
+                                FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
+                                FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
+                                FrameBulkParticles::IsActive => todo!(),
+                                _ => unreachable!(),
+                            };
+                            let bits: &[bool] = bulk.data.assume_bools()?;
+                            for (f, bit) in flags[particle_range].iter_mut().zip(bits) {
+                                f.set(flag, *bit);
+                            }
                         }
                         FrameBulkParticles::ColliderBits => {
                             collider_bits[particle_range].copy_from_slice(bulk.data.assume_ints()?)
