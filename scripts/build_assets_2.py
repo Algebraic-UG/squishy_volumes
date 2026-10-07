@@ -190,7 +190,7 @@ class GenerateGrid(CustomGeometryGroup):
             total = x * y * z
 
         with g.Frame("Normalized Position From Index"):
-            i = g.Index()
+            i = g.Index().o.index
             normalized_position = g.CombineXYZ(
                 i // (y * z),
                 i % (y * z) // z,
