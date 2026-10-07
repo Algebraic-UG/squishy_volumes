@@ -1,31 +1,16 @@
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
 
 import bpy
-from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import (
     BooleanSocket,
     CustomGeometryGroup,
-    FloatSocket,
-    GeometrySocket,
-    IntegerSocket,
-    MatrixSocket,
-    SocketAccessor,
-    StringSocket,
-    VectorSocket,
 )
-from nodebpy.nodes.geometry import CombineBundle, StoreNamedAttribute
+from nodebpy.nodes.geometry import StoreNamedAttribute
 from nodebpy.types import (
-    InputAny,
-    InputBoolean,
-    InputFloat,
     InputGeometry,
     InputInteger,
-    InputMatrix,
-    InputMenu,
-    InputString,
     InputVector,
 )
 
