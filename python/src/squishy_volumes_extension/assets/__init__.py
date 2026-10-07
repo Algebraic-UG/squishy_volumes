@@ -81,9 +81,7 @@ def create_geometry_nodes_generate_collider() -> bpy.types.NodeTree:
 
 
 def create_geometry_nodes_generate_goal_positions() -> bpy.types.NodeTree:
-    return _load_tree(
-        "geometry_nodes_generate_goal_positions", "Squishy Volumes Set Goals"
-    )
+    return _load_tree_2("Squishy Volumes Set Goals")
 
 
 def reload_assets():

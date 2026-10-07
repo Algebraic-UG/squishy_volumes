@@ -404,12 +404,73 @@ def generate_particles() -> str:
     return tree.tree.name
 
 
+def set_goals() -> str:
+    with g.tree("Squishy Volumes Set Goals", split_inputs=True) as tree:
+        geometry = tree.inputs.geometry()
+        choose = tree.inputs.object("Choose")
+        move = tree.inputs.object("Move")
+
+        with g.Frame(label="Detect Choosen Particles") as _:
+            choose_geometry = (
+                choose >> g.ObjectInfo(transform_space="RELATIVE")
+            ).o.geometry
+            position = g.Position()
+            inside = g.BooleanMath.l_and(
+                IsInsideObject(geometry=choose_geometry, position=position, seed=0),
+                IsInsideObject(geometry=choose_geometry, position=position, seed=1),
+            )
+
+        with g.Frame(label="Local -> Chooser -> Mover -> Back to Local") as _:
+            goal_position = g.TransformPoint(
+                g.Position(),
+                g.MultiplyMatrices(
+                    g.MultiplyMatrices(
+                        (g.SelfObject() >> g.ObjectInfo()).o.transform
+                        >> g.InvertMatrix(),
+                        (move >> g.ObjectInfo()).o.transform,
+                    ),
+                    g.MultiplyMatrices(
+                        (choose >> g.ObjectInfo()).o.transform >> g.InvertMatrix(),
+                        (g.SelfObject() >> g.ObjectInfo()).o.transform,
+                    ),
+                ),
+            )
+        with g.Frame(label="Store Flag") as _:
+            inside = inside >> g.Reroute()
+            geometry = (
+                geometry
+                >> g.StoreNamedAttribute.point.boolean(
+                    selection=inside, name="squishy_volumes_has_goal", value=True
+                )
+                >> g.SetPosition(selection=inside, position=goal_position)
+            )
+
+        with g.Frame(label="Store Goal") as _:
+            (
+                geometry
+                >> g.StoreNamedAttribute.point.vector(
+                    name="squishy_volumes_goal_position",
+                    value=g.Position()
+                    >> g.TransformPoint(
+                        transform=(g.SelfObject() >> g.ObjectInfo()).o.transform
+                    ),
+                )
+                >> tree.outputs.geometry()
+            )
+
+    tree.tree.is_modifier = True
+    return tree.tree.name
+
+
 datablocks: set[bpy.types.ID] = set()
 for name in []:
     material = bpy.data.materials[name]
     material.asset_mark()
     datablocks.add(material)
-for name in [generate_particles()]:
+for name in [
+    generate_particles(),
+    set_goals(),
+]:
     node_group = bpy.data.node_groups[name]
     node_group.asset_mark()
     datablocks.add(node_group)
