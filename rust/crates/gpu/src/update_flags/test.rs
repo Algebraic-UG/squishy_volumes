@@ -9,8 +9,8 @@
 use super::*;
 
 fn check(
-    new_flags: &[ParticleFlags],
     flags: &[ParticleFlags],
+    new_flags: &[ParticleFlags],
     parameters @ Parameters { offset }: Parameters,
 ) {
     let gpu_flags = run(
@@ -37,6 +37,9 @@ fn check(
         .collect();
 
     for (cpu, gpu) in cpu_flags.into_iter().zip(gpu_flags) {
+        println!("{:032b}", cpu);
+        println!("{:032b}", gpu);
+        println!("--------------");
         assert_eq!(cpu, gpu);
     }
 }
@@ -63,6 +66,8 @@ fn run(
 
     let update_flags = UpdateFlags::new(&mut context, settings).unwrap();
     let mut encoder = context.device().create_command_encoder(&Default::default());
+
+    context.set_status(GpuStatus::reached_frame_time()).unwrap();
 
     let Output = update_flags
         .record(&mut context, &mut (&mut encoder).into(), input, parameters)
