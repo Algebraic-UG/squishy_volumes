@@ -241,10 +241,16 @@ impl CpuState {
                         .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
                         .map_err(FrameInputError::InputError)?;
                     match attr {
-                        FrameBulkParticles::Flags => {
-                            let flags: &[ParticleFlags] = bulk
+                        FrameBulkParticles::IsSolid => todo!(),
+                        FrameBulkParticles::IsFluid => todo!(),
+                        FrameBulkParticles::UseViscosity => todo!(),
+                        FrameBulkParticles::UseSandAlpha => todo!(),
+                        FrameBulkParticles::IsActive => todo!(),
+
+                        FrameBulkParticles::HasGoal => {
+                            let bits: &[bool] = bulk
                                 .data
-                                .assume_ints()
+                                .assume_bools()
                                 .map_err(|error| {
                                     error
                                         .attach_attr(bulk.meta.captured_attribute)
@@ -252,12 +258,10 @@ impl CpuState {
                                         .attach_frame(self.frame_input.frame() + 1)
                                 })
                                 .map_err(FrameInputError::InputError)?;
-                            // TODO: this needs to depend on what's recorded
-                            let mask = ParticleFlags::HAS_GOAL;
-                            for (i, flag) in particle_range.into_iter().zip(flags) {
+                            for (i, bit) in particle_range.into_iter().zip(bits) {
                                 let index = self.particles.reverse_sort_map[i];
-                                self.particles.flags[index as usize] &= !mask;
-                                self.particles.flags[index as usize] |= mask & *flag;
+                                self.particles.flags[index as usize]
+                                    .set(ParticleFlags::HAS_GOAL, *bit);
                             }
                         }
 

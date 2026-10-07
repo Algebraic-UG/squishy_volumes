@@ -702,19 +702,35 @@ impl GpuState {
 
                 let offset = particle_range.start as u32;
                 let allocation = match attribute {
-                    FrameBulkParticles::Flags => {
-                        let flags: &[ParticleFlags] = bulk
+                    FrameBulkParticles::IsSolid => todo!(),
+                    FrameBulkParticles::IsFluid => todo!(),
+                    FrameBulkParticles::UseViscosity => todo!(),
+                    FrameBulkParticles::UseSandAlpha => todo!(),
+                    FrameBulkParticles::IsActive => todo!(),
+
+                    // TODO: The GPU should handle bool data as well
+                    FrameBulkParticles::HasGoal => {
+                        let flags: Vec<ParticleFlags> = bulk
                             .data
-                            .assume_ints()
+                            .assume_bools()
                             .map_err(|error| {
                                 error
                                     .attach_attr(bulk.meta.captured_attribute)
                                     .attach_name(bulk.meta.object_name.clone())
                                     .attach_frame(self.frame_input.frame() + 1)
                             })
-                            .map_err(FrameInputError::InputError)?;
+                            .map_err(FrameInputError::InputError)?
+                            .into_iter()
+                            .map(|bit| {
+                                if *bit {
+                                    ParticleFlags::HAS_GOAL
+                                } else {
+                                    ParticleFlags::default()
+                                }
+                            })
+                            .collect();
 
-                        Allocation::new(self.gpu_context.device(), "new_flags", flags)?
+                        Allocation::new(self.gpu_context.device(), "new_flags", &flags)?
                     }
                     FrameBulkParticles::ColliderBits => todo!(),
                     FrameBulkParticles::Transforms => todo!(),
@@ -779,7 +795,13 @@ impl GpuState {
         } in &pending_input.particle_updates
         {
             match attribute {
-                FrameBulkParticles::Flags => {
+                FrameBulkParticles::IsSolid => todo!(),
+                FrameBulkParticles::IsFluid => todo!(),
+                FrameBulkParticles::UseViscosity => todo!(),
+                FrameBulkParticles::UseSandAlpha => todo!(),
+                FrameBulkParticles::IsActive => todo!(),
+
+                FrameBulkParticles::HasGoal => {
                     self.update_flags.record(
                         &mut self.gpu_context,
                         &mut encoder.into(),

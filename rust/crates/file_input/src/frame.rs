@@ -41,7 +41,12 @@ impl BulkAttribute {
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkParticles {
-    Flags,
+    IsSolid,
+    IsFluid,
+    UseViscosity,
+    UseSandAlpha,
+    HasGoal,
+    IsActive,
     ColliderBits,
     Transforms,
     Sizes,
@@ -61,7 +66,12 @@ pub enum FrameBulkParticles {
 impl FrameBulkParticles {
     fn elem_count(&self) -> usize {
         match self {
-            Self::Flags
+            Self::IsSolid
+            | Self::IsFluid
+            | Self::UseViscosity
+            | Self::UseSandAlpha
+            | Self::HasGoal
+            | Self::IsActive
             | Self::ColliderBits
             | Self::Sizes
             | Self::Densities
