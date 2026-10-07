@@ -2,7 +2,7 @@ import platform
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -11,19 +11,20 @@ wrap_dir = repo_root / "rust" / "crates" / "wrap"
 
 
 def get_version(cmd):
-    try:
-        print(f"running {cmd}")
-        result = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
-        )
-        first_line = result.stdout.splitlines()[0]
-        version = next(
-            (word for word in first_line.split() if any(c.isdigit() for c in word)),
-            "unknown",
-        )
-        return version
-    except Exception:
-        return "unknown"
+    print(f"running {cmd}")
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        check=True,
+    )
+    first_line = result.stdout.splitlines()[0]
+    version = next(
+        (word for word in first_line.split() if any(c.isdigit() for c in word)),
+        "unknown",
+    )
+    return version
 
 
 def build_component(
@@ -44,7 +45,7 @@ def build_component(
 
 def main():
     OUTPUT = wrap_dir / "sbom-buildtools.cdx.xml"
-    timestamp = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    timestamp = datetime.now(tz=timezone.utc).isoformat(timespec="seconds") + "Z"
 
     rustc_ver = get_version(["rustc", "--version"])
     cargo_ver = get_version(["cargo", "--version"])

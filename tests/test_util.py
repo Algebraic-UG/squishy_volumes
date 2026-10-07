@@ -25,6 +25,7 @@ from pathlib import Path
 import bpy
 import requests
 
+logger = logging.getLogger(__name__)
 PKG_ID = "squishy_volumes_extension"
 
 
@@ -62,7 +63,7 @@ def fetch_available_versions():
     response.raise_for_status()
     data = response.json()
 
-    return list(release["name"] for release in data)
+    return [release["name"] for release in data]
 
 
 def extension_repo_index(remote_url):
@@ -125,7 +126,7 @@ def extension_disable(remote_url):
 
 
 def download_from_git(url, path):
-    logging.info("Downloading: %s to %s", url, path)
+    logger.info("Downloading: %s to %s", url, path)
     session = requests.Session()
     session.headers.update({"Accept": "application/vnd.github+json"})
     with session.get(url=url, timeout=300, stream=True) as res:
@@ -138,13 +139,13 @@ def download_from_git(url, path):
 
 def temp_dir_create():
     tmpdir = Path(tempfile.mkdtemp(prefix="squishy_volumes_test_"))
-    logging.info("Test directory: %s", tmpdir)
+    logger.info("Test directory: %s", tmpdir)
     return tmpdir
 
 
 def temp_dir_cleanup(tmpdir):
     for p in tmpdir.glob("*"):
-        logging.info("Cleaning up: %s", p)
+        logger.info("Cleaning up: %s", p)
         p.unlink(missing_ok=True)
     tmpdir.rmdir()
 
