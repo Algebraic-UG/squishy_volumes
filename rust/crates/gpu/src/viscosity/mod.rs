@@ -43,7 +43,7 @@ impl Input {
     ) -> Result<Self, GpuError> {
         check_length!(particle_parameters, particle_velocity_gradients)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", &particle_parameters)?;
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_velocity_gradients = Allocation::new(
             device,
             "particle_position_gradients",

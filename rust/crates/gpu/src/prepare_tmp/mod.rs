@@ -75,7 +75,7 @@ impl Input {
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", &particle_parameters)?;
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_positions_and_collider_bits = Allocation::new(
             device,
             "particle_positions_and_collider_bits",

@@ -89,7 +89,7 @@ impl Input {
             Allocation::new(device, "indirect_particles", &[indirect_particles])?;
         let particle_flags = Allocation::new(device, "particle_parameters", particle_flags)?;
         let particle_parameters =
-            Allocation::new(device, "particle_parameters", &particle_parameters)?;
+            Allocation::new(device, "particle_parameters", particle_parameters)?;
         let particle_position_gradients = Allocation::new(
             device,
             "particle_position_gradients",

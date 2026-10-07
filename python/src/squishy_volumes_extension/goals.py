@@ -59,12 +59,8 @@ and forces particles to move towards them."""
 
         move.parent = choose
 
-        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
-            modifier["Socket_2"] = choose
-            modifier["Socket_3"] = move
-        else:
-            modifier.properties.inputs.Socket_2.value = choose
-            modifier.properties.inputs.Socket_3.value = move
+        modifier.properties.inputs.Socket_1.value = choose
+        modifier.properties.inputs.Socket_2.value = move
 
         obj.update_tag()
         context.view_layer.update()

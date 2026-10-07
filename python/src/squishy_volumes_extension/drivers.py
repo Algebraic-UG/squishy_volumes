@@ -29,16 +29,9 @@ def add_drivers(sim_obj, modifier):
     tree = modifier.node_group.interface.items_tree
     if "Grid Node Size" in tree:
         identifier = tree["Grid Node Size"].identifier
-
-        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
-            driver = modifier.driver_add(f'["{identifier}"]').driver
-        else:
-            driver = (
-                getattr(modifier.properties.inputs, identifier)
-                .driver_add("value")
-                .driver
-            )
-
+        driver = (
+            getattr(modifier.properties.inputs, identifier).driver_add("value").driver
+        )
         driver.expression = "grid_node_size"
         var = driver.variables.new()
         var.name = "grid_node_size"
@@ -46,6 +39,20 @@ def add_drivers(sim_obj, modifier):
         target = var.targets[0]
         target.fallback_value = 1
         target.data_path = "squishy_volumes.grid_node_size"
+        target.id_type = "OBJECT"
+        target.id = sim_obj
+    if "Start Frame" in tree:
+        identifier = tree["Start Frame"].identifier
+        driver = (
+            getattr(modifier.properties.inputs, identifier).driver_add("value").driver
+        )
+        driver.expression = "start_frame"
+        var = driver.variables.new()
+        var.name = "start_frame"
+        var.type = "SINGLE_PROP"
+        target = var.targets[0]
+        target.fallback_value = 1
+        target.data_path = "squishy_volumes.capture_start_frame"
         target.id_type = "OBJECT"
         target.id = sim_obj
 

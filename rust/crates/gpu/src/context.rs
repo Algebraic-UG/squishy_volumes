@@ -283,7 +283,11 @@ impl GpuContext {
     }
 
     pub fn reset_status(&mut self) -> Result<(), GpuAllocatorError> {
-        self.status = Allocation::new(&self.device, "status", &[GpuStatus::default()])?;
+        self.set_status(GpuStatus::default())
+    }
+
+    pub fn set_status(&mut self, status: GpuStatus) -> Result<(), GpuAllocatorError> {
+        self.status = Allocation::new(&self.device, "status", &[status])?;
         Ok(())
     }
 
