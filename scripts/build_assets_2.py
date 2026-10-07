@@ -314,7 +314,7 @@ def generate_particles() -> str:
             >> SampleParticles()
         )
 
-        parameters = dict()
+        parameters = {}
         parameters["Size"] = spacing
 
         with tree.inputs.panel("Initial Parameters"):
