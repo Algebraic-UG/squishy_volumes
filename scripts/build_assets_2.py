@@ -182,16 +182,8 @@ class GenerateGrid(CustomGeometryGroup):
         with g.Frame("Point Count, Total and Along XYZ"):
             xyz = extents.scale(1 / spacing)
 
-            def floor_and_max(c: FloatSocket) -> IntegerSocket:
-                return (
-                    c
-                    >> g.FloatToInteger(rounding_mode="FLOOR")
-                    # ... passes the chained value into this argument
-                    >> g.IntegerMath.maximum(..., 1)
-                ).o.value
-
             # we can iterate a VectorSocket directly, uses SeparateXYZ
-            x, y, z = [floor_and_max(c) for c in xyz]
+            x, y, z = [c.to_integer("FLOOR").max(1) for c in xyz]
 
             xyz = g.CombineXYZ(x, y, z)
 
