@@ -720,7 +720,7 @@ impl GpuState {
                                     .attach_frame(self.frame_input.frame() + 1)
                             })
                             .map_err(FrameInputError::InputError)?
-                            .into_iter()
+                            .iter()
                             .map(|bit| {
                                 if *bit {
                                     ParticleFlags::HAS_GOAL

@@ -94,8 +94,7 @@ fn test_many_random_props() {
         .chain(
             (test_inviscid_parameters(&mut rng))
                 .zip(repeat(ParticleFlags::IS_FLUID))
-                .collect::<Vec<_>>()
-                .into_iter(),
+                .collect::<Vec<_>>(),
         )
         .cycle()
         .take(n)

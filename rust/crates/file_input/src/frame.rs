@@ -334,7 +334,7 @@ impl InputFrame {
             num_particles,
             &mut rng,
         ));
-        bulk.append(&mut &mut random_particle_bulk(
+        bulk.append(&mut random_particle_bulk(
             "car".to_string(),
             num_particles,
             &mut rng,
