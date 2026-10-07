@@ -183,50 +183,6 @@ class SampleParticles(CustomGeometryGroup):
         )
 
 
-class SetFlag(CustomGeometryGroup):
-    _name = "Set Flag"
-    _color_tag = "ATTRIBUTE"
-
-    def __init__(
-        self,
-        geometry: InputGeometry = ...,
-        flag: InputMenu = ...,
-        value: InputBoolean = False,
-    ):
-        super().__init__(Geometry=geometry, Flag=flag, Value=value)
-
-    def _build_group(self, tree):
-        geometry = tree.inputs.geometry("Geometry")
-        flag = tree.inputs.menu("Flag")
-        value = tree.inputs.boolean("Value")
-
-        bit = g.BitMath.shift(
-            value.switch.integer(false=0, true=1),
-            g.MenuSwitch.integer(
-                menu=flag,
-                items={
-                    "IS_SOLID": 0,
-                    "IS_FLUID": 1,
-                    "USE_VISCOSITY": 2,
-                    "USE_SAND_ALPHA": 3,
-                    "HAS_GOAL": 4,
-                    "TOMBSTONED": 5,
-                    "FAILED": 6,
-                },
-            ),
-        )
-        (
-            geometry
-            >> StoreNamedAttribute.point.integer(
-                name="squishy_volumes_flags",
-                value=g.NamedAttribute.integer(name="squishy_volumes_flags")
-                >> g.BitMath.l_and(b=g.BitMath.l_not(bit))
-                >> g.BitMath.l_or(b=bit),
-            )
-            >> tree.outputs.geometry()
-        )
-
-
 class Record(CustomGeometryGroup):
     _name = "Particle Parameters"
 
@@ -332,14 +288,22 @@ class Record(CustomGeometryGroup):
         with g.Frame("Flags") as _:
             geometry = (
                 geometry
-                >> SetFlag(
-                    flag="IS_SOLID", value=g.Compare.integer.equal(0, material_type)
+                >> g.StoreNamedAttribute.point.boolean(
+                    name="squishy_volumes_is_solid",
+                    value=g.Compare.integer.equal(0, material_type),
                 )
-                >> SetFlag(
-                    flag="IS_FLUID", value=g.Compare.integer.equal(1, material_type)
+                >> g.StoreNamedAttribute.point.boolean(
+                    name="squishy_volumes_is_fluid",
+                    value=g.Compare.integer.equal(1, material_type),
                 )
-                >> SetFlag(flag="USE_VISCOSITY", value=viscosity)
-                >> SetFlag(flag="USE_SAND_ALPHA", value=sand_alpha)
+                >> g.StoreNamedAttribute.point.boolean(
+                    name="squishy_volumes_use_vicosity",
+                    value=viscosity,
+                )
+                >> g.StoreNamedAttribute.point.boolean(
+                    name="squishy_volumes_use_sand_alpha",
+                    value=sand_alpha,
+                )
             )
 
         geometry >> tree.outputs.geometry()
