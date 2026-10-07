@@ -27,16 +27,13 @@ jobs:
               enable-cache: true
 
           - name: Install dependencies
-            working-directory: python
-            run: uv sync --group lint
+            run: uv sync --project python --group lint
 
           - name: Check formatting
-            working-directory: python
-            run: uv run ruff format --diff
+            run: uv run ruff --project python format --diff
 
           - name: Check lint
-            working-directory: python
-            run: uv run ruff check
+            run: uv run ruff --project python check
 
     basic-rust-checks:
       name: Basic Rust Checks
