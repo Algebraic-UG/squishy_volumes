@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import bpy
+from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import (
-    BooleanSocket,
     CustomGeometryGroup,
     FloatSocket,
     GeometrySocket,
@@ -168,71 +168,57 @@ class GenerateGrid(CustomGeometryGroup):
     def __init__(self):
         super().__init__()
 
-    def _build_group(self, tree):
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry()
         sep = geometry >> g.GetGeometryBundle() >> g.SeparateBundle()
 
-        spacing = sep.items.float("Spacing")
-        random = sep.items.float("Random")
+        spacing = sep.items.float("Spacing").output
+        random = sep.items.float("Random").output
 
-        with g.Frame("Calculate Extents") as _:
+        with g.Frame("Calculate Extents"):
             bb = geometry >> g.BoundingBox()
-            extents = g.VectorMath.subtract()
-            bb.o.max >> extents.i.vector
-            bb.o.min >> extents.i.vector_001
+            extents = bb.o.max - bb.o.min
 
-        with g.Frame("Point Count, Total and Along XYZ") as _:
-            xyz = (
-                g.Math.divide(
-                    value=1.0,
-                    value_001=spacing,
-                )
-                >> g.VectorMath.scale(extents)
-                >> g.SeparateXYZ()
-            )
+        with g.Frame("Point Count, Total and Along XYZ"):
+            xyz = extents.scale(1 / spacing)
 
-            floor_and_max = lambda c: (
-                c
-                >> g.FloatToInteger(rounding_mode="FLOOR")
-                >> g.IntegerMath.maximum(value_001=1)
-            )
+            def floor_and_max(c: FloatSocket) -> IntegerSocket:
+                return (
+                    c
+                    >> g.FloatToInteger(rounding_mode="FLOOR")
+                    >> g.IntegerMath.maximum(
+                        ..., 1 # ... passes the chained value into this argument
+                    )
+                ).o.value
 
-            x = floor_and_max(xyz.o.x)
-            y = floor_and_max(xyz.o.y)
-            z = floor_and_max(xyz.o.z)
+            x, y, z = [floor_and_max(c) for c in xyz] # we can iterate a VectorSocket directly, uses SeparateXYZ
 
             xyz = g.CombineXYZ(x, y, z)
 
-            total = g.IntegerMath.multiply(g.IntegerMath.multiply(x, y), z)
+            total = x * y * z
 
         with g.Frame("Normalized Position From Index") as _:
             i = g.Index()
             normalized_position = g.CombineXYZ(
-                g.IntegerMath.divide_floor(i, g.IntegerMath.multiply(y, z)),
-                g.IntegerMath.modulo(g.IntegerMath.divide_floor(i, z), y),
-                g.IntegerMath.modulo(i, z),
+                i // (y * z),
+                i % (y * z) // z,
+                i % z,
             )
         with g.Frame("Add Radomness") as _:
-            normalized_position = g.VectorMath.add(
-                normalized_position,
-                g.RandomValue.vector(
-                    min=random >> g.VectorMath.scale(vector=(-1,) * 3),
-                    max=random >> g.VectorMath.scale(vector=(1,) * 3),
-                ),
+            normalized_position = normalized_position.o.vector + g.RandomValue.vector(
+                min=-random,
+                max=random,
             )
 
         with g.Frame("Denormalize Position") as _:
-            redivided = g.VectorMath.divide(
-                extents,
-                xyz,
-            )
+            redivided = extents / xyz
 
             position = g.VectorMath.multiply_add(
                 redivided,
                 normalized_position,
                 g.VectorMath.multiply_add(
                     redivided,
-                    (0.5,) * 3,
+                    0.5,
                     bb.o.min,
                 ),
             )
@@ -254,37 +240,32 @@ class IsInsideObject(CustomGeometryGroup):
     def __init__(
         self,
         geometry: InputGeometry = ...,
-        position: InputVector = (0.0,) * 3,
+        position: InputVector = (0.0, 0.0, 0.0),
         seed: InputInteger = 0,
     ):
-        super().__init__(
-            Geometry=geometry, Position=position, Seed=seed
-        )
+        super().__init__(Geometry=geometry, Position=position, Seed=seed)
 
     def _build_group(self, tree):
         geometry = tree.inputs.geometry("Geometry")
         bb = geometry >> g.BoundingBox()
-        extents = g.VectorMath.subtract()
-        bb.o.max >> extents.i.vector
-        bb.o.min >> extents.i.vector_001
-        xyz = extents >> g.SeparateXYZ()
+        extents = bb.o.max - bb.o.min
 
         dir = g.RandomValue.vector(
-            min=(-1.0,) * 3, max=(1.0,) * 3, seed=tree.inputs.integer("Seed")
+            min=-1,  # vector inputs accept single-values (they re-use)
+            max=1.0,
+            seed=tree.inputs.integer("Seed"),
         )
         raycast = g.Raycast(
             target_geometry=geometry,
             source_position=tree.inputs.vector("Position"),
             ray_direction=dir,
-            ray_length=g.Math.add(g.Math.add(xyz.o.x, xyz.o.y), xyz.o.z),
+            ray_length=extents.x
+            + extents.y
+            + extents.z,  # auto-adds "SeparateXYZ()" and re-uses
         )
 
-        g.BooleanMath.l_and(
-            raycast.o.is_hit,
-            g.Compare.float.greater_than(
-                a=g.VectorMath.dot_product(raycast.o.hit_normal, dir),
-                b=0.0,
-            ),
+        (
+            raycast.o.is_hit & (raycast.o.hit_normal.dot(dir) > 0)
         ) >> tree.outputs.boolean("Inside")
 
 
@@ -302,11 +283,8 @@ class SampleParticles(CustomGeometryGroup):
             geometry
             >> GenerateGrid()
             >> g.DeleteGeometry(
-                selection=g.BooleanMath.l_and(
-                    IsInsideObject(geometry, position, 0),
-                    IsInsideObject(geometry, position, 1),
-                )
-                >> g.BooleanMath.l_not()
+                selection=IsInsideObject(geometry, position, 0)
+                & IsInsideObject(geometry, position, 1)
             )
             >> tree.outputs.geometry()
         )
@@ -344,9 +322,7 @@ class SetFlag(CustomGeometryGroup):
         flag: InputMenu = ...,
         value: InputBoolean = False,
     ):
-        super().__init__(
-            Geometry=geometry, Flag=flag, Value=value
-        )
+        super().__init__(Geometry=geometry, Flag=flag, Value=value)
 
     def _build_group(self, tree):
         geometry = tree.inputs.geometry("Geometry")
@@ -386,7 +362,7 @@ class Record(CustomGeometryGroup):
     def __init__(self):
         super().__init__()
 
-    def _build_group(self, tree):
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry()
 
         items = (
@@ -398,48 +374,42 @@ class Record(CustomGeometryGroup):
             ).o.item
             >> g.SeparateBundle()
         ).items
-        initial_velocity_linear = items.vector("Initial Velocity Linear")
-        initial_velocity_angular = items.vector("Initial Velocity Angular")
-        density = items.float("Density")
-        viscosity_dynamic = items.float("Viscosity Dynamic")
-        viscosity_bulk = items.float("Viscosity Bulk")
-        youngs_modulus = items.float("Young's Modulus")
-        poissons_ratio = items.float("Poissons's Ratio")
-        sand_alpha_value = items.float("Sand Alpha Value")
-        bulk_modulus = items.float("Bulk Modulus")
-        exponent = items.integer("Exponent")
-        material_type = items.integer("Type")
-        viscosity = items.boolean("Viscosity")
-        sand_alpha = items.boolean("Sand Alpha")
-        size = items.float("Size")
+        initial_velocity_linear = items.vector("Initial Velocity Linear").output
+        initial_velocity_angular = items.vector("Initial Velocity Angular").output
+        density = items.float("Density").output
+        viscosity_dynamic = items.float("Viscosity Dynamic").output
+        viscosity_bulk = items.float("Viscosity Bulk").output
+        youngs_modulus = items.float("Young's Modulus").output
+        poissons_ratio = items.float("Poissons's Ratio").output
+        sand_alpha_value = items.float("Sand Alpha Value").output
+        bulk_modulus = items.float("Bulk Modulus").output
+        exponent = items.integer("Exponent").output
+        material_type = items.integer("Type").output
+        viscosity = items.boolean("Viscosity").output
+        sand_alpha = items.boolean("Sand Alpha").output
+        size = items.float("Size").output
+
+        trans = (g.SelfObject() >> g.ObjectInfo()).o.transform
+        pos_trans = g.Position() @ trans
 
         with g.Frame("Object Transform") as _:
-            info = g.SelfObject() >> g.ObjectInfo()
             geometry = geometry >> StoreNamedAttributeIfRecord.matrix(
                 name="transform",
                 value=g.CombineTransform(
-                    g.TransformPoint(g.Position(), info.o.transform),
-                    info.o.rotation,
-                    info.o.scale,
+                    pos_trans,
+                    trans.rotation,
+                    trans.scale,
                 ),
             )
 
-        with g.Frame("Initial Velocity") as _:
+        with g.Frame("Initial Velocity"):
             geometry = geometry >> StoreNamedAttributeIfRecord.vector(
                 name="initial_velocity",
-                value=g.VectorMath.add(
-                    initial_velocity_linear,
-                    g.VectorMath.cross_product(
-                        initial_velocity_angular,
-                        g.TransformDirection(
-                            g.Position(),
-                            (g.SelfObject() >> g.ObjectInfo()).o.transform,
-                        ),
-                    ),
-                ),
+                value=initial_velocity_linear
+                + initial_velocity_angular.cross(pos_trans),
             )
 
-        with g.Frame("Common Parameters") as _:
+        with g.Frame("Common Parameters"):
             geometry = (
                 geometry
                 >> StoreNamedAttributeIfRecord.float(name="size", value=size)
@@ -452,7 +422,7 @@ class Record(CustomGeometryGroup):
                 )
             )
 
-        with g.Frame("Solid Parameters") as _:
+        with g.Frame("Solid Parameters"):
             solid = (
                 geometry
                 >> StoreNamedAttributeIfRecord.float(
@@ -469,7 +439,7 @@ class Record(CustomGeometryGroup):
                 )
             )
 
-        with g.Frame("Fluid Parameters") as _:
+        with g.Frame("Fluid Parameters"):
             fluid = (
                 geometry
                 >> StoreNamedAttributeIfRecord.float(
@@ -484,7 +454,7 @@ class Record(CustomGeometryGroup):
 
         geometry = g.IndexSwitch.geometry(material_type, [solid, fluid])
 
-        with g.Frame("Flags") as _:
+        with g.Frame("Flags"):
             geometry = (
                 geometry
                 >> SetFlag(
@@ -549,11 +519,8 @@ with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
     with tree.inputs.panel("Parameters"):
         parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
         type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
-        is_solid = type_switch.add_item("Solid", 0).output
-        is_fluid = type_switch.add_item("Fluid", 1).output
-
-        assert isinstance(is_solid, BooleanSocket)
-        assert isinstance(is_fluid, BooleanSocket)
+        is_solid = type_switch.items.new(False, "Solid").output
+        is_fluid = type_switch.items.new(True, "Fluid").output
 
         parameters["Type"] = type_switch.o.output
         parameters["Young's Modulus"] = is_solid.switch.float(
