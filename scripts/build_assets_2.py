@@ -186,31 +186,31 @@ class GenerateGrid(CustomGeometryGroup):
                 return (
                     c
                     >> g.FloatToInteger(rounding_mode="FLOOR")
-                    >> g.IntegerMath.maximum(
-                        ..., 1 # ... passes the chained value into this argument
-                    )
+                    # ... passes the chained value into this argument
+                    >> g.IntegerMath.maximum(..., 1)
                 ).o.value
 
-            x, y, z = [floor_and_max(c) for c in xyz] # we can iterate a VectorSocket directly, uses SeparateXYZ
+            # we can iterate a VectorSocket directly, uses SeparateXYZ
+            x, y, z = [floor_and_max(c) for c in xyz]
 
             xyz = g.CombineXYZ(x, y, z)
 
             total = x * y * z
 
-        with g.Frame("Normalized Position From Index") as _:
+        with g.Frame("Normalized Position From Index"):
             i = g.Index()
             normalized_position = g.CombineXYZ(
                 i // (y * z),
                 i % (y * z) // z,
                 i % z,
             )
-        with g.Frame("Add Radomness") as _:
+        with g.Frame("Add Radomness"):
             normalized_position = normalized_position.o.vector + g.RandomValue.vector(
                 min=-random,
                 max=random,
             )
 
-        with g.Frame("Denormalize Position") as _:
+        with g.Frame("Denormalize Position"):
             redivided = extents / xyz
 
             position = g.VectorMath.multiply_add(
@@ -223,7 +223,7 @@ class GenerateGrid(CustomGeometryGroup):
                 ),
             )
 
-        with g.Frame("Generate Points") as _:
+        with g.Frame("Generate Points"):
             (
                 g.Points(
                     total,
@@ -259,9 +259,8 @@ class IsInsideObject(CustomGeometryGroup):
             target_geometry=geometry,
             source_position=tree.inputs.vector("Position"),
             ray_direction=dir,
-            ray_length=extents.x
-            + extents.y
-            + extents.z,  # auto-adds "SeparateXYZ()" and re-uses
+            # .x/.y/.z auto-add a single SeparateXYZ() and re-use it
+            ray_length=extents.x + extents.y + extents.z,
         )
 
         (
@@ -283,8 +282,10 @@ class SampleParticles(CustomGeometryGroup):
             geometry
             >> GenerateGrid()
             >> g.DeleteGeometry(
-                selection=IsInsideObject(geometry, position, 0)
-                & IsInsideObject(geometry, position, 1)
+                selection=~(
+                    IsInsideObject(geometry, position, 0)
+                    & IsInsideObject(geometry, position, 1)
+                )
             )
             >> tree.outputs.geometry()
         )
@@ -389,14 +390,14 @@ class Record(CustomGeometryGroup):
         sand_alpha = items.boolean("Sand Alpha").output
         size = items.float("Size").output
 
-        trans = (g.SelfObject() >> g.ObjectInfo()).o.transform
-        pos_trans = g.Position() @ trans
+        trans = g.SelfObject().o.self_object.matrix()
+        pos = g.Position().o.position
 
-        with g.Frame("Object Transform") as _:
+        with g.Frame("Object Transform"):
             geometry = geometry >> StoreNamedAttributeIfRecord.matrix(
                 name="transform",
                 value=g.CombineTransform(
-                    pos_trans,
+                    pos.transform(trans),
                     trans.rotation,
                     trans.scale,
                 ),
@@ -406,7 +407,7 @@ class Record(CustomGeometryGroup):
             geometry = geometry >> StoreNamedAttributeIfRecord.vector(
                 name="initial_velocity",
                 value=initial_velocity_linear
-                + initial_velocity_angular.cross(pos_trans),
+                + initial_velocity_angular.cross(pos.transform_direction(trans)),
             )
 
         with g.Frame("Common Parameters"):
@@ -519,8 +520,8 @@ with g.tree("Squishy Volumes Generate Particles", split_inputs=True) as tree:
     with tree.inputs.panel("Parameters"):
         parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
         type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
-        is_solid = type_switch.items.new(False, "Solid").output
-        is_fluid = type_switch.items.new(True, "Fluid").output
+        is_solid = type_switch.items.new(0, "Solid").output
+        is_fluid = type_switch.items.new(1, "Fluid").output
 
         parameters["Type"] = type_switch.o.output
         parameters["Young's Modulus"] = is_solid.switch.float(
