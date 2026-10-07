@@ -70,7 +70,6 @@ def _can_add(obj: bpy.types.ID) -> bool:
 
 def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
     sim_obj = get_simulation_object_with_uuid(uuid)
-    sim_props = sim_obj.squishy_volumes
     input_obj = bpy.data.objects[name]
     if not _can_add(input_obj):
         raise RuntimeError(f"Can't add {input_obj.name}")
