@@ -26,12 +26,8 @@
             "command": "uv",
             "args": [
                 "run",
-                "--python",
-                "3.13",
-                "--with",
-                "bpy==5.2",
-                "--with",
-                "nodebpy==520.31.0",
+                "--project",
+                "${workspaceFolder}/python",
                 "./scripts/build_assets_2.py"
             ]
         }
