@@ -5,7 +5,7 @@ import bpy
 from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
-from nodebpy.builder import CustomGeometryGroup
+from nodebpy.builder import CustomGeometryGroup, MatrixSocket
 from nodebpy.types import (
     InputGeometry,
     InputInteger,
@@ -362,14 +362,15 @@ def set_goals() -> str:
                 choose_geometry, position, 1
             )
 
-        self_matrix = g.SelfObject().o.self_object.matrix()
+        def self_matrix() -> MatrixSocket:
+           return g.SelfObject().o.self_object.matrix()
 
         with g.Frame(label="Local -> Chooser -> Mover -> Back to Local"):
             goal_position = g.Position().o.position.transform(
-                self_matrix.invert()
+                self_matrix().invert()
                 @ move.matrix()
                 @ choose.matrix().invert()
-                @ self_matrix
+                @ self_matrix()
             )
         with g.Frame(label="Store Flag"):
             inside = inside >> g.Reroute()
@@ -386,7 +387,7 @@ def set_goals() -> str:
                 geometry
                 >> g.StoreNamedAttribute.point.vector(
                     name="squishy_volumes_goal_position",
-                    value=g.Position().o.position.transform(self_matrix),
+                    value=g.Position().o.position.transform(self_matrix()),
                 )
                 >> tree.outputs.geometry()
             )
