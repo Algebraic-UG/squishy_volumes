@@ -556,6 +556,7 @@ impl GpuState {
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
+            particle_velocity_gradients,
             grid,
         } = mapped_downloads;
 
@@ -597,8 +598,10 @@ impl GpuState {
                 .into_iter()
                 .map(|v| v.xyz().into())
                 .collect();
-            // https://github.com/Algebraic-UG/squishy_volumes/issues/368
-            let velocity_gradients = self.io_particles.velocity_gradients.clone();
+            let velocity_gradients = particle_velocity_gradients
+                .into_iter()
+                .map(|m| m.fixed_view::<3, 3>(0, 0).into())
+                .collect();
 
             // TODO: does it make sense to have this "variable"
             let initial_positions = self.io_particles.initial_positions.clone();
@@ -933,6 +936,11 @@ impl Downloads {
                     .variable_particle_input
                     .particle_velocities
                     .clone(),
+                gpu_state
+                    .step_input
+                    .variable_particle_input
+                    .particle_velocity_gradients
+                    .clone(),
             ],
         );
         let grid = store_grid.then(|| {
@@ -975,6 +983,7 @@ impl DownloadsReady<'_> {
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
+            particle_velocity_gradients,
         ] = self.always.try_into().unwrap();
 
         let grid = self
@@ -998,6 +1007,7 @@ impl DownloadsReady<'_> {
             particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec()?,
             particle_position_gradients: particle_position_gradients.to_vec()?,
             particle_velocities: particle_velocities.to_vec()?,
+            particle_velocity_gradients: particle_velocity_gradients.to_vec()?,
             grid,
         })
     }
@@ -1014,6 +1024,7 @@ struct MappedDownloads {
     particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
     particle_position_gradients: Vec<Matrix4x3<f32>>,
     particle_velocities: Vec<Vector4<f32>>,
+    particle_velocity_gradients: Vec<Matrix4x3<f32>>,
 
     grid: Option<MappedDownloadsGrid>,
 }
