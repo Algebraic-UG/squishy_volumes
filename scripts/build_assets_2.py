@@ -179,7 +179,7 @@ class Record(CustomGeometryGroup):
 
         with g.Frame("Initial Velocity"):
             geometry = geometry >> g.StoreNamedAttribute.point.vector(
-                name="squishy_volumes_initial_velocity",
+                name="squishy_volumes_velocity",
                 value=initial_velocity_linear
                 + initial_velocity_angular.cross(pos.transform_direction(trans)),
             )
