@@ -363,7 +363,7 @@ def set_goals() -> str:
             )
 
         def self_matrix() -> MatrixSocket:
-           return g.SelfObject().o.self_object.matrix()
+            return g.SelfObject().o.self_object.matrix()
 
         with g.Frame(label="Local -> Chooser -> Mover -> Back to Local"):
             goal_position = g.Position().o.position.transform(
