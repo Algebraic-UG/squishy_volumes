@@ -16,3 +16,6 @@ thiserror.workspace = true
 squishy_volumes_mesh_util.path = "../mesh_util"
 squishy_volumes_file_util.path = "../file_util"
 squishy_volumes_util.path = "../util"
+
+alembic_rust.git = "https://github.com/Algebraic-UG/alembic_rust"
+alembic_rust.rev = "95682aae0b93fcade28b7120b950ad990ba158c1"
