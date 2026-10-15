@@ -159,9 +159,11 @@ impl CpuState {
         });
 
         let bvh = store_bvh.then(|| self.frame_input.bvh().clone());
+        let ranges = self.frame_input.input_ranges().clone();
 
         Ok(IoState {
             time,
+            ranges,
             animated_globals,
             particles,
             goal_positions,

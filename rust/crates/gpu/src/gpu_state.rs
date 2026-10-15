@@ -663,8 +663,12 @@ impl GpuState {
                 }
             },
         );
+
+        let ranges = self.frame_input.input_ranges().clone();
+
         let io_state = IoState {
             time: self.time,
+            ranges,
             animated_globals: self.animated_globals,
             particles,
             goal_positions,

@@ -373,6 +373,7 @@ pub fn initialize_io_state(
 
     Ok(IoState {
         time: 0.,
+        ranges: input_ranges,
         animated_globals,
         particles,
         goal_positions,
