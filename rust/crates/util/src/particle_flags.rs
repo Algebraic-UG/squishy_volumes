@@ -18,7 +18,7 @@
     serde::Serialize,
     serde::Deserialize,
 )]
-pub struct ParticleFlags(u32);
+pub struct ParticleFlags(pub u32);
 
 bitflags::bitflags! {
     impl ParticleFlags: u32{

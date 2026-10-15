@@ -23,6 +23,7 @@ tracing.workspace = true
 serde.workspace = true
 bytemuck.workspace = true
 bitflags.workspace = true
+itertools.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
