@@ -9,20 +9,14 @@
 use crate::*;
 
 impl Frame {
-    pub fn read(
-        ranges: &squishy_volumes_file_input::InputRanges,
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<Self, Error> {
-        Self::read_inner(ranges, &path).map_err(|error| Error::Read {
+    pub fn read(path: impl AsRef<std::path::Path>) -> Result<Self, Error> {
+        Self::read_inner(&path).map_err(|error| Error::Read {
             path: path.as_ref().to_path_buf(),
             error,
         })
     }
 
-    fn read_inner(
-        ranges: &squishy_volumes_file_input::InputRanges,
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<Self, ReadError> {
+    fn read_inner(path: impl AsRef<std::path::Path>) -> Result<Self, ReadError> {
         let (content, mut reader) =
             alembic_rust::read_archive(std::io::BufReader::new(std::fs::File::open(&path)?))?;
 
@@ -37,10 +31,12 @@ impl Frame {
             return Err(ReadError::MissingBlob);
         };
 
-        let mut blob_reader = reader.user_data_reader(&user_data)?;
+        let mut blob_reader = reader.user_data_reader(user_data)?;
         squishy_volumes_file_util::read_magic_and_version(magic_bytes, &mut blob_reader)?;
         let mut frame: Self = bincode::deserialize_from(&mut blob_reader)?;
         drop(blob_reader);
+
+        let total_particles = frame.io_state.ranges.total_particles;
 
         // TODO: also get gridnodes, maybe bvh
         let Particles {
@@ -57,16 +53,16 @@ impl Frame {
         } = &mut frame.io_state.particles;
 
         let mut split_parameters =
-            squishy_volumes_util::SplitParameters::with_capacity(ranges.total_particles);
+            squishy_volumes_util::SplitParameters::with_capacity(total_particles);
 
-        let mut flags = Vec::<[f32; 2]>::with_capacity(ranges.total_particles);
-        let mut collider_bits = Vec::<[f32; 2]>::with_capacity(ranges.total_particles);
-        let mut position_gradients_x = Vec::<[f32; 3]>::with_capacity(ranges.total_particles);
-        let mut position_gradients_y = Vec::<[f32; 3]>::with_capacity(ranges.total_particles);
-        let mut position_gradients_z = Vec::<[f32; 3]>::with_capacity(ranges.total_particles);
-        let mut velocity_gradients_x = Vec::<[f32; 3]>::with_capacity(ranges.total_particles);
-        let mut velocity_gradients_y = Vec::<[f32; 3]>::with_capacity(ranges.total_particles);
-        let mut velocity_gradients_z = Vec::<[f32; 3]>::with_capacity(ranges.total_particles);
+        let mut flags = Vec::<[f32; 2]>::with_capacity(total_particles);
+        let mut collider_bits = Vec::<[f32; 2]>::with_capacity(total_particles);
+        let mut position_gradients_x = Vec::<[f32; 3]>::with_capacity(total_particles);
+        let mut position_gradients_y = Vec::<[f32; 3]>::with_capacity(total_particles);
+        let mut position_gradients_z = Vec::<[f32; 3]>::with_capacity(total_particles);
+        let mut velocity_gradients_x = Vec::<[f32; 3]>::with_capacity(total_particles);
+        let mut velocity_gradients_y = Vec::<[f32; 3]>::with_capacity(total_particles);
+        let mut velocity_gradients_z = Vec::<[f32; 3]>::with_capacity(total_particles);
 
         let mut alembic_data = AlembicData {
             elastic_energies,
@@ -84,7 +80,7 @@ impl Frame {
             velocity_gradients_z: &mut velocity_gradients_z,
         };
 
-        for (name, range) in &ranges.objects {
+        for (name, range) in &frame.io_state.ranges.objects {
             let squishy_volumes_file_input::InputRange::Particles(
                 squishy_volumes_file_input::InputRangeParticles { particle_range },
             ) = range
@@ -97,7 +93,7 @@ impl Frame {
                     .get(name)
                     .ok_or(ReadError::MissingPoints(name.clone()))?,
                 &mut reader,
-                *particle_range,
+                particle_range.clone(),
                 &mut alembic_data,
             )
             .map_err(|error| ReadError::Points {
@@ -152,7 +148,7 @@ impl<'a, R: Read + Seek> PointsReader<'a, R> {
                         name: name.to_string(),
                         error,
                     })?,
-                &mut destination[self.particle_range],
+                &mut destination[self.particle_range.clone()],
             )
             .map_err(|error| ReadErrorPoints::Alembic {
                 name: name.to_string(),

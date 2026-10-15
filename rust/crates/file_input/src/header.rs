@@ -117,24 +117,24 @@ impl InputHeader {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum InputRange {
     Particles(InputRangeParticles),
     Collider(InputRangeCollider),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct InputRangeParticles {
-    pub particle_range: std::range::Range<usize>,
+    pub particle_range: std::ops::Range<usize>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct InputRangeCollider {
-    pub vertex_range: std::range::Range<usize>,
-    pub triangle_range: std::range::Range<usize>,
+    pub vertex_range: std::ops::Range<usize>,
+    pub triangle_range: std::ops::Range<usize>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct InputRanges {
     pub total_particles: usize,
     pub total_vertices: usize,
@@ -152,9 +152,8 @@ impl InputRanges {
                         let num_particles = *num_particles as usize;
                         result.total_particles += num_particles;
                         InputRange::Particles(InputRangeParticles {
-                            particle_range: (result.total_particles - num_particles
-                                ..result.total_particles)
-                                .into(),
+                            particle_range: result.total_particles - num_particles
+                                ..result.total_particles,
                         })
                     }
                     InputObject::Collider(InputObjectCollider {
@@ -168,12 +167,10 @@ impl InputRanges {
                         result.total_vertices += num_vertices;
                         result.total_triangles += num_triangles;
                         InputRange::Collider(InputRangeCollider {
-                            vertex_range: (result.total_vertices - num_vertices
-                                ..result.total_vertices)
-                                .into(),
-                            triangle_range: (result.total_triangles - num_triangles
-                                ..result.total_triangles)
-                                .into(),
+                            vertex_range: result.total_vertices - num_vertices
+                                ..result.total_vertices,
+                            triangle_range: result.total_triangles - num_triangles
+                                ..result.total_triangles,
                         })
                     }
                 };
@@ -191,7 +188,7 @@ impl InputRanges {
             .get(name)
             .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
-            Ok(*range)
+            Ok(range.clone())
         } else {
             Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
@@ -206,7 +203,7 @@ impl InputRanges {
             .get(name)
             .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
-            Ok(*range)
+            Ok(range.clone())
         } else {
             Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }

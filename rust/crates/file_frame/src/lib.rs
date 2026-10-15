@@ -19,7 +19,7 @@ mod write;
 
 use std::{
     io::{Read, Seek, Write},
-    range::Range,
+    ops::Range,
 };
 
 use alembic_mapping::*;

@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use squishy_volumes_file_input::InputRanges;
 use squishy_volumes_util::AnimatedGlobals;
 
 use super::*;
@@ -13,6 +14,8 @@ use super::*;
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct IoState {
     pub time: f64,
+
+    pub ranges: InputRanges,
 
     pub animated_globals: AnimatedGlobals,
 

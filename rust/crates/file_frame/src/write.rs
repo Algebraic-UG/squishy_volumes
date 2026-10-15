@@ -9,22 +9,16 @@
 use crate::*;
 
 impl Frame {
-    pub fn write(
-        self,
-        ranges: &squishy_volumes_file_input::InputRanges,
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<u64, Error> {
+    pub fn write(self, path: impl AsRef<std::path::Path>) -> Result<u64, Error> {
         let temp = Self::get_temp(&path).map_err(|error| Error::Write {
             path: path.as_ref().to_path_buf(),
             error,
         })?;
 
-        let size = self
-            .write_temp(ranges, &temp)
-            .map_err(|error| Error::Write {
-                path: temp.clone(),
-                error,
-            })?;
+        let size = self.write_temp(&temp).map_err(|error| Error::Write {
+            path: temp.clone(),
+            error,
+        })?;
 
         std::fs::rename(&temp, &path).map_err(|error| Error::Write {
             path: path.as_ref().to_path_buf(),
@@ -41,11 +35,7 @@ impl Frame {
         Ok(dir.join("temp.bin"))
     }
 
-    fn write_temp(
-        mut self,
-        ranges: &squishy_volumes_file_input::InputRanges,
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<u64, WriteError> {
+    fn write_temp(mut self, path: impl AsRef<std::path::Path>) -> Result<u64, WriteError> {
         let Some(dir) = path.as_ref().parent() else {
             return Err(WriteError::NoParent);
         };
@@ -107,7 +97,7 @@ impl Frame {
             velocity_gradients_z: &mut velocity_gradients_z,
         };
 
-        for (name, range) in &ranges.objects {
+        for (name, range) in &self.io_state.ranges.objects {
             let squishy_volumes_file_input::InputRange::Particles(
                 squishy_volumes_file_input::InputRangeParticles { particle_range },
             ) = range
@@ -116,7 +106,7 @@ impl Frame {
             };
             PointsWriter::write_points(
                 writer.begin_points(&name, particle_range.end - particle_range.start)?,
-                *particle_range,
+                particle_range.clone(),
                 &mut alembic_data,
             )
             .map_err(|error| WriteError::Points {
@@ -150,7 +140,7 @@ struct PointsWriter<'a, W: Write> {
 impl<'a, W: Write + Seek> PointsWriter<'a, W> {
     fn w<T: AttributeElement>(&mut self, name: &str, source: &[T]) -> Result<(), WriteErrorPoints> {
         self.writer
-            .attribute(name, &source[self.particle_range])
+            .attribute(name, &source[self.particle_range.clone()])
             .map_err(|error| WriteErrorPoints::Attribute {
                 name: name.to_string(),
                 error,
