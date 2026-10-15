@@ -7,7 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 pub fn frame_path(cache_dir: impl AsRef<std::path::Path>, frame: usize) -> std::path::PathBuf {
-    cache_dir.as_ref().join(format!("frame_{frame:05}.bin"))
+    cache_dir.as_ref().join(format!("frame_{frame:05}.abc"))
 }
 
 pub fn get_frame_number(frame_path: impl AsRef<std::path::Path>) -> Option<usize> {
@@ -15,7 +15,7 @@ pub fn get_frame_number(frame_path: impl AsRef<std::path::Path>) -> Option<usize
         return None;
     }
     let file_name = frame_path.as_ref().file_name()?.to_str()?;
-    if !file_name.starts_with("frame_") || !file_name.ends_with(".bin") {
+    if !file_name.starts_with("frame_") || !file_name.ends_with(".abc") {
         return None;
     }
     file_name
