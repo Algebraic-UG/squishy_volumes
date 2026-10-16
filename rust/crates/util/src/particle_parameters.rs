@@ -41,47 +41,8 @@ pub struct SplitParameters {
     pub exponent: Vec<T>,
 }
 
-impl From<&[ParticleParameters]> for SplitParameters {
-    fn from(value: &[ParticleParameters]) -> Self {
-        let mut result = Self {
-            density: Vec::with_capacity(value.len()),
-            initial_volume: Vec::with_capacity(value.len()),
-            viscosity_dynamic: Vec::with_capacity(value.len()),
-            viscosity_bulk: Vec::with_capacity(value.len()),
-            youngs_modulus: Vec::with_capacity(value.len()),
-            poissons_ratio: Vec::with_capacity(value.len()),
-            sand_alpha: Vec::with_capacity(value.len()),
-            bulk_modulus: Vec::with_capacity(value.len()),
-            exponent: Vec::with_capacity(value.len()),
-        };
-        for ParticleParameters {
-            density,
-            initial_volume,
-            viscosity_dynamic,
-            viscosity_bulk,
-            youngs_modulus,
-            poissons_ratio,
-            sand_alpha,
-            bulk_modulus,
-            exponent,
-        } in value
-        {
-            result.density.push(*density);
-            result.initial_volume.push(*initial_volume);
-            result.viscosity_dynamic.push(*viscosity_dynamic);
-            result.viscosity_bulk.push(*viscosity_bulk);
-            result.youngs_modulus.push(*youngs_modulus);
-            result.poissons_ratio.push(*poissons_ratio);
-            result.sand_alpha.push(*sand_alpha);
-            result.bulk_modulus.push(*bulk_modulus);
-            result.exponent.push(*exponent as T);
-        }
-        result
-    }
-}
-
 impl SplitParameters {
-    pub fn to_zipped(self) -> Vec<ParticleParameters> {
+    pub fn to_zipped(self) -> impl Iterator<Item = ParticleParameters> {
         izip!(
             self.density,
             self.initial_volume,
@@ -118,21 +79,6 @@ impl SplitParameters {
                 }
             },
         )
-        .collect()
-    }
-
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self {
-            density: Vec::with_capacity(capacity),
-            initial_volume: Vec::with_capacity(capacity),
-            viscosity_dynamic: Vec::with_capacity(capacity),
-            viscosity_bulk: Vec::with_capacity(capacity),
-            youngs_modulus: Vec::with_capacity(capacity),
-            poissons_ratio: Vec::with_capacity(capacity),
-            sand_alpha: Vec::with_capacity(capacity),
-            bulk_modulus: Vec::with_capacity(capacity),
-            exponent: Vec::with_capacity(capacity),
-        }
     }
 }
 
