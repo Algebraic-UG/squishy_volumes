@@ -8,6 +8,7 @@
 
 use std::num::NonZero;
 
+use nalgebra::Matrix3;
 use squishy_volumes_file_frame::{
     IoState, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
 };
@@ -36,7 +37,7 @@ pub struct CpuState {
 impl CpuState {
     pub fn new(
         frame: usize,
-        io_state: IoState,
+        mut io_state: IoState,
         input_reader: squishy_volumes_file_input::InputReader,
     ) -> Result<Self, Error> {
         let time = io_state.time;
@@ -54,32 +55,22 @@ impl CpuState {
         let mut velocity_gradients = Vec::with_capacity(n);
         let mut elastic_energies = Vec::with_capacity(n);
         let mut collider_bits = Vec::with_capacity(n);
-        for (name, mut object) in io_state.particle_objects {
-            let range = &input_reader
-                .header()
-                .get_particle_object(&name)
-                .map_err(|error| {
-                    Error::FrameInput(FrameInputError::InputError(error.attach_frame(frame)))
-                })?
-                .particle_range;
-            flags.splice(
-                range.clone(),
+        for object in io_state.particle_objects.values_mut() {
+            flags.extend(
                 object
                     .remove_attr::<attribute::Flags>()
                     .into_iter()
                     .map(two_f32_to_u32)
                     .map(ParticleFlags),
             );
-            collider_bits.splice(
-                range.clone(),
+            collider_bits.extend(
                 object
                     .remove_attr::<attribute::ColliderBits>()
                     .into_iter()
                     .map(two_f32_to_u32),
             );
 
-            parameters.splice(
-                range.clone(),
+            parameters.extend(
                 SplitParameters {
                     density: object.remove_attr::<attribute::Density>(),
                     initial_volume: object.remove_attr::<attribute::InitialVolumes>(),
@@ -94,38 +85,40 @@ impl CpuState {
                 .to_zipped(),
             );
 
-            initial_positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attr::<attribute::InitialPosition>(),
+            initial_positions.append(&mut bytemuck::cast_vec(
+                object.remove_attr::<attribute::InitialPosition>(),
             ));
-            goal_positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attr::<attribute::InitialPosition>(),
+            goal_positions.append(&mut bytemuck::cast_vec(
+                object.remove_attr::<attribute::InitialPosition>(),
             ));
-            positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attr::<attribute::InitialPosition>(),
+            positions.append(&mut bytemuck::cast_vec(
+                object.remove_attr::<attribute::InitialPosition>(),
             ));
-            position_gradients.splice(
-                range.clone(),
+            position_gradients.extend(
                 combine_matrices([
                     object.remove_attr::<attribute::PositionGradientX>(),
                     object.remove_attr::<attribute::PositionGradientY>(),
                     object.remove_attr::<attribute::PositionGradientZ>(),
                 ])
-                .map(Into::into),
+                .map(Into::<Matrix3<f32>>::into),
             );
-            velocities[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attr::<attribute::Velocity>(),
+            velocities.append(&mut bytemuck::cast_vec(
+                object.remove_attr::<attribute::Velocity>(),
             ));
-            velocity_gradients.splice(
-                range.clone(),
+            velocity_gradients.extend(
                 combine_matrices([
                     object.remove_attr::<attribute::VelocityGradientX>(),
                     object.remove_attr::<attribute::VelocityGradientY>(),
                     object.remove_attr::<attribute::VelocityGradientZ>(),
                 ])
-                .map(Into::into),
+                .map(Into::<Matrix3<f32>>::into),
             );
-            elastic_energies[range.clone()]
-                .copy_from_slice(&object.remove_attr::<attribute::ElasticEnergy>());
+            elastic_energies.append(&mut object.remove_attr::<attribute::ElasticEnergy>());
+
+            if !object.attributes.is_empty() {
+                tracing::error!(?object.attributes);
+                panic!("Missed attrbiutes");
+            }
         }
 
         let particles = Particles {
