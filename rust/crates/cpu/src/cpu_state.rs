@@ -8,9 +8,11 @@
 
 use std::num::NonZero;
 
-use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, InputRangeParticles};
-use squishy_volumes_util::{AnimatedGlobals, ParticleFlags};
+use squishy_volumes_file_frame::{
+    IoState, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
+};
+use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
+use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, SplitParameters, attribute};
 use squishy_volumes_xpu::{FrameInput, FrameInputError};
 
 use super::*;
@@ -40,29 +42,100 @@ impl CpuState {
         let time = io_state.time;
         let animated_globals = io_state.animated_globals;
 
-        let sort_map: Vec<u32> = (0..io_state.particles.flags.len() as u32).collect();
-        let reverse_sort_map = sort_map.clone();
-        let flags = io_state.particles.flags;
-        let parameters = io_state.particles.parameters;
-        let initial_positions = bytemuck::try_cast_vec(io_state.particles.initial_positions)
-            .map_err(|_| Error::CastFailed)?;
-        let positions =
-            bytemuck::try_cast_vec(io_state.particles.positions).map_err(|_| Error::CastFailed)?;
-        let position_gradients = bytemuck::try_cast_vec(io_state.particles.position_gradients)
-            .map_err(|_| Error::CastFailed)?;
-        let velocities =
-            bytemuck::try_cast_vec(io_state.particles.velocities).map_err(|_| Error::CastFailed)?;
-        let velocity_gradients = bytemuck::try_cast_vec(io_state.particles.velocity_gradients)
-            .map_err(|_| Error::CastFailed)?;
-        let elastic_energies = io_state.particles.elastic_energies;
-        let collider_bits = io_state.particles.collider_bits;
+        let n = input_reader.header().total_particles;
+
+        let mut flags = Vec::with_capacity(n);
+        let mut parameters = Vec::with_capacity(n);
+        let mut initial_positions = Vec::with_capacity(n);
+        let mut goal_positions = Vec::with_capacity(n);
+        let mut positions = Vec::with_capacity(n);
+        let mut position_gradients = Vec::with_capacity(n);
+        let mut velocities = Vec::with_capacity(n);
+        let mut velocity_gradients = Vec::with_capacity(n);
+        let mut elastic_energies = Vec::with_capacity(n);
+        let mut collider_bits = Vec::with_capacity(n);
+        for (name, mut object) in io_state.particle_objects {
+            let range = &input_reader
+                .header()
+                .get_particle_object(&name)
+                .map_err(|error| {
+                    Error::FrameInput(FrameInputError::InputError(error.attach_frame(frame)))
+                })?
+                .particle_range;
+            flags.splice(
+                range.clone(),
+                object
+                    .remove_attribute::<attribute::Flags>()
+                    .into_iter()
+                    .map(two_f32_to_u32)
+                    .map(ParticleFlags),
+            );
+            collider_bits.splice(
+                range.clone(),
+                object
+                    .remove_attribute::<attribute::ColliderBits>()
+                    .into_iter()
+                    .map(two_f32_to_u32),
+            );
+
+            parameters.splice(
+                range.clone(),
+                SplitParameters {
+                    density: object.remove_attribute::<attribute::Density>(),
+                    initial_volume: object.remove_attribute::<attribute::InitialVolumes>(),
+                    viscosity_dynamic: object.remove_attribute::<attribute::ViscosityDynamic>(),
+                    viscosity_bulk: object.remove_attribute::<attribute::ViscosityBulk>(),
+                    youngs_modulus: object.remove_attribute::<attribute::YoungsModulus>(),
+                    poissons_ratio: object.remove_attribute::<attribute::PoissonsRatio>(),
+                    sand_alpha: object.remove_attribute::<attribute::SandAlpha>(),
+                    bulk_modulus: object.remove_attribute::<attribute::BulkModulus>(),
+                    exponent: object.remove_attribute::<attribute::Exponent>(),
+                }
+                .to_zipped(),
+            );
+
+            initial_positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
+                &object.remove_attribute::<attribute::InitialPosition>(),
+            ));
+            goal_positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
+                &object.remove_attribute::<attribute::InitialPosition>(),
+            ));
+            positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
+                &object.remove_attribute::<attribute::InitialPosition>(),
+            ));
+            position_gradients.splice(
+                range.clone(),
+                combine_matrices([
+                    object.remove_attribute::<attribute::PositionGradientX>(),
+                    object.remove_attribute::<attribute::PositionGradientY>(),
+                    object.remove_attribute::<attribute::PositionGradientZ>(),
+                ])
+                .map(Into::into),
+            );
+            velocities[range.clone()].copy_from_slice(bytemuck::cast_slice(
+                &object.remove_attribute::<attribute::Velocity>(),
+            ));
+            velocity_gradients.splice(
+                range.clone(),
+                combine_matrices([
+                    object.remove_attribute::<attribute::VelocityGradientX>(),
+                    object.remove_attribute::<attribute::VelocityGradientY>(),
+                    object.remove_attribute::<attribute::VelocityGradientZ>(),
+                ])
+                .map(Into::into),
+            );
+            elastic_energies[range.clone()]
+                .copy_from_slice(&object.remove_attribute::<attribute::ElasticEnergy>());
+        }
 
         let particles = Particles {
-            sort_map,
-            reverse_sort_map,
+            sort_map: (0..n as u32).collect(),
+            reverse_sort_map: (0..n as u32).collect(),
+
             flags,
             parameters,
             initial_positions,
+            goal_positions,
             positions,
             position_gradients,
             velocities,
@@ -71,12 +144,7 @@ impl CpuState {
             collider_bits,
         };
 
-        let frame_input = FrameInput::new(
-            input_reader,
-            io_state.goal_positions,
-            io_state.collider,
-            frame,
-        )?;
+        let frame_input = FrameInput::new(input_reader, io_state.collider, frame)?;
 
         Ok(Self {
             time,
@@ -97,40 +165,124 @@ impl CpuState {
         let time = self.time;
         let animated_globals = self.animated_globals;
 
-        fn permute<T: Copy, U: std::convert::From<T>>(
-            permutation: &[u32],
-            to_permute: &[T],
-        ) -> Vec<U> {
-            permutation
-                .iter()
-                .map(|index| to_permute[*index as usize].into())
-                .collect()
-        }
+        let Particles {
+            sort_map: _,
+            reverse_sort_map,
 
-        let p = &self.particles.reverse_sort_map;
-        let flags: Vec<ParticleFlags> = permute(p, &self.particles.flags);
-        let parameters = permute(p, &self.particles.parameters);
-        let elastic_energies = permute(p, &self.particles.elastic_energies);
-        let collider_bits = permute(p, &self.particles.collider_bits);
-        let positions = permute(p, &self.particles.positions);
-        let position_gradients = permute(p, &self.particles.position_gradients);
-        let velocities = permute(p, &self.particles.velocities);
-        let velocity_gradients = permute(p, &self.particles.velocity_gradients);
-        let initial_positions = permute(p, &self.particles.initial_positions);
-
-        let goal_positions = bytemuck::cast_slice(self.frame_input.goal_positions_end()).to_vec();
-
-        let particles = squishy_volumes_file_frame::Particles {
             flags,
             parameters,
-            elastic_energies,
-            collider_bits,
+            initial_positions,
+            goal_positions,
             positions,
             position_gradients,
             velocities,
             velocity_gradients,
-            initial_positions,
-        };
+            elastic_energies,
+            collider_bits,
+        } = &self.particles;
+
+        let particle_objects = self
+            .frame_input
+            .header()
+            .objects
+            .iter()
+            .filter_map(|(name, object)| {
+                let Object::Particles(ObjectParticles {
+                    particle_range,
+                    alembic_attributes,
+                }) = object
+                else {
+                    return None;
+                };
+                let it = || {
+                    particle_range
+                        .clone()
+                        .into_iter()
+                        .map(|i| reverse_sort_map[i] as usize)
+                };
+
+                let mut particles = ParticlesObject {
+                    num_particles: particle_range.len(),
+                    alembic_attributes: alembic_attributes.clone(),
+                    attributes: Default::default(),
+                };
+                // TODO: multi threading
+                particles.insert_attribute::<attribute::ElasticEnergy>(
+                    it().map(|i| elastic_energies[i]).collect(),
+                );
+                particles.insert_attribute::<attribute::Flags>(
+                    it().map(|i| flags[i].0).map(u32_to_two_f32).collect(),
+                );
+                particles.insert_attribute::<attribute::ColliderBits>(
+                    it().map(|i| collider_bits[i]).map(u32_to_two_f32).collect(),
+                );
+                particles.insert_attribute::<attribute::Density>(
+                    it().map(|i| parameters[i].density).collect(),
+                );
+                particles.insert_attribute::<attribute::InitialVolumes>(
+                    it().map(|i| parameters[i].initial_volume).collect(),
+                );
+                particles.insert_attribute::<attribute::ViscosityDynamic>(
+                    it().map(|i| parameters[i].viscosity_dynamic).collect(),
+                );
+                particles.insert_attribute::<attribute::ViscosityBulk>(
+                    it().map(|i| parameters[i].viscosity_bulk).collect(),
+                );
+                particles.insert_attribute::<attribute::YoungsModulus>(
+                    it().map(|i| parameters[i].youngs_modulus).collect(),
+                );
+                particles.insert_attribute::<attribute::PoissonsRatio>(
+                    it().map(|i| parameters[i].poissons_ratio).collect(),
+                );
+                particles.insert_attribute::<attribute::SandAlpha>(
+                    it().map(|i| parameters[i].sand_alpha).collect(),
+                );
+                particles.insert_attribute::<attribute::BulkModulus>(
+                    it().map(|i| parameters[i].bulk_modulus).collect(),
+                );
+                particles.insert_attribute::<attribute::Exponent>(
+                    it().map(|i| parameters[i].bulk_modulus as f32).collect(),
+                );
+                particles.insert_attribute::<attribute::Position>(
+                    it().map(|i| positions[i].into()).collect(),
+                );
+                particles.insert_attribute::<attribute::PositionGradientX>(
+                    it().map(|i| position_gradients[i].column(0).into())
+                        .collect(),
+                );
+                particles.insert_attribute::<attribute::PositionGradientY>(
+                    it().map(|i| position_gradients[i].column(1).into())
+                        .collect(),
+                );
+                particles.insert_attribute::<attribute::PositionGradientZ>(
+                    it().map(|i| position_gradients[i].column(2).into())
+                        .collect(),
+                );
+                particles.insert_attribute::<attribute::Velocity>(
+                    it().map(|i| velocities[i].into()).collect(),
+                );
+                particles.insert_attribute::<attribute::VelocityGradientX>(
+                    it().map(|i| velocity_gradients[i].column(0).into())
+                        .collect(),
+                );
+                particles.insert_attribute::<attribute::VelocityGradientY>(
+                    it().map(|i| velocity_gradients[i].column(1).into())
+                        .collect(),
+                );
+                particles.insert_attribute::<attribute::VelocityGradientZ>(
+                    it().map(|i| velocity_gradients[i].column(2).into())
+                        .collect(),
+                );
+                particles.insert_attribute::<attribute::InitialPosition>(
+                    it().map(|i| initial_positions[i].into()).collect(),
+                );
+                particles.insert_attribute::<attribute::GoalPosition>(
+                    it().map(|i| goal_positions[i].into()).collect(),
+                );
+
+                Some((name.clone(), particles))
+            })
+            .collect();
 
         let collider = self.frame_input.collider_start().to_io_collider();
 
@@ -159,14 +311,11 @@ impl CpuState {
         });
 
         let bvh = store_bvh.then(|| self.frame_input.bvh().clone());
-        let ranges = self.frame_input.input_ranges().clone();
 
         Ok(IoState {
             time,
-            ranges,
             animated_globals,
-            particles,
-            goal_positions,
+            particle_objects,
             collider,
             bvh,
             grid_nodes,
@@ -198,8 +347,10 @@ impl CpuState {
 
         let harness = harness.scope(
             "Simulation Milliseconds to Next Frame".to_string(),
-            NonZero::new(((1000. * self.frame_input.consts().seconds_per_frame()) as usize).max(1))
-                .unwrap(),
+            NonZero::new(
+                ((1000. * self.frame_input.header().consts.seconds_per_frame()) as usize).max(1),
+            )
+            .unwrap(),
         )?;
 
         self.adaptive_time_step_state.max_time_step = max_time_step;
@@ -229,17 +380,19 @@ impl CpuState {
                 self.time += self.adaptive_time_step_state.allowed_time_step() as f64;
             }
             harness.step_to(
-                ((self.time % self.frame_input.consts().seconds_per_frame()) * 1000.) as usize,
+                ((self.time % self.frame_input.header().consts.seconds_per_frame()) * 1000.)
+                    as usize,
             )?;
         }
 
         if let Some(next_input_frame) = self.frame_input.next_input_frame() {
             self.animated_globals = next_input_frame.animated_globals;
-            let input_ranges = self.frame_input.input_ranges();
             for bulk in next_input_frame.bulk {
                 if let BulkAttribute::Particles(attr) = bulk.meta.captured_attribute {
-                    let InputRangeParticles { particle_range } = input_ranges
-                        .get_particle_range(&bulk.meta.object_name)
+                    let ObjectParticles { particle_range, .. } = self
+                        .frame_input
+                        .header()
+                        .get_particle_object(&bulk.meta.object_name)
                         .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
                         .map_err(FrameInputError::InputError)?;
                     match attr {
@@ -260,7 +413,7 @@ impl CpuState {
                                         .attach_frame(self.frame_input.frame() + 1)
                                 })
                                 .map_err(FrameInputError::InputError)?;
-                            for (i, bit) in particle_range.into_iter().zip(bits) {
+                            for (i, bit) in particle_range.clone().into_iter().zip(bits) {
                                 let index = self.particles.reverse_sort_map[i];
                                 self.particles.flags[index as usize]
                                     .set(ParticleFlags::HAS_GOAL, *bit);
@@ -281,8 +434,9 @@ impl CpuState {
                         FrameBulkParticles::BulkModulus => todo!(),
                         FrameBulkParticles::SandAlpha => todo!(),
 
-                        // already handled
-                        FrameBulkParticles::GoalPositions => {}
+                        FrameBulkParticles::GoalPositions => {
+                            todo!()
+                        }
                     }
                 }
             }

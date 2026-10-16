@@ -17,7 +17,7 @@ impl CpuState {
     pub fn sort(&mut self) {
         profile!("sort");
 
-        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
+        let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
 
         // Probably many other alternatives exist, e.g. one could do a z-order curve.
         // This seemed to be faster though. Maybe try again with cached keys?
@@ -70,6 +70,7 @@ impl CpuState {
                     velocities,
                     velocity_gradients,
                     collider_bits,
+                    goal_positions,
 
                     // These will be overwritten anyway
                     reverse_sort_map: _,
@@ -100,6 +101,7 @@ impl CpuState {
                     permute(s, &permutation, velocities);
                     permute(s, &permutation, velocity_gradients);
                     permute(s, &permutation, collider_bits);
+                    permute(s, &permutation, goal_positions);
                 });
             }
 

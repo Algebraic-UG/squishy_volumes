@@ -20,7 +20,7 @@ impl CpuState {
     // In explicit time integration the forces can be applied at the same time.
     pub fn scatter_momentum(&mut self) {
         profile!("scatter_momentum");
-        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
+        let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
         let scaling =
             self.adaptive_time_step_state.allowed_time_step() * 4. / grid_node_size.powi(2);
 
