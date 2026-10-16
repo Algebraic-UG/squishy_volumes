@@ -6,6 +6,11 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeSet;
+
+use squishy_volumes_util::attribute;
+use strum::IntoEnumIterator as _;
+
 use crate::*;
 
 impl Frame {
@@ -49,65 +54,10 @@ impl Frame {
             .metadata_mut()
             .set(APPLICATION_KEY, SQUISHY_VOLUMES)?;
 
-        // TODO: also take gridnodes, maybe bvh
-        let mut particles = std::mem::take(&mut self.io_state.particles);
-        let Particles {
-            flags,
-            parameters,
-            elastic_energies,
-            collider_bits,
-            positions,
-            position_gradients,
-            velocities,
-            velocity_gradients,
-            initial_positions,
-        } = &mut particles;
-
-        let mut split_parameters = parameters.as_slice().into();
-
-        // TODO: once blender can read ints we can change this
-        let mut flags: Vec<[f32; 2]> = flags.iter().map(|flags| u32_to_two_f32(&flags.0)).collect();
-        let mut collider_bits: Vec<[f32; 2]> = collider_bits.iter().map(u32_to_two_f32).collect();
-
-        // unlikely this can change
-        let [
-            mut position_gradients_x,
-            mut position_gradients_y,
-            mut position_gradients_z,
-        ] = split_matrices(&position_gradients);
-        let [
-            mut velocity_gradients_x,
-            mut velocity_gradients_y,
-            mut velocity_gradients_z,
-        ] = split_matrices(&velocity_gradients);
-
-        let mut alembic_data = AlembicData {
-            elastic_energies,
-            positions,
-            velocities,
-            initial_positions,
-            flags: &mut flags,
-            split_parameters: &mut split_parameters,
-            collider_bits: &mut collider_bits,
-            position_gradients_x: &mut position_gradients_x,
-            position_gradients_y: &mut position_gradients_y,
-            position_gradients_z: &mut position_gradients_z,
-            velocity_gradients_x: &mut velocity_gradients_x,
-            velocity_gradients_y: &mut velocity_gradients_y,
-            velocity_gradients_z: &mut velocity_gradients_z,
-        };
-
-        for (name, range) in &self.io_state.ranges.objects {
-            let squishy_volumes_file_input::InputRange::Particles(
-                squishy_volumes_file_input::InputRangeParticles { particle_range },
-            ) = range
-            else {
-                continue;
-            };
-            PointsWriter::write_points(
-                writer.begin_points(&name, particle_range.end - particle_range.start)?,
-                particle_range.clone(),
-                &mut alembic_data,
+        for (name, particles) in &mut self.io_state.particle_objects {
+            write_points(
+                writer.begin_points(name, particles.num_particles)?,
+                particles,
             )
             .map_err(|error| WriteError::Points {
                 name: name.clone(),
@@ -133,78 +83,41 @@ impl Frame {
     }
 }
 
-struct PointsWriter<'a, W: Write> {
-    writer: alembic_rust::PointsWriter<'a, W>,
-    particle_range: Range<usize>,
-}
-impl<'a, W: Write + Seek> PointsWriter<'a, W> {
-    fn w<T: AttributeElement>(&mut self, name: &str, source: &[T]) -> Result<(), WriteErrorPoints> {
-        self.writer
-            .attribute(name, &source[self.particle_range.clone()])
-            .map_err(|error| WriteErrorPoints::Attribute {
-                name: name.to_string(),
-                error,
-            })
+fn write_points<'a, W: Write + Seek>(
+    mut writer: alembic_rust::PointsWriter<'a, W>,
+    particles: &mut ParticlesObject,
+) -> Result<(), WriteErrorPoints> {
+    let missing = attribute::Key::iter()
+        .filter(|key| !particles.attributes.contains_key(key))
+        .collect::<BTreeSet<_>>();
+    if !missing.is_empty() {
+        return Err(WriteErrorPoints::Incomplete(missing));
     }
-    fn write_points(
-        writer: alembic_rust::PointsWriter<'a, W>,
-        particle_range: Range<usize>,
-        AlembicData {
-            elastic_energies,
-            positions,
-            velocities,
-            initial_positions,
-            flags,
-            split_parameters:
-                SplitParameters {
-                    density,
-                    initial_volume,
-                    viscosity_dynamic,
-                    viscosity_bulk,
-                    youngs_modulus,
-                    poissons_ratio,
-                    sand_alpha,
-                    bulk_modulus,
-                    exponent,
-                },
-            collider_bits,
-            position_gradients_x,
-            position_gradients_y,
-            position_gradients_z,
-            velocity_gradients_x,
-            velocity_gradients_y,
-            velocity_gradients_z,
-        }: &mut AlembicData,
-    ) -> Result<(), WriteErrorPoints> {
-        let mut w = Self {
-            writer,
-            particle_range,
-        };
 
-        w.w(FLAGS, flags)?;
-        w.w(DENSITY, density)?;
-        w.w(INITIAL_VOLUME, initial_volume)?;
-        w.w(VISCOSITY_DYNAMIC, viscosity_dynamic)?;
-        w.w(VISCOSITY_BULK, viscosity_bulk)?;
-        w.w(YOUNGS_MODULUS, youngs_modulus)?;
-        w.w(POISSONS_RATIO, poissons_ratio)?;
-        w.w(SAND_ALPHA, sand_alpha)?;
-        w.w(BULK_MODULUS, bulk_modulus)?;
-        w.w(EXPONENT, exponent)?;
-        w.w(ELASTIC_ENERGIES, elastic_energies)?;
-        w.w(COLLIDER_BITS, collider_bits)?;
-        w.w(POSITIONS, positions)?;
-        w.w(POSITION_GRADIENTS_X, position_gradients_x)?;
-        w.w(POSITION_GRADIENTS_Y, position_gradients_y)?;
-        w.w(POSITION_GRADIENTS_Z, position_gradients_z)?;
-        w.w(VELOCITIES, velocities)?;
-        w.w(VELOCITY_GRADIENTS_X, velocity_gradients_x)?;
-        w.w(VELOCITY_GRADIENTS_Y, velocity_gradients_y)?;
-        w.w(VELOCITY_GRADIENTS_Z, velocity_gradients_z)?;
-        w.w(INITIAL_POSITIONS, initial_positions)?;
-
-        w.writer.finish()?;
-
-        Ok(())
+    for key in &particles.alembic_attributes {
+        (|| {
+            let value = particles
+                .attributes
+                .remove(key)
+                .ok_or(WriteErrorPointsAttribute::Missing)?;
+            match value {
+                AttributeValue::Float1(items) => {
+                    writer.attribute(key.alembic_name(), &items)?;
+                }
+                AttributeValue::Float2(items) => {
+                    writer.attribute(key.alembic_name(), &items)?;
+                }
+                AttributeValue::Float3(items) => {
+                    writer.attribute(key.alembic_name(), &items)?;
+                }
+            }
+            Ok(())
+        })()
+        .map_err(|error| WriteErrorPoints::Attribute {
+            name: key.alembic_name().to_string(),
+            error,
+        })?;
     }
+    writer.finish()?;
+    Ok(())
 }

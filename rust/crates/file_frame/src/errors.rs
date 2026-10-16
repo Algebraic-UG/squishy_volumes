@@ -6,6 +6,8 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeSet;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("Error writing '{path}'")]
@@ -45,6 +47,28 @@ pub enum WriteError {
 }
 
 #[derive(thiserror::Error, Debug)]
+pub enum WriteErrorPoints {
+    #[error("Failed to finish")]
+    Finish(#[from] alembic_rust::Error),
+    #[error("An attribute error occurred")]
+    Attribute {
+        name: String,
+        #[source]
+        error: WriteErrorPointsAttribute,
+    },
+    #[error("Attribute map incomplete, missing {0:?}'")]
+    Incomplete(BTreeSet<squishy_volumes_util::attribute::Key>),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum WriteErrorPointsAttribute {
+    #[error("Attribute is missing map")]
+    Missing,
+    #[error("An Alembic error occurred")]
+    Alembic(#[from] alembic_rust::Error),
+}
+
+#[derive(thiserror::Error, Debug)]
 pub enum ReadError {
     #[error("Application key doesn't indicate Squishy Volumes: {0:?}")]
     ApplicationKey(Option<String>),
@@ -69,25 +93,23 @@ pub enum ReadError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum WriteErrorPoints {
-    #[error("Failed to finish")]
-    Finish(#[from] alembic_rust::Error),
-    #[error("An attribute error occurred")]
+pub enum ReadErrorPoints {
+    #[error("Attribute error '{name}'")]
     Attribute {
         name: String,
         #[source]
-        error: alembic_rust::Error,
+        error: ReadErrorPointsAttribute,
     },
+    #[error("Attribute map incomplete, missing {0:?}'")]
+    Incomplete(BTreeSet<squishy_volumes_util::attribute::Key>),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ReadErrorPoints {
-    #[error("Missing attrbute '{0}'")]
-    AttributeMissing(String),
+pub enum ReadErrorPointsAttribute {
+    #[error("Attribute is missing in Alembic")]
+    Missing,
+    #[error("Attribute is duplicate")]
+    Duplicate,
     #[error("An Alembic error occurred")]
-    Alembic {
-        name: String,
-        #[source]
-        error: alembic_rust::Error,
-    },
+    Alembic(#[from] alembic_rust::Error),
 }

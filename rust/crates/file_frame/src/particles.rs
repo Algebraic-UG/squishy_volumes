@@ -6,23 +6,93 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use squishy_volumes_util::{ParticleFlags, ParticleParameters};
+use std::collections::{BTreeMap, BTreeSet};
+
+use squishy_volumes_util::attribute;
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Particles {
-    pub flags: Vec<ParticleFlags>,
+pub struct ParticlesObject {
+    pub num_particles: usize,
 
-    pub parameters: Vec<ParticleParameters>,
+    pub alembic_attributes: BTreeSet<attribute::Key>,
+    pub attributes: BTreeMap<attribute::Key, AttributeValue>,
+}
 
-    pub elastic_energies: Vec<f32>,
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum AttributeValue {
+    Float1(Vec<f32>),
+    Float2(Vec<[f32; 2]>),
+    Float3(Vec<[f32; 3]>),
+}
 
-    pub collider_bits: Vec<u32>,
+pub trait Value: Sized {
+    fn unpack(attr: AttributeValue) -> Vec<Self>;
+    fn pack(values: Vec<Self>) -> AttributeValue;
+}
 
-    pub positions: Vec<[f32; 3]>,
-    pub position_gradients: Vec<[[f32; 3]; 3]>,
+impl Value for f32 {
+    fn unpack(attr: AttributeValue) -> Vec<Self> {
+        let AttributeValue::Float1(values) = attr else {
+            panic!();
+        };
+        values
+    }
+    fn pack(values: Vec<Self>) -> AttributeValue {
+        AttributeValue::Float1(values)
+    }
+}
 
-    pub velocities: Vec<[f32; 3]>,
-    pub velocity_gradients: Vec<[[f32; 3]; 3]>,
+impl Value for [f32; 2] {
+    fn unpack(attr: AttributeValue) -> Vec<Self> {
+        let AttributeValue::Float2(values) = attr else {
+            panic!();
+        };
+        values
+    }
+    fn pack(values: Vec<Self>) -> AttributeValue {
+        AttributeValue::Float2(values)
+    }
+}
 
-    pub initial_positions: Vec<[f32; 3]>,
+impl Value for [f32; 3] {
+    fn unpack(attr: AttributeValue) -> Vec<Self> {
+        let AttributeValue::Float3(values) = attr else {
+            panic!();
+        };
+        values
+    }
+    fn pack(values: Vec<Self>) -> AttributeValue {
+        AttributeValue::Float3(values)
+    }
+}
+
+impl AttributeValue {
+    fn unpack<T: Value>(self) -> Vec<T> {
+        T::unpack(self)
+    }
+    fn pack<T: Value>(values: Vec<T>) -> Self {
+        T::pack(values)
+    }
+}
+
+impl ParticlesObject {
+    pub fn remove_attribute<A: attribute::Trait>(&mut self) -> Vec<A::T>
+    where
+        A::T: Value,
+    {
+        self.attributes.remove(&A::KEY).unwrap().unpack()
+    }
+
+    pub fn insert_attribute<A: attribute::Trait>(&mut self, values: Vec<A::T>)
+    where
+        A::T: Value,
+    {
+        if self
+            .attributes
+            .insert(A::KEY, AttributeValue::pack(values))
+            .is_some()
+        {
+            panic!();
+        }
+    }
 }
