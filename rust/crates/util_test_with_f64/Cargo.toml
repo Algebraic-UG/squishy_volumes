@@ -24,6 +24,9 @@ serde.workspace = true
 bytemuck.workspace = true
 bitflags.workspace = true
 itertools.workspace = true
+alembic_rust.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true

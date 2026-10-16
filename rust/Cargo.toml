@@ -54,6 +54,9 @@ strum_macros = "0.26.4"
 strum = { version = "0.26.3", features = ["derive"] }
 wesl = { version = "0.4.0", features = ["naga-ext"] }
 
+alembic_rust.git = "https://github.com/Algebraic-UG/alembic_rust"
+alembic_rust.rev = "8d665da5604d66149ff2703f812de313e4c86db2"
+
 # We need to know the subgroup size on Metal
 # https://github.com/gfx-rs/wgpu/pull/9876
 [patch.crates-io]

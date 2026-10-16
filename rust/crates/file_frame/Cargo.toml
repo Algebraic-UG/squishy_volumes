@@ -13,11 +13,9 @@ bincode.workspace = true
 bytemuck.workspace = true
 thiserror.workspace = true
 itertools.workspace = true
+alembic_rust.workspace = true
+strum.workspace = true
 
 squishy_volumes_mesh_util.path = "../mesh_util"
 squishy_volumes_file_util.path = "../file_util"
-squishy_volumes_file_input.path = "../file_input"
 squishy_volumes_util.path = "../util"
-
-alembic_rust.git = "https://github.com/Algebraic-UG/alembic_rust"
-alembic_rust.rev = "95682aae0b93fcade28b7120b950ad990ba158c1"
