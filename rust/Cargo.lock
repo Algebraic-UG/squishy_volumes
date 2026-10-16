@@ -43,7 +43,7 @@ dependencies = [
 [[package]]
 name = "alembic_rust"
 version = "0.1.0"
-source = "git+https://github.com/Algebraic-UG/alembic_rust?rev=95682aae0b93fcade28b7120b950ad990ba158c1#95682aae0b93fcade28b7120b950ad990ba158c1"
+source = "git+https://github.com/Algebraic-UG/alembic_rust?rev=8d665da5604d66149ff2703f812de313e4c86db2#8d665da5604d66149ff2703f812de313e4c86db2"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -3852,10 +3852,10 @@ dependencies = [
  "bytemuck",
  "itertools 0.14.0",
  "serde",
- "squishy_volumes_file_input",
  "squishy_volumes_file_util",
  "squishy_volumes_mesh_util",
  "squishy_volumes_util",
+ "strum",
  "thiserror 2.0.21",
 ]
 
@@ -3963,6 +3963,7 @@ dependencies = [
 name = "squishy_volumes_util"
 version = "0.1.0"
 dependencies = [
+ "alembic_rust",
  "bitflags 2.13.2",
  "bytemuck",
  "coarse-prof",
@@ -3970,6 +3971,8 @@ dependencies = [
  "nalgebra",
  "rand 0.10.3",
  "serde",
+ "strum",
+ "strum_macros",
  "thiserror 2.0.21",
  "tracing",
 ]
@@ -3978,6 +3981,7 @@ dependencies = [
 name = "squishy_volumes_util_test_with_f64"
 version = "0.1.0"
 dependencies = [
+ "alembic_rust",
  "bitflags 2.13.2",
  "bytemuck",
  "coarse-prof",
@@ -3985,6 +3989,8 @@ dependencies = [
  "nalgebra",
  "rand 0.10.3",
  "serde",
+ "strum",
+ "strum_macros",
  "thiserror 2.0.21",
  "tracing",
 ]
