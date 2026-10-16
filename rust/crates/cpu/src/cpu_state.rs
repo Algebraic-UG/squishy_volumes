@@ -65,7 +65,7 @@ impl CpuState {
             flags.splice(
                 range.clone(),
                 object
-                    .remove_attribute::<attribute::Flags>()
+                    .remove_attr::<attribute::Flags>()
                     .into_iter()
                     .map(two_f32_to_u32)
                     .map(ParticleFlags),
@@ -73,7 +73,7 @@ impl CpuState {
             collider_bits.splice(
                 range.clone(),
                 object
-                    .remove_attribute::<attribute::ColliderBits>()
+                    .remove_attr::<attribute::ColliderBits>()
                     .into_iter()
                     .map(two_f32_to_u32),
             );
@@ -81,51 +81,51 @@ impl CpuState {
             parameters.splice(
                 range.clone(),
                 SplitParameters {
-                    density: object.remove_attribute::<attribute::Density>(),
-                    initial_volume: object.remove_attribute::<attribute::InitialVolumes>(),
-                    viscosity_dynamic: object.remove_attribute::<attribute::ViscosityDynamic>(),
-                    viscosity_bulk: object.remove_attribute::<attribute::ViscosityBulk>(),
-                    youngs_modulus: object.remove_attribute::<attribute::YoungsModulus>(),
-                    poissons_ratio: object.remove_attribute::<attribute::PoissonsRatio>(),
-                    sand_alpha: object.remove_attribute::<attribute::SandAlpha>(),
-                    bulk_modulus: object.remove_attribute::<attribute::BulkModulus>(),
-                    exponent: object.remove_attribute::<attribute::Exponent>(),
+                    density: object.remove_attr::<attribute::Density>(),
+                    initial_volume: object.remove_attr::<attribute::InitialVolumes>(),
+                    viscosity_dynamic: object.remove_attr::<attribute::ViscosityDynamic>(),
+                    viscosity_bulk: object.remove_attr::<attribute::ViscosityBulk>(),
+                    youngs_modulus: object.remove_attr::<attribute::YoungsModulus>(),
+                    poissons_ratio: object.remove_attr::<attribute::PoissonsRatio>(),
+                    sand_alpha: object.remove_attr::<attribute::SandAlpha>(),
+                    bulk_modulus: object.remove_attr::<attribute::BulkModulus>(),
+                    exponent: object.remove_attr::<attribute::Exponent>(),
                 }
                 .to_zipped(),
             );
 
             initial_positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attribute::<attribute::InitialPosition>(),
+                &object.remove_attr::<attribute::InitialPosition>(),
             ));
             goal_positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attribute::<attribute::InitialPosition>(),
+                &object.remove_attr::<attribute::InitialPosition>(),
             ));
             positions[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attribute::<attribute::InitialPosition>(),
+                &object.remove_attr::<attribute::InitialPosition>(),
             ));
             position_gradients.splice(
                 range.clone(),
                 combine_matrices([
-                    object.remove_attribute::<attribute::PositionGradientX>(),
-                    object.remove_attribute::<attribute::PositionGradientY>(),
-                    object.remove_attribute::<attribute::PositionGradientZ>(),
+                    object.remove_attr::<attribute::PositionGradientX>(),
+                    object.remove_attr::<attribute::PositionGradientY>(),
+                    object.remove_attr::<attribute::PositionGradientZ>(),
                 ])
                 .map(Into::into),
             );
             velocities[range.clone()].copy_from_slice(bytemuck::cast_slice(
-                &object.remove_attribute::<attribute::Velocity>(),
+                &object.remove_attr::<attribute::Velocity>(),
             ));
             velocity_gradients.splice(
                 range.clone(),
                 combine_matrices([
-                    object.remove_attribute::<attribute::VelocityGradientX>(),
-                    object.remove_attribute::<attribute::VelocityGradientY>(),
-                    object.remove_attribute::<attribute::VelocityGradientZ>(),
+                    object.remove_attr::<attribute::VelocityGradientX>(),
+                    object.remove_attr::<attribute::VelocityGradientY>(),
+                    object.remove_attr::<attribute::VelocityGradientZ>(),
                 ])
                 .map(Into::into),
             );
             elastic_energies[range.clone()]
-                .copy_from_slice(&object.remove_attribute::<attribute::ElasticEnergy>());
+                .copy_from_slice(&object.remove_attr::<attribute::ElasticEnergy>());
         }
 
         let particles = Particles {
@@ -194,93 +194,73 @@ impl CpuState {
                 else {
                     return None;
                 };
-                let it = || {
-                    particle_range
+                struct Permuter<I> {
+                    iterator: I,
+                }
+                impl<I: Iterator<Item = usize> + Clone> Permuter<I> {
+                    fn it<'a, T>(&self, to_permute: &'a [T]) -> impl Iterator<Item = &'a T> {
+                        self.iterator.clone().map(|i| &to_permute[i])
+                    }
+                }
+                let p = Permuter {
+                    iterator: particle_range
                         .clone()
                         .into_iter()
-                        .map(|i| reverse_sort_map[i] as usize)
+                        .map(|i| reverse_sort_map[i] as usize),
                 };
 
-                let mut particles = ParticlesObject {
+                let mut ps = ParticlesObject {
                     num_particles: particle_range.len(),
                     alembic_attributes: alembic_attributes.clone(),
                     attributes: Default::default(),
                 };
                 // TODO: multi threading
-                particles.insert_attribute::<attribute::ElasticEnergy>(
-                    it().map(|i| elastic_energies[i]).collect(),
+                use attribute as a;
+                ps.insert_attr::<a::ElasticEnergy>(p.it(elastic_energies).cloned());
+
+                ps.insert_attr::<a::Flags>(p.it(flags).map(|flag| u32_to_two_f32(flag.0)));
+                ps.insert_attr::<a::ColliderBits>(p.it(collider_bits).cloned().map(u32_to_two_f32));
+
+                ps.insert_attr::<a::Density>(p.it(parameters).map(|p| p.density));
+                ps.insert_attr::<a::InitialVolumes>(p.it(parameters).map(|p| p.initial_volume));
+                ps.insert_attr::<a::ViscosityDynamic>(
+                    p.it(parameters).map(|p| p.viscosity_dynamic),
                 );
-                particles.insert_attribute::<attribute::Flags>(
-                    it().map(|i| flags[i].0).map(u32_to_two_f32).collect(),
+                ps.insert_attr::<a::ViscosityBulk>(p.it(parameters).map(|p| p.viscosity_bulk));
+                ps.insert_attr::<a::YoungsModulus>(p.it(parameters).map(|p| p.youngs_modulus));
+                ps.insert_attr::<a::PoissonsRatio>(p.it(parameters).map(|p| p.poissons_ratio));
+                ps.insert_attr::<a::SandAlpha>(p.it(parameters).map(|p| p.sand_alpha));
+                ps.insert_attr::<a::BulkModulus>(p.it(parameters).map(|p| p.bulk_modulus));
+                ps.insert_attr::<a::Exponent>(p.it(parameters).map(|p| p.exponent as f32));
+
+                ps.insert_attr::<a::Position>(p.it(positions).cloned().map(Into::into));
+                ps.insert_attr::<a::PositionGradientX>(
+                    p.it(position_gradients).map(|p| p.column(0).into()),
                 );
-                particles.insert_attribute::<attribute::ColliderBits>(
-                    it().map(|i| collider_bits[i]).map(u32_to_two_f32).collect(),
+                ps.insert_attr::<a::PositionGradientY>(
+                    p.it(position_gradients).map(|p| p.column(1).into()),
                 );
-                particles.insert_attribute::<attribute::Density>(
-                    it().map(|i| parameters[i].density).collect(),
-                );
-                particles.insert_attribute::<attribute::InitialVolumes>(
-                    it().map(|i| parameters[i].initial_volume).collect(),
-                );
-                particles.insert_attribute::<attribute::ViscosityDynamic>(
-                    it().map(|i| parameters[i].viscosity_dynamic).collect(),
-                );
-                particles.insert_attribute::<attribute::ViscosityBulk>(
-                    it().map(|i| parameters[i].viscosity_bulk).collect(),
-                );
-                particles.insert_attribute::<attribute::YoungsModulus>(
-                    it().map(|i| parameters[i].youngs_modulus).collect(),
-                );
-                particles.insert_attribute::<attribute::PoissonsRatio>(
-                    it().map(|i| parameters[i].poissons_ratio).collect(),
-                );
-                particles.insert_attribute::<attribute::SandAlpha>(
-                    it().map(|i| parameters[i].sand_alpha).collect(),
-                );
-                particles.insert_attribute::<attribute::BulkModulus>(
-                    it().map(|i| parameters[i].bulk_modulus).collect(),
-                );
-                particles.insert_attribute::<attribute::Exponent>(
-                    it().map(|i| parameters[i].bulk_modulus as f32).collect(),
-                );
-                particles.insert_attribute::<attribute::Position>(
-                    it().map(|i| positions[i].into()).collect(),
-                );
-                particles.insert_attribute::<attribute::PositionGradientX>(
-                    it().map(|i| position_gradients[i].column(0).into())
-                        .collect(),
-                );
-                particles.insert_attribute::<attribute::PositionGradientY>(
-                    it().map(|i| position_gradients[i].column(1).into())
-                        .collect(),
-                );
-                particles.insert_attribute::<attribute::PositionGradientZ>(
-                    it().map(|i| position_gradients[i].column(2).into())
-                        .collect(),
-                );
-                particles.insert_attribute::<attribute::Velocity>(
-                    it().map(|i| velocities[i].into()).collect(),
-                );
-                particles.insert_attribute::<attribute::VelocityGradientX>(
-                    it().map(|i| velocity_gradients[i].column(0).into())
-                        .collect(),
-                );
-                particles.insert_attribute::<attribute::VelocityGradientY>(
-                    it().map(|i| velocity_gradients[i].column(1).into())
-                        .collect(),
-                );
-                particles.insert_attribute::<attribute::VelocityGradientZ>(
-                    it().map(|i| velocity_gradients[i].column(2).into())
-                        .collect(),
-                );
-                particles.insert_attribute::<attribute::InitialPosition>(
-                    it().map(|i| initial_positions[i].into()).collect(),
-                );
-                particles.insert_attribute::<attribute::GoalPosition>(
-                    it().map(|i| goal_positions[i].into()).collect(),
+                ps.insert_attr::<a::PositionGradientZ>(
+                    p.it(position_gradients).map(|p| p.column(2).into()),
                 );
 
-                Some((name.clone(), particles))
+                ps.insert_attr::<a::Velocity>(p.it(velocities).cloned().map(Into::into));
+                ps.insert_attr::<a::VelocityGradientX>(
+                    p.it(velocity_gradients).map(|p| p.column(0).into()),
+                );
+                ps.insert_attr::<a::VelocityGradientY>(
+                    p.it(velocity_gradients).map(|p| p.column(1).into()),
+                );
+                ps.insert_attr::<a::VelocityGradientZ>(
+                    p.it(velocity_gradients).map(|p| p.column(2).into()),
+                );
+
+                ps.insert_attr::<a::InitialPosition>(
+                    p.it(initial_positions).cloned().map(Into::into),
+                );
+                ps.insert_attr::<a::GoalPosition>(p.it(goal_positions).cloned().map(Into::into));
+
+                Some((name.clone(), ps))
             })
             .collect();
 

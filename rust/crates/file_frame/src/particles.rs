@@ -76,20 +76,22 @@ impl AttributeValue {
 }
 
 impl ParticlesObject {
-    pub fn remove_attribute<A: attribute::Trait>(&mut self) -> Vec<A::T>
+    pub fn remove_attr<A>(&mut self) -> Vec<A::T>
     where
+        A: attribute::Trait,
         A::T: Value,
     {
         self.attributes.remove(&A::KEY).unwrap().unpack()
     }
 
-    pub fn insert_attribute<A: attribute::Trait>(&mut self, values: Vec<A::T>)
+    pub fn insert_attr<A>(&mut self, values: impl Iterator<Item = A::T>)
     where
+        A: attribute::Trait,
         A::T: Value,
     {
         if self
             .attributes
-            .insert(A::KEY, AttributeValue::pack(values))
+            .insert(A::KEY, AttributeValue::pack(values.collect()))
             .is_some()
         {
             panic!();
