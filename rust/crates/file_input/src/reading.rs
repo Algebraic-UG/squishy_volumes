@@ -16,14 +16,16 @@ use std::{
 use bincode::deserialize_from;
 use tracing::info;
 
-use super::{FrameBulk, InputError, InputFrame, InputHeader, InputOffsetReadingError, magic_bytes};
+use crate::Header;
+
+use super::{FrameBulk, InputError, InputFrame, InputOffsetReadingError, magic_bytes};
 
 pub struct InputReader {
     size: u64,
     reader: BufReader<File>,
     frame_offsets: Vec<u64>,
     index_offset: u64,
-    header: InputHeader,
+    header: Header,
 }
 
 impl InputReader {
@@ -58,7 +60,7 @@ impl InputReader {
         self.frame_offsets.len()
     }
 
-    pub fn header(&self) -> &InputHeader {
+    pub fn header(&self) -> &Header {
         &self.header
     }
 
@@ -113,7 +115,7 @@ fn read_frame_offsets<R: Read + Seek>(
     Ok(deserialize_from(&mut r)?)
 }
 
-fn read_header<R: Read + Seek>(mut r: R) -> Result<InputHeader, InputError> {
+fn read_header<R: Read + Seek>(mut r: R) -> Result<Header, InputError> {
     r.seek(SeekFrom::Start(
         squishy_volumes_file_util::DATA_OFFSET.try_into().unwrap(),
     ))?;

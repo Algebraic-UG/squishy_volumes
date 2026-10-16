@@ -10,7 +10,7 @@ use squishy_volumes_api::InputBulk;
 #[cfg(test)]
 use squishy_volumes_util::AnimatedGlobals;
 
-use crate::{AttributeError, InputObjectCollider, InputObjectParticles};
+use crate::AttributeError;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub struct FrameBulk<'a> {
@@ -170,36 +170,26 @@ pub struct InputFrame {
 
 impl FrameBulk<'_> {
     // TODO: also verify the type
-    pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
-        let header_obj = header.objects.get(&self.meta.object_name).ok_or(
-            crate::ObjectError::ObjectNotInHeader.attach_name(self.meta.object_name.clone()),
-        )?;
-
-        let num =
-            match (header_obj, &self.meta.captured_attribute) {
-                (
-                    crate::InputObject::Particles(InputObjectParticles { num_particles }),
-                    BulkAttribute::Particles(_),
-                ) => num_particles,
-                (
-                    crate::InputObject::Collider(InputObjectCollider {
-                        num_vertices,
-                        num_triangles,
-                        ..
-                    }),
-                    BulkAttribute::Collider(frame_bulk_collider),
-                ) => match frame_bulk_collider {
-                    FrameBulkCollider::VertexPositions => num_vertices,
-                    FrameBulkCollider::Triangles
-                    | FrameBulkCollider::TriangleFrictions
-                    | FrameBulkCollider::TriangleDampings => num_triangles,
-                },
-                _ => Err(crate::ObjectError::ObjectChangedType
-                    .attach_name(self.meta.object_name.clone()))?,
-            };
+    pub fn verify(&self, header: &crate::Header) -> Result<(), crate::FrameVerifcationError> {
+        let num = match &self.meta.captured_attribute {
+            BulkAttribute::Particles(_) => header
+                .get_particle_object(&self.meta.object_name)?
+                .particle_range
+                .len(),
+            BulkAttribute::Collider(FrameBulkCollider::VertexPositions) => header
+                .get_collider_object(&self.meta.object_name)?
+                .vertex_range
+                .len(),
+            BulkAttribute::Collider(FrameBulkCollider::Triangles)
+            | BulkAttribute::Collider(FrameBulkCollider::TriangleFrictions)
+            | BulkAttribute::Collider(FrameBulkCollider::TriangleDampings) => header
+                .get_collider_object(&self.meta.object_name)?
+                .triangle_range
+                .len(),
+        };
 
         let found = self.data.len();
-        let expected = *num as usize * self.meta.captured_attribute.elem_count();
+        let expected = num * self.meta.captured_attribute.elem_count();
         if expected != found {
             Err(crate::AttributeError::LengthMismatch { found, expected }
                 .attach_attr(self.meta.captured_attribute)

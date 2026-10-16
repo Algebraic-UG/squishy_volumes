@@ -6,6 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeSet;
+
+use squishy_volumes_util::attribute;
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct InputConsts {
     grid_node_size: f32,
@@ -85,6 +89,7 @@ pub enum InputObject {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct InputObjectParticles {
     pub num_particles: u32,
+    pub alembic_attributes: BTreeSet<attribute::Key>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -100,110 +105,109 @@ pub struct InputHeader {
     pub objects: std::collections::BTreeMap<String, InputObject>,
 }
 
-impl InputHeader {
-    pub fn get_collider_input_object(
-        &self,
-        name: &str,
-    ) -> Result<InputObjectCollider, crate::FrameVerifcationError> {
-        if let InputObject::Collider(object) = self
-            .objects
-            .get(name)
-            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
-        {
-            Ok(object.clone())
-        } else {
-            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
-        }
-    }
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct Header {
+    pub consts: InputConsts,
+    pub total_particles: usize,
+    pub total_vertices: usize,
+    pub total_triangles: usize,
+    pub objects: std::collections::BTreeMap<String, Object>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub enum InputRange {
-    Particles(InputRangeParticles),
-    Collider(InputRangeCollider),
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum Object {
+    Particles(ObjectParticles),
+    Collider(ObjectCollider),
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct InputRangeParticles {
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct ObjectParticles {
     pub particle_range: std::ops::Range<usize>,
+    pub alembic_attributes: BTreeSet<attribute::Key>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct InputRangeCollider {
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ObjectCollider {
+    pub collider_id: u32,
     pub vertex_range: std::ops::Range<usize>,
     pub triangle_range: std::ops::Range<usize>,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct InputRanges {
-    pub total_particles: usize,
-    pub total_vertices: usize,
-    pub total_triangles: usize,
-    pub objects: std::collections::BTreeMap<String, InputRange>,
-}
-
-impl InputRanges {
-    pub fn new(objects: &std::collections::BTreeMap<String, InputObject>) -> Self {
-        objects
-            .iter()
-            .fold(Self::default(), |mut result, (name, object)| {
-                let range = match object {
-                    InputObject::Particles(InputObjectParticles { num_particles }) => {
-                        let num_particles = *num_particles as usize;
-                        result.total_particles += num_particles;
-                        InputRange::Particles(InputRangeParticles {
-                            particle_range: result.total_particles - num_particles
-                                ..result.total_particles,
-                        })
-                    }
-                    InputObject::Collider(InputObjectCollider {
-                        num_vertices,
-                        num_triangles,
-                        ..
-                    }) => {
-                        let num_vertices = *num_vertices as usize;
-                        let num_triangles = *num_triangles as usize;
-
-                        result.total_vertices += num_vertices;
-                        result.total_triangles += num_triangles;
-                        InputRange::Collider(InputRangeCollider {
-                            vertex_range: result.total_vertices - num_vertices
-                                ..result.total_vertices,
-                            triangle_range: result.total_triangles - num_triangles
-                                ..result.total_triangles,
-                        })
-                    }
-                };
-                result.objects.insert(name.clone(), range);
-                result
+impl Header {
+    pub fn new(InputHeader { consts, objects }: InputHeader) -> Self {
+        let mut total_particles = 0;
+        let mut total_vertices = 0;
+        let mut total_triangles = 0;
+        let objects = objects
+            .into_iter()
+            .map(|(name, object)| {
+                (
+                    name,
+                    match object {
+                        InputObject::Particles(InputObjectParticles {
+                            num_particles,
+                            alembic_attributes,
+                        }) => {
+                            let num_particles = num_particles as usize;
+                            total_particles += num_particles;
+                            Object::Particles(ObjectParticles {
+                                particle_range: total_particles - num_particles..total_particles,
+                                alembic_attributes,
+                            })
+                        }
+                        InputObject::Collider(InputObjectCollider {
+                            collider_id,
+                            num_vertices,
+                            num_triangles,
+                        }) => {
+                            let num_vertices = num_vertices as usize;
+                            let num_triangles = num_triangles as usize;
+                            total_vertices += num_vertices;
+                            total_triangles += num_triangles;
+                            Object::Collider(ObjectCollider {
+                                collider_id,
+                                vertex_range: total_vertices - num_vertices..total_vertices,
+                                triangle_range: total_triangles - num_triangles..total_triangles,
+                            })
+                        }
+                    },
+                )
             })
+            .collect();
+        Self {
+            consts,
+            total_particles,
+            total_vertices,
+            total_triangles,
+            objects,
+        }
     }
 
-    pub fn get_particle_range(
+    pub fn get_particle_object(
         &self,
         name: &str,
-    ) -> Result<InputRangeParticles, crate::FrameVerifcationError> {
-        if let InputRange::Particles(range) = self
+    ) -> Result<&ObjectParticles, crate::FrameVerifcationError> {
+        if let Object::Particles(object) = self
             .objects
             .get(name)
             .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
-            Ok(range.clone())
+            Ok(object)
         } else {
             Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
     }
 
-    pub fn get_collider_range(
+    pub fn get_collider_object(
         &self,
         name: &str,
-    ) -> Result<InputRangeCollider, crate::FrameVerifcationError> {
-        if let InputRange::Collider(range) = self
+    ) -> Result<&ObjectCollider, crate::FrameVerifcationError> {
+        if let Object::Collider(object) = self
             .objects
             .get(name)
             .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
         {
-            Ok(range.clone())
+            Ok(object)
         } else {
             Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
         }
