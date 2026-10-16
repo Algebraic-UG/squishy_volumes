@@ -37,7 +37,7 @@ pub struct CpuState {
 impl CpuState {
     pub fn new(
         frame: usize,
-        mut io_state: IoState,
+        io_state: IoState,
         input_reader: squishy_volumes_file_input::InputReader,
     ) -> Result<Self, Error> {
         let time = io_state.time;
@@ -45,78 +45,85 @@ impl CpuState {
 
         let n = input_reader.header().total_particles;
 
-        let mut flags = Vec::with_capacity(n);
-        let mut parameters = Vec::with_capacity(n);
-        let mut initial_positions = Vec::with_capacity(n);
-        let mut goal_positions = Vec::with_capacity(n);
-        let mut positions = Vec::with_capacity(n);
-        let mut position_gradients = Vec::with_capacity(n);
-        let mut velocities = Vec::with_capacity(n);
-        let mut velocity_gradients = Vec::with_capacity(n);
-        let mut elastic_energies = Vec::with_capacity(n);
-        let mut collider_bits = Vec::with_capacity(n);
-        for object in io_state.particle_objects.values_mut() {
-            flags.extend(
-                object
-                    .remove_attr::<attribute::Flags>()
-                    .into_iter()
-                    .map(two_f32_to_u32)
-                    .map(ParticleFlags),
-            );
-            collider_bits.extend(
-                object
-                    .remove_attr::<attribute::ColliderBits>()
-                    .into_iter()
-                    .map(two_f32_to_u32),
-            );
-
-            parameters.extend(
+        let mut particle_objects = io_state.particle_objects;
+        let flags = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::Flags>().into_iter())
+            .map(two_f32_to_u32)
+            .map(ParticleFlags)
+            .collect();
+        let collider_bits = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::ColliderBits>())
+            .map(two_f32_to_u32)
+            .collect();
+        let parameters = particle_objects
+            .values_mut()
+            .flat_map(|p| {
                 SplitParameters {
-                    density: object.remove_attr::<attribute::Density>(),
-                    initial_volume: object.remove_attr::<attribute::InitialVolumes>(),
-                    viscosity_dynamic: object.remove_attr::<attribute::ViscosityDynamic>(),
-                    viscosity_bulk: object.remove_attr::<attribute::ViscosityBulk>(),
-                    youngs_modulus: object.remove_attr::<attribute::YoungsModulus>(),
-                    poissons_ratio: object.remove_attr::<attribute::PoissonsRatio>(),
-                    sand_alpha: object.remove_attr::<attribute::SandAlpha>(),
-                    bulk_modulus: object.remove_attr::<attribute::BulkModulus>(),
-                    exponent: object.remove_attr::<attribute::Exponent>(),
+                    density: p.remove_attr::<attribute::Density>(),
+                    initial_volume: p.remove_attr::<attribute::InitialVolumes>(),
+                    viscosity_dynamic: p.remove_attr::<attribute::ViscosityDynamic>(),
+                    viscosity_bulk: p.remove_attr::<attribute::ViscosityBulk>(),
+                    youngs_modulus: p.remove_attr::<attribute::YoungsModulus>(),
+                    poissons_ratio: p.remove_attr::<attribute::PoissonsRatio>(),
+                    sand_alpha: p.remove_attr::<attribute::SandAlpha>(),
+                    bulk_modulus: p.remove_attr::<attribute::BulkModulus>(),
+                    exponent: p.remove_attr::<attribute::Exponent>(),
                 }
-                .to_zipped(),
-            );
-
-            initial_positions.append(&mut bytemuck::cast_vec(
-                object.remove_attr::<attribute::InitialPosition>(),
-            ));
-            goal_positions.append(&mut bytemuck::cast_vec(
-                object.remove_attr::<attribute::InitialPosition>(),
-            ));
-            positions.append(&mut bytemuck::cast_vec(
-                object.remove_attr::<attribute::InitialPosition>(),
-            ));
-            position_gradients.extend(
+                .to_zipped()
+            })
+            .collect();
+        let initial_positions = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::InitialPosition>().into_iter())
+            .map(Into::into)
+            .collect();
+        let goal_positions = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::GoalPosition>().into_iter())
+            .map(Into::into)
+            .collect();
+        let positions = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::Position>().into_iter())
+            .map(Into::into)
+            .collect();
+        let position_gradients = particle_objects
+            .values_mut()
+            .flat_map(|p| {
                 combine_matrices([
-                    object.remove_attr::<attribute::PositionGradientX>(),
-                    object.remove_attr::<attribute::PositionGradientY>(),
-                    object.remove_attr::<attribute::PositionGradientZ>(),
+                    p.remove_attr::<attribute::PositionGradientX>(),
+                    p.remove_attr::<attribute::PositionGradientY>(),
+                    p.remove_attr::<attribute::PositionGradientZ>(),
                 ])
-                .map(Into::<Matrix3<f32>>::into),
-            );
-            velocities.append(&mut bytemuck::cast_vec(
-                object.remove_attr::<attribute::Velocity>(),
-            ));
-            velocity_gradients.extend(
+                .map(Into::into)
+            })
+            .collect();
+        let velocities = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::Velocity>().into_iter())
+            .map(Into::into)
+            .collect();
+        let velocity_gradients = particle_objects
+            .values_mut()
+            .flat_map(|p| {
                 combine_matrices([
-                    object.remove_attr::<attribute::VelocityGradientX>(),
-                    object.remove_attr::<attribute::VelocityGradientY>(),
-                    object.remove_attr::<attribute::VelocityGradientZ>(),
+                    p.remove_attr::<attribute::VelocityGradientX>(),
+                    p.remove_attr::<attribute::VelocityGradientY>(),
+                    p.remove_attr::<attribute::VelocityGradientZ>(),
                 ])
-                .map(Into::<Matrix3<f32>>::into),
-            );
-            elastic_energies.append(&mut object.remove_attr::<attribute::ElasticEnergy>());
+                .map(Into::into)
+            })
+            .collect();
+        let elastic_energies = particle_objects
+            .values_mut()
+            .flat_map(|p| p.remove_attr::<attribute::ElasticEnergy>().into_iter())
+            .collect();
 
-            if !object.attributes.is_empty() {
-                tracing::error!(?object.attributes);
+        for p in particle_objects.values() {
+            if !p.attributes.is_empty() {
+                tracing::error!(?p.attributes);
                 panic!("Missed attrbiutes");
             }
         }
