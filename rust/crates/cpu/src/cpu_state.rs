@@ -6,10 +6,10 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::num::NonZero;
+use std::{collections::BTreeMap, num::NonZero};
 
 use squishy_volumes_file_frame::{
-    IoState, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
+    IoState, IoStateError, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
 };
 use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
 use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, SplitParameters, attribute};
@@ -36,7 +36,7 @@ pub struct CpuState {
 impl CpuState {
     pub fn new(
         frame: usize,
-        io_state: IoState,
+        mut io_state: IoState,
         input_reader: squishy_volumes_file_input::InputReader,
     ) -> Result<Self, Error> {
         let time = io_state.time;
@@ -44,83 +44,61 @@ impl CpuState {
 
         let n = input_reader.header().total_particles;
 
-        let mut particle_objects = io_state.particle_objects;
-        let flags = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::Flags>().into_iter())
+        let flags = io_state
+            .collect::<attribute::Flags>()?
             .map(two_f32_to_u32)
             .map(ParticleFlags)
             .collect();
-        let collider_bits = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::ColliderBits>())
+        let collider_bits = io_state
+            .collect::<attribute::ColliderBits>()?
             .map(two_f32_to_u32)
             .collect();
-        let parameters = particle_objects
-            .values_mut()
-            .flat_map(|p| {
-                SplitParameters {
-                    density: p.remove_attr::<attribute::Density>(),
-                    initial_volume: p.remove_attr::<attribute::InitialVolumes>(),
-                    viscosity_dynamic: p.remove_attr::<attribute::ViscosityDynamic>(),
-                    viscosity_bulk: p.remove_attr::<attribute::ViscosityBulk>(),
-                    youngs_modulus: p.remove_attr::<attribute::YoungsModulus>(),
-                    poissons_ratio: p.remove_attr::<attribute::PoissonsRatio>(),
-                    sand_alpha: p.remove_attr::<attribute::SandAlpha>(),
-                    bulk_modulus: p.remove_attr::<attribute::BulkModulus>(),
-                    exponent: p.remove_attr::<attribute::Exponent>(),
-                }
-                .to_zipped()
-            })
-            .collect();
-        let initial_positions = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::InitialPosition>().into_iter())
+        let parameters = SplitParameters {
+            density: io_state.collect::<attribute::Density>()?.collect(),
+            initial_volume: io_state.collect::<attribute::InitialVolumes>()?.collect(),
+            viscosity_dynamic: io_state.collect::<attribute::ViscosityDynamic>()?.collect(),
+            viscosity_bulk: io_state.collect::<attribute::ViscosityBulk>()?.collect(),
+            youngs_modulus: io_state.collect::<attribute::YoungsModulus>()?.collect(),
+            poissons_ratio: io_state.collect::<attribute::PoissonsRatio>()?.collect(),
+            sand_alpha: io_state.collect::<attribute::SandAlpha>()?.collect(),
+            bulk_modulus: io_state.collect::<attribute::BulkModulus>()?.collect(),
+            exponent: io_state.collect::<attribute::Exponent>()?.collect(),
+        }
+        .to_zipped()
+        .collect();
+        let initial_positions = io_state
+            .collect::<attribute::InitialPosition>()?
             .map(Into::into)
             .collect();
-        let goal_positions = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::GoalPosition>().into_iter())
+        let goal_positions = io_state
+            .collect::<attribute::GoalPosition>()?
             .map(Into::into)
             .collect();
-        let positions = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::Position>().into_iter())
+        let positions = io_state
+            .collect::<attribute::Position>()?
             .map(Into::into)
             .collect();
-        let position_gradients = particle_objects
-            .values_mut()
-            .flat_map(|p| {
-                combine_matrices([
-                    p.remove_attr::<attribute::PositionGradientX>(),
-                    p.remove_attr::<attribute::PositionGradientY>(),
-                    p.remove_attr::<attribute::PositionGradientZ>(),
-                ])
-                .map(Into::into)
-            })
-            .collect();
-        let velocities = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::Velocity>().into_iter())
+        let position_gradients = combine_matrices(
+            io_state.collect::<attribute::PositionGradientX>()?,
+            io_state.collect::<attribute::PositionGradientY>()?,
+            io_state.collect::<attribute::PositionGradientZ>()?,
+        )
+        .map(Into::into)
+        .collect();
+        let velocities = io_state
+            .collect::<attribute::Velocity>()?
             .map(Into::into)
             .collect();
-        let velocity_gradients = particle_objects
-            .values_mut()
-            .flat_map(|p| {
-                combine_matrices([
-                    p.remove_attr::<attribute::VelocityGradientX>(),
-                    p.remove_attr::<attribute::VelocityGradientY>(),
-                    p.remove_attr::<attribute::VelocityGradientZ>(),
-                ])
-                .map(Into::into)
-            })
-            .collect();
-        let elastic_energies = particle_objects
-            .values_mut()
-            .flat_map(|p| p.remove_attr::<attribute::ElasticEnergy>().into_iter())
-            .collect();
+        let velocity_gradients = combine_matrices(
+            io_state.collect::<attribute::VelocityGradientX>()?,
+            io_state.collect::<attribute::VelocityGradientY>()?,
+            io_state.collect::<attribute::VelocityGradientZ>()?,
+        )
+        .map(Into::into)
+        .collect();
+        let elastic_energies = io_state.collect::<attribute::ElasticEnergy>()?.collect();
 
-        for p in particle_objects.values() {
+        for p in io_state.particle_objects.values() {
             if !p.attributes.is_empty() {
                 tracing::error!(?p.attributes);
                 panic!("Missed attrbiutes");
@@ -186,13 +164,17 @@ impl CpuState {
             .objects
             .iter()
             .filter_map(|(name, object)| {
-                let Object::Particles(ObjectParticles {
+                if let Object::Particles(object) = object {
+                    Some((name, object))
+                } else {
+                    None
+                }
+            })
+            .map(|(name, object)| {
+                let ObjectParticles {
                     particle_range,
                     alembic_attributes,
-                }) = object
-                else {
-                    return None;
-                };
+                } = object;
                 struct Permuter<I> {
                     iterator: I,
                 }
@@ -215,53 +197,66 @@ impl CpuState {
                 };
                 // TODO: multi threading
                 use attribute as a;
-                ps.insert_attr::<a::ElasticEnergy>(p.it(elastic_energies).cloned());
+                (|| {
+                    ps.insert_attr::<a::ElasticEnergy>(p.it(elastic_energies).cloned())?;
 
-                ps.insert_attr::<a::Flags>(p.it(flags).map(|flag| u32_to_two_f32(flag.0)));
-                ps.insert_attr::<a::ColliderBits>(p.it(collider_bits).cloned().map(u32_to_two_f32));
+                    ps.insert_attr::<a::Flags>(p.it(flags).map(|flag| u32_to_two_f32(flag.0)))?;
+                    ps.insert_attr::<a::ColliderBits>(
+                        p.it(collider_bits).cloned().map(u32_to_two_f32),
+                    )?;
 
-                ps.insert_attr::<a::Density>(p.it(parameters).map(|p| p.density));
-                ps.insert_attr::<a::InitialVolumes>(p.it(parameters).map(|p| p.initial_volume));
-                ps.insert_attr::<a::ViscosityDynamic>(
-                    p.it(parameters).map(|p| p.viscosity_dynamic),
-                );
-                ps.insert_attr::<a::ViscosityBulk>(p.it(parameters).map(|p| p.viscosity_bulk));
-                ps.insert_attr::<a::YoungsModulus>(p.it(parameters).map(|p| p.youngs_modulus));
-                ps.insert_attr::<a::PoissonsRatio>(p.it(parameters).map(|p| p.poissons_ratio));
-                ps.insert_attr::<a::SandAlpha>(p.it(parameters).map(|p| p.sand_alpha));
-                ps.insert_attr::<a::BulkModulus>(p.it(parameters).map(|p| p.bulk_modulus));
-                ps.insert_attr::<a::Exponent>(p.it(parameters).map(|p| p.exponent as f32));
+                    ps.insert_attr::<a::Density>(p.it(parameters).map(|p| p.density))?;
+                    ps.insert_attr::<a::InitialVolumes>(
+                        p.it(parameters).map(|p| p.initial_volume),
+                    )?;
+                    ps.insert_attr::<a::ViscosityDynamic>(
+                        p.it(parameters).map(|p| p.viscosity_dynamic),
+                    )?;
+                    ps.insert_attr::<a::ViscosityBulk>(p.it(parameters).map(|p| p.viscosity_bulk))?;
+                    ps.insert_attr::<a::YoungsModulus>(p.it(parameters).map(|p| p.youngs_modulus))?;
+                    ps.insert_attr::<a::PoissonsRatio>(p.it(parameters).map(|p| p.poissons_ratio))?;
+                    ps.insert_attr::<a::SandAlpha>(p.it(parameters).map(|p| p.sand_alpha))?;
+                    ps.insert_attr::<a::BulkModulus>(p.it(parameters).map(|p| p.bulk_modulus))?;
+                    ps.insert_attr::<a::Exponent>(p.it(parameters).map(|p| p.exponent as f32))?;
 
-                ps.insert_attr::<a::Position>(p.it(positions).cloned().map(Into::into));
-                ps.insert_attr::<a::PositionGradientX>(
-                    p.it(position_gradients).map(|p| p.column(0).into()),
-                );
-                ps.insert_attr::<a::PositionGradientY>(
-                    p.it(position_gradients).map(|p| p.column(1).into()),
-                );
-                ps.insert_attr::<a::PositionGradientZ>(
-                    p.it(position_gradients).map(|p| p.column(2).into()),
-                );
+                    ps.insert_attr::<a::Position>(p.it(positions).cloned().map(Into::into))?;
+                    ps.insert_attr::<a::PositionGradientX>(
+                        p.it(position_gradients).map(|p| p.column(0).into()),
+                    )?;
+                    ps.insert_attr::<a::PositionGradientY>(
+                        p.it(position_gradients).map(|p| p.column(1).into()),
+                    )?;
+                    ps.insert_attr::<a::PositionGradientZ>(
+                        p.it(position_gradients).map(|p| p.column(2).into()),
+                    )?;
 
-                ps.insert_attr::<a::Velocity>(p.it(velocities).cloned().map(Into::into));
-                ps.insert_attr::<a::VelocityGradientX>(
-                    p.it(velocity_gradients).map(|p| p.column(0).into()),
-                );
-                ps.insert_attr::<a::VelocityGradientY>(
-                    p.it(velocity_gradients).map(|p| p.column(1).into()),
-                );
-                ps.insert_attr::<a::VelocityGradientZ>(
-                    p.it(velocity_gradients).map(|p| p.column(2).into()),
-                );
+                    ps.insert_attr::<a::Velocity>(p.it(velocities).cloned().map(Into::into))?;
+                    ps.insert_attr::<a::VelocityGradientX>(
+                        p.it(velocity_gradients).map(|p| p.column(0).into()),
+                    )?;
+                    ps.insert_attr::<a::VelocityGradientY>(
+                        p.it(velocity_gradients).map(|p| p.column(1).into()),
+                    )?;
+                    ps.insert_attr::<a::VelocityGradientZ>(
+                        p.it(velocity_gradients).map(|p| p.column(2).into()),
+                    )?;
 
-                ps.insert_attr::<a::InitialPosition>(
-                    p.it(initial_positions).cloned().map(Into::into),
-                );
-                ps.insert_attr::<a::GoalPosition>(p.it(goal_positions).cloned().map(Into::into));
+                    ps.insert_attr::<a::InitialPosition>(
+                        p.it(initial_positions).cloned().map(Into::into),
+                    )?;
+                    ps.insert_attr::<a::GoalPosition>(
+                        p.it(goal_positions).cloned().map(Into::into),
+                    )?;
+                    Ok(())
+                })()
+                .map_err(|error| IoStateError::ParticleObject {
+                    name: name.clone(),
+                    error,
+                })?;
 
-                Some((name.clone(), ps))
+                Ok::<_, IoStateError>((name.clone(), ps))
             })
-            .collect();
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
 
         let collider = self.frame_input.collider_start().to_io_collider();
 

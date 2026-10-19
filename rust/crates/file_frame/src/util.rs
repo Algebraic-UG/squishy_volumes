@@ -43,6 +43,11 @@ pub fn split_matrices(matrices: &[[[f32; 3]; 3]]) -> [Vec<[f32; 3]>; 3] {
     [x, y, z]
 }
 
-pub fn combine_matrices([x, y, z]: [Vec<[f32; 3]>; 3]) -> impl Iterator<Item = [[f32; 3]; 3]> {
+pub fn combine_matrices<X, Y, Z>(x: X, y: Y, z: Z) -> impl Iterator<Item = [[f32; 3]; 3]>
+where
+    X: Iterator<Item = [f32; 3]>,
+    Y: Iterator<Item = [f32; 3]>,
+    Z: Iterator<Item = [f32; 3]>,
+{
     itertools::izip!(x, y, z).map(|(x, y, z)| [x, y, z])
 }
