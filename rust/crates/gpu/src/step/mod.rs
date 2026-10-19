@@ -99,8 +99,7 @@ pub struct Input {
 
     pub variable_particle_input: VariableParticleInput,
 
-    pub particle_goals_start: Allocation,
-    pub particle_goals_end: Allocation,
+    pub particle_goals: Allocation,
 
     pub collider_input: Option<ColliderInput>,
 
@@ -132,8 +131,7 @@ pub struct VariableParticleInputData<'a> {
 pub struct InputData<'a> {
     pub globals: AnimatedGlobals,
 
-    pub particle_goals_start: &'a [Vector4<f32>],
-    pub particle_goals_end: &'a [Vector4<f32>],
+    pub particle_goals: &'a [Vector4<f32>],
 
     pub variable_particle_input: VariableParticleInputData<'a>,
 
@@ -310,14 +308,12 @@ impl Input {
         }: Settings,
         InputData {
             globals,
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
             variable_particle_input,
             collider_input,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        check_length!(variable_particle_input.particle_flags, particle_goals_start)?;
-        check_length!(variable_particle_input.particle_flags, particle_goals_end)?;
+        check_length!(variable_particle_input.particle_flags, particle_goals)?;
 
         let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
@@ -333,9 +329,7 @@ impl Input {
         let indirect_grid_nodes =
             Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
 
-        let particle_goals_start =
-            Allocation::new(device, "particle_goals_start", particle_goals_start)?;
-        let particle_goals_end = Allocation::new(device, "particle_goals_end", particle_goals_end)?;
+        let particle_goals = Allocation::new(device, "particle_goals", particle_goals)?;
 
         let variable_particle_input = VariableParticleInput::new(device, variable_particle_input)?;
 
@@ -364,8 +358,7 @@ impl Input {
             indirect_particles,
             indirect_grid_nodes,
 
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
 
             variable_particle_input,
 
@@ -543,8 +536,7 @@ impl PipelinePart for Step {
             globals,
             indirect_particles,
             indirect_grid_nodes,
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
             variable_particle_input:
                 VariableParticleInput {
                     particle_flags,
@@ -588,14 +580,12 @@ impl PipelinePart for Step {
             context,
             encoder,
             external_force::Input {
-                time: time.clone(),
                 time_step: time_step.clone(),
                 globals,
                 particle_flags: particle_flags.clone(),
                 particle_positions_and_collider_bits: particle_positions_and_collider_bits.clone(),
                 particle_velocities: particle_velocities.clone(),
-                particle_goals_start,
-                particle_goals_end,
+                particle_goals,
             },
             external_force::Parameters,
         )?;

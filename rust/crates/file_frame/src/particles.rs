@@ -76,6 +76,14 @@ impl AttributeValue {
 }
 
 impl ParticlesObject {
+    pub fn replace_attr<A>(&mut self, values: impl Iterator<Item = A::T>)
+    where
+        A: attribute::Trait,
+        A::T: Value,
+    {
+        *self.attributes.get_mut(&A::KEY).unwrap() = AttributeValue::pack(values.collect());
+    }
+
     pub fn remove_attr<A>(&mut self) -> Vec<A::T>
     where
         A: attribute::Trait,
