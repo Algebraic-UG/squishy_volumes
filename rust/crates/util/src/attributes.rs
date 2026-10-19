@@ -40,7 +40,13 @@ macro_rules! define_keys {
                     )*
                 }
             }
-
+            pub fn visit<V: Visitor>(&self, visitor: &mut V) -> V::Output {
+                match self {
+                    $(
+                        Self::$variant => visitor.visit::<$variant>(),
+                    )*
+                }
+            }
         }
 
         $(
@@ -60,6 +66,11 @@ pub mod attribute {
         const KEY: Key;
         const ALEMBIC_NAME: &str;
         type T: alembic_rust::AttributeElement;
+    }
+
+    pub trait Visitor {
+        type Output;
+        fn visit<T: Trait>(&mut self) -> Self::Output;
     }
 
     define_keys! {
