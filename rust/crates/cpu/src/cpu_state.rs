@@ -8,7 +8,6 @@
 
 use std::num::NonZero;
 
-use nalgebra::Matrix3;
 use squishy_volumes_file_frame::{
     IoState, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
 };
