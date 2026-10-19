@@ -6,14 +6,23 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::{collections::BTreeMap, mem::swap, num::NonZeroU32, path::PathBuf, time::Duration};
+use std::{
+    collections::BTreeMap,
+    iter::repeat_n,
+    mem::{swap, take},
+    num::NonZeroU32,
+    path::PathBuf,
+    time::Duration,
+};
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::{
-    IoState, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
+    IoState, IoStateError, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
 };
-use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles};
-use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, SplitParameters, attribute};
+use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
+use squishy_volumes_util::{
+    AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, attribute,
+};
 use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
 use crate::{
@@ -57,9 +66,107 @@ pub struct GpuState {
     frame_input: FrameInput,
 
     // if we need to redo the frame
-    io_particles: BTreeMap<String, ParticlesObject>,
+    variable_particle_input_backup: VariableParticleInputBackup,
 
     profile_data_csv_writer: Option<ProfileDataCsvWriter>,
+}
+
+struct VariableParticleInputBackup {
+    flags: Vec<ParticleFlags>,
+    parameters: Vec<ParticleParameters>,
+    positions_and_collider_bits: Vec<PositionAndColliderBits>,
+    position_gradients: Vec<Matrix4x3<f32>>,
+    velocities: Vec<Vector4<f32>>,
+    velocity_gradients: Vec<Matrix4x3<f32>>,
+}
+impl VariableParticleInputBackup {
+    fn new(io_state: &mut IoState) -> Result<VariableParticleInputBackup, GpuError> {
+        tracing::info!("preparing variable particle data for transfer");
+        let positions_and_collider_bits: Vec<PositionAndColliderBits> = io_state
+            .collect::<attribute::Position>()?
+            .zip(io_state.collect::<attribute::ColliderBits>()?)
+            .map(|(position, collider_bits)| PositionAndColliderBits {
+                position: position.into(),
+                collider_bits: two_f32_to_u32(collider_bits),
+            })
+            .collect();
+
+        #[allow(clippy::toplevel_ref_arg)]
+        let position_gradients: Vec<Matrix4x3<f32>> = combine_matrices(
+            io_state.collect::<attribute::PositionGradientX>()?,
+            io_state.collect::<attribute::PositionGradientY>()?,
+            io_state.collect::<attribute::PositionGradientZ>()?,
+        )
+        .map(Into::<Matrix3<f32>>::into)
+        .map(|m| stack![m; Matrix1x3::zeros()])
+        .collect();
+
+        let velocities: Vec<Vector4<f32>> = io_state
+            .collect::<attribute::Velocity>()?
+            .map(Into::<Vector3<f32>>::into)
+            .map(|p| p.push(0.))
+            .collect();
+
+        #[allow(clippy::toplevel_ref_arg)]
+        let velocity_gradients: Vec<Matrix4x3<f32>> = combine_matrices(
+            io_state.collect::<attribute::VelocityGradientX>()?,
+            io_state.collect::<attribute::VelocityGradientY>()?,
+            io_state.collect::<attribute::VelocityGradientZ>()?,
+        )
+        .map(Into::<Matrix3<f32>>::into)
+        .map(|m| stack![m; Matrix1x3::zeros()])
+        .collect();
+
+        let flags: Vec<_> = io_state
+            .collect::<attribute::Flags>()?
+            .map(two_f32_to_u32)
+            .map(ParticleFlags)
+            .collect();
+
+        let parameters = SplitParameters {
+            density: io_state.collect::<attribute::Density>()?.collect(),
+            initial_volume: io_state.collect::<attribute::InitialVolumes>()?.collect(),
+            viscosity_dynamic: io_state.collect::<attribute::ViscosityDynamic>()?.collect(),
+            viscosity_bulk: io_state.collect::<attribute::ViscosityBulk>()?.collect(),
+            youngs_modulus: io_state.collect::<attribute::YoungsModulus>()?.collect(),
+            poissons_ratio: io_state.collect::<attribute::PoissonsRatio>()?.collect(),
+            sand_alpha: io_state.collect::<attribute::SandAlpha>()?.collect(),
+            bulk_modulus: io_state.collect::<attribute::BulkModulus>()?.collect(),
+            exponent: io_state.collect::<attribute::Exponent>()?.collect(),
+        }
+        .to_zipped()
+        .collect::<Vec<_>>();
+
+        for p in io_state.particle_objects.values() {
+            if !p.attributes.is_empty() {
+                tracing::error!(?p.attributes);
+                panic!("Missed attrbiutes");
+            }
+        }
+
+        Ok(Self {
+            flags,
+            parameters,
+            positions_and_collider_bits,
+            position_gradients,
+            velocities,
+            velocity_gradients,
+        })
+    }
+
+    fn to_data(&self, device: &wgpu::Device) -> Result<VariableParticleInput, GpuError> {
+        VariableParticleInput::new(
+            device,
+            VariableParticleInputData {
+                particle_flags: &self.flags,
+                particle_parameters: &self.parameters,
+                particle_positions_and_collider_bits: &self.positions_and_collider_bits,
+                particle_position_gradients: &self.position_gradients,
+                particle_velocities: &self.velocities,
+                particle_velocity_gradients: &self.velocity_gradients,
+            },
+        )
+    }
 }
 
 pub const BYTES_PER_GRID_NODE: u64 = 300;
@@ -67,7 +174,7 @@ pub const BYTES_PER_GRID_NODE: u64 = 300;
 impl GpuState {
     pub fn new(
         frame: usize,
-        io_state: IoState,
+        mut io_state: IoState,
         input_reader: squishy_volumes_file_input::InputReader,
         gpu: String,
         harness: &Harness,
@@ -80,7 +187,7 @@ impl GpuState {
         let time = io_state.time;
         let animated_globals = io_state.animated_globals;
 
-        let frame_input = FrameInput::new(input_reader, io_state.collider, frame)?;
+        let frame_input = FrameInput::new(input_reader, take(&mut io_state.collider), frame)?;
         let consts = &frame_input.header().consts;
 
         let num_particles = frame_input.header().total_particles;
@@ -151,21 +258,13 @@ impl GpuState {
             len: num_particles as u32,
         });
 
-        let mut particle_objects = io_state.particle_objects;
-
-        let particle_goals = particle_objects
-            .values_mut()
-            .flat_map(|particles| {
-                particles
-                    .remove_attr::<attribute::GoalPosition>()
-                    .into_iter()
-                    .map(Into::<Vector3<f32>>::into)
-                    .map(|p| p.push(0.))
-            })
+        let particle_goals = io_state
+            .collect::<attribute::GoalPosition>()?
+            .map(Into::<Vector3<f32>>::into)
+            .map(|p| p.push(0.))
             .collect::<Vec<_>>();
 
-        // variable parts backed-up
-        let io_particles = particle_objects.clone();
+        let variable_particle_input_backup = VariableParticleInputBackup::new(&mut io_state)?;
 
         harness.check()?;
         harness.step()?;
@@ -186,8 +285,7 @@ impl GpuState {
                 Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
 
             let particle_goals = Allocation::new(device, "particle_goals", &particle_goals)?;
-            let variable_particle_input =
-                get_variable_particle_input(device, &mut particle_objects)?;
+            let variable_particle_input = variable_particle_input_backup.to_data(device)?;
 
             let collider_input = get_collider_input(device, &frame_input)?;
 
@@ -235,108 +333,10 @@ impl GpuState {
             recorded_steps: 0,
             steps_per_frame,
             frame_input,
-            io_particles,
+            variable_particle_input_backup,
             profile_data_csv_writer,
         })
     }
-}
-
-fn get_variable_particle_input(
-    device: &wgpu::Device,
-    particle_objects: &mut BTreeMap<String, squishy_volumes_file_frame::ParticlesObject>,
-) -> Result<step::VariableParticleInput, GpuError> {
-    tracing::info!("preparing variable particle data for transfer");
-    let particle_positions_and_collider_bits: Vec<PositionAndColliderBits> = particle_objects
-        .values_mut()
-        .flat_map(|p| {
-            p.remove_attr::<attribute::Position>()
-                .into_iter()
-                .zip(p.remove_attr::<attribute::ColliderBits>().into_iter())
-                .map(|(position, collider_bits)| PositionAndColliderBits {
-                    position: position.into(),
-                    collider_bits: two_f32_to_u32(collider_bits),
-                })
-        })
-        .collect();
-
-    #[allow(clippy::toplevel_ref_arg)]
-    let particle_position_gradients: Vec<Matrix4x3<f32>> = particle_objects
-        .values_mut()
-        .flat_map(|p| {
-            combine_matrices([
-                p.remove_attr::<attribute::PositionGradientX>(),
-                p.remove_attr::<attribute::PositionGradientY>(),
-                p.remove_attr::<attribute::PositionGradientZ>(),
-            ])
-            .map(Into::<Matrix3<f32>>::into)
-            .map(|m| stack![m; Matrix1x3::zeros()])
-        })
-        .collect();
-
-    let particle_velocities: Vec<Vector4<f32>> = particle_objects
-        .values_mut()
-        .flat_map(|p| p.remove_attr::<attribute::Velocity>().into_iter())
-        .map(Into::<Vector3<f32>>::into)
-        .map(|p| p.push(0.))
-        .collect();
-
-    #[allow(clippy::toplevel_ref_arg)]
-    let particle_velocity_gradients: Vec<Matrix4x3<f32>> = particle_objects
-        .values_mut()
-        .flat_map(|p| {
-            combine_matrices([
-                p.remove_attr::<attribute::VelocityGradientX>(),
-                p.remove_attr::<attribute::VelocityGradientY>(),
-                p.remove_attr::<attribute::VelocityGradientZ>(),
-            ])
-            .map(Into::<Matrix3<f32>>::into)
-            .map(|m| stack![m; Matrix1x3::zeros()])
-        })
-        .collect();
-
-    let particle_flags: Vec<_> = particle_objects
-        .values_mut()
-        .flat_map(|p| p.remove_attr::<attribute::Flags>().into_iter())
-        .map(two_f32_to_u32)
-        .map(ParticleFlags)
-        .collect();
-
-    let particle_parameters: Vec<_> = particle_objects
-        .values_mut()
-        .flat_map(|p| {
-            SplitParameters {
-                density: p.remove_attr::<attribute::Density>(),
-                initial_volume: p.remove_attr::<attribute::InitialVolumes>(),
-                viscosity_dynamic: p.remove_attr::<attribute::ViscosityDynamic>(),
-                viscosity_bulk: p.remove_attr::<attribute::ViscosityBulk>(),
-                youngs_modulus: p.remove_attr::<attribute::YoungsModulus>(),
-                poissons_ratio: p.remove_attr::<attribute::PoissonsRatio>(),
-                sand_alpha: p.remove_attr::<attribute::SandAlpha>(),
-                bulk_modulus: p.remove_attr::<attribute::BulkModulus>(),
-                exponent: p.remove_attr::<attribute::Exponent>(),
-            }
-            .to_zipped()
-        })
-        .collect();
-
-    for p in particle_objects.values() {
-        if !p.attributes.is_empty() {
-            tracing::error!(?p.attributes);
-            panic!("Missed attrbiutes");
-        }
-    }
-
-    VariableParticleInput::new(
-        device,
-        VariableParticleInputData {
-            particle_flags: &particle_flags,
-            particle_parameters: &particle_parameters,
-            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
-            particle_position_gradients: &particle_position_gradients,
-            particle_velocities: &particle_velocities,
-            particle_velocity_gradients: &particle_velocity_gradients,
-        },
-    )
 }
 
 fn get_collider_input(
@@ -586,10 +586,10 @@ impl GpuState {
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
             tracing::warn!(self.max_num_grid_nodes, "The frame needs to be redone");
 
-            self.step_input.variable_particle_input = get_variable_particle_input(
-                self.gpu_context.device(),
-                &mut self.io_particles.clone(),
-            )?;
+            self.step_input.variable_particle_input = self
+                .variable_particle_input_backup
+                .to_data(self.gpu_context.device())?;
+
             self.gpu_context.resize_allocator(
                 self.max_num_grid_nodes.get() as u64 * BYTES_PER_GRID_NODE,
                 false,
@@ -605,6 +605,7 @@ impl GpuState {
             //limits_over_time: _,
             indirect_nodes,
             particle_flags,
+            particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -625,66 +626,132 @@ impl GpuState {
             )?;
         };
 
-        self.io_particles
-            .iter_mut()
-            .try_for_each(|(name, particles)| -> Result<(), GpuError> {
-                let range = &self
-                    .frame_input
-                    .header()
-                    .get_particle_object(name)
-                    .map_err(|error| error.attach_frame(self.frame_input.frame()))
-                    .map_err(FrameInputError::InputError)?
-                    .particle_range;
-                let r = || range.clone();
-                particles.replace_attr::<attribute::Flags>(
-                    particle_flags[r()].iter().map(|f| u32_to_two_f32(f.0)),
-                );
-                particles.replace_attr::<attribute::Position>(
-                    particle_positions_and_collider_bits[r()]
-                        .iter()
-                        .map(|p| p.position.into()),
-                );
-                particles.replace_attr::<attribute::ColliderBits>(
-                    particle_positions_and_collider_bits[r()]
-                        .iter()
-                        .map(|p| u32_to_two_f32(p.collider_bits)),
-                );
-                particles.replace_attr::<attribute::PositionGradientX>(
-                    particle_position_gradients[r()]
-                        .iter()
-                        .map(|p| p.column(0).xyz().into()),
-                );
-                particles.replace_attr::<attribute::PositionGradientY>(
-                    particle_position_gradients[r()]
-                        .iter()
-                        .map(|p| p.column(1).xyz().into()),
-                );
-                particles.replace_attr::<attribute::PositionGradientZ>(
-                    particle_position_gradients[r()]
-                        .iter()
-                        .map(|p| p.column(2).xyz().into()),
-                );
-                particles.replace_attr::<attribute::Velocity>(
-                    particle_velocities[r()].iter().map(|p| p.xyz().into()),
-                );
-                particles.replace_attr::<attribute::VelocityGradientX>(
-                    particle_velocity_gradients[r()]
-                        .iter()
-                        .map(|p| p.column(0).xyz().into()),
-                );
-                particles.replace_attr::<attribute::VelocityGradientY>(
-                    particle_velocity_gradients[r()]
-                        .iter()
-                        .map(|p| p.column(1).xyz().into()),
-                );
-                particles.replace_attr::<attribute::VelocityGradientZ>(
-                    particle_velocity_gradients[r()]
-                        .iter()
-                        .map(|p| p.column(2).xyz().into()),
-                );
+        self.variable_particle_input_backup.flags = particle_flags;
+        self.variable_particle_input_backup.parameters = particle_parameters;
+        self.variable_particle_input_backup
+            .positions_and_collider_bits = particle_positions_and_collider_bits;
+        self.variable_particle_input_backup.position_gradients = particle_position_gradients;
+        self.variable_particle_input_backup.velocities = particle_velocities;
+        self.variable_particle_input_backup.velocity_gradients = particle_velocity_gradients;
 
-                Ok(())
-            })?;
+        let particle_objects = self
+            .frame_input
+            .header()
+            .objects
+            .iter()
+            .filter_map(|(name, object)| {
+                if let Object::Particles(object) = object {
+                    Some((name, object))
+                } else {
+                    None
+                }
+            })
+            .map(|(name, object)| {
+                let ObjectParticles {
+                    particle_range,
+                    alembic_attributes,
+                } = object;
+                let ps = &self.variable_particle_input_backup;
+                let mut pt = ParticlesObject {
+                    num_particles: particle_range.len(),
+                    alembic_attributes: alembic_attributes.clone(),
+                    attributes: Default::default(),
+                };
+                let r = || particle_range.clone();
+
+                // TODO: multi threading
+                use attribute as a;
+                (|| {
+                    // TODO
+                    pt.insert_attr::<a::ElasticEnergy>(repeat_n(0., r().len()))?;
+                    pt.insert_attr::<a::InitialPosition>(repeat_n([0.; 3], r().len()))?;
+                    pt.insert_attr::<a::GoalPosition>(repeat_n([0.; 3], r().len()))?;
+
+                    pt.insert_attr::<a::Flags>(
+                        ps.flags[r()].iter().map(|flag| u32_to_two_f32(flag.0)),
+                    )?;
+                    pt.insert_attr::<a::ColliderBits>(
+                        ps.positions_and_collider_bits[r()]
+                            .iter()
+                            .map(|p| u32_to_two_f32(p.collider_bits)),
+                    )?;
+
+                    pt.insert_attr::<a::Density>(ps.parameters[r()].iter().map(|p| p.density))?;
+                    pt.insert_attr::<a::InitialVolumes>(
+                        ps.parameters[r()].iter().map(|p| p.initial_volume),
+                    )?;
+                    pt.insert_attr::<a::ViscosityDynamic>(
+                        ps.parameters[r()].iter().map(|p| p.viscosity_dynamic),
+                    )?;
+                    pt.insert_attr::<a::ViscosityBulk>(
+                        ps.parameters[r()].iter().map(|p| p.viscosity_bulk),
+                    )?;
+                    pt.insert_attr::<a::YoungsModulus>(
+                        ps.parameters[r()].iter().map(|p| p.youngs_modulus),
+                    )?;
+                    pt.insert_attr::<a::PoissonsRatio>(
+                        ps.parameters[r()].iter().map(|p| p.poissons_ratio),
+                    )?;
+                    pt.insert_attr::<a::SandAlpha>(
+                        ps.parameters[r()].iter().map(|p| p.sand_alpha),
+                    )?;
+                    pt.insert_attr::<a::BulkModulus>(
+                        ps.parameters[r()].iter().map(|p| p.bulk_modulus),
+                    )?;
+                    pt.insert_attr::<a::Exponent>(
+                        ps.parameters[r()].iter().map(|p| p.exponent as f32),
+                    )?;
+
+                    pt.insert_attr::<a::Position>(
+                        ps.positions_and_collider_bits[r()]
+                            .iter()
+                            .map(|p| p.position.into()),
+                    )?;
+                    pt.insert_attr::<a::PositionGradientX>(
+                        ps.position_gradients[r()]
+                            .iter()
+                            .map(|p| p.column(0).xyz().into()),
+                    )?;
+                    pt.insert_attr::<a::PositionGradientY>(
+                        ps.position_gradients[r()]
+                            .iter()
+                            .map(|p| p.column(1).xyz().into()),
+                    )?;
+                    pt.insert_attr::<a::PositionGradientZ>(
+                        ps.position_gradients[r()]
+                            .iter()
+                            .map(|p| p.column(2).xyz().into()),
+                    )?;
+
+                    pt.insert_attr::<a::Velocity>(
+                        ps.velocities[r()].iter().map(|v| v.xyz().into()),
+                    )?;
+                    pt.insert_attr::<a::VelocityGradientX>(
+                        ps.position_gradients[r()]
+                            .iter()
+                            .map(|p| p.column(0).xyz().into()),
+                    )?;
+                    pt.insert_attr::<a::VelocityGradientY>(
+                        ps.position_gradients[r()]
+                            .iter()
+                            .map(|p| p.column(1).xyz().into()),
+                    )?;
+                    pt.insert_attr::<a::VelocityGradientZ>(
+                        ps.position_gradients[r()]
+                            .iter()
+                            .map(|p| p.column(2).xyz().into()),
+                    )?;
+
+                    Ok(())
+                })()
+                .map_err(|error| IoStateError::ParticleObject {
+                    name: name.clone(),
+                    error,
+                })?;
+
+                Ok::<_, IoStateError>((name.clone(), pt))
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
 
         let collider = self.frame_input.collider_start().to_io_collider();
         let bvh = store_bvh.then(|| self.frame_input.bvh().clone());
@@ -733,7 +800,7 @@ impl GpuState {
         let io_state = IoState {
             time: self.time,
             animated_globals: self.animated_globals,
-            particle_objects: self.io_particles.clone(),
+            particle_objects,
             collider,
             bvh,
             grid_nodes,
@@ -978,6 +1045,11 @@ impl Downloads {
                 gpu_state
                     .step_input
                     .variable_particle_input
+                    .particle_parameters
+                    .clone(),
+                gpu_state
+                    .step_input
+                    .variable_particle_input
                     .particle_positions_and_collider_bits
                     .clone(),
                 gpu_state
@@ -1034,6 +1106,7 @@ impl DownloadsReady<'_> {
             //limits_over_time,
             indirect_nodes,
             particle_flags,
+            particle_parameters,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
@@ -1058,6 +1131,7 @@ impl DownloadsReady<'_> {
             //step: step.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
             particle_flags: particle_flags.to_vec()?,
+            particle_parameters: particle_parameters.to_vec()?,
             particle_positions_and_collider_bits: particle_positions_and_collider_bits.to_vec()?,
             particle_position_gradients: particle_position_gradients.to_vec()?,
             particle_velocities: particle_velocities.to_vec()?,
@@ -1075,6 +1149,7 @@ struct MappedDownloads {
     //limits_over_time: Vec<TimeStepLimits>,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
+    particle_parameters: Vec<ParticleParameters>,
     particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
     particle_position_gradients: Vec<Matrix4x3<f32>>,
     particle_velocities: Vec<Vector4<f32>>,
