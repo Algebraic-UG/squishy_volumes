@@ -55,7 +55,7 @@ impl CpuState {
             .collect();
         let parameters = SplitParameters {
             density: io_state.collect::<attribute::Density>()?.collect(),
-            initial_volume: io_state.collect::<attribute::InitialVolumes>()?.collect(),
+            initial_size: io_state.collect::<attribute::InitialSize>()?.collect(),
             viscosity_dynamic: io_state.collect::<attribute::ViscosityDynamic>()?.collect(),
             viscosity_bulk: io_state.collect::<attribute::ViscosityBulk>()?.collect(),
             youngs_modulus: io_state.collect::<attribute::YoungsModulus>()?.collect(),
@@ -206,9 +206,7 @@ impl CpuState {
                     )?;
 
                     ps.insert_attr::<a::Density>(p.it(parameters).map(|p| p.density))?;
-                    ps.insert_attr::<a::InitialVolumes>(
-                        p.it(parameters).map(|p| p.initial_volume),
-                    )?;
+                    ps.insert_attr::<a::InitialSize>(p.it(parameters).map(|p| p.initial_size))?;
                     ps.insert_attr::<a::ViscosityDynamic>(
                         p.it(parameters).map(|p| p.viscosity_dynamic),
                     )?;
@@ -378,14 +376,8 @@ impl CpuState {
 
                         FrameBulkParticles::HasGoal => {
                             let bits: &[bool] = bulk
-                                .data
                                 .assume_bools()
-                                .map_err(|error| {
-                                    error
-                                        .attach_attr(bulk.meta.captured_attribute)
-                                        .attach_name(bulk.meta.object_name.clone())
-                                        .attach_frame(self.frame_input.frame() + 1)
-                                })
+                                .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
                                 .map_err(FrameInputError::InputError)?;
                             for (i, bit) in particle_range.clone().into_iter().zip(bits) {
                                 let index = self.particles.reverse_sort_map[i];

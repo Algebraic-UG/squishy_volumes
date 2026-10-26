@@ -88,7 +88,7 @@ pub fn test_lame_parameters<T: rand::Rng>(
     squishy_volumes_util::test_lame_parameters().map(|[youngs_modulus, poissons_ratio]| {
         ParticleParameters {
             density: rng.random_range(100.0..10000.0),
-            initial_volume: rng.random_range(0.1..1.0),
+            initial_size: rng.random_range(0.25..1.),
             youngs_modulus,
             poissons_ratio,
             ..Default::default()
@@ -102,7 +102,7 @@ pub fn test_inviscid_parameters(
     squishy_volumes_util::test_inviscid_parameters().map(|(bulk_modulus, exponent)| {
         ParticleParameters {
             density: rng.random_range(100.0..10000.0),
-            initial_volume: rng.random_range(0.1..1.0),
+            initial_size: rng.random_range(0.25..1.),
             exponent,
             bulk_modulus,
             ..Default::default()

@@ -77,12 +77,12 @@ impl CpuState {
                                 * (to_grid_node
                                     * (scaling
                                         * position_gradient.determinant()
-                                        * parameters.initial_volume));
+                                        * parameters.initial_volume()));
                         }
 
                         imparted_momentum -= stress
                             * (position_gradient.transpose()
-                                * (to_grid_node * (scaling * parameters.initial_volume)));
+                                * (to_grid_node * (scaling * parameters.initial_volume())));
 
                         imparted_momentum *= weight;
 

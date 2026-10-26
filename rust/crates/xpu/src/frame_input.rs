@@ -7,8 +7,8 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_file_input::{
-    AttributeError, BulkAttribute, FrameBulkCollider, Header, InputConsts, InputFrame, InputReader,
-    ObjectCollider, OwnedFrameBulk,
+    BulkAttribute, FrameBulkCollider, Header, InputConsts, InputFrame, InputReader, ObjectCollider,
+    OwnedFrameBulk,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
 
@@ -256,11 +256,7 @@ fn create_topology(input_reader: &mut InputReader) -> Result<Topology, FrameInpu
                 name: &bulk.meta.object_name,
                 collider_id: *collider_id,
                 num_vertices: vertex_range.len() as u32,
-                triangle_indices: bulk.data.assume_ints().map_err(|error| {
-                    error
-                        .attach_attr(bulk.meta.captured_attribute)
-                        .attach_name(bulk.meta.object_name.clone())
-                })?,
+                triangle_indices: bulk.assume_ints()?,
             });
         }
         Ok(())
@@ -283,42 +279,32 @@ fn update_collider(
                 ..
             } = header.get_collider_object(&bulk.meta.object_name)?;
 
-            (|| -> Result<(), AttributeError> {
-                match attr {
-                    FrameBulkCollider::VertexPositions => {
-                        // TODO: clean error for length mismatch
-                        collider.vertex_positions[vertex_range.clone()]
-                            .copy_from_slice(bulk.data.assume_floats()?);
-                        collider.vertex_positions[vertex_range.clone()]
-                            .iter_mut()
-                            .for_each(|p| {
-                                p[0] *= inv_scale;
-                                p[1] *= inv_scale;
-                                p[2] *= inv_scale;
-                            });
-                    }
-                    FrameBulkCollider::TriangleFrictions => {
-                        collider.triangle_frictions[triangle_range.clone()]
-                            .copy_from_slice(bulk.data.assume_floats()?);
-                    }
-                    FrameBulkCollider::TriangleDampings => {
-                        collider.triangle_dampings[triangle_range.clone()]
-                            .copy_from_slice(bulk.data.assume_floats()?);
-                    }
-                    FrameBulkCollider::Triangles => {
-                        // TODO:
-                        tracing::error!(
-                            "Updating the topology after frame 0 is not supported (yet?)"
-                        );
-                    }
+            match attr {
+                FrameBulkCollider::VertexPositions => {
+                    // TODO: clean error for length mismatch
+                    collider.vertex_positions[vertex_range.clone()]
+                        .copy_from_slice(bulk.assume_floats()?);
+                    collider.vertex_positions[vertex_range.clone()]
+                        .iter_mut()
+                        .for_each(|p| {
+                            p[0] *= inv_scale;
+                            p[1] *= inv_scale;
+                            p[2] *= inv_scale;
+                        });
                 }
-                Ok(())
-            })()
-            .map_err(|error| {
-                error
-                    .attach_attr(bulk.meta.captured_attribute)
-                    .attach_name(bulk.meta.object_name.clone())
-            })?;
+                FrameBulkCollider::TriangleFrictions => {
+                    collider.triangle_frictions[triangle_range.clone()]
+                        .copy_from_slice(bulk.assume_floats()?);
+                }
+                FrameBulkCollider::TriangleDampings => {
+                    collider.triangle_dampings[triangle_range.clone()]
+                        .copy_from_slice(bulk.assume_floats()?);
+                }
+                FrameBulkCollider::Triangles => {
+                    // TODO:
+                    tracing::error!("Updating the topology after frame 0 is not supported (yet?)");
+                }
+            }
         }
     }
     Ok(())

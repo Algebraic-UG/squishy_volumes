@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value, to_value};
 use squishy_volumes_cache::Cache;
 use squishy_volumes_directory_lock::DirectoryLock;
-use squishy_volumes_file_input::{InputHeader, InputRanges, InputReader};
+use squishy_volumes_file_input::{Header, InputReader};
 use squishy_volumes_xpu::ReportInfo;
 use tracing::{info, warn};
 
@@ -24,8 +24,7 @@ use crate::{
 };
 
 pub struct SimulationImpl {
-    input_header: InputHeader,
-    input_ranges: InputRanges,
+    header: Header,
 
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
@@ -62,9 +61,7 @@ impl SimulationImpl {
     ) -> Result<Self, Error> {
         let input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
             .map_err(Error::StartInputReading)?;
-        let input_header = input_reader.header().clone();
-        let input_ranges = InputRanges::new(&input_header.objects);
-        info!(?input_ranges);
+        let header = input_reader.header().clone();
 
         let cache = Arc::new(
             Cache::new(directory_lock, input_reader.size(), max_bytes_on_disk)
@@ -76,8 +73,7 @@ impl SimulationImpl {
         }
 
         Ok(Self {
-            input_header,
-            input_ranges,
+            header,
             cache,
             compute_thread: None,
         })
@@ -92,7 +88,7 @@ struct PollInfo {
 
 impl SimulationImpl {
     pub fn input_header_impl(&self) -> Result<Value, Error> {
-        to_value(&self.input_header).map_err(Error::EncodingInputHeader)
+        to_value(&self.header).map_err(Error::EncodingInputHeader)
     }
 
     pub fn computing_impl(&self) -> bool {
@@ -161,7 +157,7 @@ impl SimulationImpl {
     }
 
     pub fn available_attributes_impl(&self) -> Result<Vec<Value>, Error> {
-        available_attributes(&self.input_header)
+        available_attributes(&self.header)
             .map(|attribute| serde_json::to_value(attribute).map_err(Error::EncodingAttribute))
             .collect()
     }
@@ -172,8 +168,7 @@ impl SimulationImpl {
         attribute: Value,
     ) -> Result<Vec<f32>, Error> {
         Ok(fetch_flat_attribute_f32(
-            &self.input_header,
-            &self.input_ranges,
+            &self.header,
             &self
                 .cache
                 .fetch_frame(frame)
@@ -189,8 +184,7 @@ impl SimulationImpl {
         attribute: Value,
     ) -> Result<Vec<i32>, Error> {
         Ok(fetch_flat_attribute_i32(
-            &self.input_header,
-            &self.input_ranges,
+            &self.header,
             &self
                 .cache
                 .fetch_frame(frame)

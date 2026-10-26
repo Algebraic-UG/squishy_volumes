@@ -9,16 +9,15 @@
 use std::collections::BTreeMap;
 
 use squishy_volumes_file_frame::{IoState, StateStats};
-use squishy_volumes_file_input::{InputObject, InputObjectParticles};
+use squishy_volumes_file_input::{Header, Object};
 
-pub fn make_state_stats(objects: &BTreeMap<String, InputObject>, io_state: &IoState) -> StateStats {
-    let mut total_particle_count = 0;
-    let per_object_count: BTreeMap<String, u32> = objects
+pub fn make_state_stats(header: &Header, io_state: &IoState) -> StateStats {
+    let per_object_count: BTreeMap<String, u32> = header
+        .objects
         .iter()
         .filter_map(|(name, object)| {
-            if let InputObject::Particles(InputObjectParticles { num_particles }) = object {
-                total_particle_count += num_particles;
-                Some((name.clone(), *num_particles))
+            if let Object::Particles(object) = object {
+                Some((name.clone(), object.particle_range.len() as u32))
             } else {
                 None
             }
@@ -30,7 +29,7 @@ pub fn make_state_stats(objects: &BTreeMap<String, InputObject>, io_state: &IoSt
         .map(|grid_nodes| grid_nodes.collider_bits.len() as u32);
 
     StateStats {
-        total_particle_count,
+        total_particle_count: header.total_particles as u32,
         per_object_count,
         grid_node_count,
     }

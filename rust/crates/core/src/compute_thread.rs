@@ -17,7 +17,7 @@ use std::{
 use squishy_volumes_cache::Cache;
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
 use squishy_volumes_file_frame::{ComputeStats, Frame, Stats};
-use squishy_volumes_file_input::{InputHeader, InputReader};
+use squishy_volumes_file_input::InputReader;
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_util::panic_payload_to_string;
 use squishy_volumes_xpu::{Harness, ReportInfo};
@@ -62,7 +62,7 @@ impl ComputeThread {
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
             .map_err(Error::StartInputReading)?;
-        let InputHeader { consts, objects } = input_reader.header().clone();
+        let header = input_reader.header().clone();
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
@@ -78,7 +78,7 @@ impl ComputeThread {
                         .store_frame(Frame {
                             io_state: io_state.clone(),
                             stats: Stats {
-                                state: make_state_stats(&objects, &io_state),
+                                state: make_state_stats(&header, &io_state),
                                 compute: None,
                             },
                             error_message: None,
@@ -132,7 +132,7 @@ impl ComputeThread {
                     let start_compute_frame = Instant::now();
 
                     // TODO: remove
-                    let target_time = next_frame as f64 / consts.frames_per_second as f64;
+                    let target_time = next_frame as f64 / header.consts.frames_per_second as f64;
 
                     let result: Result<(), Error>;
                     let io_state = match &mut compute_state {
@@ -179,7 +179,7 @@ impl ComputeThread {
                     let remaining_time_sec = approx_frame_time * remaining_frames as f32;
 
                     let stats = Stats {
-                        state: make_state_stats(&objects, &io_state),
+                        state: make_state_stats(&header, &io_state),
                         compute: Some(ComputeStats {
                             remaining_time_sec,
                             last_frame_time_sec,

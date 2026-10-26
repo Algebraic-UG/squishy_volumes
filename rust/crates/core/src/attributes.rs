@@ -6,10 +6,9 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{
-    FrameVerifcationError, InputHeader, InputRangeParticles, InputRanges,
-};
+use squishy_volumes_file_frame::{IoState, IoStateError, ParticleObjectError, ParticlesObject};
+use squishy_volumes_file_input::{FrameVerifcationError, Header, Object};
+use squishy_volumes_util::attribute;
 use std::iter::empty;
 use thiserror::Error;
 
@@ -18,6 +17,10 @@ use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Error, Debug)]
 pub enum AttributeError {
+    #[error("Io state error")]
+    IoState(#[from] IoStateError),
+    #[error("Object is not available {0}")]
+    ObjectNotAvailable(String),
     #[error("Frame failed to verify")]
     FrameVerifcationError(#[from] FrameVerifcationError),
     #[error("This is not a float attribute: {0}")]
@@ -33,7 +36,7 @@ pub enum Attribute {
     Const(AttributeConst),
     Object {
         name: String,
-        attribute: AttributeParticles,
+        attribute: attribute::Key,
     },
     Grid(AttributeGrid),
 }
@@ -56,118 +59,59 @@ pub enum AttributeGrid {
     ColliderBits,
 }
 
-#[derive(Debug, EnumIter, Serialize, Deserialize)]
-pub enum AttributeParticles {
-    Flags,
-    Masses,
-    InitialVolumes,
-    Positions,
-    InitialPositions,
-    Velocities,
-    PositionGradients,
-    ElasticEnergies,
-    Sizes,
-    Transformations,
-    ColliderBits,
-}
-
-pub fn available_attributes(input_header: &InputHeader) -> impl Iterator<Item = Attribute> + '_ {
+pub fn available_attributes(header: &Header) -> impl Iterator<Item = Attribute> + '_ {
     empty()
         .chain(AttributeConst::iter().map(Attribute::Const))
         .chain(AttributeGrid::iter().map(Attribute::Grid))
-        .chain(input_header.objects.keys().flat_map(|name| {
-            AttributeParticles::iter().map(|attribute| Attribute::Object {
-                name: name.clone(),
-                attribute,
-            })
-        }))
+        .chain(
+            header
+                .objects
+                .iter()
+                .filter_map(|(name, object)| matches!(object, Object::Particles(_)).then_some(name))
+                .flat_map(|name| {
+                    attribute::Key::iter().map(|attribute| Attribute::Object {
+                        name: name.clone(),
+                        attribute,
+                    })
+                }),
+        )
 }
 
 pub fn fetch_flat_attribute_f32(
-    input_header: &InputHeader,
-    input_ranges: &InputRanges,
+    header: &Header,
     io_state: &IoState,
     attribute: &Attribute,
 ) -> Result<Vec<f32>, AttributeError> {
-    let scale = input_header.consts.simulation_scale;
+    let scale = header.consts.simulation_scale;
 
     Ok(match attribute {
         Attribute::Const(attribute) => match attribute {
-            AttributeConst::GridNodeSize => vec![input_header.consts.scaled_grid_node_size()],
-            AttributeConst::SimulationScale => vec![input_header.consts.simulation_scale],
-            AttributeConst::DomainMin => input_header.consts.unscaled_domain_min().to_vec(),
-            AttributeConst::DomainMax => input_header.consts.unscaled_domain_max().to_vec(),
+            AttributeConst::GridNodeSize => vec![header.consts.scaled_grid_node_size()],
+            AttributeConst::SimulationScale => vec![header.consts.simulation_scale],
+            AttributeConst::DomainMin => header.consts.unscaled_domain_min().to_vec(),
+            AttributeConst::DomainMax => header.consts.unscaled_domain_max().to_vec(),
             _ => Err(AttributeError::NotFloatAttribute(format!("{attribute:?}")))?,
         },
         Attribute::Object { name, attribute } => {
-            let InputRangeParticles { particle_range } = input_ranges.get_particle_range(name)?;
+            struct Visitor<'a>(&'a ParticlesObject);
+            impl<'a> attribute::Visitor for Visitor<'a> {
+                type Output = Result<&'a [f32], ParticleObjectError>;
 
-            match attribute {
-                AttributeParticles::Masses => io_state.particles.parameters.as_slice()
-                    [particle_range]
-                    .iter()
-                    .map(|parameters| parameters.mass())
-                    .collect(),
-                AttributeParticles::InitialVolumes => io_state.particles.parameters.as_slice()
-                    [particle_range]
-                    .iter()
-                    .map(|parameters| parameters.initial_volume * scale.powi(3))
-                    .collect(),
-                AttributeParticles::Positions => bytemuck::cast_slice::<_, f32>(
-                    &io_state.particles.positions.as_slice()[particle_range],
-                )
-                .iter()
-                .map(|&p| p * scale)
-                .collect(),
-                AttributeParticles::InitialPositions => bytemuck::cast_slice(
-                    &io_state.particles.initial_positions.as_slice()[particle_range],
-                )
-                .to_vec(),
-                AttributeParticles::Velocities => {
-                    bytemuck::cast_slice(&io_state.particles.velocities.as_slice()[particle_range])
-                        .to_vec()
+                fn visit<A: attribute::Trait>(&mut self) -> Self::Output {
+                    Ok(bytemuck::cast_slice(self.0.view_attr::<A>()?))
                 }
-                AttributeParticles::PositionGradients => bytemuck::cast_slice(
-                    &io_state.particles.position_gradients.as_slice()[particle_range],
-                )
-                .to_vec(),
-                AttributeParticles::ElasticEnergies => {
-                    io_state.particles.elastic_energies.as_slice()[particle_range].to_vec()
-                }
-                AttributeParticles::Sizes => io_state.particles.parameters.as_slice()
-                    [particle_range]
-                    .iter()
-                    .map(|parameters| parameters.initial_volume.powf(1. / 3.) * scale)
-                    .collect(),
-                AttributeParticles::Transformations => io_state.particles.positions.as_slice()
-                    [particle_range.clone()]
-                .iter()
-                .zip(io_state.particles.position_gradients.as_slice()[particle_range].iter())
-                .flat_map(|(position, position_gradient)| {
-                    let [[m00, m01, m02], [m10, m11, m12], [m20, m21, m22]] = *position_gradient;
-                    let [m30, m31, m32] = *position;
-                    [
-                        m00,
-                        m01,
-                        m02,
-                        0.,
-                        m10,
-                        m11,
-                        m12,
-                        0.,
-                        m20,
-                        m21,
-                        m22,
-                        0.,
-                        scale * m30,
-                        scale * m31,
-                        scale * m32,
-                        1.,
-                    ]
-                })
-                .collect(),
-                _ => Err(AttributeError::NotFloatAttribute(format!("{attribute:?}")))?,
             }
+            let mut attr = attribute
+                .visit(&mut Visitor(io_state.get_particle_object(name)?))
+                .map_err(|error| IoStateError::ParticleObject {
+                    name: name.clone(),
+                    error,
+                })?
+                .to_vec();
+            if attribute.scale() {
+                attr.iter_mut().for_each(|f| *f *= scale);
+            }
+            attr
         }
         Attribute::Grid(attribute) => {
             let grid_nodes = io_state
@@ -182,7 +126,7 @@ pub fn fetch_flat_attribute_f32(
                     .flat_map(|node_id| {
                         node_id
                             .iter()
-                            .map(|c| *c as f32 * input_header.consts.unscaled_grid_node_size())
+                            .map(|c| *c as f32 * header.consts.unscaled_grid_node_size())
                     })
                     .collect(),
                 AttributeGrid::Velocities => bytemuck::cast_slice(&grid_nodes.velocites).to_vec(),
@@ -193,30 +137,17 @@ pub fn fetch_flat_attribute_f32(
 }
 
 pub fn fetch_flat_attribute_i32(
-    input_header: &InputHeader,
-    input_ranges: &InputRanges,
+    header: &Header,
     io_state: &IoState,
     attribute: &Attribute,
 ) -> Result<Vec<i32>, AttributeError> {
     Ok(match attribute {
         Attribute::Const(attribute) => match attribute {
-            AttributeConst::FramesPerSecond => vec![input_header.consts.frames_per_second as i32],
+            AttributeConst::FramesPerSecond => vec![header.consts.frames_per_second as i32],
             _ => Err(AttributeError::NotIntAttribute(format!("{attribute:?}")))?,
         },
-        Attribute::Object { name, attribute } => {
-            let InputRangeParticles { particle_range } = input_ranges.get_particle_range(name)?;
-
-            match attribute {
-                AttributeParticles::Flags => {
-                    bytemuck::cast_slice(&io_state.particles.flags.as_slice()[particle_range])
-                        .to_vec()
-                }
-                AttributeParticles::ColliderBits => bytemuck::cast_slice(
-                    &io_state.particles.collider_bits.as_slice()[particle_range],
-                )
-                .to_vec(),
-                _ => Err(AttributeError::NotIntAttribute(format!("{attribute:?}")))?,
-            }
+        Attribute::Object { .. } => {
+            unimplemented!("currently no i32 attributes")
         }
         Attribute::Grid(attribute) => {
             let grid_nodes = io_state

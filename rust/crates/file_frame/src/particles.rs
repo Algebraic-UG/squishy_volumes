@@ -7,9 +7,13 @@
 // https://opensource.org/licenses/MIT.
 
 use squishy_volumes_util::attribute;
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    any::Any,
+    collections::{BTreeMap, BTreeSet},
+    mem::take,
+};
 
-use crate::{AttributeError, AttributeErrorInner, ParticleObjectError};
+use crate::{AttributeError, ParticleObjectError};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ParticlesObject {
@@ -26,77 +30,64 @@ pub enum AttributeValue {
     Float3(Vec<[f32; 3]>),
 }
 
-pub trait Value: Sized {
-    fn view(attr: &AttributeValue) -> Result<&[Self], AttributeErrorInner>;
-    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeErrorInner>;
+pub trait Value: Sized + Default {
+    fn as_slice_mut(attr: &mut AttributeValue) -> Result<&mut [Self], AttributeError>;
+    fn as_slice(attr: &AttributeValue) -> Result<&[Self], AttributeError>;
+    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeError>;
     fn pack(values: Vec<Self>) -> AttributeValue;
 }
 
-impl Value for f32 {
-    fn view(attr: &AttributeValue) -> Result<&[Self], AttributeErrorInner> {
-        if let AttributeValue::Float1(values) = &attr {
-            Ok(&values)
-        } else {
-            Err(AttributeErrorInner::TypeMismatch)
+impl<T: alembic_rust::AttributeElement> Value for T {
+    fn as_slice_mut(attr: &mut AttributeValue) -> Result<&mut [Self], AttributeError> {
+        match attr {
+            AttributeValue::Float1(items) => items as &mut dyn Any,
+            AttributeValue::Float2(items) => items as &mut dyn Any,
+            AttributeValue::Float3(items) => items as &mut dyn Any,
         }
+        .downcast_mut::<Vec<Self>>()
+        .ok_or(AttributeError::TypeMismatch)
+        .map(Vec::as_mut_slice)
     }
 
-    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeErrorInner> {
-        if let AttributeValue::Float1(values) = attr {
-            Ok(values)
-        } else {
-            Err(AttributeErrorInner::TypeMismatch)
+    fn as_slice(attr: &AttributeValue) -> Result<&[Self], AttributeError> {
+        match attr {
+            AttributeValue::Float1(items) => items as &dyn Any,
+            AttributeValue::Float2(items) => items as &dyn Any,
+            AttributeValue::Float3(items) => items as &dyn Any,
         }
-    }
-    fn pack(values: Vec<Self>) -> AttributeValue {
-        AttributeValue::Float1(values)
-    }
-}
-
-impl Value for [f32; 2] {
-    fn view(attr: &AttributeValue) -> Result<&[Self], AttributeErrorInner> {
-        if let AttributeValue::Float2(values) = &attr {
-            Ok(&values)
-        } else {
-            Err(AttributeErrorInner::TypeMismatch)
-        }
+        .downcast_ref::<Vec<Self>>()
+        .ok_or(AttributeError::TypeMismatch)
+        .map(Vec::as_slice)
     }
 
-    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeErrorInner> {
-        if let AttributeValue::Float2(values) = attr {
-            Ok(values)
-        } else {
-            Err(AttributeErrorInner::TypeMismatch)
+    fn unpack(mut attr: AttributeValue) -> Result<Vec<Self>, AttributeError> {
+        match &mut attr {
+            AttributeValue::Float1(items) => items as &mut dyn Any,
+            AttributeValue::Float2(items) => items as &mut dyn Any,
+            AttributeValue::Float3(items) => items as &mut dyn Any,
         }
-    }
-    fn pack(values: Vec<Self>) -> AttributeValue {
-        AttributeValue::Float2(values)
-    }
-}
-
-impl Value for [f32; 3] {
-    fn view(attr: &AttributeValue) -> Result<&[Self], AttributeErrorInner> {
-        if let AttributeValue::Float3(values) = &attr {
-            Ok(&values)
-        } else {
-            Err(AttributeErrorInner::TypeMismatch)
-        }
+        .downcast_mut::<Vec<Self>>()
+        .ok_or(AttributeError::TypeMismatch)
+        .map(take)
     }
 
-    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeErrorInner> {
-        if let AttributeValue::Float3(values) = attr {
-            Ok(values)
-        } else {
-            Err(AttributeErrorInner::TypeMismatch)
+    fn pack(mut values: Vec<Self>) -> AttributeValue {
+        let values = &mut values as &mut dyn Any;
+        if let Some(values) = values.downcast_mut() {
+            return AttributeValue::Float1(take(values));
         }
-    }
-    fn pack(values: Vec<Self>) -> AttributeValue {
-        AttributeValue::Float3(values)
+        if let Some(values) = values.downcast_mut() {
+            return AttributeValue::Float2(take(values));
+        }
+        if let Some(values) = values.downcast_mut() {
+            return AttributeValue::Float3(take(values));
+        }
+        unimplemented!("There's a new value type that can't be packed yet");
     }
 }
 
 impl AttributeValue {
-    fn unpack<T: Value>(self) -> Result<Vec<T>, AttributeErrorInner> {
+    fn unpack<T: Value>(self) -> Result<Vec<T>, AttributeError> {
         T::unpack(self)
     }
     fn pack<T: Value>(values: Vec<T>) -> Self {
@@ -105,63 +96,53 @@ impl AttributeValue {
 }
 
 impl ParticlesObject {
-    pub fn view_attr<A>(&self) -> Result<&[A::T], ParticleObjectError>
-    where
-        A: attribute::Trait,
-        A::T: Value,
-    {
+    pub fn view_attr_mut<A: attribute::Trait>(
+        &mut self,
+    ) -> Result<&mut [A::T], ParticleObjectError> {
         self.attributes
-            .get(&A::KEY)
-            .ok_or(AttributeErrorInner::Missing)
-            .and_then(A::T::view)
-            .map_err(AttributeError::View)
+            .get_mut(&A::KEY)
+            .ok_or(AttributeError::Missing)
+            .and_then(A::T::as_slice_mut)
             .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
     }
 
-    pub fn replace_attr<A>(
+    pub fn view_attr<A: attribute::Trait>(&self) -> Result<&[A::T], ParticleObjectError> {
+        self.attributes
+            .get(&A::KEY)
+            .ok_or(AttributeError::Missing)
+            .and_then(A::T::as_slice)
+            .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
+    }
+
+    pub fn replace_attr<A: attribute::Trait>(
         &mut self,
         values: impl Iterator<Item = A::T>,
-    ) -> Result<(), ParticleObjectError>
-    where
-        A: attribute::Trait,
-        A::T: Value,
-    {
+    ) -> Result<(), ParticleObjectError> {
         *self
             .attributes
             .get_mut(&A::KEY)
-            .ok_or(AttributeErrorInner::Missing)
-            .map_err(AttributeError::Insert)
+            .ok_or(AttributeError::Missing)
             .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })? =
             AttributeValue::pack(values.collect());
         Ok(())
     }
 
-    pub fn remove_attr<A>(&mut self) -> Result<Vec<A::T>, ParticleObjectError>
-    where
-        A: attribute::Trait,
-        A::T: Value,
-    {
+    pub fn remove_attr<A: attribute::Trait>(&mut self) -> Result<Vec<A::T>, ParticleObjectError> {
         self.attributes
             .remove(&A::KEY)
-            .ok_or(AttributeErrorInner::Missing)
+            .ok_or(AttributeError::Missing)
             .and_then(AttributeValue::unpack)
-            .map_err(AttributeError::Remove)
             .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
     }
 
-    pub fn insert_attr<A>(
+    pub fn insert_attr<A: attribute::Trait>(
         &mut self,
         values: impl Iterator<Item = A::T>,
-    ) -> Result<(), ParticleObjectError>
-    where
-        A: attribute::Trait,
-        A::T: Value,
-    {
+    ) -> Result<(), ParticleObjectError> {
         self.attributes
             .insert(A::KEY, AttributeValue::pack(values.collect()))
             .is_none()
-            .ok_or(AttributeErrorInner::Duplicate)
-            .map_err(AttributeError::Insert)
+            .ok_or(AttributeError::Duplicate)
             .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
     }
 }

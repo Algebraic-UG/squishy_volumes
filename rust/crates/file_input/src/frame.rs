@@ -10,7 +10,7 @@ use squishy_volumes_api::InputBulk;
 #[cfg(test)]
 use squishy_volumes_util::AnimatedGlobals;
 
-use crate::AttributeError;
+use crate::{AttributeError, FrameVerifcationError};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub struct FrameBulk<'a> {
@@ -236,38 +236,56 @@ const BOOL: &str = "bool";
 const FLOAT: &str = "float";
 const INT: &str = "int";
 
-impl OwnedInputBulk {
+impl OwnedFrameBulk {
     #[inline]
-    pub fn assume_bools(&self) -> Result<&[bool], AttributeError> {
+    pub fn assume_bools(&self) -> Result<&[bool], FrameVerifcationError> {
         let expected = BOOL;
-        let found = match self {
-            Self::Bool(vec) => return Ok(vec.as_slice()),
-            Self::Floats(_) => FLOAT,
-            Self::Ints(_) => INT,
+        let found = match &self.data {
+            OwnedInputBulk::Bool(vec) => return Ok(vec.as_slice()),
+            OwnedInputBulk::Floats(_) => FLOAT,
+            OwnedInputBulk::Ints(_) => INT,
         };
-        Err(AttributeError::TypeMismatch { expected, found })
+        Err(AttributeError::TypeMismatch { expected, found }
+            .attach_attr(self.meta.captured_attribute)
+            .attach_name(self.meta.object_name.clone()))
     }
 
     #[inline]
-    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
+    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerifcationError> {
         let expected = FLOAT;
-        let found = match self {
-            Self::Bool(_) => BOOL,
-            Self::Floats(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
-            Self::Ints(_) => INT,
-        };
-        Err(AttributeError::TypeMismatch { expected, found })
+        (|| {
+            let found = match &self.data {
+                OwnedInputBulk::Bool(_) => BOOL,
+                OwnedInputBulk::Floats(vec) => {
+                    return Ok(bytemuck::try_cast_slice(vec.as_slice())?);
+                }
+                OwnedInputBulk::Ints(_) => INT,
+            };
+            Err(AttributeError::TypeMismatch { expected, found })
+        })()
+        .map_err(|error| {
+            error
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone())
+        })
     }
 
     #[inline]
-    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
+    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerifcationError> {
         let expected = INT;
-        let found = match self {
-            Self::Bool(_) => BOOL,
-            Self::Floats(_) => FLOAT,
-            Self::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
-        };
-        Err(AttributeError::TypeMismatch { expected, found })
+        (|| {
+            let found = match &self.data {
+                OwnedInputBulk::Bool(_) => BOOL,
+                OwnedInputBulk::Floats(_) => FLOAT,
+                OwnedInputBulk::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
+            };
+            Err(AttributeError::TypeMismatch { expected, found })
+        })()
+        .map_err(|error| {
+            error
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone())
+        })
     }
 }
 

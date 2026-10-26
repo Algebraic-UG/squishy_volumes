@@ -6,18 +6,27 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use nalgebra::Matrix3;
-use squishy_volumes_file_frame::IoState;
-use squishy_volumes_file_input::{
-    AttributeError, BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError,
-    InputRangeCollider, InputRangeParticles, InputRanges, InputReader,
+use std::{collections::BTreeMap, iter::repeat_n};
+
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use squishy_volumes_file_frame::{
+    IoState, IoStateError, ParticleObjectError, ParticlesObject, Value, two_f32_to_u32,
+    u32_to_two_f32,
 };
-use squishy_volumes_util::ParticleFlags;
+use squishy_volumes_file_input::{
+    BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError, InputReader,
+    Object, ObjectCollider,
+};
+use squishy_volumes_util::{ParticleFlags, attribute};
 use squishy_volumes_xpu::Harness;
+use strum::IntoEnumIterator as _;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum StateInitializationError {
+    #[error("Io state error")]
+    IoState(#[from] IoStateError),
+
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
@@ -37,16 +46,12 @@ pub enum StateInitializationError {
 
     #[error("Failed to read frame for state initialization")]
     InputErrorFrame(#[from] squishy_volumes_file_input::InputError),
+}
 
-    #[error("'{name}': missing input for {attribute}")]
-    MissingInput {
-        name: String,
-        attribute: &'static str,
-    },
-
-    // TODO: duplicate from frame_input
-    #[error("Failed to cast data")]
-    CastFailed(#[from] bytemuck::PodCastError),
+impl From<FrameVerifcationError> for StateInitializationError {
+    fn from(error: FrameVerifcationError) -> Self {
+        error.attach_frame(0).into()
+    }
 }
 
 #[derive(Error, Debug, Clone, Copy)]
@@ -75,7 +80,6 @@ pub fn initialize_io_state(
             .map_err(StateInitializationError::InputErrorFrame)?
     };
     let animated_globals = input_frame.animated_globals;
-    let input_ranges = InputRanges::new(&input_reader.header().objects);
 
     let scale = input_reader.header().consts.simulation_scale;
     let inv_scale = 1. / scale;
@@ -83,31 +87,49 @@ pub fn initialize_io_state(
     harness.check()?;
     let scope = harness.scope("Allocating Objects".to_string(), 1.try_into().unwrap())?;
 
-    let mut particles = Default::default();
-    let squishy_volumes_file_frame::Particles {
-        flags,
-        parameters,
-        elastic_energies,
-        collider_bits,
-        positions,
-        position_gradients,
-        velocities,
-        velocity_gradients,
-        initial_positions,
-    } = &mut particles;
+    let particle_objects: BTreeMap<String, ParticlesObject> = input_reader
+        .header()
+        .objects
+        .iter()
+        .filter_map(|(name, object)| {
+            if let Object::Particles(object) = object {
+                Some((name, object))
+            } else {
+                None
+            }
+        })
+        .map(|(name, object)| {
+            let n = object.particle_range.len();
+            let mut particle_object = ParticlesObject {
+                num_particles: n,
+                alembic_attributes: object.alembic_attributes.clone(),
+                attributes: Default::default(),
+            };
 
-    let total_particles = input_ranges.total_particles;
-    flags.resize(total_particles, Default::default());
-    parameters.resize(total_particles, Default::default());
-    elastic_energies.resize(total_particles, Default::default());
-    collider_bits.resize(total_particles, Default::default());
-    positions.resize(total_particles, Default::default());
-    position_gradients.resize(total_particles, Matrix3::identity().into());
-    velocities.resize(total_particles, Default::default());
-    velocity_gradients.resize(total_particles, Default::default());
-    initial_positions.resize(total_particles, Default::default());
+            struct Visitor<'a>(&'a mut ParticlesObject);
+            impl attribute::Visitor for Visitor<'_> {
+                type Output = Result<(), ParticleObjectError>;
 
-    let mut goal_positions = vec![[0.; 3]; total_particles];
+                fn visit<A: attribute::Trait>(&mut self) -> Self::Output
+                where
+                    A::T: Value,
+                {
+                    self.0
+                        .insert_attr::<A>(repeat_n(A::DEFAULT, self.0.num_particles))
+                }
+            }
+            let mut visitor = Visitor(&mut particle_object);
+            for key in attribute::Key::iter() {
+                key.visit(&mut visitor)
+                    .map_err(|error| IoStateError::ParticleObject {
+                        name: name.clone(),
+                        error,
+                    })?;
+            }
+
+            Ok::<_, IoStateError>((name.clone(), particle_object))
+        })
+        .collect::<Result<_, _>>()?;
 
     let mut collider = Default::default();
     let squishy_volumes_file_frame::Collider {
@@ -116,9 +138,18 @@ pub fn initialize_io_state(
         triangle_dampings,
     } = &mut collider;
 
-    vertex_positions.resize(input_ranges.total_vertices, Default::default());
-    triangle_frictions.resize(input_ranges.total_triangles, Default::default());
-    triangle_dampings.resize(input_ranges.total_triangles, Default::default());
+    vertex_positions.resize(input_reader.header().total_vertices, Default::default());
+    triangle_frictions.resize(input_reader.header().total_triangles, Default::default());
+    triangle_dampings.resize(input_reader.header().total_triangles, Default::default());
+
+    let mut io_state = IoState {
+        time: 0.,
+        animated_globals,
+        particle_objects,
+        collider,
+        bvh: None,
+        grid_nodes: None,
+    };
 
     drop(scope);
 
@@ -127,187 +158,228 @@ pub fn initialize_io_state(
         input_frame.bulk.len().max(1).try_into().unwrap(),
     )?;
 
-    #[derive(Error, Debug)]
-    enum E {
-        #[error("")]
-        F(#[from] FrameVerifcationError),
-        #[error("")]
-        A(#[from] AttributeError),
-    }
-
     for bulk in input_frame.bulk {
-        (|| -> Result<(), E> {
-            match bulk.meta.captured_attribute {
-                BulkAttribute::Particles(attribute) => {
-                    let InputRangeParticles { particle_range } =
-                        input_ranges.get_particle_range(&bulk.meta.object_name)?;
+        match bulk.meta.captured_attribute {
+            BulkAttribute::Particles(attribute) => {
+                let particles = io_state.get_particle_object_mut(&bulk.meta.object_name)?;
 
-                    match attribute {
-                        FrameBulkParticles::IsSolid
-                        | FrameBulkParticles::IsFluid
-                        | FrameBulkParticles::UseViscosity
-                        | FrameBulkParticles::UseSandAlpha
-                        | FrameBulkParticles::HasGoal
-                        | FrameBulkParticles::IsActive => {
-                            let flag = match attribute {
-                                FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
-                                FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
-                                FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
-                                FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
-                                FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
-                                FrameBulkParticles::IsActive => todo!(),
-                                _ => unreachable!(),
-                            };
-                            let bits: &[bool] = bulk.data.assume_bools()?;
-                            for (f, bit) in flags[particle_range].iter_mut().zip(bits) {
-                                f.set(flag, *bit);
-                            }
-                        }
-                        FrameBulkParticles::ColliderBits => {
-                            collider_bits[particle_range].copy_from_slice(bulk.data.assume_ints()?)
-                        }
-                        FrameBulkParticles::Transforms => {
-                            let transforms: &[[[f32; 4]; 4]] = bulk.data.assume_floats()?;
-                            for (i, m) in particle_range.into_iter().zip(transforms) {
-                                positions[i] = [
-                                    inv_scale * m[3][0],
-                                    inv_scale * m[3][1],
-                                    inv_scale * m[3][2],
-                                ];
-                                position_gradients[i] = [
-                                    [m[0][0], m[0][1], m[0][2]], //
-                                    [m[1][0], m[1][1], m[1][2]], //
-                                    [m[2][0], m[2][1], m[2][2]], //
-                                ];
-                            }
-                        }
-                        FrameBulkParticles::Sizes => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].initial_volume = (inv_scale * v).powi(3);
-                            }
-                        }
-                        FrameBulkParticles::Densities => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].density = *v;
-                            }
-                        }
-                        FrameBulkParticles::YoungsModuluses => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].youngs_modulus = *v;
-                            }
-                        }
-                        FrameBulkParticles::PoissonsRatios => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].poissons_ratio = *v;
-                            }
-                        }
-                        FrameBulkParticles::InitialPositions => initial_positions[particle_range]
-                            .copy_from_slice(bulk.data.assume_floats()?),
-                        FrameBulkParticles::InitialVelocity => {
-                            velocities[particle_range].copy_from_slice(bulk.data.assume_floats()?)
-                        }
-                        FrameBulkParticles::ViscosityDynamic => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].viscosity_dynamic = *v;
-                            }
-                        }
-                        FrameBulkParticles::ViscosityBulk => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].viscosity_bulk = *v;
-                            }
-                        }
-                        FrameBulkParticles::Exponent => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_ints::<i32>()?)
-                            {
-                                parameters[i].exponent = *v;
-                            }
-                        }
-                        FrameBulkParticles::BulkModulus => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].bulk_modulus = *v;
-                            }
-                        }
-                        FrameBulkParticles::SandAlpha => {
-                            for (i, v) in particle_range
-                                .into_iter()
-                                .zip(bulk.data.assume_floats::<f32>()?)
-                            {
-                                parameters[i].sand_alpha = *v;
-                            }
-                        }
-                        FrameBulkParticles::GoalPositions => {
-                            goal_positions[particle_range.clone()]
-                                .copy_from_slice(bulk.data.assume_floats()?);
-                            goal_positions[particle_range].iter_mut().for_each(|p| {
+                match attribute {
+                    FrameBulkParticles::IsSolid
+                    | FrameBulkParticles::IsFluid
+                    | FrameBulkParticles::UseViscosity
+                    | FrameBulkParticles::UseSandAlpha
+                    | FrameBulkParticles::HasGoal
+                    | FrameBulkParticles::IsActive => {
+                        let flag = match attribute {
+                            FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
+                            FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
+                            FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
+                            FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
+                            FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
+                            FrameBulkParticles::IsActive => todo!(),
+                            _ => unreachable!(),
+                        };
+                        (
+                            particles
+                                .view_attr_mut::<attribute::Flags>()
+                                .map_err(|e| e.attach_name(&bulk.meta.object_name))?,
+                            bulk.assume_bools()?,
+                        )
+                            .into_par_iter()
+                            .for_each(|(fs, bit)| {
+                                let mut tmp = ParticleFlags(two_f32_to_u32(*fs));
+                                tmp.set(flag, *bit);
+                                *fs = u32_to_two_f32(tmp.0);
+                            });
+                    }
+                    FrameBulkParticles::ColliderBits => {
+                        (
+                            particles
+                                .view_attr_mut::<attribute::ColliderBits>()
+                                .map_err(|e| e.attach_name(&bulk.meta.object_name))?,
+                            bulk.assume_ints::<u32>()?,
+                        )
+                            .into_par_iter()
+                            .for_each(|(fs, bits)| *fs = u32_to_two_f32(*bits));
+                    }
+                    FrameBulkParticles::Transforms => {
+                        let transforms: &[[[f32; 4]; 4]] = bulk.assume_floats()?;
+                        (|| {
+                            let mut positions = particles.remove_attr::<attribute::Position>()?;
+                            let mut position_gradients_x =
+                                particles.remove_attr::<attribute::PositionGradientX>()?;
+                            let mut position_gradients_y =
+                                particles.remove_attr::<attribute::PositionGradientY>()?;
+                            let mut position_gradients_z =
+                                particles.remove_attr::<attribute::PositionGradientZ>()?;
+
+                            (
+                                &mut positions,
+                                &mut position_gradients_x,
+                                &mut position_gradients_y,
+                                &mut position_gradients_z,
+                                transforms,
+                            )
+                                .into_par_iter()
+                                .for_each(
+                                    |(
+                                        position,
+                                        position_gradient_x,
+                                        position_gradient_y,
+                                        position_gradient_z,
+                                        [
+                                            [mxx, myx, mzx, _],
+                                            [mxy, myy, mzy, _],
+                                            [mxz, myz, mzz, _],
+                                            [px, py, pz, _],
+                                        ],
+                                    )| {
+                                        *position =
+                                            [inv_scale * px, inv_scale * py, inv_scale * pz];
+                                        *position_gradient_x = [*mxx, *myx, *mzx];
+                                        *position_gradient_y = [*mxy, *myy, *mzy];
+                                        *position_gradient_z = [*mxz, *myz, *mzz];
+                                    },
+                                );
+
+                            particles.insert_attr::<attribute::Position>(positions.into_iter())?;
+                            particles.insert_attr::<attribute::PositionGradientX>(
+                                position_gradients_x.into_iter(),
+                            )?;
+                            particles.insert_attr::<attribute::PositionGradientY>(
+                                position_gradients_y.into_iter(),
+                            )?;
+                            particles.insert_attr::<attribute::PositionGradientZ>(
+                                position_gradients_z.into_iter(),
+                            )?;
+
+                            Ok::<_, ParticleObjectError>(())
+                        })()
+                        .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::Sizes => {
+                        particles
+                            .replace_attr::<attribute::InitialSize>(
+                                bulk.assume_floats::<f32>()?
+                                    .into_iter()
+                                    .map(|f| f * inv_scale),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::Densities => {
+                        particles
+                            .replace_attr::<attribute::Density>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::YoungsModuluses => {
+                        particles
+                            .replace_attr::<attribute::YoungsModulus>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::PoissonsRatios => {
+                        particles
+                            .replace_attr::<attribute::PoissonsRatio>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::InitialPositions => {
+                        particles
+                            .replace_attr::<attribute::InitialPosition>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::InitialVelocity => {
+                        particles
+                            .replace_attr::<attribute::Velocity>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::ViscosityDynamic => {
+                        particles
+                            .replace_attr::<attribute::ViscosityDynamic>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::ViscosityBulk => {
+                        particles
+                            .replace_attr::<attribute::ViscosityBulk>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::Exponent => {
+                        particles
+                            .replace_attr::<attribute::Exponent>(
+                                bulk.assume_ints::<i32>()?.into_iter().map(|i| *i as f32),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::BulkModulus => {
+                        particles
+                            .replace_attr::<attribute::BulkModulus>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::SandAlpha => {
+                        particles
+                            .replace_attr::<attribute::SandAlpha>(
+                                bulk.assume_floats()?.into_iter().cloned(),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                    FrameBulkParticles::GoalPositions => {
+                        particles
+                            .replace_attr::<attribute::GoalPosition>(
+                                bulk.assume_floats::<[f32; 3]>()?.into_iter().map(|p| {
+                                    [p[0] * inv_scale, p[1] * inv_scale, p[2] * inv_scale]
+                                }),
+                            )
+                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
+                    }
+                }
+            }
+            BulkAttribute::Collider(attribute) => {
+                let ObjectCollider {
+                    vertex_range,
+                    triangle_range,
+                    collider_id: _,
+                } = input_reader
+                    .header()
+                    .get_collider_object(&bulk.meta.object_name)?;
+
+                match attribute {
+                    FrameBulkCollider::VertexPositions => {
+                        io_state.collider.vertex_positions[vertex_range.clone()]
+                            .copy_from_slice(bulk.assume_floats()?);
+                        io_state.collider.vertex_positions[vertex_range.clone()]
+                            .iter_mut()
+                            .for_each(|p| {
                                 p[0] *= inv_scale;
                                 p[1] *= inv_scale;
                                 p[2] *= inv_scale;
                             });
-                        }
                     }
-                }
-                BulkAttribute::Collider(attribute) => {
-                    let InputRangeCollider {
-                        vertex_range,
-                        triangle_range,
-                    } = input_ranges.get_collider_range(&bulk.meta.object_name)?;
-
-                    match attribute {
-                        FrameBulkCollider::VertexPositions => {
-                            vertex_positions[vertex_range.clone()]
-                                .copy_from_slice(bulk.data.assume_floats()?);
-                            vertex_positions[vertex_range].iter_mut().for_each(|p| {
-                                p[0] *= inv_scale;
-                                p[1] *= inv_scale;
-                                p[2] *= inv_scale;
-                            });
-                        }
-                        FrameBulkCollider::Triangles => {}
-                        FrameBulkCollider::TriangleFrictions => {
-                            triangle_frictions[triangle_range]
-                                .copy_from_slice(bulk.data.assume_floats()?);
-                        }
-                        FrameBulkCollider::TriangleDampings => {
-                            triangle_dampings[triangle_range]
-                                .copy_from_slice(bulk.data.assume_floats()?);
-                        }
+                    FrameBulkCollider::Triangles => {}
+                    FrameBulkCollider::TriangleFrictions => {
+                        io_state.collider.triangle_frictions[triangle_range.clone()]
+                            .copy_from_slice(bulk.assume_floats()?);
+                    }
+                    FrameBulkCollider::TriangleDampings => {
+                        io_state.collider.triangle_dampings[triangle_range.clone()]
+                            .copy_from_slice(bulk.assume_floats()?);
                     }
                 }
             }
-            Ok(())
-        })()
-        .map_err(|e| {
-            match e {
-                E::F(error) => error,
-                E::A(error) => error
-                    .attach_attr(bulk.meta.captured_attribute)
-                    .attach_name(bulk.meta.object_name.clone()),
-            }
-            .attach_frame(0)
-        })?;
+        }
 
         harness.step()?;
     }
@@ -371,14 +443,5 @@ pub fn initialize_io_state(
     }
     */
 
-    Ok(IoState {
-        time: 0.,
-        ranges: input_ranges,
-        animated_globals,
-        particles,
-        goal_positions,
-        collider,
-        bvh: None,
-        grid_nodes: None,
-    })
+    Ok(io_state)
 }

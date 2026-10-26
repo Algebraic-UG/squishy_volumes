@@ -35,20 +35,17 @@ pub enum ParticleObjectError {
     },
 }
 
-#[derive(Error, Debug)]
-pub enum AttributeError {
-    #[error("Inserting")]
-    Insert(#[source] AttributeErrorInner),
-    #[error("Removing")]
-    Remove(#[source] AttributeErrorInner),
-    #[error("Replacing")]
-    Replace(#[source] AttributeErrorInner),
-    #[error("View")]
-    View(#[source] AttributeErrorInner),
+impl ParticleObjectError {
+    pub fn attach_name(self, name: &str) -> IoStateError {
+        IoStateError::ParticleObject {
+            name: name.to_string(),
+            error: self,
+        }
+    }
 }
 
 #[derive(Error, Debug)]
-pub enum AttributeErrorInner {
+pub enum AttributeError {
     #[error("Attribute missing")]
     Missing,
     #[error("Attribute duplication")]

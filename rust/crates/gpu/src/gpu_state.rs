@@ -125,7 +125,7 @@ impl VariableParticleInputBackup {
 
         let parameters = SplitParameters {
             density: io_state.collect::<attribute::Density>()?.collect(),
-            initial_volume: io_state.collect::<attribute::InitialVolumes>()?.collect(),
+            initial_size: io_state.collect::<attribute::InitialSize>()?.collect(),
             viscosity_dynamic: io_state.collect::<attribute::ViscosityDynamic>()?.collect(),
             viscosity_bulk: io_state.collect::<attribute::ViscosityBulk>()?.collect(),
             youngs_modulus: io_state.collect::<attribute::YoungsModulus>()?.collect(),
@@ -677,8 +677,8 @@ impl GpuState {
                     )?;
 
                     pt.insert_attr::<a::Density>(ps.parameters[r()].iter().map(|p| p.density))?;
-                    pt.insert_attr::<a::InitialVolumes>(
-                        ps.parameters[r()].iter().map(|p| p.initial_volume),
+                    pt.insert_attr::<a::InitialSize>(
+                        ps.parameters[r()].iter().map(|p| p.initial_size),
                     )?;
                     pt.insert_attr::<a::ViscosityDynamic>(
                         ps.parameters[r()].iter().map(|p| p.viscosity_dynamic),
@@ -848,14 +848,8 @@ impl GpuState {
                     // TODO: The GPU should handle bool data as well
                     FrameBulkParticles::HasGoal => {
                         let flags: Vec<ParticleFlags> = bulk
-                            .data
                             .assume_bools()
-                            .map_err(|error| {
-                                error
-                                    .attach_attr(bulk.meta.captured_attribute)
-                                    .attach_name(bulk.meta.object_name.clone())
-                                    .attach_frame(self.frame_input.frame() + 1)
-                            })
+                            .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
                             .map_err(FrameInputError::InputError)?
                             .iter()
                             .map(|bit| {
