@@ -43,7 +43,7 @@ dependencies = [
 [[package]]
 name = "alembic_rust"
 version = "0.1.0"
-source = "git+https://github.com/Algebraic-UG/alembic_rust?rev=8d665da5604d66149ff2703f812de313e4c86db2#8d665da5604d66149ff2703f812de313e4c86db2"
+source = "git+https://github.com/Algebraic-UG/alembic_rust?rev=42cb3063c87ad47cc6761b278b5b03d0cba404a2#42cb3063c87ad47cc6761b278b5b03d0cba404a2"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -3797,6 +3797,7 @@ dependencies = [
  "bytemuck",
  "iter_enumeration",
  "nalgebra",
+ "rayon",
  "serde",
  "serde_json",
  "squishy_volumes_api",

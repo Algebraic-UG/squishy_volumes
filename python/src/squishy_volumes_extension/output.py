@@ -26,22 +26,6 @@ from .assets import (
 )
 from .bridge import SimulationHandle
 from .drivers import add_drivers
-from .magic_consts import (
-    GRID,
-    PARTICLES,
-    SQUISHY_VOLUMES_COLLIDER_BITS,
-    SQUISHY_VOLUMES_ELASTIC_ENERGY,
-    SQUISHY_VOLUMES_FLAGS,
-    SQUISHY_VOLUMES_INITIAL_POSITION,
-    SQUISHY_VOLUMES_MASS,
-    SQUISHY_VOLUMES_SIZE,
-    SQUISHY_VOLUMES_TRANSFORM,
-    SQUISHY_VOLUMES_VELOCITY,
-)
-from .squishy_volumes_properties import Squishy_Volumes_Properties_Output
-from .util import (
-    fill_mesh_with_positions,
-)
 
 
 def create_default_visualization(sim_obj, output_obj):
@@ -50,155 +34,14 @@ def create_default_visualization(sim_obj, output_obj):
         "Squishy Volumes Default Visualization", type="NODES"
     )
 
-    if output_props.output_type == GRID:
-        modifier.node_group = create_geometry_nodes_grid()
-    if output_props.output_type == PARTICLES:
-        modifier.node_group = create_geometry_nodes_particles()
-        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
-            modifier["Socket_9"] = create_material_display_uvw()
-            modifier["Socket_12"] = bpy.data.objects.get(output_props.input_name)
-        else:
-            modifier.properties.inputs.Socket_9.value = create_material_display_uvw()
-            modifier.properties.inputs.Socket_12.value = bpy.data.objects.get(
-                output_props.input_name
-            )
+    modifier.node_group = create_geometry_nodes_particles()
+    if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
+        modifier["Socket_9"] = create_material_display_uvw()
+        modifier["Socket_12"] = bpy.data.objects.get(output_props.input_name)
+    else:
+        modifier.properties.inputs.Socket_9.value = create_material_display_uvw()
+        modifier.properties.inputs.Socket_12.value = bpy.data.objects.get(
+            output_props.input_name
+        )
 
     add_drivers(sim_obj, modifier)
-
-
-def add_attribute(mesh, array, attribute_name, attribute_type, domain="POINT"):
-    attribute = mesh.attributes.get(attribute_name)
-    if attribute is None:
-        attribute = mesh.attributes.new(
-            name=attribute_name, type=attribute_type, domain=domain
-        )
-    if attribute_type == "FLOAT_VECTOR":
-        attribute.data.foreach_set("vector", array)
-    elif attribute_type == "FLOAT_COLOR":
-        attribute.data.foreach_set("color", array)
-    else:
-        attribute.data.foreach_set("value", array)
-
-
-def sync_output(sim_handle: SimulationHandle, output_obj: bpy.types.Object, frame: int):
-    output_props: Squishy_Volumes_Properties_Output = output_obj.squishy_volumes
-
-    if output_props.output_type == GRID:
-        ffa_f32 = lambda attribute: sim_handle.fetch_flat_attribute_f32(
-            frame=frame,
-            attribute={"Grid": attribute},
-        )
-        ffa_i32 = lambda attribute: sim_handle.fetch_flat_attribute_i32(
-            frame=frame,
-            attribute={"Grid": attribute},
-        )
-
-        fill_mesh_with_positions(output_obj.data, ffa_f32("Positions"))
-        if output_props.grid_collider_bits:
-            add_attribute(
-                output_obj.data,
-                ffa_i32("ColliderBits"),
-                SQUISHY_VOLUMES_COLLIDER_BITS,
-                "INT",
-            )
-
-        if output_props.grid_masses:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("Masses"),
-                SQUISHY_VOLUMES_MASS,
-                "FLOAT",
-            )
-        if output_props.grid_velocities:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("Velocities"),
-                SQUISHY_VOLUMES_VELOCITY,
-                "FLOAT_VECTOR",
-            )
-
-    if output_props.output_type == PARTICLES:
-        # pylint: disable=unnecessary-lambda-assignment
-        ffa_f32 = lambda attribute: sim_handle.fetch_flat_attribute_f32(
-            frame=frame,
-            attribute={
-                "Object": {
-                    "name": output_props.input_name,
-                    "attribute": attribute,
-                }
-            },
-        )
-        ffa_i32 = lambda attribute: sim_handle.fetch_flat_attribute_i32(
-            frame=frame,
-            attribute={
-                "Object": {
-                    "name": output_props.input_name,
-                    "attribute": attribute,
-                }
-            },
-        )
-
-        fill_mesh_with_positions(output_obj.data, ffa_f32("Positions"))
-        if output_props.particle_flags:
-            add_attribute(
-                output_obj.data,
-                ffa_i32("Flags"),
-                SQUISHY_VOLUMES_FLAGS,
-                "INT",
-            )
-        if output_props.particle_masses:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("Masses"),
-                SQUISHY_VOLUMES_MASS,
-                "FLOAT",
-            )
-        if output_props.particle_initial_volumes:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("InitialVolumes"),
-                SQUISHY_VOLUMES_ELASTIC_ENERGY,
-                "FLOAT",
-            )
-        if output_props.particle_initial_positions:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("InitialPositions"),
-                SQUISHY_VOLUMES_INITIAL_POSITION,
-                "FLOAT_VECTOR",
-            )
-        if output_props.particle_velocities:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("Velocities"),
-                SQUISHY_VOLUMES_VELOCITY,
-                "FLOAT_VECTOR",
-            )
-        if output_props.particle_sizes:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("Sizes"),
-                SQUISHY_VOLUMES_SIZE,
-                "FLOAT",
-            )
-        if output_props.particle_transformations:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("Transformations"),
-                SQUISHY_VOLUMES_TRANSFORM,
-                "FLOAT4X4",
-            )
-        if output_props.particle_energies:
-            add_attribute(
-                output_obj.data,
-                ffa_f32("ElasticEnergies"),
-                SQUISHY_VOLUMES_ELASTIC_ENERGY,
-                "FLOAT",
-            )
-        if output_props.particle_collider_bits:
-            add_attribute(
-                output_obj.data,
-                ffa_i32("ColliderBits"),
-                SQUISHY_VOLUMES_COLLIDER_BITS,
-                "INT",
-            )

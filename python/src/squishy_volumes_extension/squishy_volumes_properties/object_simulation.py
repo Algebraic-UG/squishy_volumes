@@ -28,9 +28,7 @@ TYPE_SIMULATION = "Simulation"
 
 
 def get_simulation_objects() -> list[bpy.types.Object]:
-    return [
-        obj for obj in bpy.data.objects if obj.squishy_volumes.type == TYPE_SIMULATION
-    ]
+    return [obj for obj in bpy.data.objects if obj.squishy_volumes.is_simulation]
 
 
 def get_simulation_object_with_uuid(uuid: str) -> bpy.types.Object:
@@ -108,16 +106,6 @@ The latter being a temporary file indicating ownership.""",
         subtype="DIR_PATH",
         options=set(),
         update=update_directory,
-    )  # type: ignore
-
-    sync: bpy.props.BoolProperty(
-        name="Sync",
-        description="""Disable to stop Squishy Volumes from loading and syncing.
-
-For large scenes, frame changes are expensive even if no output is present.
-It is then convenient to temporarily disable syncing for the simulation.""",
-        default=True,
-        options=set(),
     )  # type: ignore
 
     max_giga_bytes_on_disk: bpy.props.FloatProperty(

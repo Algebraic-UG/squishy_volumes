@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import base64
 import os
 from pathlib import Path
 
@@ -78,15 +77,6 @@ def get_simulation_obj(simulation, name):
     return obj
 
 
-def fill_mesh_with_positions(mesh, positions):
-    num_floats = positions.size
-    num_vertices = num_floats // 3
-
-    mesh.clear_geometry()
-    mesh.vertices.add(num_vertices)  # Pre-allocate vertex space
-    mesh.vertices.foreach_set("co", positions)  # Set all coordinates in one go
-
-
 def fill_mesh_with_vertices_and_triangles(mesh, vertices, triangles):
     mesh.clear_geometry()
     mesh.from_pydata(
@@ -96,23 +86,11 @@ def fill_mesh_with_vertices_and_triangles(mesh, vertices, triangles):
     )
 
 
-def array_to_base64(array):
-    base64_str = base64.b64encode(array.tobytes()).decode("utf-8")
-
-    return {"dtype": str(array.dtype), "data": base64_str}
-
-
 def attribute_to_numpy(collection, attribute_name, dtype, per_count):
     n = len(collection) * per_count
     array = np.empty(n, dtype=dtype)
     collection.foreach_get(attribute_name, array)
     return array
-
-
-def attribute_to_base64(collection, attribute_name, dtype, per_count):
-    return array_to_base64(
-        attribute_to_numpy(collection, attribute_name, dtype, per_count)
-    )
 
 
 def force_ui_redraw():

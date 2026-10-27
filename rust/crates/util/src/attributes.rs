@@ -108,7 +108,7 @@ pub mod attribute {
         (PositionGradientX,     "position_gradient_x",      [f32;3],    [1.,0.,0.],    false, ),
         (PositionGradientY,     "position_gradient_y",      [f32;3],    [0.,1.,0.],    false, ),
         (PositionGradientZ,     "position_gradient_z",      [f32;3],    [0.,0.,1.],    false, ),
-        (Velocity,              alembic_rust::VELOCITIES,   [f32;3],    [0.;3],        false, ),
+        (Velocity,              "velocity",                 [f32;3],    [0.;3],        false, ),
         (VelocityGradientX,     "velocity_gradient_x",      [f32;3],    [0.;3],        false, ),
         (VelocityGradientY,     "velocity_gradient_y",      [f32;3],    [0.;3],        false, ),
         (VelocityGradientZ,     "velocity_gradient_z",      [f32;3],    [0.;3],        false, ),

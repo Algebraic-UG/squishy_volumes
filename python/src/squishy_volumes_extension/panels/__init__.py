@@ -17,16 +17,17 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from ..get_preferences import get_print_debug_info
-from .panel_input import register_panel_input, unregister_panel_input
-from .panel_output import register_panel_output, unregister_panel_output
+from .panel_input_output import (
+    register_panel_input_output,
+    unregister_panel_input_output,
+)
 from .panel_overview import register_panel_overview, unregister_panel_overview
 from .panel_simulate import register_panel_simulate, unregister_panel_simulate
 
 
 def register_panels():
     register_panel_overview()
-    register_panel_input()
-    register_panel_output()
+    register_panel_input_output()
     register_panel_simulate()
     if get_print_debug_info():
         print("Squishy Volumes panels registered.")
@@ -34,8 +35,7 @@ def register_panels():
 
 def unregister_panels():
     unregister_panel_simulate()
-    unregister_panel_output()
-    unregister_panel_input()
+    unregister_panel_input_output()
     unregister_panel_overview()
     if get_print_debug_info():
         print("Squishy Volumes panels unregistered.")

@@ -21,6 +21,40 @@ import bpy  # ty: ignore[unresolved-import]
 INPUT_TYPE_PARTICLES = "Particles"
 INPUT_TYPE_COLLIDER = "Collider"
 
+PARTICLE_ATTRIBUTE_MAPPING = {
+    "Flags": ["Flags"],
+    "Density": ["Density"],
+    "Initial Size": ["InitialSize"],
+    "Viscosity Dynamic": ["ViscosityDynamic"],
+    "Viscosity Bulk": ["ViscosityBulk"],
+    "Youngs Modulus": ["YoungsModulus"],
+    "Poissons Ratio": ["PoissonsRatio"],
+    "Sand Alpha": ["SandAlpha"],
+    "Bulk Modulus": ["BulkModulus"],
+    "Exponent": ["Exponent"],
+    "Elastic Energy": ["ElasticEnergy"],
+    "Collider Bits": ["ColliderBits"],
+    # "Position": ["Position"],
+    "Position Gradient": [
+        "PositionGradientX",
+        "PositionGradientY",
+        "PositionGradientZ",
+    ],
+    "Velocity": ["Velocity"],
+    "Velocity Gradient": [
+        "VelocityGradientX",
+        "VelocityGradientY",
+        "VelocityGradientZ",
+    ],
+    "Initial Position": ["InitialPosition"],
+    "Goal Position": ["GoalPosition"],
+}
+
+
+class Squishy_Volumes_Alembic_Attribute(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty()  # type: ignore
+    enabled: bpy.props.BoolProperty()  # type: ignore
+
 
 class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
     input_type: bpy.props.EnumProperty(
@@ -35,6 +69,7 @@ class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
         default=INPUT_TYPE_PARTICLES,
         options=set(),
     )  # type: ignore
+
     add_default_generation: bpy.props.BoolProperty(
         name="Add Default Generation",
         description="""Add default generating Geometry Nodes?
@@ -46,3 +81,15 @@ It does not matter how the attributes are created, you can customize this.
 For example: half solid, half fluid, or something like this.""",
         default=True,
     )  # type:ignore
+
+    alembic_attributes: bpy.props.CollectionProperty(
+        type=Squishy_Volumes_Alembic_Attribute,
+        name="Alembic Attributes",
+        description="A list of attributes that will be written to and read from the alembic files.",
+        options=set(),
+    )  # type: ignore
+    selected_alembic_attribute: bpy.props.IntProperty(
+        name="Selected Alembic Attribute",
+        description="The selected alembic attribute can be removed.",
+        options=set(),
+    )  # type: ignore

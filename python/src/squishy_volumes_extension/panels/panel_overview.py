@@ -25,14 +25,10 @@ import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle, build_info
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
-from ..frame_change import sync_simulation
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
-    TYPE_NONE,
-    TYPE_SIMULATION,
     get_input_objects_with_uuid,
-    get_output_objects_with_uuid,
     get_simulation_object_with_uuid,
     get_simulation_objects,
     locked_simulations,
@@ -110,7 +106,7 @@ It just creates the Blender object to track the simulation."""
 
         sim_props = sim_obj.squishy_volumes
 
-        sim_props.type = TYPE_SIMULATION
+        sim_props.is_simulation = True
         sim_props.uuid = self.uuid
 
         update_directory(sim_props, context)
@@ -152,18 +148,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
             new_input_obj.select_set(True)
             input_mapping[input_obj.name] = new_input_obj.name
 
-        for output_obj in get_output_objects_with_uuid(self.uuid):
-            new_output_obj = output_obj.copy()
-            assert output_obj.data is not None
-            new_output_obj.data = output_obj.data.copy()
-            new_output_obj.squishy_volumes.uuid = new_uuid
-            context.collection.objects.link(new_output_obj)
-
-            # can be missing for grid outputs
-            if new_output_obj.squishy_volumes.input_name in input_mapping:
-                new_output_obj.squishy_volumes.input_name = input_mapping[
-                    new_output_obj.squishy_volumes.input_name
-                ]
+        # TODO: outputs
 
         self.report({"INFO"}, f"Cloned {sim_obj.name}.")
         return {"FINISHED"}
@@ -180,15 +165,9 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        sim_handle = SimulationHandle.load(
+        SimulationHandle.load(
             uuid=self.uuid,
             directory=sim_obj.squishy_volumes.directory,
-        )
-
-        sync_simulation(
-            sim_obj.squishy_volumes,
-            sim_handle,
-            context.scene.frame_current,
         )
 
         self.report({"INFO"}, f"Reloaded {sim_obj.name}.")
@@ -210,11 +189,8 @@ This is useful when reloading a Blender file with multiple simulations."""
                 os.remove(lock_file)
                 self.report({"INFO"}, "Removed lock file.")
 
-            sim_handle = SimulationHandle.load(
-                uuid=sim_props.uuid, directory=sim_props.directory
-            )
+            SimulationHandle.load(uuid=sim_props.uuid, directory=sim_props.directory)
 
-            sync_simulation(sim_props, sim_handle, context.scene.frame_current)
             self.report({"INFO"}, "Reloaded simulation.")
 
         return {"FINISHED"}
@@ -250,11 +226,7 @@ please use your OS's file browser."""
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
         for obj in get_input_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = "unassigned"
-            obj.squishy_volumes.type = TYPE_NONE
-        for obj in get_output_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = "unassigned"
-            obj.squishy_volumes.type = TYPE_NONE
+            obj.squishy_volumes.uuid = ""
 
         cleanup_markers(sim_obj)
 
@@ -384,7 +356,6 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 header.progress(text=progress_text, factor=factor)
 
             if body is not None:
-                body.prop(sim_props, "sync")
                 body.prop(sim_obj, "name")
                 body.prop(sim_props, "directory")
 

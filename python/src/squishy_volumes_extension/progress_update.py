@@ -19,7 +19,6 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from .bridge import SimulationHandle
-from .frame_change import sync_simulation
 from .get_preferences import get_print_debug_info
 from .popup import with_popup
 from .squishy_volumes_properties import frame_to_load, get_simulation_objects
@@ -32,8 +31,6 @@ def update_progress():
     should_redraw = False
     for sim_obj in get_simulation_objects():
         sim_props = sim_obj.squishy_volumes
-        if not sim_props.sync:
-            continue
 
         cleanup_capture_markers(sim_obj)
         add_or_update_marker(
@@ -75,12 +72,6 @@ def update_progress():
             add_or_update_marker(f"{sim_obj.name} Bake End", end_frame)
         else:
             add_or_update_marker(f"{sim_obj.name} Bake Latest & End", end_frame)
-
-        if sim_handle.loaded_frame != frame_to_load(
-            sim_props,
-            bpy.context.scene.frame_current,
-        ):
-            sync_simulation(sim_props, sim_handle, bpy.context.scene.frame_current)
 
     if should_redraw:
         force_ui_redraw()

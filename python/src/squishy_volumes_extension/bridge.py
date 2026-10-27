@@ -203,7 +203,7 @@ def prune_simulation_handles(scene):
     live_uuids = [
         obj.squishy_volumes.uuid
         for obj in bpy.data.objects
-        if obj.squishy_volumes.type == "Simulation"
+        if obj.squishy_volumes.is_simulation
     ]
     to_drop = [uuid for uuid in _simulations if uuid not in live_uuids]
     for uuid in to_drop:

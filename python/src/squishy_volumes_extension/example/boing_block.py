@@ -21,7 +21,6 @@ import uuid
 import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle
-from ..magic_consts import PARTICLES
 from ..panels.panel_simulate import start_compute
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,

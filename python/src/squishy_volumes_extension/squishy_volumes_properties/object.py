@@ -22,12 +22,7 @@ import bpy  # ty: ignore[unresolved-import]
 from ..bridge import SimulationHandle
 from ..util import simulation_input_exists, simulation_locked
 from .object_input import *
-from .object_output import *
 from .object_simulation import *
-
-TYPE_NONE = "None"
-TYPE_INPUT = "Input"
-TYPE_OUTPUT = "Output"
 
 
 def is_some_and(x, f):
@@ -55,47 +50,35 @@ def add_fields_from(source_cls, prefix=""):
     return decorator
 
 
-# only one set of the fields is valid for use, depending on the type
+# only one set of the fields is valid for use, depending on the is_simulation
 @add_fields_from(Squishy_Volumes_Properties_Simulation)
 @add_fields_from(Squishy_Volumes_Properties_Input)
-@add_fields_from(Squishy_Volumes_Properties_Output)
 class Squishy_Volumes_Properties(bpy.types.PropertyGroup):
     uuid: bpy.props.StringProperty(
         name="UUID",
         description="Reference to the Simulation.",
-        default="unassigned",
+        default="",
         options=set(),
     )  # type: ignore
 
-    type: bpy.props.EnumProperty(
-        items=[
-            (TYPE_NONE,) * 3,
-            (TYPE_SIMULATION,) * 3,
-            (TYPE_INPUT,) * 3,
-            (TYPE_OUTPUT,) * 3,
-        ],
-        name="Object Type",
-        description="""Describes how this object is used by Squishy Volumes.
-It might be unreated, a simulation itself or in/output.""",
-        default=TYPE_NONE,
+    is_simulation: bpy.props.BoolProperty(
+        name="Is Simulation",
+        description="Whether this object is a Squishy Volumes simulation object.",
+        default=False,
         options=set(),
     )  # type: ignore
 
 
 def get_input_objects() -> list[bpy.types.Object]:
-    return [obj for obj in bpy.data.objects if obj.squishy_volumes.type == TYPE_INPUT]
-
-
-def get_output_objects() -> list[bpy.types.Object]:
-    return [obj for obj in bpy.data.objects if obj.squishy_volumes.type == TYPE_OUTPUT]
+    return [
+        obj
+        for obj in bpy.data.objects
+        if obj.squishy_volumes.uuid != "" and not obj.squishy_volumes.is_simulation
+    ]
 
 
 def get_input_objects_with_uuid(uuid: str) -> list[bpy.types.Object]:
     return [obj for obj in get_input_objects() if obj.squishy_volumes.uuid == uuid]
-
-
-def get_output_objects_with_uuid(uuid: str) -> list[bpy.types.Object]:
-    return [obj for obj in get_output_objects() if obj.squishy_volumes.uuid == uuid]
 
 
 def locked_simulations() -> list[bpy.types.Object]:
