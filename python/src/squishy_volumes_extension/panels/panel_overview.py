@@ -78,6 +78,62 @@ The UI will be blocked for a few seconds.""",
         return context.window_manager.invoke_props_dialog(self, width=400)
 
 
+def setup_cache_file(sim_obj):
+
+    # weird little dance since we have to use the operator
+    before = set(c.name for c in bpy.data.cache_files)
+    bpy.ops.cachefile.open(
+        filepath=str(Path(sim_obj.squishy_volumes.directory) / "frame_00000.abc")
+    )
+    created = set(c.name for c in bpy.data.cache_files) - before
+    if len(created) != 1:
+        raise RuntimeError("File cache creation failed")
+    cache = bpy.data.cache_files[created.pop()]
+
+    assert isinstance(cache, bpy.types.CacheFile)
+
+    cache.is_sequence = True
+    cache.override_frame = True
+    driver = cache.driver_add("frame").driver
+    driver.expression = "frame - display_start_frame"
+    var = driver.variables.new()
+    var.name = "display_start_frame"
+    var.type = "SINGLE_PROP"
+    target = var.targets[0]
+    target.fallback_value = 1
+    target.data_path = "squishy_volumes.display_start_frame"
+    target.id_type = "OBJECT"
+    target.id = sim_obj
+
+    sim_obj.squishy_volumes.cache_file = cache
+
+
+def add_simulation(operator, context):
+    sim_obj = bpy.data.objects.new(name=operator.sim_name, object_data=None)
+    sim_obj.empty_display_type = "CUBE"
+    sim_obj.lock_location = (True,) * 3
+    sim_obj.lock_rotation = (True,) * 3
+    sim_obj.lock_scale = (True,) * 3
+
+    # It won't persist otherwise.
+    # https://github.com/Algebraic-UG/squishy_volumes/issues/247
+    sim_obj.use_fake_user = True
+
+    sim_props = sim_obj.squishy_volumes
+
+    sim_props.is_simulation = True
+    sim_props.uuid = operator.uuid
+
+    update_directory(sim_props, context)
+
+    setup_cache_file(sim_obj)
+
+    force_ui_redraw()
+
+    operator.report({"INFO"}, f"Added {sim_obj.name}.")
+    return {"FINISHED"}
+
+
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
@@ -90,31 +146,11 @@ Note that this doesn't create any files yet.
 It just creates the Blender object to track the simulation."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    name: bpy.props.StringProperty()  # type: ignore
+    sim_name: bpy.props.StringProperty(default="My Simulation")  # type: ignore
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        sim_obj = bpy.data.objects.new(name=self.name, object_data=None)
-        sim_obj.empty_display_type = "CUBE"
-        sim_obj.lock_location = (True,) * 3
-        sim_obj.lock_rotation = (True,) * 3
-        sim_obj.lock_scale = (True,) * 3
-
-        # It won't persist otherwise.
-        # https://github.com/Algebraic-UG/squishy_volumes/issues/247
-        sim_obj.use_fake_user = True
-
-        sim_props = sim_obj.squishy_volumes
-
-        sim_props.is_simulation = True
-        sim_props.uuid = self.uuid
-
-        update_directory(sim_props, context)
-
-        force_ui_redraw()
-
-        self.report({"INFO"}, f"Added {sim_obj.name}.")
-        return {"FINISHED"}
+        return add_simulation(self, context)
 
 
 class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
@@ -130,7 +166,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
 
         new_uuid = str(uuid.uuid4())
         bpy.ops.scene.squishy_volumes_add_simulation(
-            "INVOKE_DEFAULT", uuid=new_uuid, name=sim_obj.name
+            "INVOKE_DEFAULT", uuid=new_uuid, sim_name=sim_obj.name
         )
         new_sim_obj = get_simulation_object_with_uuid(new_uuid)
 
@@ -299,7 +335,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         add_op = add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
         )
-        add_op.name = "My Simulation"
+        add_op.sim_name = "My Simulation"
         add_op.uuid = str(uuid.uuid4())
         add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Example_Simulation.bl_idname, icon="ADD"

@@ -69,7 +69,7 @@ def update_directory(self, context):
             [
                 obj.squishy_volumes.directory
                 for obj in bpy.data.objects
-                if obj.squishy_volumes.type == TYPE_SIMULATION
+                if obj.squishy_volumes.is_simulation
             ],
         )
         return  # we'll re-enter anyway
@@ -77,6 +77,9 @@ def update_directory(self, context):
     sim = SimulationHandle.get(uuid=self.uuid)
     if sim is not None:
         sim.drop()
+
+    if self.cache_file is not None:
+        self.cache_file.filepath = str(Path(self.directory) / "frame_00000.abc")
 
 
 class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
@@ -107,6 +110,12 @@ The latter being a temporary file indicating ownership.""",
         options=set(),
         update=update_directory,
     )  # type: ignore
+
+    cache_file: bpy.props.PointerProperty(
+        name="Cache File",
+        description="The cache file associated with this simulation.",
+        type=bpy.types.CacheFile,
+    )  # type : ignore
 
     max_giga_bytes_on_disk: bpy.props.FloatProperty(
         name="Max Diskspace (Gigabytes)",

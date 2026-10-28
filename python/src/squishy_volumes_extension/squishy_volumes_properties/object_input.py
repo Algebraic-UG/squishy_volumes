@@ -82,6 +82,23 @@ For example: half solid, half fluid, or something like this.""",
         default=True,
     )  # type:ignore
 
+    add_output_object: bpy.props.BoolProperty(
+        name="Add Output Object",
+        description="""Add matching output object?
+
+This creates a new object and links it to the active collection.
+This new object loads the simulation output (of the respective input object)
+via a Mesh Sequence Modifier.
+
+The new object also gets a geometry nodes modifier for visualization and some
+drivers for convenience.
+(For example to match the grid node size)
+
+This is just for convenience!
+Squishy Volumes does not track that new object afterwards.""",
+        default=True,
+    )  # type:ignore
+
     alembic_attributes: bpy.props.CollectionProperty(
         type=Squishy_Volumes_Alembic_Attribute,
         name="Alembic Attributes",
