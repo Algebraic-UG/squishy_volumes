@@ -7,7 +7,6 @@
 // https://opensource.org/licenses/MIT.
 
 mod api_impl;
-mod attributes;
 mod compute_thread;
 mod context;
 mod errors;

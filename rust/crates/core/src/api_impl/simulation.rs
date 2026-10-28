@@ -31,26 +31,6 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         self.available_frames_impl()
     }
 
-    fn available_attributes(&self) -> anyhow::Result<Vec<serde_json::Value>> {
-        Ok(self.available_attributes_impl()?)
-    }
-
-    fn fetch_flat_attribute_f32(
-        &self,
-        frame: usize,
-        attribute: serde_json::Value,
-    ) -> anyhow::Result<Vec<f32>> {
-        Ok(self.fetch_flat_attribute_f32_impl(frame, attribute)?)
-    }
-
-    fn fetch_flat_attribute_i32(
-        &self,
-        frame: usize,
-        attribute: serde_json::Value,
-    ) -> anyhow::Result<Vec<i32>> {
-        Ok(self.fetch_flat_attribute_i32_impl(frame, attribute)?)
-    }
-
     fn stats(&self, frame: usize) -> anyhow::Result<serde_json::Value> {
         Ok(self.stats_impl(frame)?)
     }

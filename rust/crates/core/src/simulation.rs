@@ -18,7 +18,6 @@ use tracing::{info, warn};
 
 use crate::{
     Error, SimulationInputImpl,
-    attributes::{available_attributes, fetch_flat_attribute_f32, fetch_flat_attribute_i32},
     compute_thread::{ComputeThread, ComputeThreadSettings},
     simulation_input_path,
 };
@@ -154,44 +153,6 @@ impl SimulationImpl {
 
     pub fn available_frames_impl(&self) -> usize {
         self.cache.available_frames()
-    }
-
-    pub fn available_attributes_impl(&self) -> Result<Vec<Value>, Error> {
-        available_attributes(&self.header)
-            .map(|attribute| serde_json::to_value(attribute).map_err(Error::EncodingAttribute))
-            .collect()
-    }
-
-    pub fn fetch_flat_attribute_f32_impl(
-        &self,
-        frame: usize,
-        attribute: Value,
-    ) -> Result<Vec<f32>, Error> {
-        Ok(fetch_flat_attribute_f32(
-            &self.header,
-            &self
-                .cache
-                .fetch_frame(frame)
-                .map_err(Error::CacheFetch)?
-                .io_state,
-            &from_value(attribute).map_err(Error::ParseAttribute)?,
-        )?)
-    }
-
-    pub fn fetch_flat_attribute_i32_impl(
-        &self,
-        frame: usize,
-        attribute: Value,
-    ) -> Result<Vec<i32>, Error> {
-        Ok(fetch_flat_attribute_i32(
-            &self.header,
-            &self
-                .cache
-                .fetch_frame(frame)
-                .map_err(Error::CacheFetch)?
-                .io_state,
-            &from_value(attribute).map_err(Error::ParseAttribute)?,
-        )?)
     }
 
     pub fn current_bytes_on_disk_impl(&self) -> u64 {

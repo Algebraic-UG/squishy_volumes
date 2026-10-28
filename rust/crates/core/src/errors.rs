@@ -72,9 +72,6 @@ pub enum Error {
     #[error("Failed to drop frame")]
     CacheDropFrames(#[source] squishy_volumes_cache::CacheError),
 
-    #[error("Failed to fetch attribute")]
-    AttributeError(#[from] crate::attributes::AttributeError),
-
     #[error("Failed to parse input header")]
     ParsingInputHeader(#[source] serde_json::Error),
     #[error("Failed to parse frame start")]
