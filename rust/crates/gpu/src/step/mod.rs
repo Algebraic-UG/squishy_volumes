@@ -429,7 +429,6 @@ impl PipelinePart for Step {
             external_force::Settings {
                 workgroup_size,
                 dispatch_limit,
-                frames_per_second,
             },
         )?;
         let collide = Collide::new(

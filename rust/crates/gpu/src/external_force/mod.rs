@@ -26,7 +26,6 @@ pub struct ExternalForce {
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
-    pub frames_per_second: u32,
 }
 
 pub struct Parameters;
@@ -97,7 +96,6 @@ impl PipelinePart for ExternalForce {
         Settings {
             workgroup_size,
             dispatch_limit,
-            frames_per_second,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
@@ -114,7 +112,7 @@ impl PipelinePart for ExternalForce {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals
                 ],
                 immediate_size: 0,
-                constants: [("FRAMES_PER_SECOND", frames_per_second as f64)]
+                constants: []
             }
         );
 

@@ -17,8 +17,7 @@ use crate::PositionAndColliderBits;
 pub struct TestParticles {
     pub particle_flags: Vec<ParticleFlags>,
     pub particle_parameters: Vec<ParticleParameters>,
-    pub particle_goals_start: Vec<Vector4<f32>>,
-    pub particle_goals_end: Vec<Vector4<f32>>,
+    pub particle_goals: Vec<Vector4<f32>>,
     pub particle_positions_and_collider_bits: Vec<PositionAndColliderBits>,
     pub particle_position_gradients: Vec<Matrix4x3<f32>>,
     pub particle_velocities: Vec<Vector4<f32>>,
@@ -124,8 +123,7 @@ impl TestParticles {
             .take(num_particles)
             .unzip();
 
-        let particle_goals_start = vec![Vector4::zeros(); num_particles];
-        let particle_goals_end = vec![Vector4::zeros(); num_particles];
+        let particle_goals = vec![Vector4::zeros(); num_particles];
         let particle_positions_and_collider_bits = match sampling {
             ParticleSampling::Random => (0..num_particles)
                 .map(|_| PositionAndColliderBits {
@@ -170,8 +168,7 @@ impl TestParticles {
         Self {
             particle_flags,
             particle_parameters,
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
             particle_positions_and_collider_bits,
             particle_position_gradients,
             particle_velocities,
