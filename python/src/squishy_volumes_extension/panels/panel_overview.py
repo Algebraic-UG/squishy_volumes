@@ -442,11 +442,6 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 stats = read_stats(sim_props.directory).get(loaded_frame)
                 input_header = sim_handle.input_header()
 
-                body.label(text="Misc. Stats")
-                box = body.box()
-                grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
-                grid.label(text="Currently used")
-
                 total_particle_count = input_header["total_particles"]
                 per_object_count = {
                     name: particles["particle_range"]["end"]
