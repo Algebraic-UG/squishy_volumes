@@ -137,6 +137,9 @@ impl VariableParticleInputBackup {
         .to_zipped()
         .collect::<Vec<_>>();
 
+        let _ = io_state.collect::<attribute::ElasticEnergy>()?;
+        let _ = io_state.collect::<attribute::InitialPosition>()?;
+
         for p in io_state.particle_objects.values() {
             if !p.attributes.is_empty() {
                 tracing::error!(?p.attributes);
