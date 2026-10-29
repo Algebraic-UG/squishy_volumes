@@ -8,6 +8,7 @@
 
 mod aabb;
 mod animated_globals;
+mod attributes;
 pub mod collider_bits;
 mod consts;
 mod elastic;
@@ -22,6 +23,7 @@ mod typedefs;
 pub use aabb::*;
 
 pub use animated_globals::*;
+pub use attributes::*;
 pub use consts::*;
 pub use elastic::*;
 pub use flat::*;

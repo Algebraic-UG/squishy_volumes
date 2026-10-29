@@ -10,8 +10,6 @@ use nalgebra::Vector3;
 
 #[derive(Clone)]
 pub struct InterpolatedInput {
-    pub particle_goal_positions: Vec<Vector3<f32>>,
-
     pub vertex_positions: Vec<Vector3<f32>>,
     pub vertex_normals: Vec<Vector3<f32>>,
 

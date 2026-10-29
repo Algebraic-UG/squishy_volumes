@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
+import select
 import bpy  # ty: ignore[unresolved-import]
 
 from ..assets import (
@@ -26,9 +28,9 @@ from ..drivers import add_drivers
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
-    TYPE_INPUT,
-    TYPE_NONE,
-    Squishy_Volumes_Properties,
+    PARTICLE_ATTRIBUTE_MAPPING,
+    Squishy_Volumes_Properties_Input,
+    Squishy_Volumes_Alembic_Attribute,
     add_fields_from,
     get_input_objects_with_uuid,
     get_selected_input_object,
@@ -36,9 +38,7 @@ from ..squishy_volumes_properties import (
     get_selected_simulation_uuid,
     get_simulation_object_with_uuid,
 )
-from ..util import (
-    force_ui_redraw,
-)
+from ..util import force_ui_redraw, copy_simple_property_group
 
 
 class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
@@ -62,6 +62,9 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
             return
         row.prop(item, "input_type")
         row.prop(item, "add_default_generation")
+        col = row.column()
+        col.enabled = item.input_type == INPUT_TYPE_PARTICLES
+        col.prop(item, "add_output_object")
 
 
 def _can_add(obj: bpy.types.ID) -> bool:
@@ -77,12 +80,35 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
     input_props = input_obj.squishy_volumes
 
     input_props.uuid = uuid
-    input_props.type = TYPE_INPUT
 
     operator.report(
         {"INFO"},
         f"Added {input_obj.name} to input objects of {sim_obj.name}.",
     )
+
+    if input_props.input_type == INPUT_TYPE_PARTICLES:
+        input_obj.squishy_volumes.alembic_attributes.clear()
+        for name in PARTICLE_ATTRIBUTE_MAPPING.keys():
+            attr = input_obj.squishy_volumes.alembic_attributes.add()
+            attr.name = name
+        if input_obj.squishy_volumes.add_output_object:
+            output_name = f"{input_obj.name} - Output"
+            output_obj = bpy.data.objects.new(
+                name=output_name, object_data=bpy.data.pointclouds.new(output_name)
+            )
+            output_obj.rotation_euler.x = math.radians(-90)
+            bpy.context.collection.objects.link(output_obj)
+            sequence_cache_modifier = output_obj.modifiers.new(
+                "Squishy Volumes Load Output", "MESH_SEQUENCE_CACHE"
+            )
+            sequence_cache_modifier.cache_file = sim_obj.squishy_volumes.cache_file
+            sequence_cache_modifier.object_path = f"/{input_obj.name}"
+
+    elif input_props.input_type == INPUT_TYPE_COLLIDER:
+        # TODO
+        pass
+    else:
+        raise RuntimeError(f"Unknown input type {input_props.input_type}")
 
     if not input_props.add_default_generation:
         return {"FINISHED"}
@@ -114,7 +140,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
         return {"FINISHED"}
 
 
-@add_fields_from(Squishy_Volumes_Properties)
+@add_fields_from(Squishy_Volumes_Properties_Input)
 class Squishy_Volumes_New_Input(bpy.types.PropertyGroup):
     obj_name: bpy.props.StringProperty()  # type: ignore
     obj_type: bpy.props.StringProperty()  # type: ignore
@@ -144,6 +170,7 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
             input_obj.squishy_volumes.add_default_generation = (
                 input.add_default_generation
             )
+            input_obj.squishy_volumes.add_output_object = input.add_output_object
             _add_input_object(self, self.uuid, input_obj.name)
 
         force_ui_redraw()
@@ -155,8 +182,8 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
             input = self.inputs.add()
             input.obj_name = obj.name
             input.obj_type = obj.type
-            input.type = obj.squishy_volumes.type
             input.add_default_generation = obj.squishy_volumes.add_default_generation
+            input.add_output_object = obj.squishy_volumes.add_output_object
         return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw(self, context):
@@ -183,8 +210,7 @@ Note that this does not delete the object or remove the input modifier."""
 
     def execute(self, context):
         input_obj = bpy.data.objects[self.name]
-        input_obj.squishy_volumes.uuid = "unassigned"
-        input_obj.squishy_volumes.type = TYPE_NONE
+        input_obj.squishy_volumes.uuid = ""
         self.report({"INFO"}, f"Removed {input_obj.name} from inputs.")
         return {"FINISHED"}
 
@@ -222,8 +248,57 @@ class SCENE_UL_Squishy_Volumes_Input_Object_List(bpy.types.UIList):
         layout.label(text=item.name, icon=icon)
 
 
-class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
-    bl_label = "Input"
+class OBJECT_OT_Squishy_Volumes_Copy_Alembic_Attributes(bpy.types.Operator):
+    bl_idname = "object.squishy_volumes_copy_alembic_attributes"
+    bl_label = "Copy"
+    bl_description = """Copy the alembic attribute selection from the active object to the selected ones.
+
+Note that this only takes affect in the cache after input recording."""
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
+
+    @classmethod
+    def poll(cls, context):
+        return hasattr(context, "active_object") and context.active_object is not None
+
+    def execute(self, context):
+        assert context.active_object is not None
+        for obj in context.selected_objects:
+            if context.active_object.name == obj.name:
+                continue
+            if (
+                context.active_object.squishy_volumes.input_type
+                != obj.squishy_volumes.input_type
+            ):
+                continue
+            obj.squishy_volumes.alembic_attributes.clear()
+            for attr in context.active_object.squishy_volumes.alembic_attributes:
+                new_attr = obj.squishy_volumes.alembic_attributes.add()
+                copy_simple_property_group(source=attr, target=new_attr)
+
+        return {"FINISHED"}
+
+
+class SCENE_UL_Squishy_Volumes_Alembic_Attribute_List(bpy.types.UIList):
+    def draw_item(
+        self,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index,
+        flt_flag,
+    ):
+        assert isinstance(item, Squishy_Volumes_Alembic_Attribute)
+        row = layout.row()
+        row.label(text=item.name)
+        row.prop(item, "enabled", text="")
+
+
+class SCENE_PT_Squishy_Volumes_Input_Output(bpy.types.Panel):
+    bl_label = "Input / Output"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Squishy Volumes"
@@ -257,7 +332,10 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             body.prop(sim_props, "damping")
 
         row = self.layout.row()
-        row.column().template_list(
+        input_objects = row.column()
+        input_objects.label(text="Input Objects")
+        input_objects_list = input_objects.row()
+        input_objects_list.template_list(
             "SCENE_UL_Squishy_Volumes_Input_Object_List",
             "",
             bpy.data,
@@ -265,7 +343,7 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
             context.scene.squishy_volumes,
             "selected_input_object",
         )
-        list_controls = row.column(align=True)
+        list_controls = input_objects_list.column(align=True)
         add_input_col = list_controls.column()
         add_input_col.alert = not get_input_objects_with_uuid(sim_props.uuid)
         add_input_col.operator(
@@ -275,8 +353,8 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
         ).uuid = sim_props.uuid
 
         remove = list_controls.column()
-        remove_obj = get_selected_input_object(context.scene)
-        if remove_obj is None:
+        selected_input_obj = get_selected_input_object(context.scene)
+        if selected_input_obj is None:
             remove.enabled = False
             remove.operator(
                 OBJECT_OT_Squishy_Volumes_Remove_Input_Object.bl_idname,
@@ -288,7 +366,27 @@ class SCENE_PT_Squishy_Volumes_Input(bpy.types.Panel):
                 OBJECT_OT_Squishy_Volumes_Remove_Input_Object.bl_idname,
                 text="",
                 icon="REMOVE",
-            ).name = remove_obj.name
+            ).name = selected_input_obj.name
+
+        if selected_input_obj is None:
+            return
+
+        attribute_list = row.column()
+        attribute_header = attribute_list.row()
+        attribute_header.label(text="Output Attr.")
+        attribute_header.operator(
+            OBJECT_OT_Squishy_Volumes_Copy_Alembic_Attributes.bl_idname,
+            text="",
+            icon="DUPLICATE",
+        )
+        attribute_list.template_list(
+            listtype_name="SCENE_UL_Squishy_Volumes_Alembic_Attribute_List",
+            list_id=selected_input_obj.name,
+            dataptr=selected_input_obj.squishy_volumes,
+            propname="alembic_attributes",
+            active_dataptr=selected_input_obj.squishy_volumes,
+            active_propname="selected_alembic_attribute",
+        )
 
 
 classes = [
@@ -298,15 +396,17 @@ classes = [
     SCENE_OT_Squishy_Volumes_Add_Input_Objects,
     OBJECT_OT_Squishy_Volumes_Remove_Input_Object,
     SCENE_UL_Squishy_Volumes_Input_Object_List,
-    SCENE_PT_Squishy_Volumes_Input,
+    OBJECT_OT_Squishy_Volumes_Copy_Alembic_Attributes,
+    SCENE_UL_Squishy_Volumes_Alembic_Attribute_List,
+    SCENE_PT_Squishy_Volumes_Input_Output,
 ]
 
 
-def register_panel_input():
+def register_panel_input_output():
     for cls in classes:
         bpy.utils.register_class(cls)
 
 
-def unregister_panel_input():
+def unregister_panel_input_output():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

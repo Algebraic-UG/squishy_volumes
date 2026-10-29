@@ -25,14 +25,11 @@ import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle, build_info
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
-from ..frame_change import sync_simulation
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
-    TYPE_NONE,
-    TYPE_SIMULATION,
+    frame_to_load,
     get_input_objects_with_uuid,
-    get_output_objects_with_uuid,
     get_simulation_object_with_uuid,
     get_simulation_objects,
     locked_simulations,
@@ -42,6 +39,7 @@ from ..squishy_volumes_properties import (
 from ..util import (
     copy_simple_property_group,
     force_ui_redraw,
+    read_stats,
     simulation_input_exists,
     simulation_locked,
     u64_to_giga_f32,
@@ -82,6 +80,62 @@ The UI will be blocked for a few seconds.""",
         return context.window_manager.invoke_props_dialog(self, width=400)
 
 
+def setup_cache_file(sim_obj):
+
+    # weird little dance since we have to use the operator
+    before = set(c.name for c in bpy.data.cache_files)
+    bpy.ops.cachefile.open(
+        filepath=str(Path(sim_obj.squishy_volumes.directory) / "frame_00000.abc")
+    )
+    created = set(c.name for c in bpy.data.cache_files) - before
+    if len(created) != 1:
+        raise RuntimeError("File cache creation failed")
+    cache = bpy.data.cache_files[created.pop()]
+
+    assert isinstance(cache, bpy.types.CacheFile)
+
+    cache.is_sequence = True
+    cache.override_frame = True
+    driver = cache.driver_add("frame").driver
+    driver.expression = "frame - display_start_frame"
+    var = driver.variables.new()
+    var.name = "display_start_frame"
+    var.type = "SINGLE_PROP"
+    target = var.targets[0]
+    target.fallback_value = 1
+    target.data_path = "squishy_volumes.display_start_frame"
+    target.id_type = "OBJECT"
+    target.id = sim_obj
+
+    sim_obj.squishy_volumes.cache_file = cache
+
+
+def add_simulation(operator, context):
+    sim_obj = bpy.data.objects.new(name=operator.sim_name, object_data=None)
+    sim_obj.empty_display_type = "CUBE"
+    sim_obj.lock_location = (True,) * 3
+    sim_obj.lock_rotation = (True,) * 3
+    sim_obj.lock_scale = (True,) * 3
+
+    # It won't persist otherwise.
+    # https://github.com/Algebraic-UG/squishy_volumes/issues/247
+    sim_obj.use_fake_user = True
+
+    sim_props = sim_obj.squishy_volumes
+
+    sim_props.is_simulation = True
+    sim_props.uuid = operator.uuid
+
+    update_directory(sim_props, context)
+
+    setup_cache_file(sim_obj)
+
+    force_ui_redraw()
+
+    operator.report({"INFO"}, f"Added {sim_obj.name}.")
+    return {"FINISHED"}
+
+
 class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
@@ -94,31 +148,11 @@ Note that this doesn't create any files yet.
 It just creates the Blender object to track the simulation."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    name: bpy.props.StringProperty()  # type: ignore
+    sim_name: bpy.props.StringProperty(default="My Simulation")  # type: ignore
     uuid: bpy.props.StringProperty()  # type: ignore
 
     def execute(self, context):
-        sim_obj = bpy.data.objects.new(name=self.name, object_data=None)
-        sim_obj.empty_display_type = "CUBE"
-        sim_obj.lock_location = (True,) * 3
-        sim_obj.lock_rotation = (True,) * 3
-        sim_obj.lock_scale = (True,) * 3
-
-        # It won't persist otherwise.
-        # https://github.com/Algebraic-UG/squishy_volumes/issues/247
-        sim_obj.use_fake_user = True
-
-        sim_props = sim_obj.squishy_volumes
-
-        sim_props.type = TYPE_SIMULATION
-        sim_props.uuid = self.uuid
-
-        update_directory(sim_props, context)
-
-        force_ui_redraw()
-
-        self.report({"INFO"}, f"Added {sim_obj.name}.")
-        return {"FINISHED"}
+        return add_simulation(self, context)
 
 
 class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
@@ -134,7 +168,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
 
         new_uuid = str(uuid.uuid4())
         bpy.ops.scene.squishy_volumes_add_simulation(
-            "INVOKE_DEFAULT", uuid=new_uuid, name=sim_obj.name
+            "INVOKE_DEFAULT", uuid=new_uuid, sim_name=sim_obj.name
         )
         new_sim_obj = get_simulation_object_with_uuid(new_uuid)
 
@@ -152,18 +186,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
             new_input_obj.select_set(True)
             input_mapping[input_obj.name] = new_input_obj.name
 
-        for output_obj in get_output_objects_with_uuid(self.uuid):
-            new_output_obj = output_obj.copy()
-            assert output_obj.data is not None
-            new_output_obj.data = output_obj.data.copy()
-            new_output_obj.squishy_volumes.uuid = new_uuid
-            context.collection.objects.link(new_output_obj)
-
-            # can be missing for grid outputs
-            if new_output_obj.squishy_volumes.input_name in input_mapping:
-                new_output_obj.squishy_volumes.input_name = input_mapping[
-                    new_output_obj.squishy_volumes.input_name
-                ]
+        # TODO: outputs
 
         self.report({"INFO"}, f"Cloned {sim_obj.name}.")
         return {"FINISHED"}
@@ -180,15 +203,9 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
-        sim_handle = SimulationHandle.load(
+        SimulationHandle.load(
             uuid=self.uuid,
             directory=sim_obj.squishy_volumes.directory,
-        )
-
-        sync_simulation(
-            sim_obj.squishy_volumes,
-            sim_handle,
-            context.scene.frame_current,
         )
 
         self.report({"INFO"}, f"Reloaded {sim_obj.name}.")
@@ -210,11 +227,8 @@ This is useful when reloading a Blender file with multiple simulations."""
                 os.remove(lock_file)
                 self.report({"INFO"}, "Removed lock file.")
 
-            sim_handle = SimulationHandle.load(
-                uuid=sim_props.uuid, directory=sim_props.directory
-            )
+            SimulationHandle.load(uuid=sim_props.uuid, directory=sim_props.directory)
 
-            sync_simulation(sim_props, sim_handle, context.scene.frame_current)
             self.report({"INFO"}, "Reloaded simulation.")
 
         return {"FINISHED"}
@@ -250,11 +264,7 @@ please use your OS's file browser."""
         sim_obj = get_simulation_object_with_uuid(self.uuid)
 
         for obj in get_input_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = "unassigned"
-            obj.squishy_volumes.type = TYPE_NONE
-        for obj in get_output_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = "unassigned"
-            obj.squishy_volumes.type = TYPE_NONE
+            obj.squishy_volumes.uuid = ""
 
         cleanup_markers(sim_obj)
 
@@ -327,7 +337,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         add_op = add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
         )
-        add_op.name = "My Simulation"
+        add_op.sim_name = "My Simulation"
         add_op.uuid = str(uuid.uuid4())
         add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Example_Simulation.bl_idname, icon="ADD"
@@ -384,7 +394,6 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 header.progress(text=progress_text, factor=factor)
 
             if body is not None:
-                body.prop(sim_props, "sync")
                 body.prop(sim_obj, "name")
                 body.prop(sim_props, "directory")
 
@@ -426,21 +435,21 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
                 if sim_handle is None:
                     continue
-                if sim_handle.loaded_frame is None:
+                loaded_frame = frame_to_load(sim_props, context.scene.frame_current)
+                if loaded_frame is None:
                     continue
 
-                stats = sim_handle.stats(sim_handle.loaded_frame)
-                state = stats["state"]
-                compute = stats["compute"]
+                stats = read_stats(sim_props.directory).get(loaded_frame)
+                input_header = sim_handle.input_header()
 
-                body.label(text="Misc. Stats")
-                box = body.box()
-                grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
-                grid.label(text="Currently used")
-
-                total_particle_count = state["total_particle_count"]
-                grid_node_count = state["grid_node_count"]
-                per_object_count = state["per_object_count"]
+                total_particle_count = input_header["total_particles"]
+                per_object_count = {
+                    name: particles["particle_range"]["end"]
+                    - particles["particle_range"]["start"]
+                    for name, obj in input_header["objects"].items()
+                    if (particles := obj.get("Particles")) is not None
+                }
+                grid_node_count = None if stats is None else stats["grid_node_count"]
                 body.label(text="Loaded State Stats")
                 box = body.box()
                 grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
@@ -452,12 +461,12 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text=name)
                     grid.label(text=f"{count}")
 
-                if compute is not None:
+                if stats is not None and stats["last_frame_time_sec"] is not None:
                     body.label(text="Compute Stats")
                     box = body.box()
-                    remaining_time_sec = compute["remaining_time_sec"]
-                    last_frame_time_sec = compute["last_frame_time_sec"]
-                    last_frame_substeps = compute["last_frame_substeps"]
+                    remaining_time_sec = stats["remaining_time_sec"]
+                    last_frame_time_sec = stats["last_frame_time_sec"]
+                    last_frame_substeps = stats["last_frame_substeps"]
                     grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
                     grid.label(text="Approx. remaining time")
                     grid.label(

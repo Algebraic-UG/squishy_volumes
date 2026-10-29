@@ -6,7 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, mu, lambda, mass};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, mu, lambda, mass, initial_volume};
 import super::sand::sand_plasticity;
 import super::fluid::fluid_plasticity;
 import super::viscosity::cauchy_stress_general_viscosity;
@@ -104,10 +104,10 @@ fn main(
             parameter.viscosity_bulk,
             velocity_gradient,
         );
-        matrix_part = -scaling * determinant(position_gradient) * parameter.initial_volume * cauchy_stress;
+        matrix_part = -scaling * determinant(position_gradient) * initial_volume(parameter) * cauchy_stress;
     }
 
-    matrix_part += velocity_gradient * mass(parameter) - stress * transpose(position_gradient) * scaling * parameter.initial_volume;
+    matrix_part += velocity_gradient * mass(parameter) - stress * transpose(position_gradient) * scaling * initial_volume(parameter);
     let vector_part = velocity * mass(parameter);
 
     tmp[global_index] = mat4x4f(

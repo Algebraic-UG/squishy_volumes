@@ -31,7 +31,6 @@ from .bridge import (
     unregister_prune_simulation_handles,
 )
 from .drivers import register_drivers, unregister_drivers
-from .frame_change import register_handler, unregister_handler
 from .get_preferences import get_print_debug_info
 from .goals import register_goals, unregister_goals
 from .panels import register_panels, unregister_panels
@@ -98,7 +97,6 @@ def register():
     register_properties()
     register_panels()
     register_goals()
-    register_handler()
     register_progress_update()
     register_progress_update_toggle()
     register_view_utils()
@@ -118,7 +116,6 @@ def unregister():
     unregister_view_utils()
     unregister_progress_update_toggle()
     unregister_progress_update()
-    unregister_handler()
     unregister_goals()
     unregister_panels()
     unregister_properties()

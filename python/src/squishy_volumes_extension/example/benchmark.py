@@ -22,7 +22,6 @@ import uuid
 import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle
-from ..magic_consts import PARTICLES
 from ..panels.panel_simulate import start_compute
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
@@ -37,7 +36,7 @@ EXAMPLE_BENCHMARK = "Benchmark"
 def setup_example_benchmark(context: bpy.types.Context):
     sim_uuid = str(uuid.uuid4())
     bpy.ops.scene.squishy_volumes_add_simulation(
-        "INVOKE_DEFAULT", name=EXAMPLE_BENCHMARK, uuid=sim_uuid
+        "INVOKE_DEFAULT", sim_name=EXAMPLE_BENCHMARK, uuid=sim_uuid
     )
 
     sim_obj = get_simulation_object_with_uuid(sim_uuid)

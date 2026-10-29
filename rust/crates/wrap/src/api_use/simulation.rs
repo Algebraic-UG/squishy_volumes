@@ -101,68 +101,6 @@ impl Simulation {
         })
     }
 
-    pub fn available_attributes<'py>(&self, py: Python<'py>) -> Result<Bound<'py, PyList>> {
-        try_with_context(|context| {
-            let attributes = context
-                .get_simulation(&self.0)
-                .with_context(|| format!("No simulation found for {}", self.0))?
-                .available_attributes()?
-                .into_iter()
-                .map(|attribute| Ok(to_string(&attribute)?))
-                .collect::<Result<Vec<_>>>()?;
-            Ok(PyList::new(py, attributes)?)
-        })
-    }
-
-    #[pyo3(signature = (*, frame, attribute))]
-    pub fn fetch_flat_attribute_f32<'py>(
-        &self,
-        py: Python<'py>,
-        frame: usize,
-        attribute: &str,
-    ) -> Result<Bound<'py, PyArray1<f32>>> {
-        try_with_context(|context| {
-            let flat_attribute = context
-                .get_simulation(&self.0)
-                .with_context(|| format!("No simulation found for {}", self.0))?
-                .fetch_flat_attribute_f32(
-                    frame,
-                    from_str(attribute).context("Attribute string isn't valid json")?,
-                )?;
-            Ok(PyArray1::from_vec(py, flat_attribute))
-        })
-    }
-
-    #[pyo3(signature = (*, frame, attribute))]
-    pub fn fetch_flat_attribute_i32<'py>(
-        &self,
-        py: Python<'py>,
-        frame: usize,
-        attribute: &str,
-    ) -> Result<Bound<'py, PyArray1<i32>>> {
-        try_with_context(|context| {
-            let flat_attribute = context
-                .get_simulation(&self.0)
-                .with_context(|| format!("No simulation found for {}", self.0))?
-                .fetch_flat_attribute_i32(
-                    frame,
-                    from_str(attribute).context("Attribute string isn't valid json")?,
-                )?;
-            Ok(PyArray1::from_vec(py, flat_attribute))
-        })
-    }
-
-    pub fn stats(&self, frame: usize) -> Result<String> {
-        try_with_context(|context| {
-            Ok(to_string(
-                &context
-                    .get_simulation(&self.0)
-                    .context("No simulation found for {self.0}")?
-                    .stats(frame)?,
-            )?)
-        })
-    }
-
     pub fn drop(&self) -> Result<()> {
         with_context(move |context| context.drop_simulation(&self.0))
     }

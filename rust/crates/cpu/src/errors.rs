@@ -6,8 +6,13 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use squishy_volumes_file_frame::IoStateError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Io state error")]
+    IoState(#[from] IoStateError),
+
     #[error("The computation was canceled")]
     Canceled,
 

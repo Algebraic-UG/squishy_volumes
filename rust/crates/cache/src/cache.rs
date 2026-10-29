@@ -78,6 +78,8 @@ impl Cache {
         if available_frames.load(Ordering::Relaxed) == 0 {
             tracing::info!("no frames recovered, need to build initial state");
         }
+        truncate_stats(directory, available_frames.load(Ordering::Relaxed))
+            .map_err(CacheCleanupError::IoError)?;
 
         let store_thread = Mutex::new(StoreThread::new(
             directory.to_path_buf(),
@@ -146,7 +148,11 @@ impl Cache {
         self.total_bytes_on_disk.load(Ordering::Relaxed)
     }
 
-    pub fn store_frame(&self, frame: squishy_volumes_file_frame::Frame) -> Result<(), CacheError> {
+    pub fn store_frame(
+        &self,
+        frame: squishy_volumes_file_frame::Frame,
+        stats: Stats,
+    ) -> Result<(), CacheError> {
         if self.total_bytes_on_disk.load(Ordering::Relaxed)
             >= self.max_bytes_on_disk.load(Ordering::Relaxed)
         {
@@ -155,7 +161,7 @@ impl Cache {
         self.store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?
-            .store(frame)?;
+            .store(frame, stats)?;
         Ok(())
     }
 
@@ -193,6 +199,7 @@ impl Cache {
             .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?;
+        // dropping the old thread finishes its pending writes before we clean up
         *store_thread = StoreThread::new(
             self.directory_lock.directory().to_path_buf(),
             self.total_bytes_on_disk.clone(),
@@ -201,6 +208,8 @@ impl Cache {
         self.available_frames
             .fetch_min(from_frame, Ordering::Relaxed);
         clean_up_frames(self.directory_lock.directory(), from_frame)?;
+        truncate_stats(self.directory_lock.directory(), from_frame)
+            .map_err(CacheCleanupError::IoError)?;
 
         let (bytes_on_disk_from_frames, _frames) =
             discover_frames(self.directory_lock.directory()).map_err(CacheReadingError::IoError)?;

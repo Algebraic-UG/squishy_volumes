@@ -97,7 +97,6 @@ class SimulationHandle:
         self.handle = handle
         self.last_error = None
         self.poll_info = None
-        self.loaded_frame = None
 
     @staticmethod
     def exists(*, uuid: str) -> bool:
@@ -155,36 +154,6 @@ class SimulationHandle:
         return self.handle.available_frames()
 
     @hint_at_info
-    def available_attributes(self) -> list[dict[str, Any]]:
-        return [json.loads(s) for s in self.handle.available_attributes()]
-
-    @hint_at_info
-    def fetch_flat_attribute_f32(
-        self, *, frame: int, attribute: dict[str, Any]
-    ) -> numpy.ndarray:
-        data = self.handle.fetch_flat_attribute_f32(
-            frame=frame,
-            attribute=json.dumps(attribute),
-        )
-        self.loaded_frame = frame
-        return data
-
-    @hint_at_info
-    def fetch_flat_attribute_i32(
-        self, *, frame: int, attribute: dict[str, Any]
-    ) -> numpy.ndarray:
-        data = self.handle.fetch_flat_attribute_i32(
-            frame=frame,
-            attribute=json.dumps(attribute),
-        )
-        self.loaded_frame = frame
-        return data
-
-    @hint_at_info
-    def stats(self, frame: int) -> dict[str, Any]:
-        return json.loads(self.handle.stats(frame))
-
-    @hint_at_info
     def drop(self):
         _simulations.pop(self.handle.uuid())
         self.handle.drop()
@@ -203,7 +172,7 @@ def prune_simulation_handles(scene):
     live_uuids = [
         obj.squishy_volumes.uuid
         for obj in bpy.data.objects
-        if obj.squishy_volumes.type == "Simulation"
+        if obj.squishy_volumes.is_simulation
     ]
     to_drop = [uuid for uuid in _simulations if uuid not in live_uuids]
     for uuid in to_drop:

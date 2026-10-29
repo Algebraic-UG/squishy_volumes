@@ -20,8 +20,6 @@ import bpy  # ty: ignore[unresolved-import]
 
 from ..util import obj_by_index
 from .object import (
-    TYPE_INPUT,
-    TYPE_OUTPUT,
     get_simulation_object_with_uuid,
     get_simulation_objects,
 )
@@ -56,14 +54,7 @@ def _verify_selected_object(
 
 def get_selected_input_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
     obj = obj_by_index(scene.squishy_volumes.selected_input_object)
-    if obj is None or obj.squishy_volumes.type != TYPE_INPUT:
-        return None
-    return _verify_selected_object(obj, scene)
-
-
-def get_selected_output_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
-    obj = obj_by_index(scene.squishy_volumes.selected_output_object)
-    if obj is None or obj.squishy_volumes.type != TYPE_OUTPUT:
+    if obj is None or obj.type == "EMPTY":
         return None
     return _verify_selected_object(obj, scene)
 
@@ -95,14 +86,8 @@ def _on_active_change():
 
     scene = bpy.context.scene.squishy_volumes
 
-    if obj.squishy_volumes.type == TYPE_INPUT and scene.selected_input_object != index:
+    if not obj.squishy_volumes.is_simulation and scene.selected_input_object != index:
         scene.selected_input_object = index
-
-    if (
-        obj.squishy_volumes.type == TYPE_OUTPUT
-        and scene.selected_output_object != index
-    ):
-        scene.selected_output_object = index
 
 
 _owner = object()
@@ -136,14 +121,6 @@ class Squishy_Volumes_Properties_Scene(bpy.types.PropertyGroup):
         description="The selected input object can have it's setting edited or removed.",
         update=lambda self, context: _update_selection(
             self.selected_input_object, context
-        ),
-        options=set(),
-    )  # type: ignore
-    selected_output_object: bpy.props.IntProperty(
-        name="Selected Output Object",
-        description="The selected output object can have it's setting edited or removed.",
-        update=lambda self, context: _update_selection(
-            self.selected_output_object, context
         ),
         options=set(),
     )  # type: ignore

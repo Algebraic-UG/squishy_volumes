@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::InputBulk;
 use squishy_volumes_directory_lock::DirectoryLock;
-use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta, InputHeader, InputWriter};
+use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta, Header, InputHeader, InputWriter};
 use squishy_volumes_util::AnimatedGlobals;
 
 use crate::Error;
@@ -44,8 +44,9 @@ impl SimulationInputImpl {
     ) -> Result<Self, Error> {
         let directory_lock = DirectoryLock::new(directory.clone(), uuid)?;
 
-        let input_writer = InputWriter::new(simulation_input_path(directory), input_header)
-            .map_err(Error::StartInputWriting)?;
+        let input_writer =
+            InputWriter::new(simulation_input_path(directory), Header::new(input_header))
+                .map_err(Error::StartInputWriting)?;
 
         Ok(Self {
             directory_lock,

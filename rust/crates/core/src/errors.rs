@@ -58,8 +58,6 @@ pub enum Error {
     EncodingReport(#[source] serde_json::Error),
     #[error("Failed to encode attribute")]
     EncodingAttribute(#[source] serde_json::Error),
-    #[error("Failed to encode stats")]
-    EncodingStats(#[source] serde_json::Error),
 
     #[error("Cache creation failed")]
     CacheCreation(#[source] squishy_volumes_cache::CacheError),
@@ -71,9 +69,6 @@ pub enum Error {
     CacheNodeCount(#[source] squishy_volumes_cache::CacheError),
     #[error("Failed to drop frame")]
     CacheDropFrames(#[source] squishy_volumes_cache::CacheError),
-
-    #[error("Failed to fetch attribute")]
-    AttributeError(#[from] crate::attributes::AttributeError),
 
     #[error("Failed to parse input header")]
     ParsingInputHeader(#[source] serde_json::Error),
@@ -88,9 +83,6 @@ pub enum Error {
 
     #[error("The allowed disk space of {0} bytes was exceeded while recording inputs.")]
     DiskSpaceExceededWhileRecording(u64),
-
-    #[error("Something went really wrong and the compute stats mutex is poisoned")]
-    ComputeStatsMutexPoisoned,
 
     #[error("Failed to create initial state")]
     InitializationError(#[from] StateInitializationError),

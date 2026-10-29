@@ -15,7 +15,7 @@ impl CpuState {
     pub fn limit_time_step_before_force(&mut self) {
         profile!("limit_time_step_before_force");
 
-        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
+        let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
 
         self.adaptive_time_step_state.time_step_by_sound =
             self.limit_time_step_by_speed_of_sound(grid_node_size);
@@ -65,7 +65,7 @@ impl CpuState {
 
     pub fn limit_time_step_before_integrate(&mut self) {
         profile!("limit_time_step_before_integrate");
-        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
+        let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
         self.adaptive_time_step_state.time_step_by_velocity =
             self.limit_time_step_by_velocity(grid_node_size);
         self.adaptive_time_step_state.time_step_by_deformation =

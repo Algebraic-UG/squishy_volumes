@@ -14,10 +14,10 @@ use std::{
     time::Instant,
 };
 
-use squishy_volumes_cache::Cache;
+use squishy_volumes_cache::{Cache, ComputeStats, Stats};
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
-use squishy_volumes_file_frame::{ComputeStats, Frame, Stats};
-use squishy_volumes_file_input::{InputHeader, InputReader};
+use squishy_volumes_file_frame::{Frame, IoState};
+use squishy_volumes_file_input::InputReader;
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_util::panic_payload_to_string;
 use squishy_volumes_xpu::{Harness, ReportInfo};
@@ -26,9 +26,7 @@ use tracing::info;
 #[cfg(feature = "profile")]
 use squishy_volumes_util::coarse_prof;
 
-use crate::{
-    Error, initialization::initialize_io_state, simulation_input_path, stats::make_state_stats,
-};
+use crate::{Error, initialization::initialize_io_state, simulation_input_path};
 
 pub struct ComputeThread {
     harness: Harness,
@@ -62,7 +60,7 @@ impl ComputeThread {
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
             .map_err(Error::StartInputReading)?;
-        let InputHeader { consts, objects } = input_reader.header().clone();
+        let header = input_reader.header().clone();
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
@@ -75,14 +73,13 @@ impl ComputeThread {
                     info!("creating initial state");
                     let io_state = initialize_io_state(&harness, &mut input_reader)?;
                     cache
-                        .store_frame(Frame {
-                            io_state: io_state.clone(),
-                            stats: Stats {
-                                state: make_state_stats(&objects, &io_state),
-                                compute: None,
+                        .store_frame(
+                            Frame {
+                                io_state: io_state.clone(),
+                                error_message: None,
                             },
-                            error_message: None,
-                        })
+                            make_stats(&io_state, None),
+                        )
                         .map_err(Error::StoreError)?;
                     next_frame += 1;
                     harness.step()?;
@@ -132,7 +129,7 @@ impl ComputeThread {
                     let start_compute_frame = Instant::now();
 
                     // TODO: remove
-                    let target_time = next_frame as f64 / consts.frames_per_second as f64;
+                    let target_time = next_frame as f64 / header.consts.frames_per_second as f64;
 
                     let result: Result<(), Error>;
                     let io_state = match &mut compute_state {
@@ -178,14 +175,14 @@ impl ComputeThread {
                         frame_times.iter().sum::<f32>() / frame_times.len() as f32;
                     let remaining_time_sec = approx_frame_time * remaining_frames as f32;
 
-                    let stats = Stats {
-                        state: make_state_stats(&objects, &io_state),
-                        compute: Some(ComputeStats {
+                    let stats = make_stats(
+                        &io_state,
+                        Some(ComputeStats {
                             remaining_time_sec,
                             last_frame_time_sec,
                             last_frame_substeps: 0, // TODO
                         }),
-                    };
+                    );
 
                     let error_message = if let Err(ref e) = result {
                         Some(format!("{e:#?}"))
@@ -195,11 +192,13 @@ impl ComputeThread {
 
                     // store state even if error occured
                     cache
-                        .store_frame(Frame {
-                            io_state,
+                        .store_frame(
+                            Frame {
+                                io_state,
+                                error_message,
+                            },
                             stats,
-                            error_message,
-                        })
+                        )
                         .map_err(Error::StoreError)?;
 
                     // now check for errors
@@ -255,5 +254,15 @@ impl Drop for ComputeThread {
         if let Err(e) = thread.join() {
             tracing::error!(payload = panic_payload_to_string(e), "Compute Panic");
         }
+    }
+}
+
+fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
+    Stats {
+        grid_node_count: io_state
+            .grid_nodes
+            .as_ref()
+            .map(|grid_nodes| grid_nodes.collider_bits.len() as u32),
+        compute,
     }
 }

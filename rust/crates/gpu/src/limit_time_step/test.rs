@@ -93,7 +93,7 @@ fn single_undeformed() {
             particle_flags: &[ParticleFlags::IS_SOLID],
             particle_parameters: &[ParticleParameters {
                 density: 1.,
-                initial_volume: 1.,
+                initial_size: 1.,
                 youngs_modulus: 1000.,
                 ..Default::default()
             }],

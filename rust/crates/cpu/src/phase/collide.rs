@@ -49,7 +49,8 @@ impl CpuState {
             .zip(&self.particles.flags)
             .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
             .for_each(|((p, velocity), collider_bits)| {
-                let leaf = p.map(|c| (c / self.frame_input.consts().leaf_size).floor() as i32);
+                let leaf =
+                    p.map(|c| (c / self.frame_input.header().consts.leaf_size).floor() as i32);
                 let triangles_to_check = self.frame_input.bvh().query(&leaf);
                 if triangles_to_check.is_empty() {
                     *collider_bits = 0;
@@ -75,7 +76,7 @@ impl CpuState {
                         n,
                     );
 
-                    if distance >= self.frame_input.consts().forget_distance() {
+                    if distance >= self.frame_input.header().consts.forget_distance() {
                         continue;
                     }
 
@@ -166,7 +167,7 @@ impl CpuState {
 
                     let new_side = 0. <= to_p.dot(&normal);
                     let Some(prior_side) = collider_bits::get(*collider_bits, collider) else {
-                        if distance < self.frame_input.consts().accept_distance() {
+                        if distance < self.frame_input.header().consts.accept_distance() {
                             collider_bits::set(collider_bits, collider, Some(new_side));
                         }
                         continue;

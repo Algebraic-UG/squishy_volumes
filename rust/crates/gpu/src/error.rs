@@ -6,6 +6,7 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use squishy_volumes_file_frame::IoStateError;
 use thiserror::Error;
 
 use crate::{GpuAllocatorError, GpuShaderError, ProfilerError};
@@ -20,6 +21,9 @@ pub struct ExceedingLimit {
 
 #[derive(Error, Debug)]
 pub enum GpuError {
+    #[error("Io state error")]
+    IoState(#[from] IoStateError),
+
     #[error("Failed to find adapter '{requested}' (available are: {available:?})")]
     AdapterNotFound {
         requested: String,

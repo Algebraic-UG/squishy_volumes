@@ -542,8 +542,7 @@ fn main() {
                 settings,
                 gpu::step::InputData {
                     globals,
-                    particle_goals_start: &test_particles.particle_goals_start,
-                    particle_goals_end: &test_particles.particle_goals_end,
+                    particle_goals: &test_particles.particle_goals,
                     variable_particle_input: gpu::step::VariableParticleInputData {
                         particle_flags: &test_particles.particle_flags,
                         particle_parameters: &test_particles.particle_parameters,
