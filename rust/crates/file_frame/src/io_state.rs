@@ -54,6 +54,8 @@ pub enum AttributeError {
     TypeMismatch,
 }
 
+/// Lengths are stored in io units, the simulation works in io units divided
+/// by the simulation scale.
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct IoState {
     pub time: f64,
@@ -70,6 +72,23 @@ pub struct IoState {
 }
 
 impl IoState {
+    /// Converts lengths from io units into simulation units.
+    pub fn convert_to_simulation_units(&mut self, simulation_scale: f32) {
+        self.scale_lengths(1. / simulation_scale);
+    }
+
+    /// Converts lengths from simulation units into io units.
+    pub fn convert_to_io_units(&mut self, simulation_scale: f32) {
+        self.scale_lengths(simulation_scale);
+    }
+
+    fn scale_lengths(&mut self, factor: f32) {
+        self.particle_objects
+            .values_mut()
+            .for_each(|particle_object| particle_object.scale_lengths(factor));
+        self.collider.scale_lengths(factor);
+    }
+
     pub fn get_particle_object(&self, name: &str) -> Result<&ParticlesObject, IoStateError> {
         self.particle_objects
             .get(name)

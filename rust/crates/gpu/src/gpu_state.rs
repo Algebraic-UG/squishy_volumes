@@ -187,6 +187,7 @@ impl GpuState {
         tracing::info!("setting up GPU state");
 
         let harness = harness.scope("Setting up GPU State".to_string(), 5.try_into().unwrap())?;
+        io_state.convert_to_simulation_units(input_reader.header().consts.simulation_scale);
         let time = io_state.time;
         let animated_globals = io_state.animated_globals;
 
@@ -800,7 +801,7 @@ impl GpuState {
             },
         );
 
-        let io_state = IoState {
+        let mut io_state = IoState {
             time: self.time,
             animated_globals: self.animated_globals,
             particle_objects,
@@ -808,6 +809,7 @@ impl GpuState {
             bvh,
             grid_nodes,
         };
+        io_state.convert_to_io_units(self.frame_input.header().consts.simulation_scale);
 
         Ok((io_state, buffered_error))
     }

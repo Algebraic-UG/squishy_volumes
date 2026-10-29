@@ -87,6 +87,14 @@ impl<T: alembic_rust::AttributeElement> Value for T {
 }
 
 impl AttributeValue {
+    fn scale(&mut self, factor: f32) {
+        match self {
+            AttributeValue::Float1(items) => items.iter_mut().for_each(|v| *v *= factor),
+            AttributeValue::Float2(items) => items.iter_mut().flatten().for_each(|v| *v *= factor),
+            AttributeValue::Float3(items) => items.iter_mut().flatten().for_each(|v| *v *= factor),
+        }
+    }
+
     fn unpack<T: Value>(self) -> Result<Vec<T>, AttributeError> {
         T::unpack(self)
     }
@@ -96,6 +104,14 @@ impl AttributeValue {
 }
 
 impl ParticlesObject {
+    /// Multiplies every attribute that carries a length by `factor`.
+    pub fn scale_lengths(&mut self, factor: f32) {
+        self.attributes
+            .iter_mut()
+            .filter(|(key, _)| key.scale())
+            .for_each(|(_, value)| value.scale(factor));
+    }
+
     pub fn view_attr_mut<A: attribute::Trait>(
         &mut self,
     ) -> Result<&mut [A::T], ParticleObjectError> {

@@ -81,9 +81,6 @@ pub fn initialize_io_state(
     };
     let animated_globals = input_frame.animated_globals;
 
-    let scale = input_reader.header().consts.simulation_scale;
-    let inv_scale = 1. / scale;
-
     harness.check()?;
     let scope = harness.scope("Allocating Objects".to_string(), 1.try_into().unwrap())?;
 
@@ -234,8 +231,7 @@ pub fn initialize_io_state(
                                             [px, py, pz, _],
                                         ],
                                     )| {
-                                        *position =
-                                            [inv_scale * px, inv_scale * py, inv_scale * pz];
+                                        *position = [*px, *py, *pz];
                                         *position_gradient_x = [*mxx, *myx, *mzx];
                                         *position_gradient_y = [*mxy, *myy, *mzy];
                                         *position_gradient_z = [*mxz, *myz, *mzz];
@@ -260,9 +256,7 @@ pub fn initialize_io_state(
                     FrameBulkParticles::Sizes => {
                         particles
                             .replace_attr::<attribute::InitialSize>(
-                                bulk.assume_floats::<f32>()?
-                                    .into_iter()
-                                    .map(|f| f * inv_scale),
+                                bulk.assume_floats()?.into_iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
@@ -339,9 +333,7 @@ pub fn initialize_io_state(
                     FrameBulkParticles::GoalPositions => {
                         particles
                             .replace_attr::<attribute::GoalPosition>(
-                                bulk.assume_floats::<[f32; 3]>()?.into_iter().map(|p| {
-                                    [p[0] * inv_scale, p[1] * inv_scale, p[2] * inv_scale]
-                                }),
+                                bulk.assume_floats()?.into_iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
@@ -360,13 +352,6 @@ pub fn initialize_io_state(
                     FrameBulkCollider::VertexPositions => {
                         io_state.collider.vertex_positions[vertex_range.clone()]
                             .copy_from_slice(bulk.assume_floats()?);
-                        io_state.collider.vertex_positions[vertex_range.clone()]
-                            .iter_mut()
-                            .for_each(|p| {
-                                p[0] *= inv_scale;
-                                p[1] *= inv_scale;
-                                p[2] *= inv_scale;
-                            });
                     }
                     FrameBulkCollider::Triangles => {}
                     FrameBulkCollider::TriangleFrictions => {

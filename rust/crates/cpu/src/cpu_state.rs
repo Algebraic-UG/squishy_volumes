@@ -39,6 +39,7 @@ impl CpuState {
         mut io_state: IoState,
         input_reader: squishy_volumes_file_input::InputReader,
     ) -> Result<Self, Error> {
+        io_state.convert_to_simulation_units(input_reader.header().consts.simulation_scale);
         let time = io_state.time;
         let animated_globals = io_state.animated_globals;
 
@@ -284,14 +285,16 @@ impl CpuState {
 
         let bvh = store_bvh.then(|| self.frame_input.bvh().clone());
 
-        Ok(IoState {
+        let mut io_state = IoState {
             time,
             animated_globals,
             particle_objects,
             collider,
             bvh,
             grid_nodes,
-        })
+        };
+        io_state.convert_to_io_units(self.frame_input.header().consts.simulation_scale);
+        Ok(io_state)
     }
 }
 
