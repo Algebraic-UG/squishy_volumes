@@ -13,7 +13,6 @@ mod errors;
 mod initialization;
 mod simulation;
 mod simulation_input;
-mod stats;
 
 pub use context::*;
 pub use errors::*;

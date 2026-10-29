@@ -14,9 +14,9 @@ use std::{
     time::Instant,
 };
 
-use squishy_volumes_cache::{Cache, ComputeStats};
+use squishy_volumes_cache::{Cache, ComputeStats, Stats};
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
-use squishy_volumes_file_frame::Frame;
+use squishy_volumes_file_frame::{Frame, IoState};
 use squishy_volumes_file_input::InputReader;
 use squishy_volumes_gpu::{GpuRunParameters, GpuState};
 use squishy_volumes_util::panic_payload_to_string;
@@ -26,7 +26,7 @@ use tracing::info;
 #[cfg(feature = "profile")]
 use squishy_volumes_util::coarse_prof;
 
-use crate::{Error, initialization::initialize_io_state, simulation_input_path, stats::make_stats};
+use crate::{Error, initialization::initialize_io_state, simulation_input_path};
 
 pub struct ComputeThread {
     harness: Harness,
@@ -254,5 +254,15 @@ impl Drop for ComputeThread {
         if let Err(e) = thread.join() {
             tracing::error!(payload = panic_payload_to_string(e), "Compute Panic");
         }
+    }
+}
+
+fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
+    Stats {
+        grid_node_count: io_state
+            .grid_nodes
+            .as_ref()
+            .map(|grid_nodes| grid_nodes.collider_bits.len() as u32),
+        compute,
     }
 }
