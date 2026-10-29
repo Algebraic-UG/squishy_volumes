@@ -55,7 +55,7 @@ strum = { version = "0.26.3", features = ["derive"] }
 wesl = { version = "0.4.0", features = ["naga-ext"] }
 
 alembic_rust.git = "https://github.com/Algebraic-UG/alembic_rust"
-alembic_rust.rev = "42cb3063c87ad47cc6761b278b5b03d0cba404a2"
+alembic_rust.rev = "6f7ad9b1265dc32b2626abaca15d793f33a59bd8"
 
 # We need to know the subgroup size on Metal
 # https://github.com/gfx-rs/wgpu/pull/9876

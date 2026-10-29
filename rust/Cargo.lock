@@ -43,7 +43,7 @@ dependencies = [
 [[package]]
 name = "alembic_rust"
 version = "0.1.0"
-source = "git+https://github.com/Algebraic-UG/alembic_rust?rev=42cb3063c87ad47cc6761b278b5b03d0cba404a2#42cb3063c87ad47cc6761b278b5b03d0cba404a2"
+source = "git+https://github.com/Algebraic-UG/alembic_rust?rev=6f7ad9b1265dc32b2626abaca15d793f33a59bd8#6f7ad9b1265dc32b2626abaca15d793f33a59bd8"
 dependencies = [
  "bytemuck",
  "byteorder",
