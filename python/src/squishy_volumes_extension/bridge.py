@@ -97,7 +97,6 @@ class SimulationHandle:
         self.handle = handle
         self.last_error = None
         self.poll_info = None
-        self.loaded_frame = None
 
     @staticmethod
     def exists(*, uuid: str) -> bool:

@@ -28,6 +28,7 @@ from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simu
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
+    frame_to_load,
     get_input_objects_with_uuid,
     get_simulation_object_with_uuid,
     get_simulation_objects,
@@ -434,10 +435,11 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
                 if sim_handle is None:
                     continue
-                if sim_handle.loaded_frame is None:
+                loaded_frame = frame_to_load(sim_props, context.scene.frame_current)
+                if loaded_frame is None:
                     continue
 
-                stats = read_stats(sim_props.directory).get(sim_handle.loaded_frame)
+                stats = read_stats(sim_props.directory).get(loaded_frame)
                 input_header = sim_handle.input_header()
 
                 body.label(text="Misc. Stats")

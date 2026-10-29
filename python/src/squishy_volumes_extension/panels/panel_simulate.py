@@ -29,12 +29,25 @@ from ..input_capture import capture_input_frame, create_input_header
 from ..popup import with_popup
 from ..squishy_volumes_properties import (
     Squishy_Volumes_Properties_Simulation,
+    frame_to_load,
     get_input_objects_with_uuid,
     get_selected_simulation_object,
     get_selected_simulation_uuid,
     get_simulation_object_with_uuid,
 )
 from ..util import giga_f32_to_u64, simulation_input_exists, u64_to_giga_f32
+
+
+def rebake_frame(
+    sim_handle: SimulationHandle,
+    sim_props: Squishy_Volumes_Properties_Simulation,
+    scene: bpy.types.Scene,
+) -> int | None:
+    """The displayed frame, if a rebake from it would replace baked frames."""
+    loaded_frame = frame_to_load(sim_props, scene.frame_current)
+    if loaded_frame is None or loaded_frame + 1 >= sim_handle.available_frames():
+        return None
+    return loaded_frame
 
 
 def start_compute(
@@ -352,8 +365,7 @@ come after the displayed one."""
         return (
             sim_handle is not None
             and not sim_handle.computing()
-            and sim_handle.loaded_frame is not None
-            and sim_handle.loaded_frame + 1 < sim_props.bake_frames
+            and rebake_frame(sim_handle, sim_props, context.scene) is not None
         )
 
     def execute(self, context):
@@ -361,11 +373,12 @@ come after the displayed one."""
         sim_props = sim_obj.squishy_volumes
         sim_handle = SimulationHandle.get(uuid=self.uuid)
         assert sim_handle is not None
-        assert sim_handle.loaded_frame is not None
+        loaded_frame = rebake_frame(sim_handle, sim_props, context.scene)
+        assert loaded_frame is not None
         start_compute(
             sim_handle=sim_handle,
             sim_props=sim_props,
-            next_frame=sim_handle.loaded_frame + 1,
+            next_frame=loaded_frame + 1,
             number_of_frames=sim_props.bake_frames,
         )
         self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
@@ -465,13 +478,11 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
             SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest.bl_idname,
             icon="PHYSICS",
         ).uuid = sim_props.uuid
-        if (
-            sim_handle.loaded_frame is not None
-            and sim_handle.loaded_frame + 1 != sim_handle.available_frames()
-        ):
+        loaded_frame = rebake_frame(sim_handle, sim_props, context.scene)
+        if loaded_frame is not None:
             row.operator(
                 SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded.bl_idname,
-                text=f"Rebake from #{sim_handle.loaded_frame}",
+                text=f"Rebake from #{loaded_frame}",
                 icon="PHYSICS",
             ).uuid = sim_props.uuid
 
