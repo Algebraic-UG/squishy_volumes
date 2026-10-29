@@ -12,7 +12,6 @@ mod grid_nodes;
 mod io_state;
 mod particles;
 mod read;
-mod stats;
 mod util;
 mod write;
 
@@ -25,13 +24,11 @@ pub use errors::*;
 pub use grid_nodes::*;
 pub use io_state::*;
 pub use particles::*;
-pub use stats::*;
 
 use alembic_rust::{ArchiveReader, Points};
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct Frame {
     pub io_state: IoState,
-    pub stats: Stats,
     pub error_message: Option<String>,
 }

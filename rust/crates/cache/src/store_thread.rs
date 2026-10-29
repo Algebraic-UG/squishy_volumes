@@ -15,7 +15,7 @@ use std::sync::{
 use super::*;
 
 struct SenderAndThread {
-    sender: mpsc::Sender<squishy_volumes_file_frame::Frame>,
+    sender: mpsc::Sender<(squishy_volumes_file_frame::Frame, Stats)>,
     thread: std::thread::JoinHandle<Result<(), CacheWritingError>>,
 }
 
@@ -31,21 +31,19 @@ impl StoreThread {
     ) -> Self {
         tracing::info!("starting store thread");
         // TODO: this should be bounded?
-        let (store_tx, store_rx) = mpsc::channel::<squishy_volumes_file_frame::Frame>();
+        let (store_tx, store_rx) = mpsc::channel::<(squishy_volumes_file_frame::Frame, Stats)>();
         let thread = std::thread::spawn(move || -> Result<(), CacheWritingError> {
-            while let Ok(frame) = store_rx.recv() {
+            while let Ok((frame, stats)) = store_rx.recv() {
+                let frame_index = available_frames.load(Ordering::Relaxed);
                 total_bytes_on_disk.fetch_add(
-                    frame.write(frame_path(
-                        &cache_dir,
-                        available_frames.load(Ordering::Relaxed),
-                    ))?,
+                    frame.write(frame_path(&cache_dir, frame_index))?,
                     Ordering::Relaxed,
                 );
                 available_frames.fetch_add(1, Ordering::Relaxed);
-                tracing::debug!(
-                    "stored frame {}",
-                    available_frames.load(Ordering::Relaxed) - 1
-                );
+                // after the frame, so every row has a frame
+                append_stats(&cache_dir, frame_index, &stats)
+                    .map_err(CacheWritingError::WriteStats)?;
+                tracing::debug!("stored frame {frame_index}");
             }
             tracing::info!("terminating store thread");
             Ok(())
@@ -58,12 +56,16 @@ impl StoreThread {
         }
     }
 
-    pub fn store(&self, frame: squishy_volumes_file_frame::Frame) -> Result<(), CacheWritingError> {
+    pub fn store(
+        &self,
+        frame: squishy_volumes_file_frame::Frame,
+        stats: Stats,
+    ) -> Result<(), CacheWritingError> {
         self.sender_and_thread
             .as_ref()
             .ok_or(CacheWritingError::ThreadGone)?
             .sender
-            .send(frame)
+            .send((frame, stats))
             .map_err(|_| CacheWritingError::Sending)
     }
 

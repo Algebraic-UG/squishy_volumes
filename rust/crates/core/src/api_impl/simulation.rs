@@ -30,8 +30,4 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
     fn available_frames(&self) -> usize {
         self.available_frames_impl()
     }
-
-    fn stats(&self, frame: usize) -> anyhow::Result<serde_json::Value> {
-        Ok(self.stats_impl(frame)?)
-    }
 }

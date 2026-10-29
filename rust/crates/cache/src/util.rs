@@ -10,6 +10,11 @@ pub fn frame_path(cache_dir: impl AsRef<std::path::Path>, frame: usize) -> std::
     cache_dir.as_ref().join(format!("frame_{frame:05}.abc"))
 }
 
+// the python side reads this file, keep the name in sync
+pub fn stats_path(cache_dir: impl AsRef<std::path::Path>) -> std::path::PathBuf {
+    cache_dir.as_ref().join("stats.csv")
+}
+
 pub fn get_frame_number(frame_path: impl AsRef<std::path::Path>) -> Option<usize> {
     if !frame_path.as_ref().is_file() {
         return None;

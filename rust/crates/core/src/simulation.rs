@@ -158,17 +158,6 @@ impl SimulationImpl {
     pub fn current_bytes_on_disk_impl(&self) -> u64 {
         self.cache.current_bytes_on_disk()
     }
-
-    pub fn stats_impl(&self, frame: usize) -> Result<Value, Error> {
-        serde_json::to_value(
-            self.cache
-                .fetch_frame(frame)
-                .map_err(Error::CacheFetch)?
-                .stats
-                .clone(),
-        )
-        .map_err(Error::EncodingStats)
-    }
 }
 
 #[derive(Serialize, Deserialize)]

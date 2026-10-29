@@ -155,10 +155,6 @@ class SimulationHandle:
         return self.handle.available_frames()
 
     @hint_at_info
-    def stats(self, frame: int) -> dict[str, Any]:
-        return json.loads(self.handle.stats(frame))
-
-    @hint_at_info
     def drop(self):
         _simulations.pop(self.handle.uuid())
         self.handle.drop()

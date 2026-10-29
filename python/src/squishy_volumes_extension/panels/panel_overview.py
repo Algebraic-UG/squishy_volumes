@@ -38,6 +38,7 @@ from ..squishy_volumes_properties import (
 from ..util import (
     copy_simple_property_group,
     force_ui_redraw,
+    read_stats,
     simulation_input_exists,
     simulation_locked,
     u64_to_giga_f32,
@@ -436,18 +437,22 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 if sim_handle.loaded_frame is None:
                     continue
 
-                stats = sim_handle.stats(sim_handle.loaded_frame)
-                state = stats["state"]
-                compute = stats["compute"]
+                stats = read_stats(sim_props.directory).get(sim_handle.loaded_frame)
+                input_header = sim_handle.input_header()
 
                 body.label(text="Misc. Stats")
                 box = body.box()
                 grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
                 grid.label(text="Currently used")
 
-                total_particle_count = state["total_particle_count"]
-                grid_node_count = state["grid_node_count"]
-                per_object_count = state["per_object_count"]
+                total_particle_count = input_header["total_particles"]
+                per_object_count = {
+                    name: particles["particle_range"]["end"]
+                    - particles["particle_range"]["start"]
+                    for name, obj in input_header["objects"].items()
+                    if (particles := obj.get("Particles")) is not None
+                }
+                grid_node_count = None if stats is None else stats["grid_node_count"]
                 body.label(text="Loaded State Stats")
                 box = body.box()
                 grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
@@ -459,12 +464,12 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     grid.label(text=name)
                     grid.label(text=f"{count}")
 
-                if compute is not None:
+                if stats is not None and stats["last_frame_time_sec"] is not None:
                     body.label(text="Compute Stats")
                     box = body.box()
-                    remaining_time_sec = compute["remaining_time_sec"]
-                    last_frame_time_sec = compute["last_frame_time_sec"]
-                    last_frame_substeps = compute["last_frame_substeps"]
+                    remaining_time_sec = stats["remaining_time_sec"]
+                    last_frame_time_sec = stats["last_frame_time_sec"]
+                    last_frame_substeps = stats["last_frame_substeps"]
                     grid = box.grid_flow(row_major=True, columns=2, even_columns=False)
                     grid.label(text="Approx. remaining time")
                     grid.label(

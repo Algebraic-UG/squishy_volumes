@@ -20,5 +20,4 @@ pub trait Simulation {
     fn pause_compute(&mut self);
 
     fn available_frames(&self) -> usize;
-    fn stats(&self, frame: usize) -> Result<Value>;
 }

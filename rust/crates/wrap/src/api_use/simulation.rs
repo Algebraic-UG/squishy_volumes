@@ -101,17 +101,6 @@ impl Simulation {
         })
     }
 
-    pub fn stats(&self, frame: usize) -> Result<String> {
-        try_with_context(|context| {
-            Ok(to_string(
-                &context
-                    .get_simulation(&self.0)
-                    .context("No simulation found for {self.0}")?
-                    .stats(frame)?,
-            )?)
-        })
-    }
-
     pub fn drop(&self) -> Result<()> {
         with_context(move |context| context.drop_simulation(&self.0))
     }

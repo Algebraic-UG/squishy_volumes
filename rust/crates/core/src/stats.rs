@@ -6,31 +6,16 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use std::collections::BTreeMap;
+use squishy_volumes_cache::{ComputeStats, Stats};
+use squishy_volumes_file_frame::IoState;
 
-use squishy_volumes_file_frame::{IoState, StateStats};
-use squishy_volumes_file_input::{Header, Object};
-
-pub fn make_state_stats(header: &Header, io_state: &IoState) -> StateStats {
-    let per_object_count: BTreeMap<String, u32> = header
-        .objects
-        .iter()
-        .filter_map(|(name, object)| {
-            if let Object::Particles(object) = object {
-                Some((name.clone(), object.particle_range.len() as u32))
-            } else {
-                None
-            }
-        })
-        .collect();
-    let grid_node_count = io_state
-        .grid_nodes
-        .as_ref()
-        .map(|grid_nodes| grid_nodes.collider_bits.len() as u32);
-
-    StateStats {
-        total_particle_count: header.total_particles as u32,
-        per_object_count,
-        grid_node_count,
+// particle counts are not part of the stats, they are in the input header
+pub fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
+    Stats {
+        grid_node_count: io_state
+            .grid_nodes
+            .as_ref()
+            .map(|grid_nodes| grid_nodes.collider_bits.len() as u32),
+        compute,
     }
 }

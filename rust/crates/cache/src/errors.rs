@@ -28,6 +28,8 @@ pub enum CacheWritingError {
     WriteFrame(#[source] std::io::Error),
     #[error("Failed to move output frame")]
     MoveFrame(#[source] std::io::Error),
+    #[error("Failed to write stats")]
+    WriteStats(#[source] std::io::Error),
     #[error("Failed to serialize state")]
     Serialization(#[from] squishy_volumes_file_frame::Error),
     #[error("Failed to forward output frame to writing thread")]
