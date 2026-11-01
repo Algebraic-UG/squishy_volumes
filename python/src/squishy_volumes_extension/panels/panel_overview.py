@@ -97,15 +97,7 @@ def setup_cache_file(sim_obj):
     cache.is_sequence = True
     cache.override_frame = True
     driver = cache.driver_add("frame").driver
-    driver.expression = "frame - display_start_frame"
-    var = driver.variables.new()
-    var.name = "display_start_frame"
-    var.type = "SINGLE_PROP"
-    target = var.targets[0]
-    target.fallback_value = 1
-    target.data_path = "squishy_volumes.display_start_frame"
-    target.id_type = "OBJECT"
-    target.id = sim_obj
+    driver.expression = f"frame - {sim_obj.squishy_volumes.capture_start_frame}"
 
     sim_obj.squishy_volumes.cache_file = cache
 

@@ -142,6 +142,9 @@ Note that this also discards all computed frames in the cache."""
             return {"FINISHED"}
 
         self.report({"INFO"}, f"(Re)Created {sim_obj.name}")
+        frame_dirver = sim_props.cache_file.animation_data.drivers.find("frame")
+        if frame_dirver is not None:
+            frame_dirver.driver.expression = f"frame - {sim_props.capture_start_frame}"
 
         if not self.blocking:
             global SIMULATION_INPUT
