@@ -23,6 +23,7 @@ pub struct StoreThread {
     sender_and_thread: Option<SenderAndThread>,
 }
 
+#[allow(clippy::result_large_err)]
 impl StoreThread {
     pub fn new(
         cache_dir: std::path::PathBuf,

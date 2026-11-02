@@ -35,6 +35,7 @@ pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
     cache_dir.as_ref().join("simulation_input.bin")
 }
 
+#[allow(clippy::result_large_err)]
 impl SimulationInputImpl {
     pub fn new(
         uuid: String,
@@ -61,9 +62,7 @@ impl SimulationInputImpl {
             tracing::error!("failed to clean up input file: {e:?}");
         }
     }
-}
 
-impl SimulationInputImpl {
     pub fn start_frame_impl(&mut self, frame_start: Value) -> Result<(), Error> {
         let FrameStart { animated_globals } =
             from_value(frame_start).map_err(Error::ParsingFrameStart)?;

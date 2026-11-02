@@ -29,6 +29,13 @@ pub struct SimulationImpl {
     compute_thread: Option<ComputeThread>,
 }
 
+#[derive(serde::Serialize)]
+struct PollInfo {
+    current_bytes_on_disk: u64,
+    progress: Vec<ReportInfo>,
+}
+
+#[allow(clippy::result_large_err)]
 impl SimulationImpl {
     pub fn new(
         SimulationInputImpl {
@@ -77,15 +84,7 @@ impl SimulationImpl {
             compute_thread: None,
         })
     }
-}
 
-#[derive(serde::Serialize)]
-struct PollInfo {
-    current_bytes_on_disk: u64,
-    progress: Vec<ReportInfo>,
-}
-
-impl SimulationImpl {
     pub fn input_header_impl(&self) -> Result<Value, Error> {
         to_value(&self.header).map_err(Error::EncodingInputHeader)
     }

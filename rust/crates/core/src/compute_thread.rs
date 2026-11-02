@@ -45,6 +45,7 @@ pub struct ComputeThreadSettings {
     pub adaptive_time_steps: bool,
 }
 
+#[allow(clippy::result_large_err)]
 impl ComputeThread {
     pub fn new(
         ComputeThreadSettings {

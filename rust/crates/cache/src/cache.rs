@@ -47,6 +47,7 @@ pub struct Cache {
     store_thread: Mutex<StoreThread>,
 }
 
+#[allow(clippy::result_large_err)]
 impl Cache {
     pub fn new(
         directory_lock: squishy_volumes_directory_lock::DirectoryLock,
