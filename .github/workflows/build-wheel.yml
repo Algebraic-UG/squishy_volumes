@@ -58,7 +58,7 @@ jobs:
         run: cargo cyclonedx --no-default-features --features pyo3/extension-module --target ${{ inputs.target-triple }} --override-filename sbom-runtime.cdx
 
       - name: Copy license
-        run: cp LICENSE_MIT rust/crates/wrap/
+        run: cp LICENSE rust/crates/wrap/
 
       # =================================================================
       # actual building and uploading

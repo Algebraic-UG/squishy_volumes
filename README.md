@@ -35,7 +35,9 @@ Please refer to the [Squishy Volumes User Guide](https://squishy-volumes-docs.al
 
 ## Licensing
 
-The Blender-specific Python extension code is licensed under [GPLv3](./LICENSE_GPLv3), while the Rust simulation code is licensed under [MIT](./LICENSE_MIT). To avoid confusion, a respective license header is included in each source file.
+Squishy Volumes is licensed under the [GNU Affero General Public License v3.0 or later](./LICENSE) (AGPL-3.0-or-later). This covers both the Blender-specific Python extension code and the Rust simulation code. Each source file carries a respective license header.
+
+For commercial licensing under different terms, please contact Algebraic UG (haftungsbeschränkt).
 
 Third-party licenses can be found in the binary artifacts (Python wheels) included in the extension ZIP files.
 
