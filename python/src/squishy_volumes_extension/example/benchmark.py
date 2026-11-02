@@ -24,7 +24,6 @@ import bpy  # ty: ignore[unresolved-import]
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
-    get_input_objects_with_uuid,
     get_simulation_object_with_uuid,
 )
 
@@ -44,6 +43,8 @@ def setup_example_benchmark(context: bpy.types.Context):
     sim_props.time_step = 0.001
     sim_props.capture_frames = 1
     sim_props.bake_frames = 60
+
+    sim_props.max_giga_bytes_on_disk = 15.0
 
     def add_particles(obj: bpy.types.Object):
         obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES
