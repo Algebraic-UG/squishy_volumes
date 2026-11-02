@@ -15,19 +15,16 @@ use super::*;
 fn check(
     settings: Settings,
     input_data @ InputData {
-        time,
         time_step,
         globals,
         particle_flags,
         particle_positions_and_collider_bits,
         particle_velocities,
-        particle_goals_start,
-        particle_goals_end,
+        particle_goals,
     }: InputData,
 ) {
     let gpu_particle_velocites = run(settings, input_data);
 
-    let factor = time * settings.frames_per_second as f32;
     let AnimatedGlobals {
         gravity_x,
         gravity_y,
@@ -42,15 +39,13 @@ fn check(
         particle_flags,
         particle_positions_and_collider_bits,
         &mut cpu_particle_velocites,
-        particle_goals_start,
-        particle_goals_end,
+        particle_goals,
     )
     .for_each(
-        |(flags, PositionAndColliderBits { position, .. }, velocity, goal_start, goal_end)| {
+        |(flags, PositionAndColliderBits { position, .. }, velocity, goal)| {
             *velocity -= time_step * damping * *velocity;
             *velocity += time_step * Vector4::new(gravity_x, gravity_y, gravity_z, 0.);
             if flags.contains(ParticleFlags::HAS_GOAL) {
-                let goal = goal_start * (1. - factor) + goal_end * factor;
                 let to_goal = goal.xyz() - position;
                 let distance = to_goal.norm();
                 if distance > NORMALIZATION_EPS {
@@ -97,17 +92,11 @@ fn simple() {
         };
         4
     ];
-    let particle_goals_start = vec![
+    let particle_goals = vec![
         Vector4::zeros(),
         Vector4::zeros(),
         Vector4::zeros(),
         Vector4::new(1., 1., 1., 0.),
-    ];
-    let particle_goals_end = vec![
-        Vector4::zeros(),
-        Vector4::zeros(),
-        Vector4::zeros(),
-        Vector4::new(1., 1., 2., 0.),
     ];
 
     let time_step = 0.01;
@@ -124,17 +113,14 @@ fn simple() {
         Settings {
             workgroup_size,
             dispatch_limit,
-            frames_per_second: 1,
         },
         InputData {
-            time: 0.5,
             time_step,
             globals,
             particle_flags: &particle_flags,
             particle_positions_and_collider_bits: &particle_goals_positions_and_collider_bits,
             particle_velocities: &particle_velocities,
-            particle_goals_start: &particle_goals_start,
-            particle_goals_end: &particle_goals_end,
+            particle_goals: &particle_goals,
         },
     );
 }

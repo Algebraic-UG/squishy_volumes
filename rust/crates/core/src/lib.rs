@@ -7,14 +7,12 @@
 // https://opensource.org/licenses/MIT.
 
 mod api_impl;
-mod attributes;
 mod compute_thread;
 mod context;
 mod errors;
 mod initialization;
 mod simulation;
 mod simulation_input;
-mod stats;
 
 pub use context::*;
 pub use errors::*;

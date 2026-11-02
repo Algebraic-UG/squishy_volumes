@@ -16,16 +16,16 @@ use std::{
 use bincode::serialize_into;
 use tracing::info;
 
-use super::{FrameBulk, InputError, InputHeader, magic_bytes};
+use super::{FrameBulk, Header, InputError, magic_bytes};
 
 pub struct InputWriter {
-    header: InputHeader,
+    header: Header,
     writer: BufWriter<File>,
     frame_offsets: Vec<u64>,
 }
 
 impl InputWriter {
-    pub fn new<P: AsRef<Path> + Debug>(path: P, header: InputHeader) -> Result<Self, InputError> {
+    pub fn new<P: AsRef<Path> + Debug>(path: P, header: Header) -> Result<Self, InputError> {
         info!("Start writing input to {path:?}");
         let mut writer = BufWriter::new(File::create(path)?);
         squishy_volumes_file_util::write_magic_and_version(magic_bytes, &mut writer)?;

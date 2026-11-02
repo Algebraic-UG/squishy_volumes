@@ -25,6 +25,7 @@ from .get_preferences import get_allow_scaled_input, get_domain_max, get_domain_
 from .squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
+    PARTICLE_ATTRIBUTE_MAPPING,
     get_input_objects_with_uuid,
 )
 
@@ -63,7 +64,18 @@ def create_input_header(sim_props):
         ty = evaluated_obj.squishy_volumes.input_type
         if ty == INPUT_TYPE_PARTICLES:
             objects[name] = {
-                INPUT_TYPE_PARTICLES: {"num_particles": len(mesh.vertices)}
+                INPUT_TYPE_PARTICLES: {
+                    "num_particles": len(mesh.vertices),
+                    "alembic_attributes": ["Position"]
+                    + [
+                        rust_identifiers
+                        for alembic_attribute in evaluated_obj.squishy_volumes.alembic_attributes
+                        if alembic_attribute.enabled
+                        for rust_identifiers in PARTICLE_ATTRIBUTE_MAPPING[
+                            alembic_attribute.name
+                        ]
+                    ],
+                }
             }
         if ty == INPUT_TYPE_COLLIDER:
             objects[name] = {

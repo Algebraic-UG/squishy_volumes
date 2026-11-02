@@ -14,9 +14,9 @@ use super::*;
 impl CpuState {
     pub fn cull_particles(&mut self) {
         let domain_min: nalgebra::Vector3<f32> =
-            self.frame_input.consts().scaled_domain_min().into();
+            self.frame_input.header().consts.scaled_domain_min().into();
         let domain_max: nalgebra::Vector3<f32> =
-            self.frame_input.consts().scaled_domain_max().into();
+            self.frame_input.header().consts.scaled_domain_max().into();
 
         profile!("cull_particles");
         self.particles

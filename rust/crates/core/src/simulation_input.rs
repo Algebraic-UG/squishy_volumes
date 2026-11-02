@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value};
 use squishy_volumes_api::InputBulk;
 use squishy_volumes_directory_lock::DirectoryLock;
-use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta, InputHeader, InputWriter};
+use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta, Header, InputHeader, InputWriter};
 use squishy_volumes_util::AnimatedGlobals;
 
 use crate::Error;
@@ -35,6 +35,7 @@ pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
     cache_dir.as_ref().join("simulation_input.bin")
 }
 
+#[allow(clippy::result_large_err)]
 impl SimulationInputImpl {
     pub fn new(
         uuid: String,
@@ -44,8 +45,9 @@ impl SimulationInputImpl {
     ) -> Result<Self, Error> {
         let directory_lock = DirectoryLock::new(directory.clone(), uuid)?;
 
-        let input_writer = InputWriter::new(simulation_input_path(directory), input_header)
-            .map_err(Error::StartInputWriting)?;
+        let input_writer =
+            InputWriter::new(simulation_input_path(directory), Header::new(input_header))
+                .map_err(Error::StartInputWriting)?;
 
         Ok(Self {
             directory_lock,
@@ -60,9 +62,7 @@ impl SimulationInputImpl {
             tracing::error!("failed to clean up input file: {e:?}");
         }
     }
-}
 
-impl SimulationInputImpl {
     pub fn start_frame_impl(&mut self, frame_start: Value) -> Result<(), Error> {
         let FrameStart { animated_globals } =
             from_value(frame_start).map_err(Error::ParsingFrameStart)?;

@@ -45,8 +45,8 @@ def frame_to_load(props: Squishy_Volumes_Properties, frame: int) -> int | None:
 classes = [
     Squishy_Volumes_Properties_Simulation,
     Squishy_Volumes_Properties_Scene,
+    Squishy_Volumes_Alembic_Attribute,
     Squishy_Volumes_Properties_Input,
-    Squishy_Volumes_Properties_Output,
     Squishy_Volumes_Properties,
 ]
 

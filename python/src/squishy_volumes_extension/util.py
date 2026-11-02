@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import base64
+import csv
 import os
 from pathlib import Path
+from typing import Any
 
 import bpy  # ty: ignore[unresolved-import]
 import mathutils  # ty: ignore[unresolved-import]
@@ -78,15 +79,6 @@ def get_simulation_obj(simulation, name):
     return obj
 
 
-def fill_mesh_with_positions(mesh, positions):
-    num_floats = positions.size
-    num_vertices = num_floats // 3
-
-    mesh.clear_geometry()
-    mesh.vertices.add(num_vertices)  # Pre-allocate vertex space
-    mesh.vertices.foreach_set("co", positions)  # Set all coordinates in one go
-
-
 def fill_mesh_with_vertices_and_triangles(mesh, vertices, triangles):
     mesh.clear_geometry()
     mesh.from_pydata(
@@ -96,23 +88,11 @@ def fill_mesh_with_vertices_and_triangles(mesh, vertices, triangles):
     )
 
 
-def array_to_base64(array):
-    base64_str = base64.b64encode(array.tobytes()).decode("utf-8")
-
-    return {"dtype": str(array.dtype), "data": base64_str}
-
-
 def attribute_to_numpy(collection, attribute_name, dtype, per_count):
     n = len(collection) * per_count
     array = np.empty(n, dtype=dtype)
     collection.foreach_get(attribute_name, array)
     return array
-
-
-def attribute_to_base64(collection, attribute_name, dtype, per_count):
-    return array_to_base64(
-        attribute_to_numpy(collection, attribute_name, dtype, per_count)
-    )
 
 
 def force_ui_redraw():
@@ -128,6 +108,50 @@ def simulation_locked(directory: str):
 
 def simulation_input_exists(directory: str):
     return os.path.exists(Path(directory) / "simulation_input.bin")
+
+
+# written by the store thread, see rust/crates/cache/src/stats.rs
+def simulation_stats_path(directory: str):
+    return Path(directory) / "stats.csv"
+
+
+def _parse_stat(value: str) -> int | float | None:
+    if value == "":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return float(value)
+
+
+# the panels draw often, only reparse if the file changed
+_stats_cache: dict[Path, tuple[tuple[int, int], dict[int, dict[str, Any]]]] = {}
+
+
+def read_stats(directory: str) -> dict[int, dict[str, Any]]:
+    path = simulation_stats_path(directory)
+    try:
+        file_stat = path.stat()
+    except FileNotFoundError:
+        _stats_cache.pop(path, None)
+        return {}
+    key = (file_stat.st_mtime_ns, file_stat.st_size)
+    cached = _stats_cache.get(path)
+    if cached is not None and cached[0] == key:
+        return cached[1]
+
+    with open(path, newline="") as f:
+        content = f.read()
+    # drops the empty string after the last newline,
+    # or an incomplete row if the store thread is mid-write
+    lines = content.split("\n")[:-1]
+
+    stats = {}
+    for row in csv.DictReader(lines):
+        frame = int(row.pop("frame"))
+        stats[frame] = {name: _parse_stat(value) for name, value in row.items()}
+    _stats_cache[path] = (key, stats)
+    return stats
 
 
 def fix_quaternion_order(quaternion):

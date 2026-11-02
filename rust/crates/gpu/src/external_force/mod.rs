@@ -26,48 +26,40 @@ pub struct ExternalForce {
 pub struct Settings {
     pub workgroup_size: NonZeroU32,
     pub dispatch_limit: NonZeroU32,
-    pub frames_per_second: u32,
 }
 
 pub struct Parameters;
 
 pub struct Input {
-    pub time: Allocation,
     pub time_step: Allocation,
     pub globals: Allocation,
     pub particle_flags: Allocation,
     pub particle_positions_and_collider_bits: Allocation,
     pub particle_velocities: Allocation,
-    pub particle_goals_start: Allocation,
-    pub particle_goals_end: Allocation,
+    pub particle_goals: Allocation,
 }
 
 pub struct InputData<'a> {
-    pub time: f32,
     pub time_step: f32,
     pub globals: AnimatedGlobals,
     pub particle_flags: &'a [ParticleFlags],
     pub particle_positions_and_collider_bits: &'a [PositionAndColliderBits],
     pub particle_velocities: &'a [Vector4<f32>],
-    pub particle_goals_start: &'a [Vector4<f32>],
-    pub particle_goals_end: &'a [Vector4<f32>],
+    pub particle_goals: &'a [Vector4<f32>],
 }
 
 impl Input {
     pub fn new(
         device: &wgpu::Device,
         InputData {
-            time,
             time_step,
             globals,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
         }: InputData,
     ) -> Result<Self, GpuError> {
-        let time = Allocation::new(device, "time", &[time])?;
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let globals = Allocation::new(device, "globals", &[globals])?;
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
@@ -78,19 +70,15 @@ impl Input {
         )?;
         let particle_velocities =
             Allocation::new(device, "particle_velocities", particle_velocities)?;
-        let particle_goals_start =
-            Allocation::new(device, "particle_goals_start", particle_goals_start)?;
-        let particle_goals_end = Allocation::new(device, "particle_goals_end", particle_goals_end)?;
+        let particle_goals = Allocation::new(device, "particle_goals", particle_goals)?;
 
         Ok(Self {
-            time,
             time_step,
             globals,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
         })
     }
 }
@@ -108,7 +96,6 @@ impl PipelinePart for ExternalForce {
         Settings {
             workgroup_size,
             dispatch_limit,
-            frames_per_second,
         }: Settings,
     ) -> Result<Self, GpuPipelineCreationError> {
         let_compiled_module!(
@@ -117,17 +104,15 @@ impl PipelinePart for ExternalForce {
                 context,
                 workgroup_size,
                 bind_group_entries: [
-                    (f32::MIN_BINDING_SIZE, false),                     // time
                     (f32::MIN_BINDING_SIZE, false),                     // time_step
                     (AnimatedGlobals::MIN_BINDING_SIZE, false),         // globals_start
                     (ParticleFlags::MIN_BINDING_SIZE, false),           // particle_flags
                     (PositionAndColliderBits::MIN_BINDING_SIZE, false), // particle_positions_and_collider_bits
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_velocities
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals_start
-                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals_end
+                    (Vector4::<f32>::MIN_BINDING_SIZE, false),          // particle_goals
                 ],
                 immediate_size: 0,
-                constants: [("FRAMES_PER_SECOND", frames_per_second as f64)]
+                constants: []
             }
         );
 
@@ -143,14 +128,12 @@ impl PipelinePart for ExternalForce {
         context: &mut GpuContext,
         encoder: &mut CommandEncoder,
         Input {
-            time,
             time_step,
             globals,
             particle_flags,
             particle_positions_and_collider_bits,
             particle_velocities,
-            particle_goals_start,
-            particle_goals_end,
+            particle_goals,
         }: Input,
         _: Parameters,
     ) -> Result<Output, GpuError> {
@@ -166,14 +149,12 @@ impl PipelinePart for ExternalForce {
                 encoder,
                 &self.external_force,
                 [
-                    time.binding(),
                     time_step.binding(),
                     globals.binding(),
                     particle_flags.binding(),
                     particle_positions_and_collider_bits.binding(),
                     particle_velocities.binding(),
-                    particle_goals_start.binding(),
-                    particle_goals_end.binding(),
+                    particle_goals.binding(),
                 ],
             )
             .dispatch_workgroups(x, y, z);

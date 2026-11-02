@@ -6,51 +6,110 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
+use std::collections::BTreeSet;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Failed to determine directory of '{0}'")]
-    NoParent(std::path::PathBuf),
-    #[error("Failed to create '{temp}'")]
-    Create {
-        temp: std::path::PathBuf,
-        #[source]
-        error: std::io::Error,
-    },
-    #[error("Failed to open '{path}'")]
-    Open {
-        path: std::path::PathBuf,
-        #[source]
-        error: std::io::Error,
-    },
-    #[error("Failed to flush '{temp}'")]
+    #[error("Error writing '{path}'")]
     Write {
-        temp: std::path::PathBuf,
-        #[source]
-        error: std::io::IntoInnerError<std::io::BufWriter<std::fs::File>>,
-    },
-    #[error("Failed to read metadata of '{temp}'")]
-    Metadata {
-        temp: std::path::PathBuf,
-        #[source]
-        error: std::io::Error,
-    },
-    #[error("Failed to move '{temp}' to '{path}'")]
-    Move {
-        temp: std::path::PathBuf,
         path: std::path::PathBuf,
         #[source]
-        error: std::io::Error,
+        error: WriteError,
     },
-    #[error("Failed to serialize frame")]
-    Serialize(#[source] bincode::Error),
-    #[error("Failed to read '{path}'")]
+    #[error("Error reading '{path}'")]
     Read {
         path: std::path::PathBuf,
         #[source]
-        error: std::io::Error,
+        error: ReadError,
     },
-    #[error("Failed to deserialize frame")]
-    Deserialize(#[source] bincode::Error),
-    #[error("A simple check failed")]
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum WriteError {
+    #[error("Failed to determine parent directory")]
+    NoParent,
+    #[error("Io error")]
+    IoError(#[from] std::io::Error),
+    #[error("An Alembic error occurred")]
+    Alembic(#[from] alembic_rust::Error),
+    #[error("Failed to serialize")]
+    Serialize(#[from] bincode::Error),
+    #[error("File utility error")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
+    #[error("Failed to flush")]
+    Flush(#[from] std::io::IntoInnerError<std::io::BufWriter<std::fs::File>>),
+    #[error("Points error for '{name}'")]
+    Points {
+        name: String,
+        #[source]
+        error: WriteErrorPoints,
+    },
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum WriteErrorPoints {
+    #[error("Failed to finish")]
+    Finish(#[from] alembic_rust::Error),
+    #[error("An attribute error occurred")]
+    Attribute {
+        name: String,
+        #[source]
+        error: WriteErrorPointsAttribute,
+    },
+    #[error("Attribute map incomplete, missing {0:?}'")]
+    Incomplete(BTreeSet<squishy_volumes_util::attribute::Key>),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum WriteErrorPointsAttribute {
+    #[error("Attribute is missing map")]
+    Missing,
+    #[error("An Alembic error occurred")]
+    Alembic(#[from] alembic_rust::Error),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ReadError {
+    #[error("Application key doesn't indicate Squishy Volumes: {0:?}")]
+    ApplicationKey(Option<String>),
+    #[error("The file is missing the binary blob")]
+    MissingBlob,
+    #[error("Io error")]
+    IoError(#[from] std::io::Error),
+    #[error("An Alembic error occurred")]
+    Alembic(#[from] alembic_rust::Error),
+    #[error("Failed to deserialize")]
+    Deserialize(#[from] bincode::Error),
+    #[error("File utility error")]
+    FileUtil(#[from] squishy_volumes_file_util::Error),
+    #[error("Points are missing '{0}'")]
+    MissingPoints(String),
+    #[error("Points error for '{name}'")]
+    Points {
+        name: String,
+        #[source]
+        error: ReadErrorPoints,
+    },
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ReadErrorPoints {
+    #[error("Attribute error '{name}'")]
+    Attribute {
+        name: String,
+        #[source]
+        error: ReadErrorPointsAttribute,
+    },
+    #[error("Attribute map incomplete, missing {0:?}'")]
+    Incomplete(BTreeSet<squishy_volumes_util::attribute::Key>),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ReadErrorPointsAttribute {
+    #[error("Attribute is missing in Alembic")]
+    Missing,
+    #[error("Attribute is duplicate")]
+    Duplicate,
+    #[error("An Alembic error occurred")]
+    Alembic(#[from] alembic_rust::Error),
 }

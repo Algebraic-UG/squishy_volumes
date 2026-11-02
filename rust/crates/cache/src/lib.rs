@@ -8,11 +8,14 @@
 
 mod cache;
 mod errors;
+mod stats;
 mod store_thread;
 mod util;
 
+use stats::*;
 use store_thread::*;
 use util::*;
 
 pub use cache::{Cache, CachedState};
 pub use errors::*;
+pub use stats::{ComputeStats, Stats};

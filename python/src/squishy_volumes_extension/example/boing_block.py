@@ -20,13 +20,9 @@ import uuid
 
 import bpy  # ty: ignore[unresolved-import]
 
-from ..bridge import SimulationHandle
-from ..magic_consts import PARTICLES
-from ..panels.panel_simulate import start_compute
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
-    get_input_objects_with_uuid,
     get_simulation_object_with_uuid,
 )
 
@@ -36,7 +32,7 @@ EXAMPLE_BOING_BLOCK = "Boing Block"
 def setup_example_boing_block(context: bpy.types.Context):
     sim_uuid = str(uuid.uuid4())
     bpy.ops.scene.squishy_volumes_add_simulation(
-        "INVOKE_DEFAULT", name=EXAMPLE_BOING_BLOCK, uuid=sim_uuid
+        "INVOKE_DEFAULT", sim_name=EXAMPLE_BOING_BLOCK, uuid=sim_uuid
     )
 
     sim_obj = get_simulation_object_with_uuid(sim_uuid)
@@ -50,6 +46,7 @@ def setup_example_boing_block(context: bpy.types.Context):
     def add_particles(obj: bpy.types.Object):
         obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES
         obj.squishy_volumes.add_default_generation = True
+        obj.squishy_volumes.add_output_object = True
         bpy.ops.scene.squishy_volumes_add_input_object(
             "INVOKE_DEFAULT",
             uuid=sim_uuid,
@@ -59,6 +56,7 @@ def setup_example_boing_block(context: bpy.types.Context):
     def add_collider(obj):
         obj.squishy_volumes.input_type = INPUT_TYPE_COLLIDER
         obj.squishy_volumes.add_default_generation = True
+        obj.squishy_volumes.add_output_object = True
         bpy.ops.scene.squishy_volumes_add_input_object(
             "INVOKE_DEFAULT",
             uuid=sim_uuid,
@@ -89,37 +87,4 @@ def setup_example_boing_block(context: bpy.types.Context):
         uuid=sim_uuid,
         blocking=True,
         start_baking=False,
-    )
-    sim_handle = SimulationHandle.get(uuid=sim_uuid)
-    assert sim_handle is not None
-
-    for input_obj in get_input_objects_with_uuid(sim_uuid):
-        if input_obj.squishy_volumes.input_type != INPUT_TYPE_PARTICLES:
-            continue
-        bpy.ops.scene.squishy_volumes_add_output_object(
-            "INVOKE_DEFAULT",
-            uuid=sim_uuid,
-            input_name=input_obj.name,
-            output_name=f"{input_obj.name} - Output",
-            add_default_visualization=True,
-            output_type=PARTICLES,
-            grid_collider_bits=False,
-            grid_masses=False,
-            grid_velocities=False,
-            particle_flags=True,
-            particle_masses=False,
-            particle_initial_volumes=False,
-            particle_initial_positions=True,
-            particle_velocities=False,
-            particle_sizes=True,
-            particle_transformations=True,
-            particle_energies=False,
-            particle_collider_bits=False,
-        )
-
-    start_compute(
-        sim_handle=sim_handle,
-        sim_props=sim_props,
-        next_frame=sim_handle.available_frames(),
-        number_of_frames=sim_props.bake_frames,
     )

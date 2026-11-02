@@ -19,6 +19,7 @@ pub struct Particles {
     pub parameters: Vec<ParticleParameters>,
 
     pub initial_positions: Vec<Vector3<f32>>,
+    pub goal_positions: Vec<Vector3<f32>>,
 
     pub positions: Vec<Vector3<f32>>,
     pub position_gradients: Vec<Matrix3<f32>>,

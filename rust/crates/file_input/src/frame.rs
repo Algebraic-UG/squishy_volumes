@@ -10,7 +10,7 @@ use squishy_volumes_api::InputBulk;
 #[cfg(test)]
 use squishy_volumes_util::AnimatedGlobals;
 
-use crate::{AttributeError, InputObjectCollider, InputObjectParticles};
+use crate::{AttributeError, FrameVerifcationError};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub struct FrameBulk<'a> {
@@ -170,36 +170,26 @@ pub struct InputFrame {
 
 impl FrameBulk<'_> {
     // TODO: also verify the type
-    pub fn verify(&self, header: &crate::InputHeader) -> Result<(), crate::FrameVerifcationError> {
-        let header_obj = header.objects.get(&self.meta.object_name).ok_or(
-            crate::ObjectError::ObjectNotInHeader.attach_name(self.meta.object_name.clone()),
-        )?;
-
-        let num =
-            match (header_obj, &self.meta.captured_attribute) {
-                (
-                    crate::InputObject::Particles(InputObjectParticles { num_particles }),
-                    BulkAttribute::Particles(_),
-                ) => num_particles,
-                (
-                    crate::InputObject::Collider(InputObjectCollider {
-                        num_vertices,
-                        num_triangles,
-                        ..
-                    }),
-                    BulkAttribute::Collider(frame_bulk_collider),
-                ) => match frame_bulk_collider {
-                    FrameBulkCollider::VertexPositions => num_vertices,
-                    FrameBulkCollider::Triangles
-                    | FrameBulkCollider::TriangleFrictions
-                    | FrameBulkCollider::TriangleDampings => num_triangles,
-                },
-                _ => Err(crate::ObjectError::ObjectChangedType
-                    .attach_name(self.meta.object_name.clone()))?,
-            };
+    pub fn verify(&self, header: &crate::Header) -> Result<(), crate::FrameVerifcationError> {
+        let num = match &self.meta.captured_attribute {
+            BulkAttribute::Particles(_) => header
+                .get_particle_object(&self.meta.object_name)?
+                .particle_range
+                .len(),
+            BulkAttribute::Collider(FrameBulkCollider::VertexPositions) => header
+                .get_collider_object(&self.meta.object_name)?
+                .vertex_range
+                .len(),
+            BulkAttribute::Collider(FrameBulkCollider::Triangles)
+            | BulkAttribute::Collider(FrameBulkCollider::TriangleFrictions)
+            | BulkAttribute::Collider(FrameBulkCollider::TriangleDampings) => header
+                .get_collider_object(&self.meta.object_name)?
+                .triangle_range
+                .len(),
+        };
 
         let found = self.data.len();
-        let expected = *num as usize * self.meta.captured_attribute.elem_count();
+        let expected = num * self.meta.captured_attribute.elem_count();
         if expected != found {
             Err(crate::AttributeError::LengthMismatch { found, expected }
                 .attach_attr(self.meta.captured_attribute)
@@ -246,38 +236,56 @@ const BOOL: &str = "bool";
 const FLOAT: &str = "float";
 const INT: &str = "int";
 
-impl OwnedInputBulk {
+impl OwnedFrameBulk {
     #[inline]
-    pub fn assume_bools(&self) -> Result<&[bool], AttributeError> {
+    pub fn assume_bools(&self) -> Result<&[bool], FrameVerifcationError> {
         let expected = BOOL;
-        let found = match self {
-            Self::Bool(vec) => return Ok(vec.as_slice()),
-            Self::Floats(_) => FLOAT,
-            Self::Ints(_) => INT,
+        let found = match &self.data {
+            OwnedInputBulk::Bool(vec) => return Ok(vec.as_slice()),
+            OwnedInputBulk::Floats(_) => FLOAT,
+            OwnedInputBulk::Ints(_) => INT,
         };
-        Err(AttributeError::TypeMismatch { expected, found })
+        Err(AttributeError::TypeMismatch { expected, found }
+            .attach_attr(self.meta.captured_attribute)
+            .attach_name(self.meta.object_name.clone()))
     }
 
     #[inline]
-    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
+    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerifcationError> {
         let expected = FLOAT;
-        let found = match self {
-            Self::Bool(_) => BOOL,
-            Self::Floats(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
-            Self::Ints(_) => INT,
-        };
-        Err(AttributeError::TypeMismatch { expected, found })
+        (|| {
+            let found = match &self.data {
+                OwnedInputBulk::Bool(_) => BOOL,
+                OwnedInputBulk::Floats(vec) => {
+                    return Ok(bytemuck::try_cast_slice(vec.as_slice())?);
+                }
+                OwnedInputBulk::Ints(_) => INT,
+            };
+            Err(AttributeError::TypeMismatch { expected, found })
+        })()
+        .map_err(|error| {
+            error
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone())
+        })
     }
 
     #[inline]
-    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], AttributeError> {
+    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerifcationError> {
         let expected = INT;
-        let found = match self {
-            Self::Bool(_) => BOOL,
-            Self::Floats(_) => FLOAT,
-            Self::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
-        };
-        Err(AttributeError::TypeMismatch { expected, found })
+        (|| {
+            let found = match &self.data {
+                OwnedInputBulk::Bool(_) => BOOL,
+                OwnedInputBulk::Floats(_) => FLOAT,
+                OwnedInputBulk::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
+            };
+            Err(AttributeError::TypeMismatch { expected, found })
+        })()
+        .map_err(|error| {
+            error
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone())
+        })
     }
 }
 

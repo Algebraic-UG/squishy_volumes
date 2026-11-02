@@ -20,7 +20,6 @@ import bpy  # ty: ignore[unresolved-import]
 from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
 
 from .get_preferences import get_print_debug_info
-from .squishy_volumes_properties import TYPE_NONE
 
 # See also
 # https://github.com/Algebraic-UG/squishy_volumes/issues/171
@@ -33,8 +32,7 @@ def fix_appended_data(context):
         if not isinstance(obj, bpy.types.Object):
             continue
 
-        obj.squishy_volumes.uuid = "unassigned"
-        obj.squishy_volumes.type = TYPE_NONE
+        obj.squishy_volumes.uuid = ""
 
 
 def register_append_handler():

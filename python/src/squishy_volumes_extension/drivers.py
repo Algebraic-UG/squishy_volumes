@@ -19,8 +19,6 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from .squishy_volumes_properties import (
-    TYPE_INPUT,
-    TYPE_OUTPUT,
     get_simulation_object_with_uuid,
 )
 
@@ -62,7 +60,7 @@ class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers(bpy.types.Operator):
     bl_label = "Squishy Volumes Add Drivers"
     bl_description = """This adds drivers to the objects' modifiers' sockets.
 
-Only changes active input/output objects.
+Only changes selected objects' modifiers' sockets.
 Only changes modifiers starting with 'Squishy Volmues'.
 
 This connects the respective value, for example, 'Grid Node Size', with the
@@ -72,8 +70,6 @@ value of the respective simulation(s) the objects are an output of."""
     def execute(self, context):
         for obj in context.selected_objects:
             props = obj.squishy_volumes
-            if props.type not in [TYPE_OUTPUT, TYPE_INPUT]:
-                continue
 
             sim_obj = get_simulation_object_with_uuid(props.uuid)
             if sim_obj is None:
@@ -81,13 +77,16 @@ value of the respective simulation(s) the objects are an output of."""
 
             for modifier in obj.modifiers:
                 if not modifier.name.startswith("Squishy Volumes"):
-                    continue
-                add_drivers(sim_obj, modifier)
-
-            self.report(
-                {"INFO"}, f"Added driver to modifier {modifier.name} of {obj.name}."
-            )
-
+                    self.report(
+                        {"INFO"},
+                        f"Ignoring modifier '{modifier.name}' of object '{obj.name}' because it doesn't start with 'Squishy Volumes'.",
+                    )
+                else:
+                    add_drivers(sim_obj, modifier)
+                    self.report(
+                        {"INFO"},
+                        f"Added driver to modifier '{modifier.name}' of object '{obj.name}'.",
+                    )
         return {"FINISHED"}
 
 

@@ -34,6 +34,7 @@ impl Default for ContextImpl {
     }
 }
 
+#[allow(clippy::result_large_err)]
 impl ContextImpl {
     pub fn new_simulation_input_impl(
         &mut self,

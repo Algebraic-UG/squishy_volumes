@@ -9,30 +9,24 @@
 import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, TOMBSTONED, NORMALIZATION_EPS, AnimatedGlobals};
 
 @group(0) @binding(0)
-var<storage, read_write> time: f32;
-
-@group(0) @binding(1)
 var<storage, read_write> time_step: f32;
 
-@group(0) @binding(2)
+@group(0) @binding(1)
 var<storage, read_write> globals: AnimatedGlobals;
 
-@group(0) @binding(3)
+@group(0) @binding(2)
 var<storage, read_write> particle_flags: array<u32>;
 
-@group(0) @binding(4)
+@group(0) @binding(3)
 var<storage, read_write> particle_positions_and_collider_bits: array<PositionAndColliderBits>;
 
-@group(0) @binding(5)
+@group(0) @binding(4)
 var<storage, read_write> particle_velocities: array<vec3f>;
 
+@group(0) @binding(5)
+var<storage, read_write> particle_goals: array<vec3f>;
+
 @group(0) @binding(6)
-var<storage, read_write> particle_goals_start: array<vec3f>;
-
-@group(0) @binding(7)
-var<storage, read_write> particle_goals_end: array<vec3f>;
-
-@group(0) @binding(8)
 var<storage, read_write> status: atomic<u32>;
 
 override FRAMES_PER_SECOND: u32;
@@ -60,16 +54,13 @@ fn main(
         return;
     }
 
-    let factor = time * f32(FRAMES_PER_SECOND);
     var velocity = particle_velocities[global_index];
 
     velocity -= time_step * globals.damping * velocity;
     velocity += time_step * vec3f(globals.gravity_x, globals.gravity_y, globals.gravity_z);
 
     if (flags & HAS_GOAL) != 0 {
-        let goal_position = //
-            (1. - factor) * particle_goals_start[global_index]
-            + factor * particle_goals_end[global_index];
+        let goal_position = particle_goals[global_index];
         let position = particle_positions_and_collider_bits[global_index].position;
         let to_goal = goal_position - position;
         let distance = length(to_goal);

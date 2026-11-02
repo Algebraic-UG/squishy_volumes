@@ -7,7 +7,7 @@ classifiers = ["Private :: Do Not Upload"]
 
 [dependency-groups]
 lint = [
-  "ruff>=0.16.6",
+  "ruff==0.17.3",
 ]
 dev = [
   "ty>=0.0.79",

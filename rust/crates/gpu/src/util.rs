@@ -260,7 +260,7 @@ pub fn prepare_tmp_on_cpu(
             };
 
             let matrix_part = velocity_gradient.fixed_view::<3, 3>(0, 0) * parameters.mass()
-                - stress * position_gradient.transpose() * scaling * parameters.initial_volume;
+                - stress * position_gradient.transpose() * scaling * parameters.initial_volume();
             let vector_part = velocity.xyz() * parameters.mass();
             let position_part = position_and_collider_bits.position / grid_node_size;
 

@@ -23,14 +23,6 @@ impl CpuState {
         let factor_b = self.frame_input.frame_factor(self.time)?;
         let factor_a = 1. - factor_b;
 
-        let particle_goal_positions: Vec<Vector3<f32>> = self
-            .frame_input
-            .goal_positions_start()
-            .par_iter()
-            .zip(self.frame_input.goal_positions_end())
-            .map(|(a, b)| factor_a * a + factor_b * b)
-            .collect();
-
         let vertex_positions: Vec<Vector3<f32>> = self
             .frame_input
             .collider_start()
@@ -80,7 +72,6 @@ impl CpuState {
             .collect();
 
         self.interpolated_input = Some(InterpolatedInput {
-            particle_goal_positions,
             vertex_positions,
             vertex_normals,
             triangle_normals,

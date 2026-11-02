@@ -6,7 +6,12 @@
 // license that can be found in the LICENSE_MIT file or at
 // https://opensource.org/licenses/MIT.
 
-use crate::T;
+use itertools::izip;
+
+use crate::{
+    T,
+    attribute::{self, Trait as _},
+};
 
 #[repr(C)]
 #[derive(
@@ -15,7 +20,7 @@ use crate::T;
 #[cfg_attr(not(use_f64), derive(bytemuck::Pod))]
 pub struct ParticleParameters {
     pub density: T,
-    pub initial_volume: T,
+    pub initial_size: T,
     pub viscosity_dynamic: T,
     pub viscosity_bulk: T,
     pub youngs_modulus: T,
@@ -25,18 +30,73 @@ pub struct ParticleParameters {
     pub exponent: i32,
 }
 
+pub struct SplitParameters {
+    pub density: Vec<T>,
+    pub initial_size: Vec<T>,
+    pub viscosity_dynamic: Vec<T>,
+    pub viscosity_bulk: Vec<T>,
+    pub youngs_modulus: Vec<T>,
+    pub poissons_ratio: Vec<T>,
+    pub sand_alpha: Vec<T>,
+    pub bulk_modulus: Vec<T>,
+
+    // TODO: once blender can read ints we can change this
+    pub exponent: Vec<T>,
+}
+
+impl SplitParameters {
+    pub fn to_zipped(self) -> impl Iterator<Item = ParticleParameters> {
+        izip!(
+            self.density,
+            self.initial_size,
+            self.viscosity_dynamic,
+            self.viscosity_bulk,
+            self.youngs_modulus,
+            self.poissons_ratio,
+            self.sand_alpha,
+            self.bulk_modulus,
+            self.exponent,
+        )
+        .map(
+            |(
+                density,
+                initial_size,
+                viscosity_dynamic,
+                viscosity_bulk,
+                youngs_modulus,
+                poissons_ratio,
+                sand_alpha,
+                bulk_modulus,
+                exponent,
+            )| {
+                ParticleParameters {
+                    density,
+                    initial_size,
+                    viscosity_dynamic,
+                    viscosity_bulk,
+                    youngs_modulus,
+                    poissons_ratio,
+                    sand_alpha,
+                    bulk_modulus,
+                    exponent: exponent as i32,
+                }
+            },
+        )
+    }
+}
+
 impl Default for ParticleParameters {
     fn default() -> Self {
         Self {
-            density: 1000.,
-            initial_volume: 0.01,
-            viscosity_dynamic: 3.,
-            viscosity_bulk: 3.,
-            youngs_modulus: 10000.,
-            poissons_ratio: 0.3,
-            sand_alpha: 0.3,
-            bulk_modulus: 10000.,
-            exponent: 2,
+            density: attribute::Density::DEFAULT as T,
+            initial_size: attribute::InitialSize::DEFAULT as T,
+            viscosity_dynamic: attribute::ViscosityDynamic::DEFAULT as T,
+            viscosity_bulk: attribute::ViscosityBulk::DEFAULT as T,
+            youngs_modulus: attribute::YoungsModulus::DEFAULT as T,
+            poissons_ratio: attribute::PoissonsRatio::DEFAULT as T,
+            sand_alpha: attribute::SandAlpha::DEFAULT as T,
+            bulk_modulus: attribute::BulkModulus::DEFAULT as T,
+            exponent: attribute::Exponent::DEFAULT as i32,
         }
     }
 }
@@ -44,7 +104,12 @@ impl Default for ParticleParameters {
 impl ParticleParameters {
     #[inline]
     pub fn mass(&self) -> T {
-        self.density * self.initial_volume
+        self.density * self.initial_volume()
+    }
+
+    #[inline]
+    pub fn initial_volume(&self) -> T {
+        self.initial_size * self.initial_size * self.initial_size
     }
 
     // Wikipedia: Lamé parameters (this is the "second")

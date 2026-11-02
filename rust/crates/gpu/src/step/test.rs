@@ -19,9 +19,8 @@ fn check(
     input_data: InputData,
 ) {
     let InputData {
-        globals: _,              // TODO
-        particle_goals_start: _, // TODO
-        particle_goals_end: _,   // TODO
+        globals: _,        // TODO
+        particle_goals: _, // TODO
         variable_particle_input:
             VariableParticleInputData {
                 particle_flags,
@@ -151,8 +150,7 @@ fn specific() {
         settings,
         InputData {
             globals: Default::default(),
-            particle_goals_start: &vec![Vector4::zeros(); n],
-            particle_goals_end: &vec![Vector4::zeros(); n],
+            particle_goals: &vec![Vector4::zeros(); n],
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &vec![ParticleFlags::IS_SOLID; n],
                 particle_parameters: &vec![Default::default(); n],
@@ -205,8 +203,7 @@ fn test_single_undeformed() {
         settings,
         InputData {
             globals: Default::default(),
-            particle_goals_start: &[Vector4::zeros()],
-            particle_goals_end: &[Vector4::zeros()],
+            particle_goals: &[Vector4::zeros()],
             variable_particle_input: VariableParticleInputData {
                 particle_flags: &[ParticleFlags::IS_SOLID],
                 particle_parameters: &[Default::default()],

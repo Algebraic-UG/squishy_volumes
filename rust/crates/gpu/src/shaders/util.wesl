@@ -195,7 +195,7 @@ fn kernel_cubic(signed_x: f32) -> f32 {
 
 struct ParticleParameters {
     density: f32,
-    initial_volume: f32,
+    initial_size: f32,
     viscosity_dynamic: f32,
     viscosity_bulk: f32,
     youngs_modulus: f32,
@@ -213,8 +213,12 @@ const HAS_GOAL: u32 = 1 << 4;
 const TOMBSTONED: u32 = 1 << 5;
 const FAILED: u32 = 1 << 6;
 
+fn initial_volume(p: ParticleParameters) -> f32 {
+    return p.initial_size * p.initial_size * p.initial_size;
+}
+
 fn mass(p: ParticleParameters) -> f32 {
-    return p.density * p.initial_volume;
+    return p.density * initial_volume(p);
 }
 
 fn mu(p: ParticleParameters) -> f32 {

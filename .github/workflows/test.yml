@@ -54,4 +54,4 @@ jobs:
             run: cargo fmt --check
 
           - working-directory: rust
-            run: cargo clippy --all-targets
+            run: cargo clippy --all-targets -- -D warnings

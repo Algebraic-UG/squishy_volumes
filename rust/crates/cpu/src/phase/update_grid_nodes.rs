@@ -30,7 +30,7 @@ impl CpuState {
     pub fn update_grid_nodes(&mut self) {
         profile!("update_grid_nodes");
 
-        let grid_node_size = self.frame_input.consts().scaled_grid_node_size();
+        let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
 
         {
             // remove those entries that didn't receive any particles

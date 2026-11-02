@@ -19,8 +19,8 @@ use squishy_volumes_util::AnimatedGlobals;
 use tempfile::{Builder, TempDir};
 
 use crate::{
-    FrameBulk, InputConsts, InputError, InputObject, InputObjectCollider, InputObjectParticles,
-    InputOffsetReadingError, OwnedFrameBulk,
+    FrameBulk, Header, InputConsts, InputError, InputObject, InputObjectCollider,
+    InputObjectParticles, InputOffsetReadingError, OwnedFrameBulk,
 };
 
 use super::{InputFrame, InputHeader, InputReader, InputWriter};
@@ -33,16 +33,22 @@ fn test_file() -> (PathBuf, TempDir) {
     (tmp_dir.path().join("test_input.bin"), tmp_dir)
 }
 
-fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> InputHeader {
+fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Header {
     let consts = InputConsts::test_input();
     let objects = [
         (
             "foo".to_string(),
-            InputObject::Particles(InputObjectParticles { num_particles }),
+            InputObject::Particles(InputObjectParticles {
+                num_particles,
+                alembic_attributes: Default::default(),
+            }),
         ),
         (
             "bar".to_string(),
-            InputObject::Particles(InputObjectParticles { num_particles }),
+            InputObject::Particles(InputObjectParticles {
+                num_particles,
+                alembic_attributes: Default::default(),
+            }),
         ),
         (
             "car".to_string(),
@@ -56,7 +62,7 @@ fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Inp
     .into_iter()
     .collect();
 
-    InputHeader { consts, objects }
+    Header::new(InputHeader { consts, objects })
 }
 
 fn test_frames(

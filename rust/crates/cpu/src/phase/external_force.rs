@@ -16,10 +16,6 @@ impl CpuState {
         profile!("external_force");
         let time_step = self.adaptive_time_step_state.allowed_time_step();
 
-        let interpolated_input = self
-            .interpolated_input
-            .as_ref()
-            .ok_or(Error::InterpolatedInputMissing)?;
         let AnimatedGlobals {
             gravity_x,
             gravity_y,
@@ -34,16 +30,15 @@ impl CpuState {
             .positions
             .par_iter()
             .zip(&mut self.particles.velocities)
+            .zip(&self.particles.goal_positions)
             .zip(&self.particles.flags)
-            .enumerate()
-            .filter(|(_, (_, flags))| !flags.contains(ParticleFlags::TOMBSTONED))
-            .for_each(|(index, ((position, velocity), flags))| {
+            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .for_each(|(((position, velocity), goal_position), flags)| {
                 *velocity -= time_step * damping * *velocity;
                 *velocity += time_step * gravity;
 
-                let index = self.particles.sort_map[index] as usize;
                 if flags.contains(ParticleFlags::HAS_GOAL) {
-                    let to_goal = interpolated_input.particle_goal_positions[index] - position;
+                    let to_goal = goal_position - position;
                     let distance = to_goal.norm();
                     if distance > NORMALIZATION_EPS {
                         let to_goal_dir = to_goal / distance;
