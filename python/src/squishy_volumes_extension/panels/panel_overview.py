@@ -83,11 +83,11 @@ The UI will be blocked for a few seconds.""",
 def setup_cache_file(sim_obj):
 
     # weird little dance since we have to use the operator
-    before = set(c.name for c in bpy.data.cache_files)
+    before = {c.name for c in bpy.data.cache_files}
     bpy.ops.cachefile.open(
         filepath=str(Path(sim_obj.squishy_volumes.directory) / "frame_00000.abc")
     )
-    created = set(c.name for c in bpy.data.cache_files) - before
+    created = {c.name for c in bpy.data.cache_files} - before
     if len(created) != 1:
         raise RuntimeError("File cache creation failed")
     cache = bpy.data.cache_files[created.pop()]

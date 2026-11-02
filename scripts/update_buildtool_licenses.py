@@ -2,7 +2,7 @@ import platform
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -45,7 +45,7 @@ def build_component(
 
 def main():
     OUTPUT = wrap_dir / "sbom-buildtools.cdx.xml"
-    timestamp = datetime.now(tz=timezone.utc).isoformat(timespec="seconds") + "Z"
+    timestamp = datetime.now(tz=UTC).isoformat(timespec="seconds") + "Z"
 
     rustc_ver = get_version(["rustc", "--version"])
     cargo_ver = get_version(["cargo", "--version"])

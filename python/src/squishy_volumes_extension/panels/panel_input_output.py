@@ -17,7 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
-import select
+
 import bpy  # ty: ignore[unresolved-import]
 
 from ..assets import (
@@ -29,8 +29,8 @@ from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
     PARTICLE_ATTRIBUTE_MAPPING,
-    Squishy_Volumes_Properties_Input,
     Squishy_Volumes_Alembic_Attribute,
+    Squishy_Volumes_Properties_Input,
     add_fields_from,
     get_input_objects_with_uuid,
     get_selected_input_object,
@@ -38,7 +38,7 @@ from ..squishy_volumes_properties import (
     get_selected_simulation_uuid,
     get_simulation_object_with_uuid,
 )
-from ..util import force_ui_redraw, copy_simple_property_group
+from ..util import copy_simple_property_group, force_ui_redraw
 
 
 class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
@@ -88,9 +88,9 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
 
     if input_props.input_type == INPUT_TYPE_PARTICLES:
         input_obj.squishy_volumes.alembic_attributes.clear()
-        for name in PARTICLE_ATTRIBUTE_MAPPING.keys():
+        for attr_name in PARTICLE_ATTRIBUTE_MAPPING:
             attr = input_obj.squishy_volumes.alembic_attributes.add()
-            attr.name = name
+            attr.name = attr_name
         if input_obj.squishy_volumes.add_output_object:
             output_name = f"{input_obj.name} - Output"
             output_obj = bpy.data.objects.new(

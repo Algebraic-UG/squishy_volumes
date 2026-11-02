@@ -21,7 +21,7 @@ import bpy  # ty: ignore[unresolved-import]
 from .bridge import SimulationHandle
 from .get_preferences import get_print_debug_info
 from .popup import with_popup
-from .squishy_volumes_properties import frame_to_load, get_simulation_objects
+from .squishy_volumes_properties import get_simulation_objects
 from .util import add_or_update_marker, force_ui_redraw, remove_marker
 
 PROGRESS_INTERVAL = 0.25

@@ -20,11 +20,9 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from .assets import (
-    create_geometry_nodes_grid,
     create_geometry_nodes_particles,
     create_material_display_uvw,
 )
-from .bridge import SimulationHandle
 from .drivers import add_drivers
 
 
