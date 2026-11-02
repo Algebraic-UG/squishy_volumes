@@ -256,84 +256,84 @@ pub fn initialize_io_state(
                     FrameBulkParticles::Sizes => {
                         particles
                             .replace_attr::<attribute::InitialSize>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::Densities => {
                         particles
                             .replace_attr::<attribute::Density>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::YoungsModuluses => {
                         particles
                             .replace_attr::<attribute::YoungsModulus>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::PoissonsRatios => {
                         particles
                             .replace_attr::<attribute::PoissonsRatio>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::InitialPositions => {
                         particles
                             .replace_attr::<attribute::InitialPosition>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::InitialVelocity => {
                         particles
                             .replace_attr::<attribute::Velocity>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::ViscosityDynamic => {
                         particles
                             .replace_attr::<attribute::ViscosityDynamic>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::ViscosityBulk => {
                         particles
                             .replace_attr::<attribute::ViscosityBulk>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::Exponent => {
                         particles
                             .replace_attr::<attribute::Exponent>(
-                                bulk.assume_ints::<i32>()?.into_iter().map(|i| *i as f32),
+                                bulk.assume_ints::<i32>()?.iter().map(|i| *i as f32),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::BulkModulus => {
                         particles
                             .replace_attr::<attribute::BulkModulus>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::SandAlpha => {
                         particles
                             .replace_attr::<attribute::SandAlpha>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
                     FrameBulkParticles::GoalPositions => {
                         particles
                             .replace_attr::<attribute::GoalPosition>(
-                                bulk.assume_floats()?.into_iter().cloned(),
+                                bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }

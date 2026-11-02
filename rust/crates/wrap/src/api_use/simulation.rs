@@ -7,8 +7,7 @@
 // https://opensource.org/licenses/MIT.
 
 use anyhow::{Context, Result};
-use numpy::PyArray1;
-use pyo3::{prelude::*, types::PyList};
+use pyo3::prelude::*;
 use serde_json::{from_str, to_string};
 
 use crate::hot_reloadable::{try_with_context, with_context};
