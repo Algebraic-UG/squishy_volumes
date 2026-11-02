@@ -1,10 +1,20 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright 2025  Algebraic UG (haftungsbeschränkt)
+// This file is part of the Squishy Volumes extension.
+// Copyright (C) 2025-2026  Algebraic UG (haftungsbeschränkt)
 //
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE_MIT file or at
-// https://opensource.org/licenses/MIT.
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, TimeStepLimits, SINGULAR_VALUE_SEPARATION, first_piola_stress_neo_hookean_svd_in_diagonal_space, first_piola_stress_inviscid_svd_in_diagonal_space, second_derivative_neo_hookean_svd_in_diagonal_space, second_derivative_inviscid_svd_in_diagonal_space, F32_MIN, partial_elastic_energy_inviscid_by_invariant_3, double_partial_elastic_energy_inviscid_by_invariant_3, mat3x3f_max_elem, mat3x3f_abs, F32_MAX, lambda, mu};
 import super::external::wgebra::svd3::{Svd, svd, recompose};
