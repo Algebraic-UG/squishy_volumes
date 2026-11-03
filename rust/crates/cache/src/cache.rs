@@ -218,9 +218,12 @@ impl Cache {
         );
         self.available_frames
             .fetch_min(from_frame, Ordering::Relaxed);
-        clean_up_frames(self.directory_lock.directory(), from_frame)?;
-        truncate_stats(self.directory_lock.directory(), from_frame)
-            .map_err(CacheCleanupError::IoError)?;
+        let cleanup = clean_up_frames(self.directory_lock.directory(), from_frame);
+        if let Err(CacheCleanupError::RemoveFrame { frame, .. }) = &cleanup {
+            self.available_frames.store(frame + 1, Ordering::Relaxed);
+        }
+        let truncation = truncate_stats(self.directory_lock.directory(), self.available_frames())
+            .map_err(CacheCleanupError::IoError);
 
         let (bytes_on_disk_from_frames, _frames) =
             discover_frames(self.directory_lock.directory()).map_err(CacheReadingError::IoError)?;
@@ -228,6 +231,8 @@ impl Cache {
             self.input_bytes_on_disk + bytes_on_disk_from_frames,
             Ordering::Relaxed,
         );
+        cleanup?;
+        truncation?;
         Ok(())
     }
 }
@@ -253,14 +258,52 @@ fn discover_frames(
     )
 }
 
+/// Removes all frames from `from_frame` onwards, starting with the last one.
+///
+/// See <https://github.com/Algebraic-UG/squishy_volumes/issues/422>
 pub fn clean_up_frames(
     cache_dir: impl AsRef<std::path::Path>,
     from_frame: usize,
 ) -> Result<(), CacheCleanupError> {
-    for (frame, frame_path) in discover_frames(cache_dir)?.1 {
-        if frame >= from_frame {
-            std::fs::remove_file(frame_path)?
-        }
+    let mut frames = discover_frames(cache_dir)?.1;
+    frames.retain(|(frame, _)| *frame >= from_frame);
+    frames.sort_unstable_by_key(|(frame, _)| std::cmp::Reverse(*frame));
+    for (frame, path) in frames {
+        std::fs::remove_file(&path).map_err(|error| CacheCleanupError::RemoveFrame {
+            frame,
+            path,
+            error,
+        })?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clean_up_removes_frames_from_given_one() {
+        let dir = std::env::temp_dir().join(format!(
+            "squishy_volumes_cache_test_clean_up_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        for frame in 0..5 {
+            std::fs::write(frame_path(&dir, frame), []).unwrap();
+        }
+
+        clean_up_frames(&dir, 2).unwrap();
+
+        let mut remaining = discover_frames(&dir)
+            .unwrap()
+            .1
+            .into_iter()
+            .map(|(frame, _)| frame)
+            .collect::<Vec<_>>();
+        remaining.sort();
+        assert_eq!(remaining, [0, 1]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }
