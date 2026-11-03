@@ -50,6 +50,17 @@ def rebake_frame(
     return loaded_frame
 
 
+def release_cache_file(sim_props: Squishy_Volumes_Properties_Simulation):
+    """Close the frame Blender keeps open for display.
+
+    See https://github.com/Algebraic-UG/squishy_volumes/issues/421"""
+    cache_file = sim_props.cache_file
+    if cache_file is None:
+        return
+    layer = cache_file.layers.new(filepath="//squishy_volumes_release_handle.abc")
+    cache_file.layers.remove(layer)
+
+
 def start_compute(
     sim_handle: SimulationHandle,
     sim_props: Squishy_Volumes_Properties_Simulation,
@@ -79,6 +90,7 @@ This check can be disabled in the add-on preferences."""
         "number_of_frames": number_of_frames,
         "max_bytes_on_disk": giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
     }
+    release_cache_file(sim_props)
     sim_handle.start_compute(compute_settings=compute_settings)
 
     return True
@@ -170,6 +182,7 @@ Note that this also discards all computed frames in the cache."""
         if animation_was_playing:
             bpy.ops.screen.animation_play()
 
+        release_cache_file(sim_props)
         sim_handle = SimulationHandle.new()
         if self.start_baking:
             start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
@@ -283,6 +296,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         self.report({"INFO"}, f"Finished capturing input for {sim_obj.name}")
 
         SIMULATION_INPUT = None
+        release_cache_file(sim_props)
         sim_handle = SimulationHandle.new()
 
         if self.start_baking:
