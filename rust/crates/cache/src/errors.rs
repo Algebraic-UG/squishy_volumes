@@ -73,6 +73,15 @@ pub enum CacheReadingError {
 }
 #[derive(thiserror::Error, Debug)]
 pub enum CacheCleanupError {
+    #[error(
+        "Failed to remove frame {frame} at {path:?}, it might still be open in another program (e.g. Blender displaying it)"
+    )]
+    RemoveFrame {
+        frame: usize,
+        path: std::path::PathBuf,
+        #[source]
+        error: std::io::Error,
+    },
     #[error("Unknown io error")]
     IoError(#[from] std::io::Error),
 }
