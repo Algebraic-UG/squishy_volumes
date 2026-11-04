@@ -64,9 +64,9 @@ impl SimulationImpl {
         Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
     }
 
-    pub fn load(uuid: String, directory: PathBuf) -> Result<Self, Error> {
+    pub fn load(directory: PathBuf) -> Result<Self, Error> {
         info!("Loading old simulation");
-        let directory_lock = DirectoryLock::new(directory.clone(), uuid)?;
+        let directory_lock = DirectoryLock::new(directory)?;
         Self::load_with_lock(directory_lock, u64::MAX, false)
     }
 

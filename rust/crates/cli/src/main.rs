@@ -29,7 +29,6 @@ use std::{
 };
 use tracing::subscriber::set_global_default;
 use tracing_subscriber::FmtSubscriber;
-use uuid::Uuid;
 
 use clap::Parser;
 
@@ -69,7 +68,7 @@ fn main() -> Result<()> {
         max_bytes_on_disk,
     } = Cli::parse();
 
-    let mut simulation = SimulationImpl::load(Uuid::new_v4().to_string(), directory)?;
+    let mut simulation = SimulationImpl::load(directory)?;
 
     let next_frame = next_frame.unwrap_or(simulation.available_frames_impl());
 

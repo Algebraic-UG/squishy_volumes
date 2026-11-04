@@ -120,8 +120,6 @@ impl Cache {
     }
 
     pub fn check(&self) -> Result<(), CacheError> {
-        self.directory_lock.check()?;
-
         let mut frames = discover_frames(self.directory_lock.directory())
             .map_err(CacheReadingError::IoError)?
             .1
@@ -332,8 +330,7 @@ mod tests {
         let dir = temp_dir("held_open");
         write_empty_frames(&dir, 8);
         let directory_lock =
-            squishy_volumes_directory_lock::DirectoryLock::new(dir.clone(), "test".to_string())
-                .unwrap();
+            squishy_volumes_directory_lock::DirectoryLock::new(dir.clone()).unwrap();
         let cache = Cache::new(directory_lock, 0, u64::MAX).unwrap();
 
         let held_frame = std::fs::OpenOptions::new()

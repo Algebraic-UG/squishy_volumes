@@ -31,6 +31,7 @@ use squishy_volumes_util::AnimatedGlobals;
 use crate::Error;
 
 pub struct SimulationInputImpl {
+    pub uuid: String,
     pub directory_lock: DirectoryLock,
     pub input_writer: InputWriter,
     pub max_bytes_on_disk: u64,
@@ -53,13 +54,14 @@ impl SimulationInputImpl {
         input_header: InputHeader,
         max_bytes_on_disk: u64,
     ) -> Result<Self, Error> {
-        let directory_lock = DirectoryLock::new(directory.clone(), uuid)?;
+        let directory_lock = DirectoryLock::new(directory.clone())?;
 
         let input_writer =
             InputWriter::new(simulation_input_path(directory), Header::new(input_header))
                 .map_err(Error::StartInputWriting)?;
 
         Ok(Self {
+            uuid,
             directory_lock,
             input_writer,
             max_bytes_on_disk,

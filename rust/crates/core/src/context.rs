@@ -88,7 +88,7 @@ impl ContextImpl {
             return Err(Error::MissingInput)?;
         };
 
-        let uuid = simulation_input.directory_lock.uuid().to_string();
+        let uuid = simulation_input.uuid.clone();
         let simulation = SimulationImpl::new(simulation_input)?;
 
         if self.simulations.insert(uuid.clone(), simulation).is_some() {
@@ -99,7 +99,7 @@ impl ContextImpl {
     }
 
     pub fn load_simulation_impl(&mut self, uuid: String, directory: PathBuf) -> Result<(), Error> {
-        let simulation = SimulationImpl::load(uuid.clone(), directory)?;
+        let simulation = SimulationImpl::load(directory)?;
 
         if self.simulations.insert(uuid, simulation).is_some() {
             warn!("Overwriting old simulation");
