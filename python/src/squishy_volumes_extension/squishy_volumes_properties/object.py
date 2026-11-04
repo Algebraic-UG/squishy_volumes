@@ -20,7 +20,7 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle
-from ..util import simulation_input_exists, simulation_locked
+from ..util import simulation_input_exists
 from .object_input import *
 from .object_simulation import *
 
@@ -79,15 +79,6 @@ def get_input_objects() -> list[bpy.types.Object]:
 
 def get_input_objects_with_uuid(uuid: str) -> list[bpy.types.Object]:
     return [obj for obj in get_input_objects() if obj.squishy_volumes.uuid == uuid]
-
-
-def locked_simulations() -> list[bpy.types.Object]:
-    return [
-        obj
-        for obj in get_simulation_objects()
-        if not SimulationHandle.exists(uuid=obj.squishy_volumes.uuid)
-        and simulation_locked(obj.squishy_volumes.directory)
-    ]
 
 
 def unloaded_simulations(context):
