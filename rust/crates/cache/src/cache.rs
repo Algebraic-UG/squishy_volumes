@@ -282,28 +282,77 @@ pub fn clean_up_frames(
 mod tests {
     use super::*;
 
-    #[test]
-    fn clean_up_removes_frames_from_given_one() {
+    fn temp_dir(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "squishy_volumes_cache_test_clean_up_{}",
+            "squishy_volumes_cache_test_{name}_{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        for frame in 0..5 {
-            std::fs::write(frame_path(&dir, frame), []).unwrap();
+        dir
+    }
+
+    fn write_empty_frames(dir: &std::path::Path, count: usize) {
+        for frame in 0..count {
+            std::fs::write(frame_path(dir, frame), []).unwrap();
         }
+    }
 
-        clean_up_frames(&dir, 2).unwrap();
-
-        let mut remaining = discover_frames(&dir)
+    fn remaining_frames(dir: &std::path::Path) -> Vec<usize> {
+        let mut frames = discover_frames(dir)
             .unwrap()
             .1
             .into_iter()
             .map(|(frame, _)| frame)
             .collect::<Vec<_>>();
-        remaining.sort();
-        assert_eq!(remaining, [0, 1]);
+        frames.sort();
+        frames
+    }
+
+    #[test]
+    fn clean_up_removes_frames_from_given_one() {
+        let dir = temp_dir("clean_up");
+        write_empty_frames(&dir, 5);
+
+        clean_up_frames(&dir, 2).unwrap();
+
+        assert_eq!(remaining_frames(&dir), [0, 1]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Holds a frame open the way Blender does, see
+    /// <https://github.com/Algebraic-UG/squishy_volumes/issues/422>
+    #[cfg(windows)]
+    #[test]
+    fn drop_frames_stops_at_frame_held_open() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        const FILE_SHARE_READ: u32 = 0x1;
+        const FILE_SHARE_WRITE: u32 = 0x2;
+
+        let dir = temp_dir("held_open");
+        write_empty_frames(&dir, 8);
+        let directory_lock =
+            squishy_volumes_directory_lock::DirectoryLock::new(dir.clone(), "test".to_string())
+                .unwrap();
+        let cache = Cache::new(directory_lock, 0, u64::MAX).unwrap();
+
+        let held_frame = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(frame_path(&dir, 5))
+            .unwrap();
+
+        let error = cache.drop_frames(2).unwrap_err();
+
+        assert!(matches!(
+            error,
+            CacheError::Cleanup(CacheCleanupError::RemoveFrame { frame: 5, .. })
+        ));
+        assert_eq!(cache.available_frames(), 6);
+        assert_eq!(remaining_frames(&dir), [0, 1, 2, 3, 4, 5]);
+
+        drop(held_frame);
+        drop(cache);
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
