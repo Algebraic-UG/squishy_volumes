@@ -26,8 +26,6 @@ pub enum CacheError {
     Cleanup(#[from] CacheCleanupError),
     #[error("Something went really wrong and the store thread mutex is poisoned")]
     StoreThreadLockPoisoned,
-    #[error("Directory lock error")]
-    DirectoryLock(#[from] squishy_volumes_directory_lock::DirectoryLockingError),
 }
 
 #[derive(thiserror::Error, Debug)]

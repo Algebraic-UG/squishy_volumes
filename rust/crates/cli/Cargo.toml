@@ -29,7 +29,6 @@ bincode.workspace = true
 
 coarse-prof.workspace = true
 coarse-prof.optional = true
-uuid = { version = "1.16.0", features = ["v4"] }
 
 # for flame graphs
 #[profile.release]

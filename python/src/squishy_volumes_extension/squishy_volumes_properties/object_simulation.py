@@ -102,7 +102,7 @@ This includes settings, meshes, animations and simulated frames.
 If there exists a cache at the location it can be loaded.
 
 The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
-The latter being a temporary file indicating ownership.""",
+The latter is locked while a simulation uses the directory.""",
         default="",
         get=get_directory_with_default,
         set=set_directory,

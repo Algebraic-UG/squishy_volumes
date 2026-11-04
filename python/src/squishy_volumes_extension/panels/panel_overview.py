@@ -17,7 +17,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
-import os
 import uuid
 from pathlib import Path
 
@@ -32,7 +31,6 @@ from ..squishy_volumes_properties import (
     get_input_objects_with_uuid,
     get_simulation_object_with_uuid,
     get_simulation_objects,
-    locked_simulations,
     unloaded_simulations,
     update_directory,
 )
@@ -41,7 +39,6 @@ from ..util import (
     force_ui_redraw,
     read_stats,
     simulation_input_exists,
-    simulation_locked,
     u64_to_giga_f32,
 )
 
@@ -214,31 +211,11 @@ This is useful when reloading a Blender file with multiple simulations."""
     def execute(self, context):
         for sim_obj in unloaded_simulations(context):
             sim_props = sim_obj.squishy_volumes
-            lock_file = Path(sim_props.directory) / "lock"
-            if os.path.exists(lock_file):
-                os.remove(lock_file)
-                self.report({"INFO"}, "Removed lock file.")
-
             SimulationHandle.load(uuid=sim_props.uuid, directory=sim_props.directory)
 
             self.report({"INFO"}, "Reloaded simulation.")
 
         return {"FINISHED"}
-
-    def invoke(self, context, event):
-        if locked_simulations():
-            return context.window_manager.invoke_props_dialog(self)
-        else:
-            return self.execute(context)
-
-    def draw(self, context):
-        assert isinstance(self.layout, bpy.types.UILayout)
-        locked = locked_simulations()
-        if locked:
-            self.layout.label(text="WARNING: these caches contain lock files:")
-            for sim_obj in locked:
-                self.layout.label(text=f"{sim_obj.name}")
-            self.layout.label(text="Confirm to remove them.")
 
 
 class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
@@ -264,28 +241,6 @@ please use your OS's file browser."""
 
         self.report({"INFO"}, "Removed simulation")
 
-        return {"FINISHED"}
-
-
-class SCENE_OT_Squishy_Volumes_Remove_Lock_File(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_remove_lock_file"
-    bl_label = "Remove Lock"
-    bl_description = """Use with care!
-
-If the lock file is present, it usually means that another simulation is using this cache.
-However, the lock file can remain after a crash, in which case it must be deleted."""
-    bl_options = {"REGISTER"}  # noqa: RUF012
-
-    uuid: bpy.props.StringProperty()  # type: ignore
-
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        lock_file = Path(sim_obj.squishy_volumes.directory) / "lock"
-        if os.path.exists(lock_file):
-            os.remove(lock_file)
-            self.report({"INFO"}, f"Removed lock file for {sim_obj.name} .")
-        else:
-            self.report({"WARNING"}, f"No lock file present for {sim_obj.name}?")
         return {"FINISHED"}
 
 
@@ -377,9 +332,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                         progress_text += f"{computed}/{sim_props.bake_frames}"
                         factor = computed / sim_props.bake_frames
                 else:
-                    if simulation_locked(sim_props.directory):
-                        progress_text += "Cache Locked!"
-                    elif simulation_input_exists(sim_props.directory):
+                    if simulation_input_exists(sim_props.directory):
                         progress_text += "Cache Unloaded"
                     else:
                         progress_text += "Uninitialized"
@@ -404,14 +357,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                 body.prop(sim_props, "max_giga_bytes_on_disk")
 
                 row = body.row()
-                if sim_handle is None and simulation_locked(sim_props.directory):
-                    row.operator(
-                        SCENE_OT_Squishy_Volumes_Remove_Lock_File.bl_idname,
-                        icon="WARNING_LARGE",
-                    ).uuid = sim_props.uuid
-                elif sim_handle is None and simulation_input_exists(
-                    sim_props.directory
-                ):
+                if sim_handle is None and simulation_input_exists(sim_props.directory):
                     row.operator(
                         SCENE_OT_Squishy_Volumes_Reload.bl_idname,
                         icon="FILE_CACHE",
@@ -486,7 +432,6 @@ classes = [
     SCENE_OT_Squishy_Volumes_Reload,
     SCENE_OT_Squishy_Volumes_Reload_All,
     SCENE_OT_Squishy_Volumes_Remove_Simulation,
-    SCENE_OT_Squishy_Volumes_Remove_Lock_File,
     SCENE_OT_Squishy_Volumes_Show_Message,
     SCENE_PT_Squishy_Volumes_Overview,
 ]

@@ -102,10 +102,6 @@ def force_ui_redraw():
             area.tag_redraw()
 
 
-def simulation_locked(directory: str):
-    return os.path.exists(Path(directory) / "lock")
-
-
 def simulation_input_exists(directory: str):
     return os.path.exists(Path(directory) / "simulation_input.bin")
 
