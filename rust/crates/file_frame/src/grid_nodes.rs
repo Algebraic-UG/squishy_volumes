@@ -23,3 +23,13 @@ pub struct GridNodes {
     pub masses: Vec<f32>,
     pub velocites: Vec<[f32; 3]>,
 }
+
+impl GridNodes {
+    /// Multiplies every velocity by `factor`.
+    pub fn scale_lengths(&mut self, factor: f32) {
+        self.velocites
+            .iter_mut()
+            .flatten()
+            .for_each(|v| *v *= factor);
+    }
+}
