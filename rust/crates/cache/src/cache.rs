@@ -44,9 +44,7 @@ impl<'a> std::ops::Deref for CachedState<'a> {
     }
 }
 
-pub struct Cache {
-    directory_lock: squishy_volumes_directory_lock::DirectoryLock,
-
+struct CacheState {
     input_bytes_on_disk: u64,
     total_bytes_on_disk: Arc<AtomicU64>,
     max_bytes_on_disk: Arc<AtomicU64>,
@@ -57,14 +55,17 @@ pub struct Cache {
     store_thread: Mutex<StoreThread>,
 }
 
+pub struct Cache {
+    state: squishy_volumes_directory_lock::DirectoryLock<CacheState>,
+}
+
 #[allow(clippy::result_large_err)]
-impl Cache {
-    pub fn new(
-        directory_lock: squishy_volumes_directory_lock::DirectoryLock,
+impl CacheState {
+    fn new(
+        directory: &std::path::Path,
         input_bytes_on_disk: u64,
         max_bytes_on_disk: u64,
     ) -> Result<Self, crate::CacheError> {
-        let directory = directory_lock.directory();
         tracing::info!(?directory, "opening cache");
 
         let (bytes_on_disk_from_frames, frames) =
@@ -99,8 +100,6 @@ impl Cache {
         ));
 
         Ok(Self {
-            directory_lock,
-
             input_bytes_on_disk,
             total_bytes_on_disk,
             max_bytes_on_disk,
@@ -110,17 +109,31 @@ impl Cache {
             store_thread,
         })
     }
+}
+
+#[allow(clippy::result_large_err)]
+impl Cache {
+    pub fn new(
+        directory_lock: squishy_volumes_directory_lock::DirectoryLock,
+        input_bytes_on_disk: u64,
+        max_bytes_on_disk: u64,
+    ) -> Result<Self, crate::CacheError> {
+        let state = directory_lock.try_map(|directory, ()| {
+            CacheState::new(directory, input_bytes_on_disk, max_bytes_on_disk)
+        })?;
+        Ok(Self { state })
+    }
 
     pub fn directory(&self) -> &std::path::Path {
-        self.directory_lock.directory()
+        self.state.directory()
     }
 
     pub fn available_frames(&self) -> usize {
-        self.available_frames.load(Ordering::Relaxed)
+        self.state.available_frames.load(Ordering::Relaxed)
     }
 
     pub fn check(&self) -> Result<(), CacheError> {
-        let mut frames = discover_frames(self.directory_lock.directory())
+        let mut frames = discover_frames(self.state.directory())
             .map_err(CacheReadingError::IoError)?
             .1
             .into_iter()
@@ -132,7 +145,7 @@ impl Cache {
         }
         /* TODO: this check can fail.. we don't stop the store thread
         ensure!(
-            self.available_frames.load(Ordering::Relaxed)
+            self.state.available_frames.load(Ordering::Relaxed)
                 == frames
                     .iter()
                     .max()
@@ -141,7 +154,8 @@ impl Cache {
             "frames are missing at the end"
         );
         */
-        self.store_thread
+        self.state
+            .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?
             .check()?;
@@ -149,12 +163,13 @@ impl Cache {
     }
 
     pub fn set_max_bytes_on_disk(&self, max_bytes_on_disk: u64) {
-        self.max_bytes_on_disk
+        self.state
+            .max_bytes_on_disk
             .store(max_bytes_on_disk, Ordering::Relaxed);
     }
 
     pub fn current_bytes_on_disk(&self) -> u64 {
-        self.total_bytes_on_disk.load(Ordering::Relaxed)
+        self.state.total_bytes_on_disk.load(Ordering::Relaxed)
     }
 
     pub fn store_frame(
@@ -162,12 +177,13 @@ impl Cache {
         frame: squishy_volumes_file_frame::Frame,
         stats: Stats,
     ) -> Result<(), CacheError> {
-        if self.total_bytes_on_disk.load(Ordering::Relaxed)
-            >= self.max_bytes_on_disk.load(Ordering::Relaxed)
+        if self.state.total_bytes_on_disk.load(Ordering::Relaxed)
+            >= self.state.max_bytes_on_disk.load(Ordering::Relaxed)
         {
             Err(CacheWritingError::ExceedingSpace)?
         }
-        self.store_thread
+        self.state
+            .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?
             .store(frame, stats)?;
@@ -179,6 +195,7 @@ impl Cache {
         frame_index: usize,
     ) -> Result<CachedState<'a>, CacheReadingError> {
         let mut loaded_frame = self
+            .state
             .loaded_frame
             .lock()
             .map_err(|_| CacheReadingError::LoadedFrameLockPoisoned)?;
@@ -187,12 +204,12 @@ impl Cache {
             .as_ref()
             .is_none_or(|loaded_frame| loaded_frame.frame_index != frame_index)
         {
-            if frame_index >= self.available_frames.load(Ordering::Relaxed) {
+            if frame_index >= self.state.available_frames.load(Ordering::Relaxed) {
                 return Err(CacheReadingError::FrameNotReady);
             }
             tracing::debug!(frame_index, "reading frame from disk");
             let frame = squishy_volumes_file_frame::Frame::read(frame_path(
-                self.directory_lock.directory(),
+                self.state.directory(),
                 frame_index,
             ))?;
             *loaded_frame = Some(LoadedFrame { frame_index, frame });
@@ -205,28 +222,32 @@ impl Cache {
 
     pub fn drop_frames(&self, from_frame: usize) -> Result<(), CacheError> {
         let mut store_thread = self
+            .state
             .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?;
         // dropping the old thread finishes its pending writes before we clean up
         *store_thread = StoreThread::new(
-            self.directory_lock.directory().to_path_buf(),
-            self.total_bytes_on_disk.clone(),
-            self.available_frames.clone(),
+            self.state.directory().to_path_buf(),
+            self.state.total_bytes_on_disk.clone(),
+            self.state.available_frames.clone(),
         );
-        self.available_frames
+        self.state
+            .available_frames
             .fetch_min(from_frame, Ordering::Relaxed);
-        let cleanup = clean_up_frames(self.directory_lock.directory(), from_frame);
+        let cleanup = clean_up_frames(self.state.directory(), from_frame);
         if let Err(CacheCleanupError::RemoveFrame { frame, .. }) = &cleanup {
-            self.available_frames.store(frame + 1, Ordering::Relaxed);
+            self.state
+                .available_frames
+                .store(frame + 1, Ordering::Relaxed);
         }
-        let truncation = truncate_stats(self.directory_lock.directory(), self.available_frames())
+        let truncation = truncate_stats(self.state.directory(), self.available_frames())
             .map_err(CacheCleanupError::IoError);
 
         let (bytes_on_disk_from_frames, _frames) =
-            discover_frames(self.directory_lock.directory()).map_err(CacheReadingError::IoError)?;
-        self.total_bytes_on_disk.store(
-            self.input_bytes_on_disk + bytes_on_disk_from_frames,
+            discover_frames(self.state.directory()).map_err(CacheReadingError::IoError)?;
+        self.state.total_bytes_on_disk.store(
+            self.state.input_bytes_on_disk + bytes_on_disk_from_frames,
             Ordering::Relaxed,
         );
         cleanup?;

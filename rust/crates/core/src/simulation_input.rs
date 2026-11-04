@@ -32,8 +32,7 @@ use crate::Error;
 
 pub struct SimulationInputImpl {
     pub uuid: String,
-    pub directory_lock: DirectoryLock,
-    pub input_writer: InputWriter,
+    pub input_writer: DirectoryLock<InputWriter>,
     pub max_bytes_on_disk: u64,
 }
 
@@ -54,25 +53,24 @@ impl SimulationInputImpl {
         input_header: InputHeader,
         max_bytes_on_disk: u64,
     ) -> Result<Self, Error> {
-        let directory_lock = DirectoryLock::new(directory.clone())?;
-
-        let input_writer =
+        let input_writer = DirectoryLock::new(directory)?.try_map(|directory, ()| {
             InputWriter::new(simulation_input_path(directory), Header::new(input_header))
-                .map_err(Error::StartInputWriting)?;
+                .map_err(Error::StartInputWriting)
+        })?;
 
         Ok(Self {
             uuid,
-            directory_lock,
             input_writer,
             max_bytes_on_disk,
         })
     }
 
     pub fn clean_up(self) {
-        drop(self.input_writer);
-        if let Err(e) = remove_file(simulation_input_path(self.directory_lock.directory())) {
-            tracing::error!("failed to clean up input file: {e:?}");
-        }
+        self.input_writer.release(|directory| {
+            if let Err(e) = remove_file(simulation_input_path(directory)) {
+                tracing::error!("failed to clean up input file: {e:?}");
+            }
+        });
     }
 
     pub fn start_frame_impl(&mut self, frame_start: Value) -> Result<(), Error> {

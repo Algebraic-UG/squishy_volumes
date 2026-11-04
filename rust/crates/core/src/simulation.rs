@@ -49,7 +49,6 @@ struct PollInfo {
 impl SimulationImpl {
     pub fn new(
         SimulationInputImpl {
-            directory_lock,
             input_writer,
             max_bytes_on_disk,
             ..
@@ -58,8 +57,11 @@ impl SimulationImpl {
         info!("Creating new simulation");
 
         info!("Finalizing input");
-        let input_size_in_bytes = input_writer.flush().map_err(Error::FinalizingInput)?;
-        info!(input_size_in_bytes);
+        let directory_lock = input_writer.try_map(|_, input_writer| {
+            let input_size_in_bytes = input_writer.flush().map_err(Error::FinalizingInput)?;
+            info!(input_size_in_bytes);
+            Ok::<_, Error>(())
+        })?;
 
         Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
     }
