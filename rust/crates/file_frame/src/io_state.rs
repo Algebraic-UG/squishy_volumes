@@ -97,6 +97,9 @@ impl IoState {
             .values_mut()
             .for_each(|particle_object| particle_object.scale_lengths(factor));
         self.collider.scale_lengths(factor);
+        if let Some(grid_nodes) = &mut self.grid_nodes {
+            grid_nodes.scale_lengths(factor);
+        }
     }
 
     pub fn get_particle_object(&self, name: &str) -> Result<&ParticlesObject, IoStateError> {
