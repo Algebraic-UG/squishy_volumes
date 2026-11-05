@@ -77,6 +77,12 @@ The UI will be blocked for a few seconds.""",
         return context.window_manager.invoke_props_dialog(self, width=400)
 
 
+def disk_usage_factor(used_giga_bytes: float, max_giga_bytes: float) -> float:
+    if max_giga_bytes <= 0.0:
+        return 1.0
+    return used_giga_bytes / max_giga_bytes
+
+
 def setup_cache_file(sim_obj):
 
     # weird little dance since we have to use the operator
@@ -354,7 +360,9 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
                     )
                     body.progress(
                         text="Used Disk Space",
-                        factor=current / sim_props.max_giga_bytes_on_disk,
+                        factor=disk_usage_factor(
+                            current, sim_props.max_giga_bytes_on_disk
+                        ),
                     )
                 body.prop(sim_props, "max_giga_bytes_on_disk")
 
