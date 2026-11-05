@@ -29,6 +29,13 @@ You can either
 - download ZIP from [github release page](https://github.com/Algebraic-UG/squishy_volumes/releases)
 - [build from source](#building)
 
+Release ZIPs carry [GitHub artifact attestations](https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations).
+To check that a downloaded ZIP was built by this repository's CI, run:
+
+```bash
+gh attestation verify squishy_volumes_extension-<version>-<platform>.zip --repo Algebraic-UG/squishy_volumes
+```
+
 ## How to Use the Extension
 
 Please refer to the [Squishy Volumes User Guide](https://squishy-volumes-docs.algebraic.games/index.html).
