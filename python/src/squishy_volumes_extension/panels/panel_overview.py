@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import datetime
+import json
 import uuid
 from pathlib import Path
 
@@ -260,6 +261,21 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class SCENE_OT_Squishy_Volumes_Copy_Build_Info(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_copy_build_info"
+    bl_label = "Copy Build Info"
+    bl_description = """Copy the detailed build info of Squishy Volumes to the clipboard.
+It is also printed to the console.
+This is useful when reporting bugs."""
+
+    def execute(self, context):
+        detailed_build_info = json.dumps(build_info(), indent=4)
+        print(f"Squishy Volumes detailed build info: {detailed_build_info}")
+        context.window_manager.clipboard = detailed_build_info
+        self.report({"INFO"}, "Copied Squishy Volumes build info to the clipboard.")
+        return {"FINISHED"}
+
+
 class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
     bl_label = f"Overview  -  v{build_info()['wrapper']['crate_info']['version']}"
     bl_space_type = "VIEW_3D"
@@ -268,6 +284,14 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
     # No poll: this panel stays visible in every mode so that the sidebar tab
     # keeps its position. Out of Object Mode it only shows the hint below.
+
+    def draw_header_preset(self, context):
+        self.layout.operator(
+            SCENE_OT_Squishy_Volumes_Copy_Build_Info.bl_idname,
+            text="",
+            icon="INFO",
+            emboss=False,
+        )
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
@@ -435,6 +459,7 @@ classes = [
     SCENE_OT_Squishy_Volumes_Reload_All,
     SCENE_OT_Squishy_Volumes_Remove_Simulation,
     SCENE_OT_Squishy_Volumes_Show_Message,
+    SCENE_OT_Squishy_Volumes_Copy_Build_Info,
     SCENE_PT_Squishy_Volumes_Overview,
 ]
 
