@@ -19,28 +19,29 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from ..util import obj_by_index
-from .object import (
-    get_simulation_object_with_uuid,
-    get_simulation_objects,
-)
+from .object import get_simulation_objects
 
 
-def get_selected_simulation_uuid(scene: bpy.types.Scene) -> str | None:
-    sim_objs = get_simulation_objects()
-    if not sim_objs:
-        return None
-
-    if len(sim_objs) == 1:
-        return sim_objs[0].squishy_volumes.uuid
-
-    return scene.squishy_volumes.selected_simulation
+def _poll_simulation(_, obj: bpy.types.Object) -> bool:
+    return obj.squishy_volumes.is_simulation
 
 
 def get_selected_simulation_object(scene: bpy.types.Scene) -> bpy.types.Object | None:
-    selected_uuid = get_selected_simulation_uuid(scene)
-    if selected_uuid is None:
+    sim_objs = get_simulation_objects()
+    if len(sim_objs) == 1:
+        return sim_objs[0]
+
+    selected = scene.squishy_volumes.selected_simulation
+    if selected is None or not selected.squishy_volumes.is_simulation:
         return None
-    return get_simulation_object_with_uuid(selected_uuid)
+    return selected
+
+
+def get_selected_simulation_uuid(scene: bpy.types.Scene) -> str | None:
+    sim_obj = get_selected_simulation_object(scene)
+    if sim_obj is None:
+        return None
+    return sim_obj.squishy_volumes.uuid
 
 
 def _verify_selected_object(
@@ -57,13 +58,6 @@ def get_selected_input_object(scene: bpy.types.Scene) -> bpy.types.Object | None
     if obj is None or obj.type == "EMPTY":
         return None
     return _verify_selected_object(obj, scene)
-
-
-def _selectable_simulations(_, context):
-    return [
-        (sim_obj.squishy_volumes.uuid, sim_obj.name, "")
-        for sim_obj in get_simulation_objects()
-    ]
 
 
 def _update_selection(index, context):
@@ -110,8 +104,9 @@ subscribe_to_selection()
 
 
 class Squishy_Volumes_Properties_Scene(bpy.types.PropertyGroup):
-    selected_simulation: bpy.props.EnumProperty(
-        items=_selectable_simulations,
+    selected_simulation: bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        poll=_poll_simulation,
         name="Selected Simulation",
         description="Most operations assume this simulation as the target.",
         options=set(),
