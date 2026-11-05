@@ -68,7 +68,6 @@ def main():
     rustc_ver = get_version(["rustc", "--version"])
     cargo_ver = get_version(["cargo", "--version"])
     maturin_ver = get_version(["maturin", "--version"])
-    uv_ver = get_version(["uv", "--version"])
     python_ver = platform.python_version()
 
     ns = "http://cyclonedx.org/schema/bom/1.5"
@@ -87,7 +86,6 @@ def main():
     add_tool("rustc", "Rust Project Developers", rustc_ver)
     add_tool("cargo", "Rust Project Developers", cargo_ver)
     add_tool("maturin", "PyO3 Developers", maturin_ver)
-    add_tool("uv", "Astral", uv_ver)
 
     components = ET.SubElement(bom, "components")
     components.append(
@@ -107,9 +105,6 @@ def main():
             f"pkg:pypi/maturin@{maturin_ver}",
             ["MIT", "Apache-2.0"],
         )
-    )
-    components.append(
-        build_component("uv", uv_ver, f"pkg:pypi/uv@{uv_ver}", ["MIT", "Apache-2.0"])
     )
     components.append(
         build_component(
