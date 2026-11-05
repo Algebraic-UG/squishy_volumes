@@ -119,6 +119,8 @@ def add_simulation(operator, context):
 
     setup_cache_file(sim_obj)
 
+    context.scene.squishy_volumes.selected_simulation = sim_obj
+
     force_ui_redraw()
 
     operator.report({"INFO"}, f"Added {sim_obj.name}.")
