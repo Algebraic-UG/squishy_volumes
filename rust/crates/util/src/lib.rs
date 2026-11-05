@@ -29,6 +29,7 @@ mod particle_flags;
 mod particle_parameters;
 mod safe_inverse;
 mod sand;
+pub mod test_data;
 mod typedefs;
 
 pub use aabb::*;
