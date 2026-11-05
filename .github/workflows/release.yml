@@ -43,6 +43,10 @@ jobs:
   bundle-extension:
     needs: [check-version]
     uses: ./.github/workflows/bundle-extension.yml
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
   release:
     needs: [bundle-extension]
