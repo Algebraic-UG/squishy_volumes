@@ -26,6 +26,14 @@ from ..get_preferences import get_default_cache_location
 
 TYPE_SIMULATION = "Simulation"
 
+PER_SIMULATION_PROPERTIES = (
+    "uuid",
+    "directory",
+    "cache_file",
+    "progress_json_string",
+    "last_exception",
+)
+
 
 def get_simulation_objects() -> list[bpy.types.Object]:
     return [obj for obj in bpy.data.objects if obj.squishy_volumes.is_simulation]

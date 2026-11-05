@@ -27,6 +27,7 @@ from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simu
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
+    PER_SIMULATION_PROPERTIES,
     frame_to_load,
     get_input_objects_with_uuid,
     get_simulation_object_with_uuid,
@@ -166,7 +167,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
         copy_simple_property_group(
             sim_obj.squishy_volumes,
             new_sim_obj.squishy_volumes,
-            ["uuid"],
+            PER_SIMULATION_PROPERTIES,
         )
 
         input_mapping = {}
