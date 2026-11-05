@@ -24,6 +24,7 @@ import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle, build_info
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
+from ..get_preferences import get_default_compute_device
 from ..popup import popup
 from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
@@ -114,6 +115,7 @@ def add_simulation(operator, context):
 
     sim_props.is_simulation = True
     sim_props.uuid = operator.uuid
+    sim_props.compute_device = get_default_compute_device()
 
     update_directory(sim_props, context)
 

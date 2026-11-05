@@ -21,6 +21,20 @@ from pathlib import Path
 
 import bpy  # ty: ignore[unresolved-import]
 
+from .bridge import DETECTED_DEVICES
+
+
+def get_default_compute_device_index(preferences) -> int:
+    detected_identifiers = [device[0] for device in DETECTED_DEVICES]
+    identifier = preferences.default_compute_device_identifier
+    if identifier in detected_identifiers:
+        return detected_identifiers.index(identifier)
+    return 0
+
+
+def set_default_compute_device_index(preferences, index: int) -> None:
+    preferences.default_compute_device_identifier = DETECTED_DEVICES[index][0]
+
 
 class SquishyVolumesPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
@@ -102,8 +116,25 @@ which is why any scaling is rejected by default.""",
         options=set(),  # can't be animated
     )  # type: ignore
 
+    default_compute_device_identifier: bpy.props.StringProperty(
+        options={"HIDDEN"},
+    )  # type: ignore
+
+    default_compute_device: bpy.props.EnumProperty(
+        items=DETECTED_DEVICES,
+        name="Default Compute Device",
+        description="""The device that newly created simulations use.
+
+Existing simulations keep their device.
+If this device isn't detected anymore, the first detected device is used.""",
+        get=get_default_compute_device_index,
+        set=set_default_compute_device_index,
+        options=set(),
+    )  # type: ignore
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "default_cache_location")
+        self.layout.prop(self, "default_compute_device")
         self.layout.prop(self, "sanity_check_allowed_disk_space")
         self.layout.prop(self, "confirm_bake_overwrite")
         self.layout.prop(self, "domain_min")

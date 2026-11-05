@@ -28,6 +28,10 @@ def get_default_cache_location() -> str:
     return _get_preferences().default_cache_location
 
 
+def get_default_compute_device() -> str:
+    return _get_preferences().default_compute_device
+
+
 def get_sanity_check_allowed_disk_space() -> bool:
     return _get_preferences().sanity_check_allowed_disk_space
 
