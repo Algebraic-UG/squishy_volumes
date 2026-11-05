@@ -64,23 +64,31 @@ fn sand_plasticity(
     position_gradient: mat3x3f
 ) -> mat3x3f {
     var svd = svd(position_gradient);
-    let e = log(svd.S);
-    let e_tr = e.x + e.y + e.z;
-    let e_hat = e - vec3f(e_tr / 3.);
-    let e_hat_norm = length(e_hat);
-    if mu > 0. && e_tr < 0. && e_hat_norm > 0. {
-        if e_hat_norm != 0. {
-            let delta_gamma = e_hat_norm + (3. * lambda + 2. * mu) / 2. / mu * e_tr * sand_alpha;
-            if delta_gamma > 0. {
-                let big_h = e - delta_gamma / e_hat_norm * e_hat;
-                svd.S = exp(big_h);
-                return recompose(svd);
-            }
-        }
-    } else {
+    let hencky_strain = log(svd.S);
+    let volumetric_strain = hencky_strain.x + hencky_strain.y + hencky_strain.z;
+
+    let projects_to_cone_tip = mu <= 0. || volumetric_strain >= 0.;
+    if projects_to_cone_tip {
         return svd.U * svd.Vt;
     }
-    return position_gradient;
+
+    let deviatoric_strain = hencky_strain - vec3f(volumetric_strain / 3.);
+    let deviatoric_strain_norm = length(deviatoric_strain);
+    let is_pure_compression = deviatoric_strain_norm == 0.;
+    if is_pure_compression {
+        return position_gradient;
+    }
+
+    let plastic_multiplier = deviatoric_strain_norm
+        + (3. * lambda + 2. * mu) / (2. * mu) * volumetric_strain * sand_alpha;
+    let is_inside_cone = plastic_multiplier <= 0.;
+    if is_inside_cone {
+        return position_gradient;
+    }
+
+    let projected_strain = hencky_strain - plastic_multiplier / deviatoric_strain_norm * deviatoric_strain;
+    svd.S = exp(projected_strain);
+    return recompose(svd);
 }
 
 fn is_error() -> bool {

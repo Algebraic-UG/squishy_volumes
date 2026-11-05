@@ -28,6 +28,7 @@ mod panic_to_string;
 mod particle_flags;
 mod particle_parameters;
 mod safe_inverse;
+mod sand;
 mod typedefs;
 
 pub use aabb::*;
@@ -42,6 +43,7 @@ pub use panic_to_string::*;
 pub use particle_flags::*;
 pub use particle_parameters::*;
 pub use safe_inverse::*;
+pub use sand::*;
 pub use typedefs::*;
 
 #[cfg(use_f64)]

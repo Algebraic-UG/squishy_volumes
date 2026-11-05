@@ -16,10 +16,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use squishy_volumes_util::{
-    ParticleFlags, elastic_energy_inviscid, profile, try_elastic_energy_neo_hookean,
+    ParticleFlags, elastic_energy_inviscid, profile, sand_plasticity,
+    try_elastic_energy_neo_hookean,
 };
 
 use super::*;
@@ -53,30 +53,12 @@ impl CpuState {
 
                     *elastic_energy = if flags.contains(ParticleFlags::IS_SOLID) {
                         if flags.contains(ParticleFlags::USE_SAND_ALPHA) {
-                            let mut svd = position_gradient.svd(true, true);
-                            let e = svd.singular_values.map(f32::ln);
-                            let e_tr = e.sum();
-                            let e_hat = e - Vector3::repeat(e_tr / 3.);
-                            let e_hat_norm = e_hat.norm();
-                            if e_tr < 0. && e_hat_norm > 0. {
-                                assert!(parameters.mu() > 0.);
-                                if e_hat_norm != 0. {
-                                    let delta_gamma = e_hat_norm
-                                        + (3. * parameters.lambda() + 2. * parameters.mu())
-                                            / 2.
-                                            / parameters.mu()
-                                            * e_tr
-                                            * parameters.sand_alpha;
-                                    if delta_gamma > 0. {
-                                        let big_h = e - delta_gamma / e_hat_norm * e_hat;
-                                        svd.singular_values = big_h.map(f32::exp);
-
-                                        *position_gradient = svd.recompose().unwrap();
-                                    }
-                                }
-                            } else {
-                                *position_gradient = svd.u.unwrap() * svd.v_t.unwrap();
-                            }
+                            *position_gradient = sand_plasticity(
+                                parameters.mu(),
+                                parameters.lambda(),
+                                parameters.sand_alpha,
+                                position_gradient,
+                            );
                         }
 
                         try_elastic_energy_neo_hookean(
