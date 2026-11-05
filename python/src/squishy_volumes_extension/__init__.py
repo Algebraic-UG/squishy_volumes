@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import json
 import tomllib
 from pathlib import Path
 
@@ -27,6 +26,7 @@ from .assets import reload_assets
 from .bridge import (
     SimulationHandle,
     build_info,
+    build_summary,
     register_prune_simulation_handles,
     unregister_prune_simulation_handles,
 )
@@ -88,9 +88,7 @@ def register():
             f"Version mismatch! Expected {version_python} but loaded {version_rust}"
         )
     if get_print_debug_info():
-        print(
-            f"Squishy Volumes detailed build info: {json.dumps(build_info(), indent=4)}"
-        )
+        print(f"Squishy Volumes {build_summary()}")
 
     register_popup()
     register_blend_file_change_handler()

@@ -35,6 +35,24 @@ def build_info() -> dict[str, Any]:
     return json.loads(squishy_volumes_wrap.build_info_as_json())
 
 
+def short_commit_id(crate_build_info: dict[str, Any]) -> str:
+    git = (crate_build_info.get("version_control") or {}).get("Git")
+    if git is None:
+        return "unknown commit"
+    dirty_marker = "-dirty" if git["dirty"] else ""
+    return f"{git['commit_short_id']}{dirty_marker}"
+
+
+def build_summary() -> str:
+    info = build_info()
+    wrapper_commit = short_commit_id(info["wrapper"])
+    core_libs_commit = short_commit_id(info["core_libs"])
+    summary = f"v{info['wrapper']['crate_info']['version']} ({wrapper_commit}"
+    if core_libs_commit != wrapper_commit:
+        summary += f", core libs {core_libs_commit}"
+    return summary + ")"
+
+
 @hint_at_info
 def available_gpus() -> list[str]:
     return squishy_volumes_wrap.available_gpus()
