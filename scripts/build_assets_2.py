@@ -28,6 +28,7 @@ from nodebpy.types import (
     InputGeometry,
     InputInteger,
     InputVector,
+    InputMenu,
 )
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -414,9 +415,94 @@ def set_goals() -> str:
     return tree.tree.name
 
 
+# Workaround until int attributes can be read
+# see https://projects.blender.org/blender/blender/pulls/165562
+class Vector2DToInt(CustomGeometryGroup):
+    _name = "Vector (2D) To Int"
+
+    def __init__(
+        self,
+        vector: InputVector = (0.0, 0.0, 0.0),
+    ):
+        super().__init__(Vector=vector)
+
+    def __init__(self):
+        super().__init__()
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        low, high = [c.to_integer("FLOOR") for c in tree.inputs.vector("Vector")[:2]]
+        g.BitMath.l_or(low, g.BitMath.shift(high, 16)) >> tree.outputs.integer()
+
+
+class GetBit(CustomGeometryGroup):
+    _name = "Get Bit"
+
+    def __init__(
+        self,
+        bits: InputInteger = 0,
+        bit: InputInteger = 0,
+    ):
+        super().__init__(Bits=bits, Bit=bit)
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        (
+            g.Compare.integer.not_equal(
+                g.BitMath.l_and(
+                    tree.inputs.integer("Bits"),
+                    g.BitMath.shift(1, tree.inputs.integer("Bit")),
+                ),
+                0,
+            )
+            >> tree.outputs.boolean()
+        )
+
+
+class GetFlag(CustomGeometryGroup):
+    _name = "Get Flag"
+
+    def __init__(self, flag: InputMenu = ...):
+        super().__init__(Flag=flag)
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        (
+            GetBit(
+                g.NamedAttribute.vector("flags") >> Vector2DToInt(),
+                tree.inputs.menu("Flag")
+                >> g.MenuSwitch.integer(
+                    items={
+                        # compare with util::ParticleFlags
+                        "IS_SOLID": 0,
+                        "IS_FLUID": 1,
+                        "USE_VISCOSITY": 2,
+                        "USE_SAND_ALPHA": 3,
+                        "HAS_GOAL": 4,
+                        "TOMBSTONED": 5,
+                        "FAILED": 6,
+                    }
+                ),
+            )
+            >> tree.outputs.boolean()
+        )
+
+
 def visualize_particles() -> str:
     with g.tree("Squishy Volumes Visualize Particles", split_inputs=True) as tree:
-        pass
+        geometry = tree.inputs.geometry()
+        scale = tree.inputs.float("Scale")
+        failed_scale = tree.inputs.float("Failed Scale")
+        initial_size = g.NamedAttribute.float("initial_size")
+        (
+            geometry
+            >> g.SetPointRadius(
+                radius=g.Math.multiply(
+                    GetFlag("FAILED") >> g.Switch(false=scale, true=failed_scale),
+                    initial_size.o.exists.switch.float(
+                        1.0, g.Math.multiply(initial_size, 0.5)
+                    ),
+                )
+            )
+            >> tree.outputs.geometry()
+        )
 
     tree.tree.is_modifier = True
     return tree.tree.name
