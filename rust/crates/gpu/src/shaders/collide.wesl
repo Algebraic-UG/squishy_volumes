@@ -247,12 +247,12 @@ fn main(
             let tangent = tangential_velocity / tangential_velocity_norm;
 
             let friction_impulse = tangent
-                * min((triangle_frictions[closest_triangle] * distance / time_step), tangential_velocity_norm);
+                * min((max(triangle_frictions[closest_triangle], 0.) * distance / time_step), tangential_velocity_norm);
 
             velocity -= friction_impulse;
         }
 
-        velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
+        velocity -= clamp(triangle_dampings[closest_triangle], 0., 1.) * normal_velocity;
         velocity -= to_p / time_step;
 
         continuing {

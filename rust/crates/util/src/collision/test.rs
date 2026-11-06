@@ -131,6 +131,33 @@ fn full_damping_leaves_only_the_correction_in_normal_direction() {
 }
 
 #[test]
+fn friction_and_damping_never_accelerate() {
+    for velocity in test_vectors() {
+        for factor in [-0.5, 0., 0.5, 1., 2.] {
+            let after_friction = velocity - friction_impulse(&velocity, factor, 1.);
+            assert!(
+                after_friction.norm() <= velocity.norm() + TOLERANCE,
+                "friction {factor}"
+            );
+            assert!(
+                after_friction.dot(&velocity) >= -TOLERANCE,
+                "friction {factor}"
+            );
+
+            let after_damping = velocity - damping_impulse(&velocity, factor);
+            assert!(
+                after_damping.norm() <= velocity.norm() + TOLERANCE,
+                "damping {factor}"
+            );
+            assert!(
+                after_damping.dot(&velocity) >= -TOLERANCE,
+                "damping {factor}"
+            );
+        }
+    }
+}
+
+#[test]
 fn particle_on_the_surface_keeps_its_velocity() {
     for encounter in test_encounters() {
         let on_surface = Encounter {

@@ -43,6 +43,7 @@ pub fn split_normal_tangential(
 }
 
 /// Impulse that slows sliding by `friction · correction_speed`, but never reverses it.
+/// Negative friction is treated as none, it would accelerate the sliding.
 pub fn friction_impulse(
     tangential_velocity: &Vector3<T>,
     friction: T,
@@ -52,12 +53,14 @@ pub fn friction_impulse(
     if tangential_speed <= NORMALIZATION_EPS {
         return Vector3::zeros();
     }
-    tangential_velocity / tangential_speed * (friction * correction_speed).min(tangential_speed)
+    tangential_velocity / tangential_speed
+        * (friction.max(0.) * correction_speed).min(tangential_speed)
 }
 
-/// Impulse that removes the fraction `damping` of the normal velocity, at most all of it.
+/// Impulse that removes the fraction `damping` of the normal velocity,
+/// clamped so that it never adds to it nor reverses it.
 pub fn damping_impulse(normal_velocity: &Vector3<T>, damping: T) -> Vector3<T> {
-    normal_velocity * damping.min(1.)
+    normal_velocity * damping.clamp(0., 1.)
 }
 
 /// The velocity that moves the particle back onto the surface within one time step,

@@ -478,6 +478,16 @@ fn dented_octahedron_with_concave_edges_and_corner() {
 
 #[test]
 fn moving_torus_with_friction_and_damping() {
+    check_moving_torus(0.4, 0.3);
+}
+
+#[test]
+fn moving_torus_with_invalid_friction_and_damping() {
+    check_moving_torus(-0.4, -0.3);
+    check_moving_torus(0.4, 1.5);
+}
+
+fn check_moving_torus(friction: f32, damping: f32) {
     let vertex_positions = torus::vertices();
     let triangle_indices = torus::triangles();
 
@@ -506,8 +516,8 @@ fn moving_torus_with_friction_and_damping() {
         .map(|particle| Vector4::new(particle.position.y, -particle.position.z, 0.5, 0.))
         .collect();
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
-    let triangle_frictions = vec![0.4; triangle_indices.len()];
-    let triangle_dampings = vec![0.3; triangle_indices.len()];
+    let triangle_frictions = vec![friction; triangle_indices.len()];
+    let triangle_dampings = vec![damping; triangle_indices.len()];
 
     check(
         0.7,
