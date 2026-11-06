@@ -304,11 +304,11 @@ fn materials_without_stiffness_do_not_limit_the_time_step() {
         for volume_ratio in [0.5, 0.9, 1., 1.1, 2.] {
             let position_gradient = uniform(volume_ratio);
             assert_eq!(
-                T::INFINITY,
+                T::MAX,
                 solid_time_step(limit, &soft_solid, &position_gradient),
             );
             assert_eq!(
-                T::INFINITY,
+                T::MAX,
                 fluid_time_step(limit, &pressureless_fluid, &position_gradient),
                 "volume ratio {volume_ratio}"
             );

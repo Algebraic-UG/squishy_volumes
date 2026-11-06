@@ -101,6 +101,10 @@ pub fn limit_time_step_by_speed_of_sound(
     .max_by(T::total_cmp)
     .unwrap()
         / j;
+    let has_no_stiffness = kappa <= 0.;
+    if has_no_stiffness {
+        return T::MAX;
+    }
     let current_density = parameters.density / j;
 
     let c = (kappa / current_density).sqrt();
@@ -122,12 +126,17 @@ pub fn limit_time_step_by_isolated_particles(
         const K: T = 1.; // CPIC
         const D: T = 3.; // 3D
 
-        (parameters.density
-            / (xi * (R - K / 2.) * (parameters.mu() + D / 2. * parameters.lambda())))
-        .sqrt()
+        let stiffness = parameters.mu() + D / 2. * parameters.lambda();
+        if stiffness <= 0. {
+            return T::MAX;
+        }
+        (parameters.density / (xi * (R - K / 2.) * stiffness)).sqrt()
     } else if flags.contains(ParticleFlags::IS_FLUID) {
         // Effective time step restrictions for explicit MPM simulation,
         // Technical document "Simple bounds"
+        if parameters.bulk_modulus <= 0. {
+            return T::MAX;
+        }
         let j = position_gradient.determinant();
         const K: T = 6.; // quadratic splines
         const D: T = 3.; // 3D

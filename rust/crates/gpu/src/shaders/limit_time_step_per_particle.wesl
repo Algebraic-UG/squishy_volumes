@@ -129,6 +129,11 @@ fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, p
 
     kappa /= j;
 
+    let has_no_stiffness = kappa <= 0.;
+    if has_no_stiffness {
+        return F32_MAX;
+    }
+
     let current_density = parameter.density / j;
 
     let c = sqrt(kappa / current_density);
@@ -143,12 +148,19 @@ fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, positi
         const R: f32 = 1.; // APIC & CPIC
         const K: f32 = 1.; // CPIC
         const D: f32 = 3.; // 3D
-        return sqrt(parameters.density / (xi * (R - K / 2.) * (mu(parameters) + D / 2. * lambda(parameters))));
+        let stiffness = mu(parameters) + D / 2. * lambda(parameters);
+        if stiffness <= 0. {
+            return F32_MAX;
+        }
+        return sqrt(parameters.density / (xi * (R - K / 2.) * stiffness));
     }
 
     if (flag & IS_FLUID) > 0 {
         // Effective time step restrictions for explicit MPM simulation,
         // Technical document "Simple bounds"
+        if parameters.bulk_modulus <= 0. {
+            return F32_MAX;
+        }
         let j = determinant(position_gradient);
         const K: f32 = 6.; // quadratic splines
         const D: f32 = 3.; // 3D
