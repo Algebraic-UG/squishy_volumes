@@ -29,6 +29,7 @@ from nodebpy.types import (
     InputInteger,
     InputVector,
     InputMenu,
+    InputFloat,
 )
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -485,9 +486,21 @@ class GetFlag(CustomGeometryGroup):
         )
 
 
-def visualize_particles() -> str:
-    with g.tree("Squishy Volumes Visualize Particles", split_inputs=True) as tree:
-        geometry = tree.inputs.geometry()
+class PointVisualization(CustomGeometryGroup):
+    _name = "Point Visualization"
+
+    def __init__(
+        self,
+        geometry: InputGeometry = ...,
+        scale: InputFloat = 1.0,
+        failed_scale: InputFloat = 5.0,
+    ):
+        super().__init__(
+            **{"Geometry": geometry, "Scale": scale, "Failed Scale": failed_scale}
+        )
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        geometry = tree.inputs.geometry("Geometry")
         scale = tree.inputs.float("Scale")
         failed_scale = tree.inputs.float("Failed Scale")
         initial_size = g.NamedAttribute.float("initial_size")
@@ -500,6 +513,24 @@ def visualize_particles() -> str:
                         1.0, g.Math.multiply(initial_size, 0.5)
                     ),
                 )
+            )
+            >> tree.outputs.geometry()
+        )
+
+
+def visualize_particles() -> str:
+    with g.tree("Squishy Volumes Visualize Particles", split_inputs=True) as tree:
+        geometry = tree.inputs.geometry()
+        display_as = tree.inputs.menu("Display As")
+        scale = tree.inputs.float("Scale")
+        failed_scale = tree.inputs.float("Failed Scale")
+
+        (
+            g.MenuSwitch.geometry(
+                display_as,
+                {
+                    "Points": PointVisualization(geometry, scale, failed_scale),
+                },
             )
             >> tree.outputs.geometry()
         )
