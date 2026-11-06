@@ -39,7 +39,7 @@ def update_progress():
         )
         add_or_update_marker(
             f"{sim_obj.name} Capture End",
-            sim_props.capture_start_frame + sim_props.capture_frames - 1,
+            sim_props.capture_end_frame,
         )
 
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)

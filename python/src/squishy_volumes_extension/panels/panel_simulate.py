@@ -29,6 +29,7 @@ from ..input_capture import capture_input_frame, create_input_header
 from ..popup import with_popup
 from ..squishy_volumes_properties import (
     Squishy_Volumes_Properties_Simulation,
+    capture_frame_count,
     frame_to_load,
     get_input_objects_with_uuid,
     get_selected_simulation_object,
@@ -170,12 +171,12 @@ Note that this also discards all computed frames in the cache."""
             )
             return {"FINISHED"}
 
-        for i in range(sim_props.capture_frames):
+        for i in range(capture_frame_count(sim_props)):
             capture_input_frame(
                 sim_props=sim_props,
                 sim_input_handle=sim_input_handle,
             )
-            if i + 1 < sim_props.capture_frames:
+            if i + 1 < capture_frame_count(sim_props):
                 context.scene.frame_set(context.scene.frame_current + 1)
 
         context.scene.frame_set(prior_frame)
@@ -235,7 +236,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         self._timer = context.window_manager.event_timer_add(
             time_step=0, window=context.window
         )
-        context.window_manager.progress_begin(0, sim_props.capture_frames)
+        context.window_manager.progress_begin(0, capture_frame_count(sim_props))
         context.window_manager.modal_handler_add(self)
 
         return {"RUNNING_MODAL"}
@@ -265,7 +266,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         captured_frames = context.scene.frame_current - sim_props.capture_start_frame
         assert captured_frames >= 0
 
-        if captured_frames < sim_props.capture_frames:
+        if captured_frames < capture_frame_count(sim_props):
             if not with_popup(
                 uuid=self.uuid,
                 f=lambda: capture_input_frame(
@@ -283,7 +284,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
 
             context.window_manager.progress_update(captured_frames)
 
-        if captured_frames + 1 < sim_props.capture_frames:
+        if captured_frames + 1 < capture_frame_count(sim_props):
             context.scene.frame_set(context.scene.frame_current + 1)
             return {"RUNNING_MODAL"}
 
@@ -450,11 +451,10 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         sim_props = sim_obj.squishy_volumes
 
         record_box = self.layout.box()
-        record_box.label(text="Record Input")
-
+        record_box.label(text=f"Record Input: {capture_frame_count(sim_props)} frames")
         frame_row = record_box.row()
         frame_row.prop(sim_props, "capture_start_frame")
-        frame_row.prop(sim_props, "capture_frames")
+        frame_row.prop(sim_props, "capture_end_frame")
 
         record_op = record_box.operator(
             SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,

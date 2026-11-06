@@ -70,6 +70,21 @@ def tag_simulation_for_driver_update(self, _context):
     self.id_data.update_tag()
 
 
+def keep_capture_end_after_start(sim_props):
+    if sim_props.capture_end_frame >= sim_props.capture_start_frame:
+        return
+    sim_props.capture_end_frame = sim_props.capture_start_frame
+
+
+def update_capture_start_frame(self, context):
+    keep_capture_end_after_start(self)
+    tag_simulation_for_driver_update(self, context)
+
+
+def update_capture_end_frame(self, _context):
+    keep_capture_end_after_start(self)
+
+
 def update_directory(self, context):
     if self.directory != str(Path(self.directory)):
         self.directory = str(Path(self.directory))
@@ -231,21 +246,21 @@ This is mass-normalized, so the unit is 1/s""",
     # ----------------------------------------------------------------
     capture_start_frame: bpy.props.IntProperty(
         name="Start",
-        description="""The start of the input objects' evaluation.
+        description="""The first frame for which the input objects are evaluated.
 
 You need to override the cache to manifest changes.""",
         default=1,
         options=set(),
-        update=tag_simulation_for_driver_update,
+        update=update_capture_start_frame,
     )  # type: ignore
-    capture_frames: bpy.props.IntProperty(
-        name="Frames",
-        description="""The number of frames for which the input objects are evaluated.
+    capture_end_frame: bpy.props.IntProperty(
+        name="End",
+        description="""The last frame for which the input objects are evaluated.
 
 You need to override the cache to manifest changes.""",
-        default=250,
-        min=1,
+        default=1,
         options=set(),
+        update=update_capture_end_frame,
     )  # type: ignore
 
     # ----------------------------------------------------------------
@@ -309,3 +324,15 @@ This only changes the display of simulation results and can be changed anytime."
         default=1,
         options=set(),
     )  # type: ignore
+
+
+def stored_range(
+    sim_props: Squishy_Volumes_Properties_Simulation,
+) -> tuple[int, int]:
+    start = sim_props.capture_start_frame
+    return start, max(start, sim_props.capture_end_frame)
+
+
+def capture_frame_count(sim_props: Squishy_Volumes_Properties_Simulation) -> int:
+    start, end = stored_range(sim_props)
+    return end - start + 1
