@@ -182,11 +182,13 @@ impl Cache {
         {
             Err(CacheWritingError::ExceedingSpace)?
         }
-        self.state
+        let sender = self
+            .state
             .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?
-            .store(frame, stats)?;
+            .sender()?;
+        sender.send(frame, stats)?;
         Ok(())
     }
 
@@ -226,7 +228,7 @@ impl Cache {
             .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?;
-        // dropping the old thread finishes its pending writes before we clean up
+        store_thread.stop();
         *store_thread = StoreThread::new(
             self.state.directory().to_path_buf(),
             self.state.total_bytes_on_disk.clone(),
@@ -326,6 +328,63 @@ mod tests {
             .collect::<Vec<_>>();
         frames.sort();
         frames
+    }
+
+    fn stats_rows(dir: &std::path::Path) -> usize {
+        std::fs::read_to_string(stats_path(dir))
+            .map(|content| content.lines().count().saturating_sub(1))
+            .unwrap_or(0)
+    }
+
+    fn open_cache(dir: &std::path::Path) -> Cache {
+        let directory_lock =
+            squishy_volumes_directory_lock::DirectoryLock::new(dir.to_path_buf()).unwrap();
+        Cache::new(directory_lock, 0, u64::MAX).unwrap()
+    }
+
+    fn store_empty_frames(cache: &Cache, count: usize) {
+        for _ in 0..count {
+            cache
+                .store_frame(
+                    squishy_volumes_file_frame::Frame::default(),
+                    Stats::default(),
+                )
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn drop_frames_keeps_only_written_frames_below_cut() {
+        let dir = temp_dir("drop_frames_queued");
+        let cut = 4;
+        let cache = open_cache(&dir);
+        store_empty_frames(&cache, 6);
+
+        cache.drop_frames(cut).unwrap();
+
+        let kept = cache.available_frames();
+        assert!(kept <= cut);
+        assert_eq!(remaining_frames(&dir), (0..kept).collect::<Vec<_>>());
+        assert_eq!(stats_rows(&dir), kept);
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn dropping_cache_leaves_consistent_frames_and_stats() {
+        let dir = temp_dir("drop_cache_queued");
+        let stored = 6;
+        let cache = open_cache(&dir);
+        store_empty_frames(&cache, stored);
+
+        drop(cache);
+
+        let written = remaining_frames(&dir);
+        assert!(written.len() + QUEUED_FRAMES + 1 >= stored);
+        assert_eq!(written, (0..written.len()).collect::<Vec<_>>());
+        assert_eq!(stats_rows(&dir), written.len());
+        assert_eq!(open_cache(&dir).available_frames(), written.len());
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
