@@ -32,7 +32,7 @@ def update_progress():
     for sim_obj in get_simulation_objects():
         sim_props = sim_obj.squishy_volumes
 
-        cleanup_capture_markers(sim_obj)
+        cleanup_markers(sim_obj)
         add_or_update_marker(
             f"{sim_obj.name} Capture Start",
             sim_props.capture_start_frame,
@@ -54,46 +54,15 @@ def update_progress():
 
         should_redraw = True
 
-        cleanup_bake_markers(sim_obj)
-
-        add_or_update_marker(
-            f"{sim_obj.name} Bake Start",
-            sim_props.display_start_frame,
-        )
-
-        computed_frames = sim_handle.available_frames()
-        if computed_frames == 0:
-            continue
-
-        latest_frame = sim_props.display_start_frame + computed_frames - 1
-        end_frame = sim_props.display_start_frame + sim_props.bake_frames - 1
-        if latest_frame != end_frame:
-            add_or_update_marker(f"{sim_obj.name} Bake Latest", latest_frame)
-            add_or_update_marker(f"{sim_obj.name} Bake End", end_frame)
-        else:
-            add_or_update_marker(f"{sim_obj.name} Bake Latest & End", end_frame)
-
     if should_redraw:
         force_ui_redraw()
 
     return PROGRESS_INTERVAL
 
 
-def cleanup_capture_markers(sim_obj: bpy.types.Object):
+def cleanup_markers(sim_obj: bpy.types.Object):
     remove_marker(f"{sim_obj.name} Capture Start")
     remove_marker(f"{sim_obj.name} Capture End")
-
-
-def cleanup_bake_markers(sim_obj: bpy.types.Object):
-    remove_marker(f"{sim_obj.name} Bake Start")
-    remove_marker(f"{sim_obj.name} Bake Latest")
-    remove_marker(f"{sim_obj.name} Bake End")
-    remove_marker(f"{sim_obj.name} Bake Latest & End")
-
-
-def cleanup_markers(sim_obj: bpy.types.Object):
-    cleanup_capture_markers(sim_obj)
-    cleanup_bake_markers(sim_obj)
 
 
 def is_updating():
