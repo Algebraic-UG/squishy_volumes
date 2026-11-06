@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(test)]
+mod test;
+
 use nalgebra::{Matrix3, Vector3};
 use squishy_volumes_util::{
     ParticleFlags, ParticleParameters, cauchy_stress_general_viscosity,
