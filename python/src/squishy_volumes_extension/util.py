@@ -70,10 +70,10 @@ def attribute_to_numpy(collection, attribute_name, dtype, per_count):
 
 
 def force_ui_redraw():
-    assert bpy.context.window is not None
-    for area in bpy.context.window.screen.areas:
-        if area.type == "VIEW_3D":
-            area.tag_redraw()
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
 
 
 def simulation_input_exists(directory: str):

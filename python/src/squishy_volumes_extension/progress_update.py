@@ -19,12 +19,25 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from .bridge import SimulationHandle
-from .get_preferences import get_print_debug_info
+from .capture_markers import capture_marker_frames
+from .get_preferences import get_enable_timeline_markers, get_print_debug_info
 from .popup import with_popup
 from .squishy_volumes_properties import get_simulation_objects
 from .util import force_ui_redraw
 
 PROGRESS_INTERVAL = 0.25
+
+_last_seen_capture_markers: dict[str, tuple[int, ...]] = {}
+
+
+def capture_markers_changed(sim_obj: bpy.types.Object) -> bool:
+    if not get_enable_timeline_markers() or bpy.context.scene is None:
+        return False
+    uuid = sim_obj.squishy_volumes.uuid
+    frames = capture_marker_frames(bpy.context.scene, sim_obj)
+    changed = _last_seen_capture_markers.get(uuid) != frames
+    _last_seen_capture_markers[uuid] = frames
+    return changed
 
 
 def simulation_progressed(sim_obj: bpy.types.Object) -> bool:
@@ -38,6 +51,8 @@ def simulation_progressed(sim_obj: bpy.types.Object) -> bool:
 def update_progress():
     should_redraw = False
     for sim_obj in get_simulation_objects():
+        if capture_markers_changed(sim_obj):
+            should_redraw = True
         if simulation_progressed(sim_obj):
             should_redraw = True
 

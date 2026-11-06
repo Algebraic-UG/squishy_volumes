@@ -32,6 +32,12 @@ def capture_markers(
     return sorted(matching, key=lambda marker: marker.frame)
 
 
+def capture_marker_frames(
+    scene: bpy.types.Scene, sim_obj: bpy.types.Object
+) -> tuple[int, ...]:
+    return tuple(marker.frame for marker in capture_markers(scene, sim_obj))
+
+
 def capture_range(
     scene: bpy.types.Scene, sim_obj: bpy.types.Object
 ) -> tuple[int, int] | None:
