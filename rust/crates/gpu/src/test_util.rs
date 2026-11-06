@@ -18,7 +18,7 @@
 
 use std::{
     num::NonZeroU32,
-    sync::{Mutex, MutexGuard},
+    sync::{Mutex, MutexGuard, PoisonError},
 };
 
 use crate::{DispatchSettings, GpuContext, Indirect, PositionAndColliderBits};
@@ -43,7 +43,9 @@ lazy_static! {
 }
 
 pub fn get_shared_context() -> MutexGuard<'static, GpuContext> {
-    let mut context = SHARED_CONTEXT.lock().unwrap();
+    let mut context = SHARED_CONTEXT
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
     context.reset_status().unwrap();
     context
 }
