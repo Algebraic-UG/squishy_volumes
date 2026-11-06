@@ -24,6 +24,7 @@ mod interpolated_input;
 mod kernels;
 mod particles;
 mod phase;
+mod transfer;
 
 use adaptive_time_step_state::*;
 use grid_nodes::*;
@@ -31,6 +32,7 @@ use interpolated_input::*;
 pub use kernels::*;
 use particles::*;
 use phase::*;
+use transfer::*;
 
 pub use cpu_state::{CpuRunParameters, CpuState};
 pub use errors::*;
