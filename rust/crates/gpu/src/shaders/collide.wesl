@@ -142,7 +142,8 @@ fn main(
 
         let triangle = triangle_indices[closest_triangle];
         let opposites = triangle_opposites[closest_triangle];
-        var normal = triangle_normals[closest_triangle];
+        let normal_of_triangle = triangle_normals[closest_triangle];
+        var normal = normal_of_triangle;
 
         let a = vertex_positions[triangle.a];
         let b = vertex_positions[triangle.b];
@@ -234,7 +235,11 @@ fn main(
             continue;
         }
 
-        let collider_velocity = a_v * bary_a + b_v * bary_b + c_v * bary_c;
+        let closest_point = p - to_p;
+        let closest_bary_a = dot(normal_of_triangle, cross(bc, c - closest_point)) / area_2;
+        let closest_bary_b = dot(normal_of_triangle, cross(ca, a - closest_point)) / area_2;
+        let closest_bary_c = dot(normal_of_triangle, cross(ab, b - closest_point)) / area_2;
+        let collider_velocity = a_v * closest_bary_a + b_v * closest_bary_b + c_v * closest_bary_c;
         let relative_velocity = velocity - collider_velocity;
 
         let contact_normal = to_p / distance;

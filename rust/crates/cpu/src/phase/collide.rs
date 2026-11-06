@@ -19,8 +19,8 @@
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_mesh_util::{
-    DistanceResult, FeatureNormals, Triangle, barycentric_coordinates, closest_feature,
-    distance_to_triangle, edge_pseudo_normal,
+    DistanceResult, FeatureNormals, Triangle, closest_feature, distance_to_triangle,
+    edge_pseudo_normal, surface_velocity_at_closest_point,
 };
 use squishy_volumes_util::{
     Contact, NORMALIZATION_EPS, ParticleFlags, collider_bits, collision_response, profile,
@@ -128,7 +128,6 @@ impl CpuState {
                         edge_pseudo_normal(n, neighbour_normal)
                     };
 
-                    let barycentric = barycentric_coordinates(p, [a, b, c], n);
                     let DistanceResult {
                         distance,
                         to_p,
@@ -166,9 +165,13 @@ impl CpuState {
 
                     let contact = Contact {
                         to_p,
-                        collider_velocity: a_v * barycentric.x
-                            + b_v * barycentric.y
-                            + c_v * barycentric.z,
+                        collider_velocity: surface_velocity_at_closest_point(
+                            p,
+                            &to_p,
+                            [a, b, c],
+                            n,
+                            [a_v, b_v, c_v],
+                        ),
                         friction: triangle_frictions[closest_triangle],
                         damping: triangle_dampings[closest_triangle],
                     };

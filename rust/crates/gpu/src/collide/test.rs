@@ -18,9 +18,9 @@
 
 use nalgebra::Vector3;
 use squishy_volumes_mesh_util::{
-    DistanceResult, FeatureNormals, angle_weighted_normal, barycentric_coordinates,
-    closest_feature, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle,
-    edge_pseudo_normal, triangle_normal,
+    DistanceResult, FeatureNormals, angle_weighted_normal, closest_feature, compute_triangle_lists,
+    compute_triangle_opposites, distance_to_triangle, edge_pseudo_normal,
+    surface_velocity_at_closest_point, triangle_normal,
 };
 use squishy_volumes_util::{Aabb, Contact, NORMALIZATION_EPS, collider_bits, collision_response};
 
@@ -183,13 +183,17 @@ fn check(
                 continue;
             }
 
-            let barycentric = barycentric_coordinates(&p, [&a, &b, &c], &n);
-            let corner_velocity = |vertex: u32| vertex_velocities[vertex as usize].xyz();
+            let corner_velocities = [triangle.a, triangle.b, triangle.c]
+                .map(|vertex| vertex_velocities[vertex as usize].xyz());
             let contact = Contact {
                 to_p,
-                collider_velocity: corner_velocity(triangle.a) * barycentric.x
-                    + corner_velocity(triangle.b) * barycentric.y
-                    + corner_velocity(triangle.c) * barycentric.z,
+                collider_velocity: surface_velocity_at_closest_point(
+                    &p,
+                    &to_p,
+                    [&a, &b, &c],
+                    &n,
+                    corner_velocities.each_ref(),
+                ),
                 friction: triangle_frictions[closest_triangle as usize],
                 damping: triangle_dampings[closest_triangle as usize],
             };
@@ -477,25 +481,30 @@ fn dented_octahedron_with_concave_edges_and_corner() {
 }
 
 #[test]
-fn moving_torus_with_friction_and_damping() {
-    check_moving_torus(0.4, 0.3);
+fn deforming_torus_with_friction_and_damping() {
+    check_deforming_torus(0.4, 0.3);
 }
 
 #[test]
-fn moving_torus_with_invalid_friction_and_damping() {
-    check_moving_torus(-0.4, -0.3);
-    check_moving_torus(0.4, 1.5);
+fn deforming_torus_with_invalid_friction_and_damping() {
+    check_deforming_torus(-0.4, -0.3);
+    check_deforming_torus(0.4, 1.5);
 }
 
-fn check_moving_torus(friction: f32, damping: f32) {
+fn check_deforming_torus(friction: f32, damping: f32) {
     let vertex_positions = torus::vertices();
     let triangle_indices = torus::triangles();
 
     let angular_velocity = Vector3::new(0.3, -1.2, 0.7);
     let translation_velocity = Vector3::new(0.5, 0.2, -0.4);
+    let deforming_velocity = |x: Vector3<f32>| {
+        translation_velocity
+            + angular_velocity.cross(&x)
+            + Vector3::new((3. * x.x).sin(), (2. * x.y).cos(), (5. * x.z).sin())
+    };
     let vertex_velocities: Vec<Vector4<f32>> = vertex_positions
         .iter()
-        .map(|position| (translation_velocity + angular_velocity.cross(&position.xyz())).push(0.))
+        .map(|position| deforming_velocity(position.xyz()).push(0.))
         .collect();
 
     let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));

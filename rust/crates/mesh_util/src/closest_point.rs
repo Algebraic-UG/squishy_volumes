@@ -116,3 +116,17 @@ pub fn closest_feature(
     .min_by(|a, b| a.distance.total_cmp(&b.distance))
     .unwrap()
 }
+
+/// Velocity of the triangle's surface where it is closest to `p`, interpolated linearly
+/// from the velocities of its corners. `to_p` is the offset from that closest point to `p`.
+pub fn surface_velocity_at_closest_point(
+    p: &Vector3<f32>,
+    to_p: &Vector3<f32>,
+    corners: [&Vector3<f32>; 3],
+    n: &Vector3<f32>,
+    [a_v, b_v, c_v]: [&Vector3<f32>; 3],
+) -> Vector3<f32> {
+    let closest_point = p - to_p;
+    let barycentric = barycentric_coordinates(&closest_point, corners, n);
+    a_v * barycentric.x + b_v * barycentric.y + c_v * barycentric.z
+}

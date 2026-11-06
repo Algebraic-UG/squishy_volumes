@@ -134,10 +134,7 @@ fn distance_matches_brute_force() {
 #[test]
 fn closest_feature_is_on_triangle() {
     let mut rng = ChaCha8Rng::seed_from_u64(3);
-    let normals = FeatureNormals {
-        vertices: [Vector3::x(); 3],
-        edges: [Vector3::x(); 3],
-    };
+    let normals = test_feature_normals();
     for [a, b, c] in test_triangles() {
         let n = triangle_normal(&a, &b, &c);
         for _ in 0..100 {
@@ -151,6 +148,103 @@ fn closest_feature_is_on_triangle() {
             let barycentric = barycentric_coordinates(&closest, [&a, &b, &c], &n);
             assert!(barycentric.iter().all(|x| (-1e-4..=1. + 1e-4).contains(x)));
         }
+    }
+}
+
+fn test_feature_normals() -> FeatureNormals {
+    FeatureNormals {
+        vertices: [Vector3::x(); 3],
+        edges: [Vector3::x(); 3],
+    }
+}
+
+fn surface_velocity_around(
+    p: &Vector3<f32>,
+    [a, b, c]: &[Vector3<f32>; 3],
+    corner_velocities: &[Vector3<f32>; 3],
+) -> (Vector3<f32>, Vector3<f32>) {
+    let n = triangle_normal(a, b, c);
+    let closest = closest_feature(p, [a, b, c], &n, &test_feature_normals());
+    let velocity = surface_velocity_at_closest_point(
+        p,
+        &closest.to_p,
+        [a, b, c],
+        &n,
+        corner_velocities.each_ref(),
+    );
+    (p - closest.to_p, velocity)
+}
+
+#[test]
+fn surface_velocity_follows_rigid_motion_at_the_closest_point() {
+    let mut rng = ChaCha8Rng::seed_from_u64(5);
+    let translation_velocity = Vector3::new(0.5, -0.2, 0.3);
+    let angular_velocity = Vector3::new(2., -1., 3.);
+    let rigid_velocity = |x: &Vector3<f32>| translation_velocity + angular_velocity.cross(x);
+    for triangle in test_triangles() {
+        let corner_velocities = triangle.map(|corner| rigid_velocity(&corner));
+        for _ in 0..100 {
+            let p = random_point(&mut rng, 1.5);
+            let (closest_point, velocity) =
+                surface_velocity_around(&p, &triangle, &corner_velocities);
+            let expected = rigid_velocity(&closest_point);
+            assert!(
+                (velocity - expected).norm() <= 1e-4 * expected.norm(),
+                "{p}: {velocity} instead of {expected}"
+            );
+        }
+    }
+}
+
+#[test]
+fn surface_velocity_stays_within_the_corner_velocities() {
+    let mut rng = ChaCha8Rng::seed_from_u64(6);
+    for triangle in test_triangles() {
+        let corner_velocities = [(); 3].map(|_| random_point(&mut rng, 1.));
+        let [first, second, third] = corner_velocities;
+        let lowest = first.inf(&second).inf(&third);
+        let highest = first.sup(&second).sup(&third);
+        let slack = Vector3::repeat(1e-4);
+        for _ in 0..100 {
+            let p = random_point(&mut rng, 1.5);
+            let (_, velocity) = surface_velocity_around(&p, &triangle, &corner_velocities);
+            assert!(
+                velocity >= lowest - slack && velocity <= highest + slack,
+                "{p}: {velocity} outside of {lowest} to {highest}"
+            );
+        }
+    }
+}
+
+#[test]
+fn surface_velocity_at_a_stationary_tip_is_zero() {
+    let tip = Vector3::new(0.3, -0.2, 0.5);
+    let half_angle = 30_f32.to_radians();
+    let slant_length = 1.;
+    let rim_speed = 1.;
+    let depth_below_tip = 0.1;
+    let segments = 8;
+    let slant_directions: Vec<Vector3<f32>> = (0..segments)
+        .map(|segment| {
+            let around = std::f32::consts::TAU * segment as f32 / segments as f32;
+            let outward = Vector3::new(around.cos(), around.sin(), 0.);
+            Vector3::z() * half_angle.cos() + outward * half_angle.sin()
+        })
+        .collect();
+    let p = tip - Vector3::z() * depth_below_tip;
+    for segment in 0..segments {
+        let [first, second] = [segment, (segment + 1) % segments].map(|i| slant_directions[i]);
+        let triangle = [tip, tip + first * slant_length, tip + second * slant_length];
+        let corner_velocities = [Vector3::zeros(), -first * rim_speed, -second * rim_speed];
+        let (closest_point, velocity) = surface_velocity_around(&p, &triangle, &corner_velocities);
+        assert!(
+            (closest_point - tip).norm() < 1e-5,
+            "segment {segment}: closest point {closest_point} instead of the tip {tip}"
+        );
+        assert!(
+            velocity.norm() < 1e-5,
+            "segment {segment}: {velocity} instead of the stationary tip"
+        );
     }
 }
 
