@@ -58,6 +58,10 @@ def make_unique(new, existing):
     raise RuntimeError("Failed to make unique")
 
 
+def tag_simulation_for_driver_update(self, _context):
+    self.id_data.update_tag()
+
+
 def update_directory(self, context):
     if self.directory != str(Path(self.directory)):
         self.directory = str(Path(self.directory))
@@ -148,6 +152,7 @@ Overwrite the cache to manifest changes.""",
         precision=5,
         subtype="DISTANCE",
         options=set(),  # can't be animated
+        update=tag_simulation_for_driver_update,
     )  # type: ignore
     frames_per_second: bpy.props.IntProperty(
         name="Frames per Second",
@@ -223,6 +228,7 @@ This is mass-normalized, so the unit is 1/s""",
 You need to override the cache to manifest changes.""",
         default=1,
         options=set(),
+        update=tag_simulation_for_driver_update,
     )  # type: ignore
     capture_frames: bpy.props.IntProperty(
         name="Frames",
