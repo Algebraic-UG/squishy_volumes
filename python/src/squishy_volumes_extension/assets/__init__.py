@@ -64,8 +64,8 @@ def create_geometry_nodes_grid() -> bpy.types.NodeTree:
     return _load_tree("geometry_nodes_grid_momentum", "Squishy Volumes Grid Momentum")
 
 
-def create_geometry_nodes_particles() -> bpy.types.NodeTree:
-    return _load_tree("geometry_nodes_particles", "Squishy Volumes Particle")
+def create_geometry_nodes_visualize_particles() -> bpy.types.NodeTree:
+    return _load_tree_2("Squishy Volumes Visualize Particles")
 
 
 def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:

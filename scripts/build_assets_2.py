@@ -414,6 +414,14 @@ def set_goals() -> str:
     return tree.tree.name
 
 
+def visualize_particles() -> str:
+    with g.tree("Squishy Volumes Visualize Particles", split_inputs=True) as tree:
+        pass
+
+    tree.tree.is_modifier = True
+    return tree.tree.name
+
+
 datablocks: set[bpy.types.ID] = set()
 for name in []:
     material = bpy.data.materials[name]
@@ -422,6 +430,7 @@ for name in []:
 for name in [
     generate_particles(),
     set_goals(),
+    visualize_particles(),
 ]:
     node_group = bpy.data.node_groups[name]
     node_group.asset_mark()

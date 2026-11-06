@@ -23,6 +23,7 @@ import bpy  # ty: ignore[unresolved-import]
 from ..assets import (
     create_geometry_nodes_generate_collider,
     create_geometry_nodes_generate_particles,
+    create_geometry_nodes_visualize_particles,
 )
 from ..drivers import add_drivers
 from ..squishy_volumes_properties import (
@@ -71,7 +72,7 @@ def _can_add(obj: bpy.types.ID) -> bool:
     return isinstance(obj, bpy.types.Object) and obj.type == "MESH"
 
 
-def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
+def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str) -> None:
     sim_obj = get_simulation_object_with_uuid(uuid)
     input_obj = bpy.data.objects[name]
     if not _can_add(input_obj):
@@ -86,6 +87,7 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
         f"Added {input_obj.name} to input objects of {sim_obj.name}.",
     )
 
+    output_obj = None
     if input_props.input_type == INPUT_TYPE_PARTICLES:
         input_obj.squishy_volumes.alembic_attributes.clear()
         for attr_name in PARTICLE_ATTRIBUTE_MAPPING:
@@ -111,7 +113,7 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
         raise RuntimeError(f"Unknown input type {input_props.input_type}")
 
     if not input_props.add_default_generation:
-        return {"FINISHED"}
+        return
 
     modifier = input_obj.modifiers.new("Squishy Volumes Input", type="NODES")
     if input_props.input_type == INPUT_TYPE_PARTICLES:
@@ -122,6 +124,15 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
         raise RuntimeError(f"Unknown input type {input_props.input_type}")
 
     add_drivers(sim_obj, modifier)
+
+    if output_obj is None:
+        return
+
+    modifier = output_obj.modifiers.new("Squishy Volumes Output", type="NODES")
+    if input_props.input_type == INPUT_TYPE_PARTICLES:
+        modifier.node_group = create_geometry_nodes_visualize_particles()
+    else:
+        raise RuntimeError(f"Unknown output type {input_props.input_type}")
 
 
 class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
