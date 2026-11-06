@@ -30,6 +30,8 @@ from nodebpy.types import (
     InputVector,
     InputMenu,
     InputFloat,
+    InputBoolean,
+    InputString,
 )
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -518,6 +520,101 @@ class PointVisualization(CustomGeometryGroup):
         )
 
 
+class DeformedCubesVisualization(CustomGeometryGroup):
+    _name = "Deformed Cubes Visualization"
+
+    def __init__(
+        self,
+        geometry: InputGeometry = ...,
+        scale: InputFloat = 1.0,
+    ):
+        super().__init__(**{"Geometry": geometry, "Scale": scale})
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        geometry = tree.inputs.geometry("Geometry")
+        scale = tree.inputs.float("Scale")
+        initial_size = g.NamedAttribute.float("initial_size")
+
+        pgx = g.NamedAttribute.vector("position_gradient_x")
+        pgy = g.NamedAttribute.vector("position_gradient_y")
+        pgz = g.NamedAttribute.vector("position_gradient_z")
+
+        s = g.Math.multiply(
+            scale,
+            initial_size.o.exists.switch.float(1.0, initial_size),
+        )
+
+        x = (
+            pgx.o.exists.switch.vector([1.0, 0.0, 0.0], pgx)
+            >> g.VectorMath.scale(scale=s)
+            >> g.SeparateXYZ()
+        )
+        y = (
+            pgy.o.exists.switch.vector([0.0, 1.0, 0.0], pgy)
+            >> g.VectorMath.scale(scale=s)
+            >> g.SeparateXYZ()
+        )
+        z = (
+            pgz.o.exists.switch.vector([0.0, 0.0, 1.0], pgz)
+            >> g.VectorMath.scale(scale=s)
+            >> g.SeparateXYZ()
+        )
+        t = g.Position() >> g.SeparateXYZ()
+
+        combined_matrix = g.CombineMatrix(
+            x.o.x,
+            x.o.y,
+            x.o.z,
+            0.0,
+            y.o.x,
+            y.o.y,
+            y.o.z,
+            0.0,
+            z.o.x,
+            z.o.y,
+            z.o.z,
+            0.0,
+            t.o.x,
+            t.o.y,
+            t.o.z,
+            1.0,
+        )
+
+        (
+            g.InstanceOnPoints(points=geometry, instance=g.Cube())
+            >> g.SetInstanceTransform(transform=combined_matrix)
+            >> tree.outputs.geometry()
+        )
+
+
+class ReconstructedSurfaceVisualization(CustomGeometryGroup):
+    _name = "Reconstructed Surface Visualization"
+
+    def __init__(
+        self,
+        geometry: InputGeometry = ...,
+    ):
+        super().__init__(**{"Geometry": geometry})
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        geometry = tree.inputs.geometry("Geometry")
+        geometry >> tree.outputs.geometry()
+
+
+class SkinVisualization(CustomGeometryGroup):
+    _name = "Skin Visualization"
+
+    def __init__(
+        self,
+        geometry: InputGeometry = ...,
+    ):
+        super().__init__(**{"Geometry": geometry})
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        geometry = tree.inputs.geometry("Geometry")
+        geometry >> tree.outputs.geometry()
+
+
 def visualize_particles() -> str:
     with g.tree("Squishy Volumes Visualize Particles", split_inputs=True) as tree:
         geometry = tree.inputs.geometry()
@@ -530,6 +627,9 @@ def visualize_particles() -> str:
                 display_as,
                 {
                     "Points": PointVisualization(geometry, scale, failed_scale),
+                    "Deformed Cubes": DeformedCubesVisualization(geometry, scale),
+                    "Reconstructed": ReconstructedSurfaceVisualization(geometry),
+                    "Skin": SkinVisualization(geometry),
                 },
             )
             >> tree.outputs.geometry()
