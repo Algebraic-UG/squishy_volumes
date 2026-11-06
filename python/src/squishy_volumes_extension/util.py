@@ -25,32 +25,6 @@ import bpy  # ty: ignore[unresolved-import]
 import mathutils  # ty: ignore[unresolved-import]
 import numpy as np  # ty: ignore[unresolved-import]
 
-from .get_preferences import get_enable_timeline_markers
-
-
-def remove_marker(marker_name):
-    if not get_enable_timeline_markers():
-        return
-    assert bpy.context.scene is not None
-    marker = bpy.context.scene.timeline_markers.get(marker_name)
-    if marker is not None:
-        bpy.context.scene.timeline_markers.remove(marker)
-
-
-def add_or_update_marker(marker_name, frame):
-    if not get_enable_timeline_markers():
-        return
-    assert bpy.context.scene is not None
-    # Check if the marker with the given name already exists
-    marker = bpy.context.scene.timeline_markers.get(marker_name)
-
-    if marker is None:
-        # If it doesn't exist, create a new marker at the specified frame
-        marker = bpy.context.scene.timeline_markers.new(name=marker_name, frame=frame)
-    else:
-        # If it exists, update its frame
-        marker.frame = frame
-
 
 def get_simulation_obj(simulation, name):
     collection_name = f"{simulation.name}"
@@ -96,10 +70,10 @@ def attribute_to_numpy(collection, attribute_name, dtype, per_count):
 
 
 def force_ui_redraw():
-    assert bpy.context.window is not None
-    for area in bpy.context.window.screen.areas:
-        if area.type == "VIEW_3D":
-            area.tag_redraw()
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "VIEW_3D":
+                area.tag_redraw()
 
 
 def simulation_input_exists(directory: str):

@@ -21,19 +21,31 @@ import shutil
 import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle, SimulationInputHandle
+from ..capture_markers import (
+    capture_markers,
+    capture_markers_error,
+    place_capture_markers,
+    range_to_record,
+    remove_superfluous_capture_markers,
+    store_capture_range,
+    superfluous_capture_markers,
+)
 from ..get_preferences import (
     get_confirm_bake_overwrite,
+    get_enable_timeline_markers,
     get_sanity_check_allowed_disk_space,
 )
 from ..input_capture import capture_input_frame, create_input_header
 from ..popup import with_popup
 from ..squishy_volumes_properties import (
     Squishy_Volumes_Properties_Simulation,
+    capture_frame_count,
     frame_to_load,
     get_input_objects_with_uuid,
     get_selected_simulation_object,
     get_selected_simulation_uuid,
     get_simulation_object_with_uuid,
+    stored_range,
 )
 from ..util import giga_f32_to_u64, simulation_input_exists, u64_to_giga_f32
 
@@ -99,10 +111,67 @@ This check can be disabled in the add-on preferences."""
 SIMULATION_INPUT = None
 
 
+class SCENE_OT_Squishy_Volumes_Fix_Capture_Markers(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_fix_capture_markers"
+    bl_label = "Fix Timeline Markers"
+    bl_description = """Each simulation needs exactly two timeline markers
+named like the simulation, marking the first and last frame to record.
+
+With fewer, both are restored at the previously recorded range.
+With more, only the earliest and the latest are kept."""
+    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
+
+    uuid: bpy.props.StringProperty()  # type: ignore
+
+    @classmethod
+    def poll(cls, context):
+        return get_enable_timeline_markers()
+
+    def execute(self, context):
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        if len(capture_markers(context.scene, sim_obj)) < 2:
+            start, end = stored_range(sim_obj.squishy_volumes)
+            place_capture_markers(context.scene, sim_obj, start, end)
+        else:
+            remove_superfluous_capture_markers(context.scene, sim_obj)
+        self.report({"INFO"}, f"Fixed timeline markers of {sim_obj.name}.")
+        return {"FINISHED"}
+
+    def invoke(self, context, event):
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        restoring = len(capture_markers(context.scene, sim_obj)) < 2
+        return context.window_manager.invoke_props_dialog(
+            self,
+            title=f"Squishy Volumes: {sim_obj.name}",
+            confirm_text="Restore Markers" if restoring else "Delete Superfluous",
+            width=400,
+        )
+
+    def draw(self, context):
+        assert self.layout is not None
+        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        markers = capture_markers(context.scene, sim_obj)
+        self.layout.label(text=capture_markers_error(context.scene, sim_obj) + ".")
+        if len(markers) < 2:
+            start, end = stored_range(sim_obj.squishy_volumes)
+            self.layout.label(text=f"Restore them at frames {start} and {end}?")
+        else:
+            superfluous = superfluous_capture_markers(context.scene, sim_obj)
+            frames = ", ".join(str(marker.frame) for marker in superfluous)
+            self.layout.label(
+                text=f"Keep frames {markers[0].frame} and {markers[-1].frame}?"
+            )
+            self.layout.label(text=f"Deletes the markers at frames {frames}.")
+
+
 class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_record_input_to_cache"
     bl_label = "Record Input"
     bl_description = """(Over)Write the cache with the new input.
+
+The input objects are evaluated from the capture start to the capture end frame.
+With timeline markers enabled in the preferences,
+these are set by the two markers named like the simulation.
 
 This writes global settings as well as object specific settings
 to the simulation cache.
@@ -118,6 +187,12 @@ Note that this also discards all computed frames in the cache."""
         assert context.scene is not None
         sim_obj = get_simulation_object_with_uuid(self.uuid)
         sim_props = sim_obj.squishy_volumes
+
+        capture_range = range_to_record(context.scene, sim_obj)
+        if capture_range is None:
+            self.report({"ERROR"}, capture_markers_error(context.scene, sim_obj))
+            return {"CANCELLED"}
+        store_capture_range(sim_props, *capture_range)
 
         self.report({"INFO"}, f"Resetting {sim_obj.name}")
 
@@ -170,12 +245,12 @@ Note that this also discards all computed frames in the cache."""
             )
             return {"FINISHED"}
 
-        for i in range(sim_props.capture_frames):
+        for i in range(capture_frame_count(sim_props)):
             capture_input_frame(
                 sim_props=sim_props,
                 sim_input_handle=sim_input_handle,
             )
-            if i + 1 < sim_props.capture_frames:
+            if i + 1 < capture_frame_count(sim_props):
                 context.scene.frame_set(context.scene.frame_current + 1)
 
         context.scene.frame_set(prior_frame)
@@ -192,6 +267,11 @@ Note that this also discards all computed frames in the cache."""
 
     def invoke(self, context, event):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
+        if range_to_record(context.scene, sim_obj) is None:
+            bpy.ops.scene.squishy_volumes_fix_capture_markers(
+                "INVOKE_DEFAULT", uuid=self.uuid
+            )
+            return {"CANCELLED"}
         if (
             simulation_input_exists(sim_obj.squishy_volumes.directory)
             and get_confirm_bake_overwrite()
@@ -235,7 +315,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         self._timer = context.window_manager.event_timer_add(
             time_step=0, window=context.window
         )
-        context.window_manager.progress_begin(0, sim_props.capture_frames)
+        context.window_manager.progress_begin(0, capture_frame_count(sim_props))
         context.window_manager.modal_handler_add(self)
 
         return {"RUNNING_MODAL"}
@@ -265,7 +345,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
         captured_frames = context.scene.frame_current - sim_props.capture_start_frame
         assert captured_frames >= 0
 
-        if captured_frames < sim_props.capture_frames:
+        if captured_frames < capture_frame_count(sim_props):
             if not with_popup(
                 uuid=self.uuid,
                 f=lambda: capture_input_frame(
@@ -283,7 +363,7 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
 
             context.window_manager.progress_update(captured_frames)
 
-        if captured_frames + 1 < sim_props.capture_frames:
+        if captured_frames + 1 < capture_frame_count(sim_props):
             context.scene.frame_set(context.scene.frame_current + 1)
             return {"RUNNING_MODAL"}
 
@@ -427,6 +507,47 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
         return {"FINISHED"}
 
 
+def draw_capture_range(
+    layout: bpy.types.UILayout, scene: bpy.types.Scene, sim_obj: bpy.types.Object
+):
+    if get_enable_timeline_markers():
+        draw_capture_markers(layout, scene, sim_obj)
+    else:
+        draw_capture_properties(layout, sim_obj.squishy_volumes)
+
+
+def draw_capture_properties(
+    layout: bpy.types.UILayout, sim_props: Squishy_Volumes_Properties_Simulation
+):
+    layout.label(text=f"Record Input: {capture_frame_count(sim_props)} frames")
+    frame_row = layout.row()
+    frame_row.prop(sim_props, "capture_start_frame")
+    frame_row.prop(sim_props, "capture_end_frame")
+
+
+def draw_capture_markers(
+    layout: bpy.types.UILayout, scene: bpy.types.Scene, sim_obj: bpy.types.Object
+):
+    markers = capture_markers(scene, sim_obj)
+    if len(markers) != 2:
+        layout.label(text="Record Input")
+        layout.label(text=capture_markers_error(scene, sim_obj), icon="ERROR")
+        layout.operator(
+            SCENE_OT_Squishy_Volumes_Fix_Capture_Markers.bl_idname,
+            icon="MARKER_HLT",
+        ).uuid = sim_obj.squishy_volumes.uuid
+        return
+
+    start, end = markers
+    layout.label(
+        text=f"Record Input: {end.frame - start.frame + 1} frames, set by markers",
+        icon="MARKER_HLT",
+    )
+    frame_row = layout.row()
+    frame_row.prop(start, "frame", text="Start")
+    frame_row.prop(end, "frame", text="End")
+
+
 class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
     bl_label = "Simulate"
     bl_space_type = "VIEW_3D"
@@ -450,11 +571,7 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
         sim_props = sim_obj.squishy_volumes
 
         record_box = self.layout.box()
-        record_box.label(text="Record Input")
-
-        frame_row = record_box.row()
-        frame_row.prop(sim_props, "capture_start_frame")
-        frame_row.prop(sim_props, "capture_frames")
+        draw_capture_range(record_box, context.scene, sim_obj)
 
         record_op = record_box.operator(
             SCENE_OT_Squishy_Volumes_Record_Input_To_Cache.bl_idname,
@@ -520,6 +637,7 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
 
 
 classes = [
+    SCENE_OT_Squishy_Volumes_Fix_Capture_Markers,
     SCENE_OT_Squishy_Volumes_Record_Input_To_Cache,
     SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal,
     SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest,

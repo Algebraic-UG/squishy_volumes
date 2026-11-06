@@ -41,7 +41,6 @@ def setup_example_benchmark(context: bpy.types.Context):
 
     sim_props.grid_node_size = 0.1
     sim_props.time_step = 0.001
-    sim_props.capture_frames = 1
     sim_props.bake_frames = 60
 
     sim_props.max_giga_bytes_on_disk = 15.0

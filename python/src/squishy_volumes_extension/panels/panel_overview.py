@@ -24,16 +24,21 @@ from pathlib import Path
 import bpy  # ty: ignore[unresolved-import]
 
 from ..bridge import SimulationHandle, build_info
+from ..capture_markers import (
+    range_to_record,
+    remove_capture_markers_if_enabled,
+    set_capture_range,
+)
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
 from ..get_preferences import get_default_compute_device
 from ..popup import popup
-from ..progress_update import cleanup_markers
 from ..squishy_volumes_properties import (
     PER_SIMULATION_PROPERTIES,
     frame_to_load,
     get_input_objects_with_uuid,
     get_simulation_object_with_uuid,
     get_simulation_objects,
+    stored_range,
     unloaded_simulations,
     update_directory,
 )
@@ -127,6 +132,9 @@ def add_simulation(operator, context):
 
     update_directory(sim_props, context)
 
+    first_frame = context.scene.frame_start
+    set_capture_range(context.scene, sim_obj, first_frame, first_frame)
+
     setup_cache_file(sim_obj)
 
     context.scene.squishy_volumes.selected_simulation = sim_obj
@@ -178,6 +186,11 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
             new_sim_obj.squishy_volumes,
             PER_SIMULATION_PROPERTIES,
         )
+
+        source_range = range_to_record(context.scene, sim_obj)
+        if source_range is None:
+            source_range = stored_range(sim_obj.squishy_volumes)
+        set_capture_range(context.scene, new_sim_obj, *source_range)
 
         input_mapping = {}
         for input_obj in get_input_objects_with_uuid(self.uuid):
@@ -247,7 +260,7 @@ please use your OS's file browser."""
         for obj in get_input_objects_with_uuid(self.uuid):
             obj.squishy_volumes.uuid = ""
 
-        cleanup_markers(sim_obj)
+        remove_capture_markers_if_enabled(context.scene, sim_obj)
 
         bpy.data.objects.remove(sim_obj)
 
