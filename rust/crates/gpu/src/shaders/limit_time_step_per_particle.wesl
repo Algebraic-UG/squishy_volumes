@@ -171,7 +171,7 @@ fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, positi
 
         let second = double_partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
 
-        return sqrt(GRID_NODE_SIZE * (parameters.density / (K * second * D)));
+        return GRID_NODE_SIZE * sqrt(parameters.density / (K * second * D));
     }
 
     return 0.;

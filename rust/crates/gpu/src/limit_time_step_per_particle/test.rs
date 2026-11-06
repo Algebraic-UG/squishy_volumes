@@ -139,6 +139,45 @@ fn single_undeformed() {
     );
 }
 
+fn solids_and_fluids(rng: &mut ChaCha8Rng) -> Vec<(ParticleParameters, ParticleFlags)> {
+    let solids: Vec<_> = test_lame_parameters(rng)
+        .zip(repeat(ParticleFlags::IS_SOLID))
+        .collect();
+    solids
+        .into_iter()
+        .chain(test_inviscid_parameters(rng).zip(repeat(ParticleFlags::IS_FLUID)))
+        .collect()
+}
+
+fn check_at_rest_with_small_grid_nodes(
+    materials: Vec<(ParticleParameters, ParticleFlags)>,
+    position_gradient: Matrix3<f32>,
+) {
+    let settings = Settings {
+        workgroup_size: 64.try_into().unwrap(),
+        dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+        grid_node_size: 0.1,
+    };
+    let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = materials.into_iter().unzip();
+    let n = particle_parameters.len();
+    check(
+        settings,
+        InputData {
+            particle_flags: &particle_flags,
+            particle_parameters: &particle_parameters,
+            particle_position_gradients: &vec![position_gradient.insert_row(3, 0.); n],
+            particle_velocities: &vec![Vector4::zeros(); n],
+            particle_velocity_gradients: &vec![Matrix3::zeros().insert_row(3, 0.); n],
+        },
+    );
+}
+
+#[test]
+fn undeformed_with_small_grid_nodes() {
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    check_at_rest_with_small_grid_nodes(solids_and_fluids(&mut rng), Matrix3::identity());
+}
+
 #[test]
 fn many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
