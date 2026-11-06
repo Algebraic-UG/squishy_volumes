@@ -18,4 +18,5 @@
 
 mod elastic;
 mod lame;
+mod limit_time_step;
 mod linear_elasticity;
