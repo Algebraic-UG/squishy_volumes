@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(test)]
+mod test;
+
 use nalgebra::Vector3;
 
 use crate::{NORMALIZATION_EPS, T};

@@ -476,6 +476,63 @@ fn dented_octahedron_with_concave_edges_and_corner() {
     );
 }
 
+#[test]
+fn moving_torus_with_friction_and_damping() {
+    let vertex_positions = torus::vertices();
+    let triangle_indices = torus::triangles();
+
+    let angular_velocity = Vector3::new(0.3, -1.2, 0.7);
+    let translation_velocity = Vector3::new(0.5, 0.2, -0.4);
+    let vertex_velocities: Vec<Vector4<f32>> = vertex_positions
+        .iter()
+        .map(|position| (translation_velocity + angular_velocity.cross(&position.xyz())).push(0.))
+        .collect();
+
+    let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));
+    let known_to_be_outside = 0x0001_0001;
+    let off_the_symmetry_planes = Vector3::new(0.0123, 0.0371, 0.0219);
+    let particle_positions_and_collider_bits: Vec<_> = aabb
+        .lattice(0.2)
+        .1
+        .map(|position| PositionAndColliderBits {
+            position: position + off_the_symmetry_planes,
+            collider_bits: known_to_be_outside,
+        })
+        .collect();
+    let particle_count = particle_positions_and_collider_bits.len();
+    let particle_flags = vec![Default::default(); particle_count];
+    let particle_velocities: Vec<Vector4<f32>> = particle_positions_and_collider_bits
+        .iter()
+        .map(|particle| Vector4::new(particle.position.y, -particle.position.z, 0.5, 0.))
+        .collect();
+    let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
+    let triangle_frictions = vec![0.4; triangle_indices.len()];
+    let triangle_dampings = vec![0.3; triangle_indices.len()];
+
+    check(
+        0.7,
+        0.5,
+        InputData {
+            time_step: 0.01,
+            leaf_size: 0.5,
+            leaf_threshold: 0,
+            particle_flags: &particle_flags,
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+            particle_velocities: &particle_velocities,
+            vertex_positions: &vertex_positions,
+            vertex_velocities: &vertex_velocities,
+            triangle_indices: &triangle_indices,
+            triangle_collider: &triangle_collider,
+            triangle_frictions: &triangle_frictions,
+            triangle_dampings: &triangle_dampings,
+            vertex_normals: &[],
+            triangle_normals: &[],
+            triangle_opposites: &[],
+        },
+        false,
+    );
+}
+
 fn run(
     settings: Settings,
     input_data: InputData,
