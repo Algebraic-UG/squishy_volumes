@@ -41,10 +41,16 @@ pub fn angle_weighted_normal(
     incident: impl Iterator<Item = (Vector3<f32>, Vector3<f32>, Vector3<f32>)>,
 ) -> Vector3<f32> {
     incident
-        .map(|(a, b, normal)| (a - vertex).angle(&(b - vertex)) * normal)
+        .map(|(a, b, normal)| corner_angle(vertex, &a, &b) * normal)
         .sum::<Vector3<f32>>()
         .try_normalize(NORMALIZATION_EPS)
         .unwrap_or(Vector3::zeros())
+}
+
+fn corner_angle(vertex: &Vector3<f32>, a: &Vector3<f32>, b: &Vector3<f32>) -> f32 {
+    let to_a = a - vertex;
+    let to_b = b - vertex;
+    to_a.cross(&to_b).norm().atan2(to_a.dot(&to_b))
 }
 
 /// Pseudo normal of an edge: the sum of the normals of the two triangles sharing it,

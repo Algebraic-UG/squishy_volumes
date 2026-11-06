@@ -68,6 +68,35 @@ fn barycentric_identities() {
     }
 }
 
+fn unit_in_plane(angle: f32) -> Vector3<f32> {
+    Vector3::new(angle.cos(), angle.sin(), 0.)
+}
+
+#[test]
+fn pseudo_normal_weighs_by_exact_corner_angles() {
+    let vertex = Vector3::zeros();
+    let wide_angle = 1.;
+    let wide_corner = (
+        vertex + Vector3::x(),
+        vertex + unit_in_plane(wide_angle) * 2.,
+        Vector3::x(),
+    );
+    for angle in [1e-4, 1e-3, 1e-2, std::f32::consts::PI - 1e-3] {
+        let corner = (
+            vertex + Vector3::x() * 0.5,
+            vertex + unit_in_plane(angle) * 3.,
+            Vector3::z(),
+        );
+        let normal = angle_weighted_normal(&vertex, [wide_corner, corner].into_iter());
+        let expected_slope = angle / wide_angle;
+        let slope = normal.z / normal.x;
+        assert!(
+            (slope - expected_slope).abs() <= 1e-5 * expected_slope,
+            "angle {angle}: slope {slope} instead of {expected_slope}"
+        );
+    }
+}
+
 fn brute_force_distance(p: &Vector3<f32>, [a, b, c]: &[Vector3<f32>; 3]) -> f32 {
     const N: usize = 100;
     let mut distance = f32::MAX;
