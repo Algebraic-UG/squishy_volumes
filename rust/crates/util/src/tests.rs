@@ -16,13 +16,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{T, test_inviscid_parameters, test_lame_parameters};
-use nalgebra::{Matrix3, SVD, Vector3};
+use nalgebra::{Matrix3, SMatrix, SVD, SVector, Vector1, Vector3};
 
-use super::elastic::{
-    double_partial_elastic_energy_inviscid_by_invariant_3,
-    double_partial_elastic_energy_neo_hookean_by_invariant_3, elastic_energy_inviscid,
-    elastic_energy_inviscid_by_invariant, elastic_energy_neo_hookean,
+use crate::{
+    Matrix9, T, Vector9, double_partial_elastic_energy_inviscid_by_invariant_3,
+    double_partial_elastic_energy_neo_hookean_by_invariant_3,
+    double_partial_invariant_3_by_position_gradient, double_partial_invariant_3_by_svd,
+    elastic_energy_inviscid, elastic_energy_inviscid_by_invariant, elastic_energy_neo_hookean,
     elastic_energy_neo_hookean_by_invariants, elastic_energy_stable_neo_hookean,
     first_piola_stress_inviscid, first_piola_stress_inviscid_svd,
     first_piola_stress_inviscid_svd_in_diagonal_space, first_piola_stress_neo_hookean,
@@ -34,673 +34,415 @@ use super::elastic::{
     partial_invariant_2_by_svd, partial_invariant_3_by_position_gradient,
     partial_invariant_3_by_svd, second_derivative_inviscid_svd_in_diagonal_space,
     second_derivative_neo_hookean_svd_in_diagonal_space,
+    test_data::{
+        PrincipalDeformation, assert_norm_negligible, test_general_deformations, test_mu_lambda,
+        test_rotated_deformations,
+    },
+    test_inviscid_parameters,
 };
 
-use crate::{Matrix9, Vector9, safe_inverse::SafeInverse};
+const STEP: T = 1e-6;
+const RELATIVE_TOLERANCE: T = 1e-6;
+const TEST_INVARIANTS_3: [T; 6] = [0.3, 0.7, 0.99, 1., 1.4, 2.5];
 
-fn test_scalar_from_scalar<Value, Gradient>(
-    h: T,
-    eps: T,
-    value: Value,
-    gradient: Gradient,
-    sample: T,
-) where
-    Value: Fn(T) -> T,
-    Gradient: Fn(T) -> T,
-{
-    let mut a = sample;
-    let mut b = sample;
-    a += h;
-    b -= h;
-    let a = value(a);
-    let b = value(b);
-    let finite_difference = (a - b) / h / 2.;
+fn flatten(matrix: &Matrix3<T>) -> Vector9<T> {
+    Vector9::from_column_slice(matrix.as_slice())
+}
 
-    let analytic_value = gradient(sample);
+fn unflatten(vector: &Vector9<T>) -> Matrix3<T> {
+    Matrix3::from_column_slice(vector.as_slice())
+}
 
-    eprintln!(
-        "finite_difference: {}, analytic_value: {}, diff: {}",
-        finite_difference,
-        analytic_value,
-        finite_difference - analytic_value
+fn central_difference<const N: usize, const M: usize>(
+    function: impl Fn(&SVector<T, N>) -> SVector<T, M>,
+    at: &SVector<T, N>,
+) -> SMatrix<T, M, N> {
+    let columns: [SVector<T, M>; N] = std::array::from_fn(|i| {
+        let mut offset = SVector::<T, N>::zeros();
+        offset[i] = STEP;
+        (function(&(at + offset)) - function(&(at - offset))) / (2. * STEP)
+    });
+    SMatrix::from_columns(&columns)
+}
+
+fn scalar_derivative(function: impl Fn(T) -> T, at: T) -> T {
+    central_difference(
+        |x: &Vector1<T>| Vector1::new(function(x.x)),
+        &Vector1::new(at),
+    )
+    .x
+}
+
+fn gradient_by_position_gradient(
+    function: impl Fn(&Matrix3<T>) -> T,
+    at: &Matrix3<T>,
+) -> Matrix3<T> {
+    let row = central_difference(
+        |x: &Vector9<T>| Vector1::new(function(&unflatten(x))),
+        &flatten(at),
     );
-
-    if finite_difference.abs() < 1e-10 {
-        assert!(analytic_value.abs() < 1e-8);
-    } else {
-        assert!((finite_difference - analytic_value).abs() / finite_difference.abs() < eps);
-    }
+    unflatten(&row.transpose())
 }
 
-fn test_scalar_from_matrix<Value, Gradient>(
-    h: T,
-    eps: T,
-    value: Value,
-    gradient: Gradient,
-    sample: Matrix3<T>,
-) where
-    Value: Fn(&Matrix3<T>) -> T,
-    Gradient: Fn(&Matrix3<T>) -> Matrix3<T>,
-{
-    let finite_differences = Matrix3::from_iterator((0..sample.len()).map(|i| {
-        let mut a = sample;
-        let mut b = sample;
-        a[i] += h;
-        b[i] -= h;
-        let a = value(&a);
-        let b = value(&b);
-        (a - b) / h / 2.
-    }));
-
-    let analytic_values = gradient(&sample);
-
-    for (finite_difference, analytic_value) in finite_differences.iter().zip(analytic_values.iter())
-    {
-        eprintln!(
-            "finite_difference: {}, analytic_value: {}, diff: {}",
-            finite_difference,
-            analytic_value,
-            finite_difference - analytic_value
-        );
-        if finite_difference.abs() < 1e-2 {
-            assert!(analytic_value.abs() < 1e-2);
-        } else {
-            assert!((finite_difference - analytic_value).abs() / finite_difference.abs() < eps);
-        }
-    }
+fn jacobian_by_position_gradient(
+    function: impl Fn(&Matrix3<T>) -> Matrix3<T>,
+    at: &Matrix3<T>,
+) -> Matrix9<T> {
+    central_difference(
+        |x: &Vector9<T>| flatten(&function(&unflatten(x))),
+        &flatten(at),
+    )
 }
 
-fn test_jacobian<Value, Jacobian>(
-    h: T,
-    eps: T,
-    value: Value,
-    jacobian: Jacobian,
-    sample: Vector3<T>,
-) where
-    Value: Fn(&Vector3<T>) -> Vector3<T>,
-    Jacobian: Fn(&Vector3<T>) -> Matrix3<T>,
-{
-    let finite_differences: Matrix3<T> = Matrix3::from_iterator((0..sample.len()).flat_map(|i| {
-        let mut a = sample;
-        let mut b = sample;
-        a[i] += h;
-        b[i] -= h;
-        let a = value(&a);
-        let b = value(&b);
-        ((a - b) / h / 2.).iter().cloned().collect::<Vec<_>>()
-    }));
-
-    let analytic_values = jacobian(&sample);
-
-    check_iters(
-        [
-            ("finite difference", finite_differences.iter()),
-            ("analytic value", analytic_values.iter()),
-        ],
-        eps,
-    );
+fn gradient_by_singular_values(function: impl Fn(&Vector3<T>) -> T, at: &Vector3<T>) -> Vector3<T> {
+    central_difference(|s: &Vector3<T>| Vector1::new(function(s)), at).transpose()
 }
 
-fn test_hessian<Gradient, Hessian>(
-    h: T,
-    eps: T,
-    gradient: Gradient,
-    hessian: Hessian,
-    sample: Matrix3<T>,
-) where
-    Gradient: Fn(&Matrix3<T>) -> Vector9<T>,
-    Hessian: Fn(&Matrix3<T>) -> Matrix9<T>,
-{
-    let finite_differences: Matrix9<T> = Matrix9::from_iterator((0..sample.len()).flat_map(|i| {
-        let mut a = sample;
-        let mut b = sample;
-        a[i] += h;
-        b[i] -= h;
-        let a = gradient(&a);
-        let b = gradient(&b);
-        ((a - b) / h / 2.).iter().cloned().collect::<Vec<_>>()
-    }));
-
-    let analytic_values = hessian(&sample);
-
-    for (finite_difference, analytic_value) in finite_differences.iter().zip(analytic_values.iter())
-    {
-        eprintln!(
-            "finite_difference: {}, analytic_value: {}, diff: {}",
-            finite_difference,
-            analytic_value,
-            finite_difference - analytic_value
-        );
-        if finite_difference.abs() < 1e-2 {
-            assert!(analytic_value.abs() < 1e-2);
-        } else {
-            assert!((finite_difference - analytic_value).abs() / finite_difference.abs() < eps);
-        }
-    }
+fn jacobian_by_singular_values(
+    function: impl Fn(&Vector3<T>) -> Vector3<T>,
+    at: &Vector3<T>,
+) -> Matrix3<T> {
+    central_difference(function, at)
 }
 
-fn run_with_random_position_gradients<Test>(n: usize, test: Test)
-where
-    Test: Fn(Matrix3<T>),
-{
-    test(Matrix3::identity());
-
-    test(Matrix3::from_row_slice(&[
-        0., -1., 0., //
-        1., 0., 0., //
-        0., 0., 1., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        0., 0., -1., //
-        0., 1., 0., //
-        1., 0., 0., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        1., 0., 0., //
-        0., 0., -1., //
-        0., 1., 0., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        3., 0., 0., //
-        0., 2., 0., //
-        0., 0., 1., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        1., 0., 0., //
-        0., 2., 0., //
-        0., 0., 1., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        0., -1., 0., //
-        1., 0., 0., //
-        0., 0., 2., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        0., -1., 0., //
-        2., 0., 0., //
-        0., 0., 1., //
-    ]));
-
-    test(Matrix3::from_row_slice(&[
-        0., -2., 0., //
-        1., 0., 0., //
-        0., 0., 1., //
-    ]));
-
-    let mut position_gradient: Matrix3<T>;
-    for _ in 0..n {
-        loop {
-            position_gradient = Matrix3::new_random();
-            let d = position_gradient.determinant().abs();
-            if d > 1e-1 && d < 1e+1 {
-                break;
-            }
-        }
-
-        if position_gradient.determinant() < 0. {
-            position_gradient *= -1.;
-        }
-        test(position_gradient);
-    }
-}
-
-#[test]
-fn test_partial_invariant_2_by_position_gradient() {
-    let h = 1e-5;
-    let eps = 1e-3;
-    run_with_random_position_gradients(1000, |position_gradient| {
-        test_scalar_from_matrix(
-            h,
-            eps,
-            invariant_2,
-            partial_invariant_2_by_position_gradient,
-            position_gradient,
-        )
-    });
-}
-
-#[test]
-fn test_partial_invariant_2_svd() {
-    run_with_random_position_gradients(1000, |position_gradient| {
-        let without_svd = partial_invariant_2_by_position_gradient(&position_gradient);
-        let mut svd = position_gradient.svd(true, true);
-        svd.singular_values = partial_invariant_2_by_svd(&svd.singular_values);
-        let with_svd = svd.recompose().unwrap();
-        check_iters(
-            [
-                ("without svd", without_svd.iter()),
-                ("with svd", with_svd.iter()),
-            ],
-            1e-5,
-        );
-    });
-}
-
-#[test]
-fn test_partial_invariant_3_by_position_gradient() {
-    let h = 1e-5;
-    let eps = 1e-3;
-    run_with_random_position_gradients(1000, |position_gradient| {
-        test_scalar_from_matrix(
-            h,
-            eps,
-            invariant_3,
-            partial_invariant_3_by_position_gradient,
-            position_gradient,
-        )
-    });
-}
-
-#[test]
-fn test_partial_invariant_3_svd() {
-    run_with_random_position_gradients(1000, |position_gradient| {
-        let without_svd = partial_invariant_3_by_position_gradient(&position_gradient);
-        let mut svd = position_gradient.svd(true, true);
-        svd.singular_values = partial_invariant_3_by_svd(&svd.singular_values);
-        let with_svd = svd.recompose().unwrap();
-        check_iters(
-            [
-                ("without svd", without_svd.iter()),
-                ("with svd", with_svd.iter()),
-            ],
-            1e-5,
-        );
-    });
-}
-
-#[test]
-fn test_first_piola_stress_neo_hookean() {
-    let h = 1e-8;
-    let eps = 1e-1;
-
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            if position_gradient.safe_inverse().is_none() {
-                return;
-            }
-            test_scalar_from_matrix(
-                h,
-                eps,
-                |position_gradient| elastic_energy_neo_hookean(mu, lambda, position_gradient),
-                |position_gradient| first_piola_stress_neo_hookean(mu, lambda, position_gradient),
-                position_gradient,
-            );
-        })
-    }
-}
-
-#[test]
-fn test_first_piola_stress_neo_hookean_svd() {
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            if position_gradient.safe_inverse().is_none() {
-                return;
-            }
-            let without_svd = first_piola_stress_neo_hookean(mu, lambda, &position_gradient);
-            let SVD {
-                u,
-                v_t,
-                singular_values,
-            } = position_gradient.svd(true, true);
-            let u = u.unwrap();
-            let v_t = v_t.unwrap();
-            let with_svd =
-                first_piola_stress_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
-            check_iters(
-                [
-                    ("without svd", without_svd.iter()),
-                    ("with svd", with_svd.iter()),
-                ],
-                1e-5,
-            )
-        });
-    }
-}
-
-#[test]
-fn test_first_piola_stress_stable_neo_hookean() {
-    let h = 1e-8;
-    let eps = 1e-1;
-
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_scalar_from_matrix(
-                h,
-                eps,
-                |position_gradient| {
-                    elastic_energy_stable_neo_hookean(mu, lambda, position_gradient)
-                },
-                |position_gradient| {
-                    first_piola_stress_stable_neo_hookean(mu, lambda, position_gradient)
-                },
-                position_gradient,
-            );
-        })
-    }
-}
-
-#[test]
-fn test_first_piola_stress_stable_neo_hookean_svd() {
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            if position_gradient.safe_inverse().is_none() {
-                return;
-            }
-            let without_svd = first_piola_stress_stable_neo_hookean(mu, lambda, &position_gradient);
-            let SVD {
-                u,
-                v_t,
-                singular_values,
-            } = position_gradient.svd(true, true);
-            let u = u.unwrap();
-            let v_t = v_t.unwrap();
-            let with_svd =
-                first_piola_stress_stable_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
-            check_iters(
-                [
-                    ("without svd", without_svd.iter()),
-                    ("with svd", with_svd.iter()),
-                ],
-                1e-5,
-            )
-        });
-    }
-}
-
-#[test]
-fn test_second_derivative_neo_hookean_svd_in_diagonal_space() {
-    let h = 1e-8;
-    let eps = 1e-6;
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            let singular_values = position_gradient.svd(false, false).singular_values;
-            test_jacobian(
-                h,
-                eps,
-                |s| first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, s),
-                |s| second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, s),
-                singular_values,
-            );
-        });
-    }
-}
-
-#[test]
-fn test_partial_elastic_energy_neo_hookean_by_invariant_3() {
-    let h = 1e-8;
-    let eps = 1e-3;
-
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_scalar_from_scalar(
-                h,
-                eps,
-                |invariant_3| {
-                    elastic_energy_neo_hookean_by_invariants(
-                        mu,
-                        lambda,
-                        invariant_2(&position_gradient),
-                        invariant_3,
-                    )
-                },
-                |invariant_3| {
-                    partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3)
-                },
-                invariant_3(&position_gradient),
-            );
-        })
-    }
-}
-
-#[test]
-fn test_double_partial_elastic_energy_neo_hookean_by_invariant_3() {
-    let h = 1e-8;
-    let eps = 1e-3;
-
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_scalar_from_scalar(
-                h,
-                eps,
-                |invariant_3| {
-                    partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3)
-                },
-                |invariant_3| {
-                    double_partial_elastic_energy_neo_hookean_by_invariant_3(
-                        mu,
-                        lambda,
-                        invariant_3,
-                    )
-                },
-                invariant_3(&position_gradient),
-            );
-        })
-    }
-}
-
-#[test]
-fn test_hessian_neo_hookean() {
-    let h = 1e-8;
-    let eps = 1e-2;
-
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_hessian(
-                h,
-                eps,
-                |invariant_3| {
-                    Vector9::from_iterator(
-                        first_piola_stress_neo_hookean(mu, lambda, invariant_3)
-                            .iter()
-                            .cloned(),
-                    )
-                },
-                |_invariant_3| hessian_neo_hookean(mu, lambda, &position_gradient),
-                position_gradient,
-            );
-        })
-    }
-}
-
-#[test]
-fn test_hessian_neo_hookean_svd() {
-    for [mu, lambda] in test_lame_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            if position_gradient.safe_inverse().is_none() {
-                return;
-            }
-            let SVD {
-                u,
-                v_t,
-                singular_values,
-            } = position_gradient.svd(true, true);
-            let u = u.unwrap();
-            let v_t = v_t.unwrap();
-
-            let without_svd = hessian_neo_hookean(mu, lambda, &position_gradient);
-            let with_svd = hessian_neo_hookean_svd(mu, lambda, &u, &singular_values, &v_t);
-
-            println!("F: {position_gradient:.02}");
-            println!("with_svd: {with_svd:.02}");
-            println!("wihtout_svd {without_svd:.02}");
-
-            check_iters(
-                [
-                    ("without svd", without_svd.iter()),
-                    ("with svd", with_svd.iter()),
-                ],
-                1e-5,
-            );
-        });
-    }
-}
-
-#[test]
-fn test_partial_elastic_energy_inviscid_by_invariant_3() {
-    let h = 1e-8;
-    let eps = 1e-3;
-
-    for (bulk_modulus, exponent) in test_inviscid_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_scalar_from_scalar(
-                h,
-                eps,
-                |invariant_3| {
-                    elastic_energy_inviscid_by_invariant(bulk_modulus, exponent, invariant_3)
-                },
-                |invariant_3| {
-                    partial_elastic_energy_inviscid_by_invariant_3(
-                        bulk_modulus,
-                        exponent,
-                        invariant_3,
-                    )
-                },
-                invariant_3(&position_gradient),
-            );
-        })
-    }
-}
-
-#[test]
-fn test_first_piola_stress_inviscid() {
-    let h = 1e-8;
-    let eps = 1e-1;
-
-    for (bulk_modulus, exponent) in test_inviscid_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_scalar_from_matrix(
-                h,
-                eps,
-                |position_gradient| {
-                    elastic_energy_inviscid(bulk_modulus, exponent, position_gradient)
-                },
-                |position_gradient| {
-                    first_piola_stress_inviscid(bulk_modulus, exponent, position_gradient)
-                },
-                position_gradient,
-            );
-        })
-    }
-}
-
-#[test]
-fn test_double_partial_elastic_energy_inviscid_by_invariant_3() {
-    let h = 1e-8;
-    let eps = 1e-2;
-
-    for (bulk_modulus, exponent) in test_inviscid_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            println!("{position_gradient:.02}");
-            test_scalar_from_scalar(
-                h,
-                eps,
-                |invariant_3| {
-                    partial_elastic_energy_inviscid_by_invariant_3(
-                        bulk_modulus,
-                        exponent,
-                        invariant_3,
-                    )
-                },
-                |invariant_3| {
-                    double_partial_elastic_energy_inviscid_by_invariant_3(
-                        bulk_modulus,
-                        exponent,
-                        invariant_3,
-                    )
-                },
-                invariant_3(&position_gradient),
-            );
-        })
-    }
-}
-
-#[test]
-fn test_hessian_inviscid() {
-    let h = 1e-8;
-    let eps = 1e-2;
-
-    for (bulk_modulus, exponent) in test_inviscid_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            test_hessian(
-                h,
-                eps,
-                |invariant_3| {
-                    Vector9::from_iterator(
-                        first_piola_stress_inviscid(bulk_modulus, exponent, invariant_3)
-                            .iter()
-                            .cloned(),
-                    )
-                },
-                |_invariant_3| hessian_inviscid(bulk_modulus, exponent, &position_gradient),
-                position_gradient,
-            );
-        })
-    }
-}
-
-#[test]
-fn test_first_piola_stress_inviscid_svd() {
-    for (bulk_modulus, exponent) in test_inviscid_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            if position_gradient.safe_inverse().is_none() {
-                return;
-            }
-            let without_svd =
-                first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient);
-            let SVD {
-                u,
-                v_t,
-                singular_values,
-            } = position_gradient.svd(true, true);
-            let u = u.unwrap();
-            let v_t = v_t.unwrap();
-            let with_svd =
-                first_piola_stress_inviscid_svd(bulk_modulus, exponent, &u, &singular_values, &v_t);
-            check_iters(
-                [
-                    ("without svd", without_svd.iter()),
-                    ("with svd", with_svd.iter()),
-                ],
-                1e-5,
-            )
-        });
-    }
-}
-
-#[test]
-fn test_first_piola_stress_inviscid_svd_in_diagonal_space() {
-    let h = 1e-8;
-    let eps = 1e-3;
-    for (bulk_modulus, exponent) in test_inviscid_parameters() {
-        run_with_random_position_gradients(1000, |position_gradient| {
-            let singular_values = position_gradient.svd(false, false).singular_values;
-            test_jacobian(
-                h,
-                eps,
-                |s| first_piola_stress_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, s),
-                |s| second_derivative_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, s),
-                singular_values,
-            );
-        });
-    }
-}
-
-fn check_iters<'a>(
-    [(a_name, a_iter), (b_name, b_iter)]: [(&'static str, impl IntoIterator<Item = &'a T>); 2],
-    eps: T,
+fn assert_matches<const R: usize, const C: usize>(
+    expected: &SMatrix<T, R, C>,
+    actual: &SMatrix<T, R, C>,
+    model_scale: T,
 ) {
-    for (a, b) in a_iter.into_iter().zip(b_iter) {
-        eprintln!("{a_name}: {a}, {b_name}: {b}, diff: {}", a - b);
-        if a.abs() < 1e-2 {
-            assert!(b.abs() < 1e-2);
-        } else {
-            assert!((a - b).abs() / a.abs() < eps);
+    let scale = expected.norm().max(model_scale);
+    assert_norm_negligible(&(expected - actual), scale, RELATIVE_TOLERANCE);
+}
+
+fn assert_scalar_matches(expected: T, actual: T, model_scale: T) {
+    assert_matches(&Vector1::new(expected), &Vector1::new(actual), model_scale);
+}
+
+fn deformations() -> impl Iterator<Item = PrincipalDeformation> {
+    let uniform = test_rotated_deformations([1., 1.3].map(Vector3::repeat));
+    test_general_deformations().into_iter().chain(uniform)
+}
+
+fn position_gradients() -> impl Iterator<Item = Matrix3<T>> {
+    deformations().map(|deformation| deformation.position_gradient())
+}
+
+fn singular_values() -> impl Iterator<Item = Vector3<T>> {
+    deformations().map(|deformation| deformation.stretches)
+}
+
+struct Decomposition {
+    u: Matrix3<T>,
+    s: Vector3<T>,
+    v_t: Matrix3<T>,
+}
+
+fn decompose(position_gradient: &Matrix3<T>) -> Decomposition {
+    let SVD {
+        u,
+        singular_values,
+        v_t,
+    } = position_gradient.svd(true, true);
+    Decomposition {
+        u: u.unwrap(),
+        s: singular_values,
+        v_t: v_t.unwrap(),
+    }
+}
+
+fn diagonal_energy(energy: impl Fn(&Matrix3<T>) -> T) -> impl Fn(&Vector3<T>) -> T {
+    move |s| energy(&Matrix3::from_diagonal(s))
+}
+
+#[test]
+fn invariant_gradients() {
+    for position_gradient in position_gradients() {
+        assert_matches(
+            &gradient_by_position_gradient(invariant_2, &position_gradient),
+            &partial_invariant_2_by_position_gradient(&position_gradient),
+            1.,
+        );
+        assert_matches(
+            &gradient_by_position_gradient(invariant_3, &position_gradient),
+            &partial_invariant_3_by_position_gradient(&position_gradient),
+            1.,
+        );
+        assert_matches(
+            &jacobian_by_position_gradient(
+                partial_invariant_3_by_position_gradient,
+                &position_gradient,
+            ),
+            &double_partial_invariant_3_by_position_gradient(&position_gradient),
+            1.,
+        );
+    }
+}
+
+#[test]
+fn invariant_gradients_by_svd() {
+    for position_gradient in position_gradients() {
+        let Decomposition { u, s, v_t } = decompose(&position_gradient);
+        let recompose = |diagonal: Vector3<T>| u * Matrix3::from_diagonal(&diagonal) * v_t;
+        assert_matches(
+            &partial_invariant_2_by_position_gradient(&position_gradient),
+            &recompose(partial_invariant_2_by_svd(&s)),
+            1.,
+        );
+        assert_matches(
+            &partial_invariant_3_by_position_gradient(&position_gradient),
+            &recompose(partial_invariant_3_by_svd(&s)),
+            1.,
+        );
+    }
+    for s in singular_values() {
+        assert_matches(
+            &gradient_by_singular_values(|s| s.product(), &s),
+            &partial_invariant_3_by_svd(&s),
+            1.,
+        );
+        assert_matches(
+            &jacobian_by_singular_values(partial_invariant_3_by_svd, &s),
+            &double_partial_invariant_3_by_svd(&s),
+            1.,
+        );
+    }
+}
+
+#[test]
+fn neo_hookean_derivatives_by_invariant_3() {
+    let invariant_2 = 3.5;
+    for [mu, lambda] in test_mu_lambda() {
+        for invariant_3 in TEST_INVARIANTS_3 {
+            assert_scalar_matches(
+                scalar_derivative(
+                    |j| elastic_energy_neo_hookean_by_invariants(mu, lambda, invariant_2, j),
+                    invariant_3,
+                ),
+                partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3),
+                mu + lambda,
+            );
+            assert_scalar_matches(
+                scalar_derivative(
+                    |j| partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, j),
+                    invariant_3,
+                ),
+                double_partial_elastic_energy_neo_hookean_by_invariant_3(mu, lambda, invariant_3),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn neo_hookean_stress_is_energy_gradient() {
+    for [mu, lambda] in test_mu_lambda() {
+        for position_gradient in position_gradients() {
+            assert_matches(
+                &gradient_by_position_gradient(
+                    |f| elastic_energy_neo_hookean(mu, lambda, f),
+                    &position_gradient,
+                ),
+                &first_piola_stress_neo_hookean(mu, lambda, &position_gradient),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn neo_hookean_stress_by_svd() {
+    for [mu, lambda] in test_mu_lambda() {
+        for position_gradient in position_gradients() {
+            let Decomposition { u, s, v_t } = decompose(&position_gradient);
+            assert_matches(
+                &first_piola_stress_neo_hookean(mu, lambda, &position_gradient),
+                &first_piola_stress_neo_hookean_svd(mu, lambda, &u, &s, &v_t),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn neo_hookean_hessian_is_stress_jacobian() {
+    for [mu, lambda] in test_mu_lambda() {
+        for position_gradient in position_gradients() {
+            assert_matches(
+                &jacobian_by_position_gradient(
+                    |f| first_piola_stress_neo_hookean(mu, lambda, f),
+                    &position_gradient,
+                ),
+                &hessian_neo_hookean(mu, lambda, &position_gradient),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn neo_hookean_hessian_by_svd() {
+    for [mu, lambda] in test_mu_lambda() {
+        for position_gradient in position_gradients() {
+            let Decomposition { u, s, v_t } = decompose(&position_gradient);
+            assert_matches(
+                &hessian_neo_hookean(mu, lambda, &position_gradient),
+                &hessian_neo_hookean_svd(mu, lambda, &u, &s, &v_t),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn neo_hookean_derivatives_in_diagonal_space() {
+    for [mu, lambda] in test_mu_lambda() {
+        for s in singular_values() {
+            assert_matches(
+                &gradient_by_singular_values(
+                    diagonal_energy(|f| elastic_energy_neo_hookean(mu, lambda, f)),
+                    &s,
+                ),
+                &first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, &s),
+                mu + lambda,
+            );
+            assert_matches(
+                &jacobian_by_singular_values(
+                    |s| first_piola_stress_neo_hookean_svd_in_diagonal_space(mu, lambda, s),
+                    &s,
+                ),
+                &second_derivative_neo_hookean_svd_in_diagonal_space(mu, lambda, &s),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn stable_neo_hookean_stress_is_energy_gradient() {
+    for [mu, lambda] in test_mu_lambda() {
+        for position_gradient in position_gradients() {
+            assert_matches(
+                &gradient_by_position_gradient(
+                    |f| elastic_energy_stable_neo_hookean(mu, lambda, f),
+                    &position_gradient,
+                ),
+                &first_piola_stress_stable_neo_hookean(mu, lambda, &position_gradient),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn stable_neo_hookean_stress_by_svd() {
+    for [mu, lambda] in test_mu_lambda() {
+        for position_gradient in position_gradients() {
+            let Decomposition { u, s, v_t } = decompose(&position_gradient);
+            assert_matches(
+                &first_piola_stress_stable_neo_hookean(mu, lambda, &position_gradient),
+                &first_piola_stress_stable_neo_hookean_svd(mu, lambda, &u, &s, &v_t),
+                mu + lambda,
+            );
+        }
+    }
+}
+
+#[test]
+fn inviscid_derivatives_by_invariant_3() {
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        for invariant_3 in TEST_INVARIANTS_3 {
+            assert_scalar_matches(
+                scalar_derivative(
+                    |j| elastic_energy_inviscid_by_invariant(bulk_modulus, exponent, j),
+                    invariant_3,
+                ),
+                partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, invariant_3),
+                bulk_modulus,
+            );
+            assert_scalar_matches(
+                scalar_derivative(
+                    |j| partial_elastic_energy_inviscid_by_invariant_3(bulk_modulus, exponent, j),
+                    invariant_3,
+                ),
+                double_partial_elastic_energy_inviscid_by_invariant_3(
+                    bulk_modulus,
+                    exponent,
+                    invariant_3,
+                ),
+                bulk_modulus,
+            );
+        }
+    }
+}
+
+#[test]
+fn inviscid_stress_is_energy_gradient() {
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        for position_gradient in position_gradients() {
+            assert_matches(
+                &gradient_by_position_gradient(
+                    |f| elastic_energy_inviscid(bulk_modulus, exponent, f),
+                    &position_gradient,
+                ),
+                &first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
+                bulk_modulus,
+            );
+        }
+    }
+}
+
+#[test]
+fn inviscid_stress_by_svd() {
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        for position_gradient in position_gradients() {
+            let Decomposition { u, s, v_t } = decompose(&position_gradient);
+            assert_matches(
+                &first_piola_stress_inviscid(bulk_modulus, exponent, &position_gradient),
+                &first_piola_stress_inviscid_svd(bulk_modulus, exponent, &u, &s, &v_t),
+                bulk_modulus,
+            );
+        }
+    }
+}
+
+#[test]
+fn inviscid_hessian_is_stress_jacobian() {
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        for position_gradient in position_gradients() {
+            assert_matches(
+                &jacobian_by_position_gradient(
+                    |f| first_piola_stress_inviscid(bulk_modulus, exponent, f),
+                    &position_gradient,
+                ),
+                &hessian_inviscid(bulk_modulus, exponent, &position_gradient),
+                bulk_modulus,
+            );
+        }
+    }
+}
+
+#[test]
+fn inviscid_derivatives_in_diagonal_space() {
+    for (bulk_modulus, exponent) in test_inviscid_parameters() {
+        for s in singular_values() {
+            assert_matches(
+                &gradient_by_singular_values(
+                    diagonal_energy(|f| elastic_energy_inviscid(bulk_modulus, exponent, f)),
+                    &s,
+                ),
+                &first_piola_stress_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, &s),
+                bulk_modulus,
+            );
+            assert_matches(
+                &jacobian_by_singular_values(
+                    |s| {
+                        first_piola_stress_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, s)
+                    },
+                    &s,
+                ),
+                &second_derivative_inviscid_svd_in_diagonal_space(bulk_modulus, exponent, &s),
+                bulk_modulus,
+            );
         }
     }
 }

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{ParticleParameters, test_lame_parameters};
+use crate::{ParticleParameters, T, test_lame_parameters};
 
 /// Particle parameters for every pair from [`test_lame_parameters`],
 /// with all other parameters at their defaults.
@@ -31,4 +31,9 @@ pub fn test_solid_parameters() -> impl Iterator<Item = ParticleParameters> + Clo
 /// [`test_solid_parameters`] restricted to a positive shear modulus.
 pub fn test_shear_stiff_parameters() -> impl Iterator<Item = ParticleParameters> + Clone {
     test_solid_parameters().filter(|parameters| parameters.mu() > 0.)
+}
+
+/// The Lamé parameters `[μ, λ]` of [`test_solid_parameters`].
+pub fn test_mu_lambda() -> impl Iterator<Item = [T; 2]> + Clone {
+    test_solid_parameters().map(|parameters| [parameters.mu(), parameters.lambda()])
 }
