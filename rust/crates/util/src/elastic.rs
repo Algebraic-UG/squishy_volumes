@@ -148,16 +148,22 @@ pub fn double_partial_invariant_3_by_position_gradient(
     ]
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (6.9)
+/// Stable Neo-Hookean Flesh Simulation (Smith et al. 2018), Eq. 14:
+/// `μ/2 (I₂ − 3) + λ/2 (J − α)² − μ/2 ln(I₂ + 1)` with `α = 1 + 3μ / (4λ)`,
+/// expanded to avoid dividing by `λ` and shifted by a constant to vanish at rest.
+/// Its Lamé parameters are [`mu_stable_neo_hookean`] and [`lambda_stable_neo_hookean`].
 #[inline]
 pub fn elastic_energy_stable_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
-    mu / 2. * (invariant_2(position_gradient) - 3.) - mu * (invariant_3(position_gradient) - 1.)
-        + lambda / 2. * (invariant_3(position_gradient) - 1.).powi(2)
+    let invariant_2 = invariant_2(position_gradient);
+    let invariant_3 = invariant_3(position_gradient);
+    mu / 2. * (invariant_2 - 3.) - 3. / 4. * mu * (invariant_3 - 1.)
+        + lambda / 2. * (invariant_3 - 1.).powi(2)
+        - mu / 2. * ((invariant_2 + 1.) / 4.).ln()
 }
 
 #[inline]
-pub fn partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu: T) -> T {
-    mu / 2.
+pub fn partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu: T, invariant_2: T) -> T {
+    mu / 2. * (1. - 1. / (invariant_2 + 1.))
 }
 
 #[inline]
@@ -166,7 +172,7 @@ pub fn partial_elastic_energy_stable_neo_hookean_by_invariant_3(
     lambda: T,
     invariant_3: T,
 ) -> T {
-    lambda * (invariant_3 - 1.) - mu
+    lambda * (invariant_3 - 1.) - 3. / 4. * mu
 }
 
 #[inline]
@@ -175,7 +181,7 @@ pub fn first_piola_stress_stable_neo_hookean(
     lambda: T,
     position_gradient: &Matrix3<T>,
 ) -> Matrix3<T> {
-    partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu)
+    partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu, invariant_2(position_gradient))
         * partial_invariant_2_by_position_gradient(position_gradient)
         + partial_elastic_energy_stable_neo_hookean_by_invariant_3(
             mu,
@@ -193,7 +199,7 @@ pub fn first_piola_stress_stable_neo_hookean_svd(
     v_t: &Matrix3<T>,
 ) -> Matrix3<T> {
     u * Matrix3::from_diagonal(
-        &(partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu)
+        &(partial_elastic_energy_stable_neo_hookean_by_invariant_2(mu, invariant_2_by_svd(s))
             * partial_invariant_2_by_svd(s)
             + partial_elastic_energy_stable_neo_hookean_by_invariant_3(
                 mu,

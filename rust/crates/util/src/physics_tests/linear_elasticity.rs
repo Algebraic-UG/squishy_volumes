@@ -19,8 +19,9 @@
 use nalgebra::{Matrix3, SVD};
 
 use crate::{
-    Matrix9, T, first_piola_stress_inviscid, first_piola_stress_neo_hookean, hessian_inviscid,
-    hessian_neo_hookean, hessian_neo_hookean_svd,
+    Matrix9, T, first_piola_stress_inviscid, first_piola_stress_neo_hookean,
+    first_piola_stress_stable_neo_hookean, hessian_inviscid, hessian_neo_hookean,
+    hessian_neo_hookean_svd, lambda_stable_neo_hookean, mu_stable_neo_hookean,
     test_data::{assert_close_at_scale, test_general_deformations, test_mu_lambda},
     test_inviscid_parameters,
 };
@@ -102,6 +103,25 @@ fn neo_hookean_hessian_at_rest_is_elasticity_tensor() {
             mu + lambda,
             EXACT_TOLERANCE,
         );
+    }
+}
+
+#[test]
+fn stable_neo_hookean_small_strain_recovers_lame_parameters() {
+    for [mu, lambda] in test_mu_lambda() {
+        let mu_stable = mu_stable_neo_hookean(mu);
+        let lambda_stable = lambda_stable_neo_hookean(lambda, mu);
+        for displacement_gradient in displacement_gradients() {
+            assert_close_at_scale(
+                &linear_stress(mu, lambda, &displacement_gradient),
+                &stress_derivative_at_rest(
+                    |f| first_piola_stress_stable_neo_hookean(mu_stable, lambda_stable, f),
+                    &displacement_gradient,
+                ),
+                mu + lambda,
+                RELATIVE_TOLERANCE,
+            );
+        }
     }
 }
 
