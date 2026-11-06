@@ -94,11 +94,13 @@ This is most likely only relevant to developers of other extensions.""",
 
     enable_timeline_markers: bpy.props.BoolProperty(
         name="Enable Timeline Markers",
-        description="""Squishy Volumes maintains a set of timeline markers for you.
-For example, the current bake progress.
+        description="""Use timeline markers to set the frames to record.
 
-There are some known issues related to the markers:
-https://github.com/Algebraic-UG/squishy_volumes/issues/84""",
+When enabled, each simulation has two timeline markers named like it.
+Recording evaluates the input objects from the first to the last of them.
+
+When disabled, no markers are created, read or removed,
+and the frames to record are set in the 'Simulate' panel instead.""",
         default=True,
         options=set(),  # can't be animated
     )  # type: ignore

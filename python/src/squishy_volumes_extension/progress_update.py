@@ -22,47 +22,29 @@ from .bridge import SimulationHandle
 from .get_preferences import get_print_debug_info
 from .popup import with_popup
 from .squishy_volumes_properties import get_simulation_objects
-from .util import add_or_update_marker, force_ui_redraw, remove_marker
+from .util import force_ui_redraw
 
 PROGRESS_INTERVAL = 0.25
+
+
+def simulation_progressed(sim_obj: bpy.types.Object) -> bool:
+    uuid = sim_obj.squishy_volumes.uuid
+    sim_handle = SimulationHandle.get(uuid=uuid)
+    if sim_handle is None:
+        return False
+    return bool(with_popup(uuid=uuid, f=sim_handle.poll))
 
 
 def update_progress():
     should_redraw = False
     for sim_obj in get_simulation_objects():
-        sim_props = sim_obj.squishy_volumes
-
-        cleanup_markers(sim_obj)
-        add_or_update_marker(
-            f"{sim_obj.name} Capture Start",
-            sim_props.capture_start_frame,
-        )
-        add_or_update_marker(
-            f"{sim_obj.name} Capture End",
-            sim_props.capture_end_frame,
-        )
-
-        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
-        if sim_handle is None:
-            continue
-
-        def poll_and_true():
-            return sim_handle.poll()  # noqa: B023
-
-        if not with_popup(uuid=sim_props.uuid, f=poll_and_true):
-            continue
-
-        should_redraw = True
+        if simulation_progressed(sim_obj):
+            should_redraw = True
 
     if should_redraw:
         force_ui_redraw()
 
     return PROGRESS_INTERVAL
-
-
-def cleanup_markers(sim_obj: bpy.types.Object):
-    remove_marker(f"{sim_obj.name} Capture Start")
-    remove_marker(f"{sim_obj.name} Capture End")
 
 
 def is_updating():
@@ -77,9 +59,6 @@ def register_progress_update(*_scene):
 
 
 def unregister_progress_update(*_scene):
-    for sim_obj in get_simulation_objects():
-        cleanup_markers(sim_obj)
-
     if bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.unregister(update_progress)
         if get_print_debug_info():

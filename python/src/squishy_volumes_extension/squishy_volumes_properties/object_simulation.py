@@ -248,6 +248,9 @@ This is mass-normalized, so the unit is 1/s""",
         name="Start",
         description="""The first frame for which the input objects are evaluated.
 
+With timeline markers enabled in the preferences,
+recording sets this from the simulation's markers.
+
 You need to override the cache to manifest changes.""",
         default=1,
         options=set(),
@@ -256,6 +259,9 @@ You need to override the cache to manifest changes.""",
     capture_end_frame: bpy.props.IntProperty(
         name="End",
         description="""The last frame for which the input objects are evaluated.
+
+With timeline markers enabled in the preferences,
+recording sets this from the simulation's markers.
 
 You need to override the cache to manifest changes.""",
         default=1,
