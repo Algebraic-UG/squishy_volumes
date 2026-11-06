@@ -35,7 +35,7 @@ use crate::{
     partial_invariant_3_by_svd, second_derivative_inviscid_svd_in_diagonal_space,
     second_derivative_neo_hookean_svd_in_diagonal_space,
     test_data::{
-        PrincipalDeformation, assert_norm_negligible, test_general_deformations, test_mu_lambda,
+        PrincipalDeformation, assert_close_at_scale, test_general_deformations, test_mu_lambda,
         test_rotated_deformations,
     },
     test_inviscid_parameters,
@@ -110,8 +110,7 @@ fn assert_matches<const R: usize, const C: usize>(
     actual: &SMatrix<T, R, C>,
     model_scale: T,
 ) {
-    let scale = expected.norm().max(model_scale);
-    assert_norm_negligible(&(expected - actual), scale, RELATIVE_TOLERANCE);
+    assert_close_at_scale(expected, actual, model_scale, RELATIVE_TOLERANCE);
 }
 
 fn assert_scalar_matches(expected: T, actual: T, model_scale: T) {

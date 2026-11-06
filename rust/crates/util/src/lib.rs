@@ -50,6 +50,8 @@ pub use typedefs::*;
 #[cfg(use_f64)]
 type T = f64;
 #[cfg(all(use_f64, test))]
+mod physics_tests;
+#[cfg(all(use_f64, test))]
 mod tests;
 
 #[cfg(not(use_f64))]

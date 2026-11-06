@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use nalgebra::{Matrix3, Rotation3, SMatrix, Vector3};
+use nalgebra::{Matrix3, Rotation3, Vector3};
 
 use crate::T;
 
@@ -111,43 +111,4 @@ pub fn test_general_deformations() -> Vec<PrincipalDeformation> {
         Vector3::new(1.5, 1.5, 0.8),
         Vector3::new(0.7, 1.2, 1.2),
     ])
-}
-
-/// Asserts `‖expected − actual‖ ≤ relative_tolerance · ‖expected‖` in the Frobenius norm.
-pub fn assert_relative_norm_close<const R: usize, const C: usize>(
-    expected: &SMatrix<T, R, C>,
-    actual: &SMatrix<T, R, C>,
-    relative_tolerance: T,
-) {
-    let error = (expected - actual).norm();
-    let tolerance = relative_tolerance * expected.norm();
-    assert!(
-        error <= tolerance,
-        "expected {expected} but got {actual}, error={error}, tolerance={tolerance}",
-    );
-}
-
-/// Asserts `‖actual‖ ≤ relative_tolerance · scale` for a quantity expected to vanish,
-/// where `scale` is the magnitude it would have without the cancellation under test.
-pub fn assert_norm_negligible<const R: usize, const C: usize>(
-    actual: &SMatrix<T, R, C>,
-    scale: T,
-    relative_tolerance: T,
-) {
-    let norm = actual.norm();
-    let tolerance = relative_tolerance * scale;
-    assert!(
-        norm <= tolerance,
-        "expected a negligible value but got {actual}, norm={norm}, tolerance={tolerance}",
-    );
-}
-
-/// Asserts `|expected − actual| ≤ relative_tolerance · |expected|`.
-pub fn assert_relative_close(expected: T, actual: T, relative_tolerance: T) {
-    let error = (expected - actual).abs();
-    let tolerance = relative_tolerance * expected.abs();
-    assert!(
-        error <= tolerance,
-        "expected {expected} but got {actual}, error={error}, tolerance={tolerance}",
-    );
 }
