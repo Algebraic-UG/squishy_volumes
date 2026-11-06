@@ -23,6 +23,8 @@ use std::num::NonZeroU32;
 
 use super::*;
 
+/// Hashes grid node ids with [MurmurHash3](https://github.com/aappleby/smhasher) (x86, 32 bit),
+/// ported from the [`murmur3`](https://github.com/stusmall/murmur3) crate.
 pub struct NodeIdsToMurmur {
     node_ids_to_murmur: CompiledModule,
 }

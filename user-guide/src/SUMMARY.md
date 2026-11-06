@@ -8,3 +8,5 @@
 - [Example Setup](getting_started/example_setup.md)
 
 [Troubleshooting](troubleshooting/README.md)
+
+[References](references.md)

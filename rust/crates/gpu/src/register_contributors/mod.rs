@@ -25,6 +25,8 @@ use squishy_volumes_util::ParticleFlags;
 
 use super::*;
 
+/// Registers particles with the grid nodes they contribute to via hash table lookups, inspired by
+/// [Farrell 2020, "A Simple GPU Hash Table"](https://nosferalatu.com/SimpleGPUHashTable.html).
 pub struct RegisterContributors {
     count_contributors: CompiledModule,
     prefix_sum: PrefixSum,

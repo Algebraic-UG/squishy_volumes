@@ -26,6 +26,8 @@ mod test;
 
 use super::*;
 
+/// Builds the grid node hash tables with lock-free linear probing, inspired by
+/// [Farrell 2020, "A Simple GPU Hash Table"](https://nosferalatu.com/SimpleGPUHashTable.html).
 pub struct BuildHashTables {
     build_hash_tables: CompiledModule,
 }

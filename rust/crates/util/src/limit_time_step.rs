@@ -31,7 +31,8 @@ pub fn principal_stretches(position_gradient: &Matrix3<T>) -> Vector3<T> {
     position_gradient.svd(false, false).singular_values
 }
 
-// Effective time step restrictions for explicit MPM simulation 4.1 Sound Speed
+/// CFL restriction by the sound speed of the deformed material,
+/// see [Sun et al. 2020, "Effective Time Step Restrictions for Explicit MPM Simulation"](https://doi.org/10.1111/cgf.14101), Sec. 4.1.
 pub fn limit_time_step_by_speed_of_sound(
     flags: &ParticleFlags,
     parameters: &ParticleParameters,
@@ -121,11 +122,12 @@ pub fn limit_time_step_by_speed_of_sound(
 /// (shear and volume change), elasticity contributes a stiffness `a` and viscosity a
 /// damping `b`, and the explicit update stays stable while `a Δt² + 2 b Δt ≤ 4`.
 ///
-/// At rest this is the single particle restriction of Bai & Schroeder 2022,
-/// "Stability Analysis of Explicit MPM", Eq. (4), with `ξ = 4 / h²` and `r = 1`,
-/// since the MLS force makes their `R` the identity. Solids take the stiffness at
-/// their current stretch, which grows with the largest principal stretch but is
-/// never taken below the rest stiffness.
+/// At rest this is the single particle restriction of
+/// [Bai & Schroeder 2022, "Stability Analysis of Explicit MPM"](https://doi.org/10.1111/cgf.14620),
+/// Eq. (4), with `ξ = 4 / h²` and `r = 1`, since the MLS force makes their `R` the identity.
+/// Solids take the stiffness at their current stretch, which grows with the largest principal
+/// stretch but is never taken below the rest stiffness. Fluids take the stiffness from the
+/// single particle restriction of [Sun et al. 2020, "Effective Time Step Restrictions for Explicit MPM Simulation"](https://doi.org/10.1111/cgf.14101), technical document Sec. 3.1.
 pub fn limit_time_step_by_isolated_particles(
     flags: &ParticleFlags,
     parameters: &ParticleParameters,
@@ -226,13 +228,12 @@ fn limit_time_step_of_damped_oscillator(stiffness: T, damping: T) -> T {
     4. / denominator
 }
 
-// At least somewhat similar to
-// Effective time step restrictions for explicit MPM simulation 4.2-4
-
+/// Restriction by particle velocity, similar to [Sun et al. 2020, "Effective Time Step Restrictions for Explicit MPM Simulation"](https://doi.org/10.1111/cgf.14101), Sec. 4.2.
 pub fn limit_time_step_by_velocity(velocity: &Vector3<T>, grid_node_size: T) -> T {
     grid_node_size * 0.5 / velocity.norm().max(grid_node_size * 0.5)
 }
 
+/// Restriction by the change of the deformation gradient, similar to [Sun et al. 2020, "Effective Time Step Restrictions for Explicit MPM Simulation"](https://doi.org/10.1111/cgf.14101), Sec. 4.4.
 pub fn limit_time_step_by_deformation(velocity_gradient: &Matrix3<T>) -> T {
     const DELTA: T = 0.2;
     velocity_gradient

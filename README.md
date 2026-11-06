@@ -40,6 +40,11 @@ gh attestation verify squishy_volumes_extension-<version>-<platform>.zip --repo 
 
 Please refer to the [Squishy Volumes User Guide](https://squishy-volumes-docs.algebraic.games/index.html).
 
+## References
+
+The implementation builds on publications, articles and code by others.
+See [References](./user-guide/src/references.md) for the list of sources.
+
 ## Licensing
 
 Squishy Volumes is licensed under the [GNU Affero General Public License v3.0 or later](./LICENSE) (AGPL-3.0-or-later). This covers both the Blender-specific Python extension code and the Rust simulation code. Each source file carries a respective license header.

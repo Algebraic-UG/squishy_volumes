@@ -241,6 +241,8 @@ pub struct DistanceResult {
     pub normal: Vector3<f32>,
 }
 
+/// Pairs the closest point on the segment with the pseudonormal of the closest feature, vertex or edge, see
+/// [Bærentzen & Aanæs 2005](https://doi.org/10.1109/TVCG.2005.49).
 pub fn segment_distance_result(
     p: &Vector3<f32>,
     start: &Vector3<f32>,

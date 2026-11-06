@@ -41,6 +41,8 @@ pub fn set(bits: &mut u32, collider: usize, side: Option<bool>) {
     }
 }
 
+/// Whether two collider bit sets lie on the same side of every collider both are near, as in
+/// the Compatible Particle-In-Cell method of [Hu et al. 2018](https://doi.org/10.1145/3197517.3201293).
 pub fn compatible(a: &u32, b: &u32) -> bool {
     let mask = (a & b) >> 16;
     let diff = a ^ b;

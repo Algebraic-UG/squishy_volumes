@@ -24,7 +24,7 @@ use nalgebra::{Matrix3, Vector3};
 use crate::T;
 
 /// Drucker–Prager return mapping in Hencky strain for sand,
-/// following Klár et al. 2016, "Drucker-Prager Elastoplasticity for Sand Animation".
+/// following [Klár et al. 2016, "Drucker-Prager Elastoplasticity for Sand Animation"](https://doi.org/10.1145/2897824.2925906).
 ///
 /// With `F = U Σ Vᵀ`, `ε = log Σ` and its deviatoric part `ε̂`:
 /// - Expansion (`tr ε ≥ 0`) or a material without shear stiffness projects

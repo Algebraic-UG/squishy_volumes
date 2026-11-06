@@ -33,9 +33,9 @@ pub fn triangle_normal(a: &Vector3<f32>, b: &Vector3<f32>, c: &Vector3<f32>) -> 
 }
 
 /// Pseudo normal of a vertex: the normals of its incident triangles weighted by
-/// their angle at the vertex, see "Signed Distance Computation Using the Angle
-/// Weighted Pseudonormal" (Bærentzen, Aanæs). Each incident item holds the two
-/// other corners and the normal of one triangle.
+/// their angle at the vertex, see [Bærentzen & Aanæs 2005, "Signed Distance Computation
+/// Using the Angle Weighted Pseudonormal"](https://doi.org/10.1109/TVCG.2005.49).
+/// Each incident item holds the two other corners and the normal of one triangle.
 pub fn angle_weighted_normal(
     vertex: &Vector3<f32>,
     incident: impl Iterator<Item = (Vector3<f32>, Vector3<f32>, Vector3<f32>)>,
