@@ -16,86 +16,82 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, stack};
+use nalgebra::Matrix4x3;
+use squishy_volumes_util::{
+    sand_plasticity,
+    test_data::{
+        SandPlasticityCase, assert_relative_norm_close, sand_expansion_cases,
+        sand_frictionless_compression_cases, sand_nearly_pure_compression_cases,
+        sand_pure_compression_cases, test_solid_parameters,
+    },
+};
 
 use crate::test_data::test_position_gradients_random;
 
 use super::*;
 
-fn check(
-    particle_parameters: &[ParticleParameters],
-    particle_position_gradients: &[Matrix4x3<f32>],
-) {
-    let gpu_particle_position_gradients = run(
+const RELATIVE_TOLERANCE: f32 = 1e-4;
+
+fn check(cases: &[SandPlasticityCase]) {
+    let particle_parameters: Vec<ParticleParameters> =
+        cases.iter().map(|case| case.parameters).collect();
+    let padded_position_gradients: Vec<Matrix4x3<f32>> = cases
+        .iter()
+        .map(|case| case.position_gradient.insert_row(3, 0.))
+        .collect();
+
+    let gpu_position_gradients = run(
         Settings {
             workgroup_size: 64.try_into().unwrap(),
             dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
         },
-        particle_parameters,
-        particle_position_gradients,
+        &particle_parameters,
+        &padded_position_gradients,
     );
 
-    let mut cpu_particle_position_gradients: Vec<Matrix3<f32>> = particle_position_gradients
-        .iter()
-        .map(|m| m.fixed_view::<3, 3>(0, 0).into())
-        .collect();
-
-    particle_parameters
-        .iter()
-        .zip(&mut cpu_particle_position_gradients)
-        .for_each(|(parameters, position_gradient)| {
-            let mut svd = position_gradient.svd(true, true);
-            let e = svd.singular_values.map(f32::ln);
-            let e_tr = e.sum();
-            let e_hat = e - Vector3::repeat(e_tr / 3.);
-            let e_hat_norm = e_hat.norm();
-            if parameters.mu() > 0. && e_tr < 0. && e_hat_norm > 0. {
-                if e_hat_norm != 0. {
-                    let delta_gamma = e_hat_norm
-                        + (3. * parameters.lambda() + 2. * parameters.mu()) / 2. / parameters.mu()
-                            * e_tr
-                            * parameters.sand_alpha;
-                    if delta_gamma > 0. {
-                        let big_h = e - delta_gamma / e_hat_norm * e_hat;
-                        svd.singular_values = big_h.map(f32::exp);
-
-                        *position_gradient = svd.recompose().unwrap();
-                    }
-                }
-            } else {
-                *position_gradient = svd.u.unwrap() * svd.v_t.unwrap();
-            }
-        });
-
-    for (cpu, gpu) in cpu_particle_position_gradients
-        .into_iter()
-        .zip(gpu_particle_position_gradients)
-    {
-        println!("{} vs {}", cpu, gpu.fixed_view::<3, 3>(0, 0));
-
-        check_iters_by_norm(&cpu, gpu.fixed_view::<3, 3>(0, 0));
+    for (case, gpu) in cases.iter().zip(gpu_position_gradients) {
+        let actual = gpu.fixed_view::<3, 3>(0, 0).into();
+        assert_relative_norm_close(&case.expected, &actual, RELATIVE_TOLERANCE);
     }
 }
 
 #[test]
-fn random() {
-    let n = 1000;
-    check(
-        &squishy_volumes_util::test_lame_parameters()
-            .cycle()
-            .take(n)
-            .map(|[youngs_modulus, poissons_ratio]| ParticleParameters {
-                youngs_modulus,
-                poissons_ratio,
-                ..Default::default()
-            })
-            .collect::<Vec<_>>(),
-        #[allow(clippy::toplevel_ref_arg)]
-        &test_position_gradients_random(1000)
-            .into_iter()
-            .map(|m| stack![m; Matrix1x3::zeros()])
-            .collect::<Vec<_>>(),
-    );
+fn random_matches_cpu() {
+    let cases: Vec<SandPlasticityCase> = test_solid_parameters()
+        .cycle()
+        .zip(test_position_gradients_random(1000))
+        .map(|(parameters, position_gradient)| SandPlasticityCase {
+            parameters,
+            position_gradient,
+            expected: sand_plasticity(
+                parameters.mu(),
+                parameters.lambda(),
+                parameters.sand_alpha,
+                &position_gradient,
+            ),
+        })
+        .collect();
+    check(&cases);
+}
+
+#[test]
+fn pure_compression_is_unchanged() {
+    check(&sand_pure_compression_cases());
+}
+
+#[test]
+fn nearly_pure_compression_is_unchanged() {
+    check(&sand_nearly_pure_compression_cases());
+}
+
+#[test]
+fn frictionless_compression_loses_shear() {
+    check(&sand_frictionless_compression_cases());
+}
+
+#[test]
+fn expansion_becomes_rotation() {
+    check(&sand_expansion_cases());
 }
 
 fn run(
