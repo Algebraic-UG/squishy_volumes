@@ -16,34 +16,34 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from nodebpy.nodes.compositor import CombineXYZ
-from typing import Literal, TYPE_CHECKING, Any
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal
 
 import bpy
 from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import (
+    BooleanSocket,
     CustomGeometryGroup,
+    FloatSocket,
+    GeometrySocket,
     MatrixSocket,
     SocketAccessor,
-    GeometrySocket,
     StringSocket,
-    FloatSocket,
     VectorSocket,
-    BooleanSocket,
 )
+from nodebpy.nodes.compositor import CombineXYZ
 from nodebpy.types import (
+    InputAny,
+    InputBoolean,
+    InputFloat,
     InputGeometry,
     InputInteger,
-    InputVector,
     InputMenu,
-    InputFloat,
-    InputBoolean,
     InputString,
-    InputAny,
+    InputVector,
 )
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -441,9 +441,6 @@ class Vector2DToInt(CustomGeometryGroup):
     ):
         super().__init__(Vector=vector)
 
-    def __init__(self):
-        super().__init__()
-
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         low, high = [c.to_integer("FLOOR") for c in tree.inputs.vector("Vector")[:2]]
         g.BitMath.l_or(low, g.BitMath.shift(high, 16)) >> tree.outputs.integer()
@@ -650,7 +647,7 @@ class DeformedCubesVisualization(CustomGeometryGroup):
         geometry: InputGeometry = ...,
         scale: InputFloat = 1.0,
     ):
-        super().__init__(**{"Geometry": geometry, "Scale": scale})
+        super().__init__(Geometry=geometry, Scale=scale)
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
@@ -744,7 +741,7 @@ class SkinVisualization(CustomGeometryGroup):
         self,
         geometry: InputGeometry = ...,
     ):
-        super().__init__(**{"Geometry": geometry})
+        super().__init__(Geometry=geometry)
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
@@ -781,7 +778,8 @@ def visualize_particles() -> str:
                         override_radii,
                         override_radii_value,
                     ),
-                    "Skin": SkinVisualization(geometry),
+                    # TODO:
+                    # "Skin": SkinVisualization(geometry),
                 },
             )
             >> tree.outputs.geometry()
