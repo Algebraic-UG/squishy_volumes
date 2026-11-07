@@ -519,19 +519,16 @@ class PointVisualization(CustomGeometryGroup):
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
-        scale = tree.inputs.float("Scale")
-        failed_scale = tree.inputs.float("Failed Scale")
-        initial_size = g.NamedAttribute.float("initial_size")
+        scale = GetFlag(geometry, "FAILED") >> g.Switch(
+            false=tree.inputs.float("Scale"), true=tree.inputs.float("Failed Scale")
+        )
         (
             geometry
             >> g.SetPointRadius(
-                radius=g.Math.multiply(
-                    GetFlag(geometry, "FAILED")
-                    >> g.Switch(false=scale, true=failed_scale),
-                    initial_size.o.exists.switch.float(
-                        1.0, g.Math.multiply(initial_size, 0.5)
-                    ),
-                )
+                radius=scale
+                * NamedAttributeWithDefaultAndWarn.float(
+                    geometry, "initial_size", 1
+                ).o.attribute
             )
             >> tree.outputs.geometry()
         )
@@ -686,12 +683,58 @@ class ReconstructedSurfaceVisualization(CustomGeometryGroup):
     def __init__(
         self,
         geometry: InputGeometry = ...,
+        smooth_shading: InputBoolean = True,
+        smooth_iterations: InputInteger = 1,
+        override_radii: InputBoolean = False,
+        override_radii_value: InputFloat = 0.25,
     ):
-        super().__init__(**{"Geometry": geometry})
+        super().__init__(
+            **{
+                "Geometry": geometry,
+                "Smooth Shading": smooth_shading,
+                "Smooth Iterations": smooth_iterations,
+                "Override Radii": override_radii,
+                "Override Radii Value": override_radii_value,
+            }
+        )
 
-    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+    def _build_group(self, tree: TreeBuilder[Any]):
         geometry = tree.inputs.geometry("Geometry")
-        geometry >> tree.outputs.geometry()
+        with tree.inputs.panel("Smooth"):
+            smooth_shading = tree.inputs.boolean("Smooth Shading")
+            smooth_iterations = tree.inputs.integer("Smooth Iterations")
+
+        with tree.inputs.panel("Override Radii"):
+            override_radii = tree.inputs.boolean("Override Radii", is_panel_toggle=True)
+            override_radii_value = tree.inputs.float("Override Radii Value")
+
+        with g.Frame("Radii of the points"):
+            radius = override_radii.switch.float(
+                false=NamedAttributeWithDefaultAndWarn(geometry, "initial_size", 1.0),
+                true=override_radii_value * 2.0,
+            )
+
+        with g.Frame("Estimate a good voxel size"):
+            voxel_size = (
+                g.AttributeStatistic(geometry=geometry, attribute=radius).o.mean * 0.5
+            )
+
+        with g.Frame("Points -> SDF -> Smooth -> Mesh"):
+            geometry = (
+                g.PointsToSDFGrid(
+                    geometry,
+                    radius,
+                    voxel_size,
+                )
+                >> g.SDFGridMean(iterations=smooth_iterations)
+                >> g.GridToMesh(threshold=0)
+            )
+
+        (
+            geometry
+            >> g.SetShadeSmooth(shade_smooth=smooth_shading)
+            >> tree.outputs.geometry()
+        )
 
 
 class SkinVisualization(CustomGeometryGroup):
@@ -713,7 +756,17 @@ def visualize_particles() -> str:
         geometry = tree.inputs.geometry()
         display_as = tree.inputs.menu("Display As")
         scale = tree.inputs.float("Scale")
+
+        # only for points
         failed_scale = tree.inputs.float("Failed Scale")
+
+        # only for reconstruction
+        with tree.inputs.panel("Smooth"):
+            smooth_shading = tree.inputs.boolean("Smooth Shading")
+            smooth_iterations = tree.inputs.integer("Smooth Iterations")
+        with tree.inputs.panel("Override Radii"):
+            override_radii = tree.inputs.boolean("Override Radii", is_panel_toggle=True)
+            override_radii_value = tree.inputs.float("Override Radii Value")
 
         (
             g.MenuSwitch.geometry(
@@ -721,7 +774,13 @@ def visualize_particles() -> str:
                 {
                     "Points": PointVisualization(geometry, scale, failed_scale),
                     "Deformed Cubes": DeformedCubesVisualization(geometry, scale),
-                    "Reconstructed": ReconstructedSurfaceVisualization(geometry),
+                    "Reconstructed": ReconstructedSurfaceVisualization(
+                        geometry,
+                        smooth_shading,
+                        smooth_iterations,
+                        override_radii,
+                        override_radii_value,
+                    ),
                     "Skin": SkinVisualization(geometry),
                 },
             )
