@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from nodebpy.nodes.compositor import CombineXYZ
+from typing import Literal, TYPE_CHECKING, Any
 import sys
 from pathlib import Path
 
@@ -23,7 +25,16 @@ import bpy
 from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
-from nodebpy.builder import CustomGeometryGroup, MatrixSocket
+from nodebpy.builder import (
+    CustomGeometryGroup,
+    MatrixSocket,
+    SocketAccessor,
+    GeometrySocket,
+    StringSocket,
+    FloatSocket,
+    VectorSocket,
+    BooleanSocket,
+)
 from nodebpy.types import (
     InputGeometry,
     InputInteger,
@@ -32,6 +43,7 @@ from nodebpy.types import (
     InputFloat,
     InputBoolean,
     InputString,
+    InputAny,
 )
 
 scripts_dir = Path(sys.argv[0]).parent
@@ -463,13 +475,17 @@ class GetBit(CustomGeometryGroup):
 class GetFlag(CustomGeometryGroup):
     _name = "Get Flag"
 
-    def __init__(self, flag: InputMenu = ...):
-        super().__init__(Flag=flag)
+    def __init__(self, geometry: InputGeometry = ..., flag: InputMenu = ...):
+        super().__init__(Geometry=geometry, Flag=flag)
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         (
             GetBit(
-                g.NamedAttribute.vector("flags") >> Vector2DToInt(),
+                NamedAttributeWithDefaultAndWarn.vector(
+                    geometry=tree.inputs.geometry("Geometry"),
+                    name="flags",
+                )
+                >> Vector2DToInt(),
                 tree.inputs.menu("Flag")
                 >> g.MenuSwitch.integer(
                     items={
@@ -510,13 +526,122 @@ class PointVisualization(CustomGeometryGroup):
             geometry
             >> g.SetPointRadius(
                 radius=g.Math.multiply(
-                    GetFlag("FAILED") >> g.Switch(false=scale, true=failed_scale),
+                    GetFlag(geometry, "FAILED")
+                    >> g.Switch(false=scale, true=failed_scale),
                     initial_size.o.exists.switch.float(
                         1.0, g.Math.multiply(initial_size, 0.5)
                     ),
                 )
             )
             >> tree.outputs.geometry()
+        )
+
+
+_DataType = Literal[
+    "FLOAT",
+    "INT",
+    "BOOLEAN",
+    "FLOAT_VECTOR",
+    "FLOAT_COLOR",
+    "QUATERNION",
+    "FLOAT4X4",
+]
+
+# data_type → tree.inputs / tree.outputs factory name
+_INTERFACE_METHOD = {
+    "FLOAT": "float",
+    "INT": "integer",
+    "BOOLEAN": "boolean",
+    "FLOAT_VECTOR": "vector",
+    "FLOAT_COLOR": "color",
+    "QUATERNION": "rotation",
+    "FLOAT4X4": "matrix",
+}
+
+
+class NamedAttributeWithDefaultAndWarn[T](CustomGeometryGroup):
+    _name = "Named Attribute With Default And Warn"
+    # create_group() builds without __init__, so it gets this variant.
+    _data_type: _DataType = "FLOAT"
+
+    class _Inputs[S](SocketAccessor):
+        geometry: GeometrySocket
+        """Geometry"""
+        name: StringSocket
+        """Name"""
+        default: S
+        """Default"""
+
+    class _Outputs[S](SocketAccessor):
+        attribute: S
+        """Attribute"""
+
+    if TYPE_CHECKING:
+
+        @property
+        def i(self) -> _Inputs[T]: ...
+        @property
+        def o(self) -> _Outputs[T]: ...
+
+    def __init__(
+        self,
+        geometry: InputGeometry = None,
+        name: InputString = "",
+        default: InputAny = None,
+        *,
+        data_type: _DataType = "FLOAT",
+    ):
+        # Set before super().__init__(): it picks and builds the inner tree.
+        self._data_type = data_type
+        super().__init__(Geometry=geometry, Name=name, Default=default)
+
+    @property
+    def data_type(self) -> _DataType:
+        """Read-only: the group's socket types are fixed once built, so a
+        different data type needs a new node."""
+        return self._data_type
+
+    def _group_name(self) -> str:
+        return f"{self._name} ({self.data_type})"
+
+    def _build_group(self, tree: TreeBuilder[Any]) -> None:
+        geometry = tree.inputs.geometry("Geometry")
+        name = tree.inputs.string("Name")
+        method = _INTERFACE_METHOD[self.data_type]
+        default = getattr(tree.inputs, method)("Default")
+
+        message = g.JoinStrings(["Consider adding the output attr '", name, "'"])
+        attribute = g.NamedAttribute(name, data_type=self.data_type)
+        exists = (
+            g.SampleIndex.point.boolean(geometry=geometry, value=attribute.o.exists)
+            >> g.BooleanMath.l_not()
+            >> g.Warning(message=message, warning_type="WARNING")
+        ).o.show
+        assert isinstance(exists, BooleanSocket)
+        getattr(exists.switch, method)(
+            false=attribute.o.attribute, true=default
+        ) >> getattr(tree.outputs, method)("Attribute")
+
+    @classmethod
+    def float(
+        cls,
+        geometry: InputGeometry = None,
+        name: InputString = "",
+        default: InputFloat = 0.0,
+    ) -> "NamedAttributeWithDefaultAndWarn[FloatSocket]":
+        return NamedAttributeWithDefaultAndWarn(
+            geometry, name, default, data_type="FLOAT"
+        )
+
+    @classmethod
+    def vector(
+        cls,
+        geometry: InputGeometry = None,
+        name: InputString = "",
+        default: InputVector = (0.0, 0.0, 0.0),
+    ) -> "NamedAttributeWithDefaultAndWarn[VectorSocket]":
+        return NamedAttributeWithDefaultAndWarn(
+            geometry, name, default, data_type="FLOAT_VECTOR"
         )
 
 
@@ -533,52 +658,20 @@ class DeformedCubesVisualization(CustomGeometryGroup):
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
         scale = tree.inputs.float("Scale")
-        initial_size = g.NamedAttribute.float("initial_size")
 
-        pgx = g.NamedAttribute.vector("position_gradient_x")
-        pgy = g.NamedAttribute.vector("position_gradient_y")
-        pgz = g.NamedAttribute.vector("position_gradient_z")
-
-        s = g.Math.multiply(
-            scale,
-            initial_size.o.exists.switch.float(1.0, initial_size),
+        get_column = lambda name, default: (
+            NamedAttributeWithDefaultAndWarn.vector(geometry, name, default).o.attribute
         )
 
-        x = (
-            pgx.o.exists.switch.vector([1.0, 0.0, 0.0], pgx)
-            >> g.VectorMath.scale(scale=s)
-            >> g.SeparateXYZ()
-        )
-        y = (
-            pgy.o.exists.switch.vector([0.0, 1.0, 0.0], pgy)
-            >> g.VectorMath.scale(scale=s)
-            >> g.SeparateXYZ()
-        )
-        z = (
-            pgz.o.exists.switch.vector([0.0, 0.0, 1.0], pgz)
-            >> g.VectorMath.scale(scale=s)
-            >> g.SeparateXYZ()
-        )
-        t = g.Position() >> g.SeparateXYZ()
+        s = scale * NamedAttributeWithDefaultAndWarn.float(geometry, "initial_size", 1)
+        x = get_column("position_gradient_x", [1, 0, 0])
+        y = get_column("position_gradient_y", [0, 1, 0])
+        z = get_column("position_gradient_z", [0, 0, 1])
+        p = g.Position().o.position
 
         combined_matrix = g.CombineMatrix(
-            x.o.x,
-            x.o.y,
-            x.o.z,
-            0.0,
-            y.o.x,
-            y.o.y,
-            y.o.z,
-            0.0,
-            z.o.x,
-            z.o.y,
-            z.o.z,
-            0.0,
-            t.o.x,
-            t.o.y,
-            t.o.z,
-            1.0,
-        )
+            *[c for cs in [x, [0], y, [0], z, [0], p, [1]] for c in cs]
+        ) @ g.CombineTransform(scale=CombineXYZ(s, s, s))
 
         (
             g.InstanceOnPoints(points=geometry, instance=g.Cube())
