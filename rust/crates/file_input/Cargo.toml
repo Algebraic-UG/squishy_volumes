@@ -10,6 +10,7 @@ workspace = true
 [dev-dependencies]
 rand.workspace = true
 tempfile = "3.23.0"
+strum.workspace = true
 
 [dependencies]
 serde.workspace = true
