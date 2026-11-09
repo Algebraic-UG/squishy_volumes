@@ -58,19 +58,19 @@ pub enum FrameBulkParticles {
     HasGoal,
     IsActive,
     ColliderBits,
-    Transforms,
-    Sizes,
-    Densities,
-    YoungsModuluses,
-    PoissonsRatios,
-    InitialPositions,
+    Transform,
+    Size,
+    Density,
+    YoungsModulus,
+    PoissonsRatio,
+    InitialPosition,
     Velocity,
     ViscosityDynamic,
     ViscosityBulk,
     Exponent,
     BulkModulus,
     SandAlpha,
-    GoalPositions,
+    GoalPosition,
 }
 
 impl FrameBulkParticles {
@@ -83,34 +83,34 @@ impl FrameBulkParticles {
             | Self::HasGoal
             | Self::IsActive
             | Self::ColliderBits
-            | Self::Sizes
-            | Self::Densities
-            | Self::YoungsModuluses
-            | Self::PoissonsRatios
+            | Self::Size
+            | Self::Density
+            | Self::YoungsModulus
+            | Self::PoissonsRatio
             | Self::ViscosityDynamic
             | Self::ViscosityBulk
             | Self::Exponent
             | Self::BulkModulus
             | Self::SandAlpha => 1,
-            Self::InitialPositions | Self::Velocity | Self::GoalPositions => 3,
-            Self::Transforms => 16,
+            Self::InitialPosition | Self::Velocity | Self::GoalPosition => 3,
+            Self::Transform => 16,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum FrameBulkCollider {
-    VertexPositions,
+    Position,
     Triangles,
-    TriangleFrictions,
-    TriangleDampings,
+    Friction,
+    Damping,
 }
 
 impl FrameBulkCollider {
     fn elem_count(&self) -> usize {
         match self {
-            FrameBulkCollider::VertexPositions | FrameBulkCollider::Triangles => 3,
-            FrameBulkCollider::TriangleFrictions | FrameBulkCollider::TriangleDampings => 1,
+            FrameBulkCollider::Position | FrameBulkCollider::Triangles => 3,
+            FrameBulkCollider::Friction | FrameBulkCollider::Damping => 1,
         }
     }
 }
@@ -150,7 +150,7 @@ pub fn random_collider_bulk(
         FrameBulk {
             meta: FrameBulkMeta {
                 object_name: object_name.clone(),
-                captured_attribute: BulkAttribute::Collider(FrameBulkCollider::VertexPositions),
+                captured_attribute: BulkAttribute::Collider(FrameBulkCollider::Position),
             },
             data: InputBulk::Floats(Cow::Owned(
                 rng.random_iter::<f32>()
@@ -186,13 +186,13 @@ impl FrameBulk<'_> {
                 .get_particle_object(&self.meta.object_name)?
                 .particle_range
                 .len(),
-            BulkAttribute::Collider(FrameBulkCollider::VertexPositions) => header
+            BulkAttribute::Collider(FrameBulkCollider::Position) => header
                 .get_collider_object(&self.meta.object_name)?
                 .vertex_range
                 .len(),
             BulkAttribute::Collider(FrameBulkCollider::Triangles)
-            | BulkAttribute::Collider(FrameBulkCollider::TriangleFrictions)
-            | BulkAttribute::Collider(FrameBulkCollider::TriangleDampings) => header
+            | BulkAttribute::Collider(FrameBulkCollider::Friction)
+            | BulkAttribute::Collider(FrameBulkCollider::Damping) => header
                 .get_collider_object(&self.meta.object_name)?
                 .triangle_range
                 .len(),

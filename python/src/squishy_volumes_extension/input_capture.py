@@ -231,21 +231,21 @@ Or apply the object scale."""
             record(python_name=input_attributes.PARTICLE_HAS_GOAL, rust_name="HasGoal")
 
             record(
-                python_name=input_attributes.PARTICLE_TRANSFORM, rust_name="Transforms"
+                python_name=input_attributes.PARTICLE_TRANSFORM, rust_name="Transform"
             )
-            record(python_name=input_attributes.PARTICLE_SIZE, rust_name="Sizes")
-            record(python_name=input_attributes.PARTICLE_DENSITY, rust_name="Densities")
+            record(python_name=input_attributes.PARTICLE_SIZE, rust_name="Size")
+            record(python_name=input_attributes.PARTICLE_DENSITY, rust_name="Density")
             record(
                 python_name=input_attributes.PARTICLE_YOUNGS_MODULUS,
-                rust_name="YoungsModuluses",
+                rust_name="YoungsModulus",
             )
             record(
                 python_name=input_attributes.PARTICLE_POISSONS_RATIO,
-                rust_name="PoissonsRatios",
+                rust_name="PoissonsRatio",
             )
             record(
                 python_name=input_attributes.PARTICLE_INITIAL_POSITION,
-                rust_name="InitialPositions",
+                rust_name="InitialPosition",
             )
             record(python_name=input_attributes.PARTICLE_VELOCITY, rust_name="Velocity")
             record(
@@ -266,7 +266,7 @@ Or apply the object scale."""
             )
             record(
                 python_name=input_attributes.PARTICLE_GOAL_POSITION,
-                rust_name="GoalPositions",
+                rust_name="GoalPosition",
             )
 
         if input_type == INPUT_TYPE_COLLIDER:
@@ -276,7 +276,7 @@ Or apply the object scale."""
 
             record(
                 python_name=input_attributes.COLLIDER_POSITION,
-                rust_name="VertexPositions",
+                rust_name="Position",
             )
 
             # the topology is recorded only once and can't change (yet?)
@@ -285,11 +285,11 @@ Or apply the object scale."""
 
             record(
                 python_name=input_attributes.COLLIDER_FRICTION,
-                rust_name="TriangleFrictions",
+                rust_name="Friction",
             )
             record(
                 python_name=input_attributes.COLLIDER_DAMPING,
-                rust_name="TriangleDampings",
+                rust_name="Damping",
             )
 
     return True
