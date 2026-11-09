@@ -15,6 +15,12 @@ uv run --with toml "${scripts_dir}/update_lib_version.py"
 
 "${scripts_dir}/add_license_headers.sh"
 
+(
+    cd "${repo_root}/python"
+    uv run --group tools "${scripts_dir}/build_assets.py"
+    uv run --group tools nodebpy build
+)
+
 cd "${wrap_dir}"
 uvx --python 3.11 maturin build --no-default-features --release --out "${wheels_dir}"
 

@@ -20,3 +20,8 @@ tools = [
   "nodebpy==520.34.0",
   "bpy==5.2",
 ]
+
+[tool.nodebpy.assets]
+source = "node_trees"
+blend = "src/squishy_volumes_extension/assets/assets.blend"
+split-inputs = true

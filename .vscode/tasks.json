@@ -21,15 +21,19 @@
             ]
         },
         {
-            "label": "build-assets-2",
+            "label": "build-node-trees",
             "type": "shell",
             "command": "uv",
             "args": [
                 "run",
-                "--project",
-                "${workspaceFolder}/python",
-                "./scripts/build_assets_2.py"
-            ]
+                "--group",
+                "tools",
+                "nodebpy",
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/python"
+            }
         }
     ]
 }
