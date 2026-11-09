@@ -3871,6 +3871,7 @@ dependencies = [
  "squishy_volumes_file_util",
  "squishy_volumes_util",
  "strum",
+ "strum_macros",
  "tempfile",
  "thiserror 2.0.21",
  "tracing",

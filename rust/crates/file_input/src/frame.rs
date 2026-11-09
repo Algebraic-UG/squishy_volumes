@@ -49,7 +49,16 @@ impl BulkAttribute {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    PartialOrd,
+    strum_macros::EnumIter,
+)]
 pub enum FrameBulkParticles {
     IsSolid,
     IsFluid,
@@ -98,7 +107,16 @@ impl FrameBulkParticles {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    PartialOrd,
+    strum_macros::EnumIter,
+)]
 pub enum FrameBulkCollider {
     Position,
     Triangles,

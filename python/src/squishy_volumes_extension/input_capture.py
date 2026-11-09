@@ -153,6 +153,41 @@ def triangles_to_numpy_array(
     return array
 
 
+def _bulk_meta(obj, input_type: str, key: str) -> dict:
+    return {"object_name": obj.name, "captured_attribute": {input_type: key}}
+
+
+def _record_bulk(*, sim_input_handle: SimulationInputHandle, meta: dict, bulk):
+    if bulk.dtype == "bool":
+        sim_input_handle.record_input_bool(meta=meta, bulk=bulk)
+    elif bulk.dtype == "float32":
+        sim_input_handle.record_input_float(meta=meta, bulk=bulk)
+    elif bulk.dtype == "int32":
+        sim_input_handle.record_input_int(meta=meta, bulk=bulk)
+    else:
+        raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
+
+
+def _record_attributes(
+    *,
+    sim_input_handle: SimulationInputHandle,
+    obj,
+    input_type: str,
+    attributes: tuple[input_attributes.InputAttribute, ...],
+):
+    mesh = obj.data
+    for attribute in attributes:
+        if attribute.name not in mesh.attributes:
+            continue
+        _record_bulk(
+            sim_input_handle=sim_input_handle,
+            meta=_bulk_meta(obj, input_type, attribute.key),
+            bulk=attribute_to_numpy_array(
+                mesh=mesh, attribute=mesh.attributes[attribute.name]
+            ),
+        )
+
+
 def capture_input_frame(
     *,
     sim_props,
@@ -176,33 +211,7 @@ def capture_input_frame(
     for input_obj in get_input_objects_with_uuid(sim_props.uuid):
         evaluated_obj = input_obj.evaluated_get(depsgraph)
         mesh = evaluated_obj.data
-        attributes = mesh.attributes
         input_type = evaluated_obj.squishy_volumes.input_type
-
-        def record(
-            *, python_name: str | None, rust_name: str, triangle_indices: bool = False
-        ):
-            meta = {
-                "object_name": evaluated_obj.name,  # noqa: B023
-                "captured_attribute": {input_type: rust_name},  # noqa: B023
-            }
-            if triangle_indices:
-                bulk = triangles_to_numpy_array(mesh=mesh)  # noqa: B023
-            else:
-                if python_name not in attributes:  # noqa: B023
-                    return
-                bulk = attribute_to_numpy_array(
-                    mesh=mesh,  # noqa: B023
-                    attribute=attributes[python_name],  # noqa: B023
-                )
-            if bulk.dtype == "bool":
-                sim_input_handle.record_input_bool(meta=meta, bulk=bulk)
-            elif bulk.dtype == "float32":
-                sim_input_handle.record_input_float(meta=meta, bulk=bulk)
-            elif bulk.dtype == "int32":
-                sim_input_handle.record_input_int(meta=meta, bulk=bulk)
-            else:
-                raise RuntimeError(f"{bulk.dtype} input bulk not handled yet")
 
         if input_type == INPUT_TYPE_PARTICLES:
             if not get_allow_scaled_input() and evaluated_obj.scale != mathutils.Vector(
@@ -218,55 +227,11 @@ If that is what you want, enable the addon preference
 Or apply the object scale."""
                 )
 
-            record(python_name=input_attributes.PARTICLE_IS_SOLID, rust_name="IsSolid")
-            record(python_name=input_attributes.PARTICLE_IS_FLUID, rust_name="IsFluid")
-            record(
-                python_name=input_attributes.PARTICLE_USE_VISCOSITY,
-                rust_name="UseViscosity",
-            )
-            record(
-                python_name=input_attributes.PARTICLE_USE_SAND_ALPHA,
-                rust_name="UseSandAlpha",
-            )
-            record(python_name=input_attributes.PARTICLE_HAS_GOAL, rust_name="HasGoal")
-
-            record(
-                python_name=input_attributes.PARTICLE_TRANSFORM, rust_name="Transform"
-            )
-            record(python_name=input_attributes.PARTICLE_SIZE, rust_name="Size")
-            record(python_name=input_attributes.PARTICLE_DENSITY, rust_name="Density")
-            record(
-                python_name=input_attributes.PARTICLE_YOUNGS_MODULUS,
-                rust_name="YoungsModulus",
-            )
-            record(
-                python_name=input_attributes.PARTICLE_POISSONS_RATIO,
-                rust_name="PoissonsRatio",
-            )
-            record(
-                python_name=input_attributes.PARTICLE_INITIAL_POSITION,
-                rust_name="InitialPosition",
-            )
-            record(python_name=input_attributes.PARTICLE_VELOCITY, rust_name="Velocity")
-            record(
-                python_name=input_attributes.PARTICLE_VISCOSITY_DYNAMIC,
-                rust_name="ViscosityDynamic",
-            )
-            record(
-                python_name=input_attributes.PARTICLE_VISCOSITY_BULK,
-                rust_name="ViscosityBulk",
-            )
-            record(python_name=input_attributes.PARTICLE_EXPONENT, rust_name="Exponent")
-            record(
-                python_name=input_attributes.PARTICLE_BULK_MODULUS,
-                rust_name="BulkModulus",
-            )
-            record(
-                python_name=input_attributes.PARTICLE_SAND_ALPHA, rust_name="SandAlpha"
-            )
-            record(
-                python_name=input_attributes.PARTICLE_GOAL_POSITION,
-                rust_name="GoalPosition",
+            _record_attributes(
+                sim_input_handle=sim_input_handle,
+                obj=evaluated_obj,
+                input_type=input_type,
+                attributes=input_attributes.PARTICLE_ATTRIBUTES,
             )
 
         if input_type == INPUT_TYPE_COLLIDER:
@@ -274,22 +239,19 @@ Or apply the object scale."""
                 "Is the mesh triangulated?"
             )
 
-            record(
-                python_name=input_attributes.COLLIDER_POSITION,
-                rust_name="Position",
-            )
-
             # the topology is recorded only once and can't change (yet?)
             if sim_props.capture_start_frame == bpy.context.scene.frame_current:
-                record(python_name=None, rust_name="Triangles", triangle_indices=True)
+                _record_bulk(
+                    sim_input_handle=sim_input_handle,
+                    meta=_bulk_meta(evaluated_obj, input_type, "Triangles"),
+                    bulk=triangles_to_numpy_array(mesh=mesh),
+                )
 
-            record(
-                python_name=input_attributes.COLLIDER_FRICTION,
-                rust_name="Friction",
-            )
-            record(
-                python_name=input_attributes.COLLIDER_DAMPING,
-                rust_name="Damping",
+            _record_attributes(
+                sim_input_handle=sim_input_handle,
+                obj=evaluated_obj,
+                input_type=input_type,
+                attributes=input_attributes.COLLIDER_ATTRIBUTES,
             )
 
     return True
