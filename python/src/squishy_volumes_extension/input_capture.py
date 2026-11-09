@@ -218,41 +218,58 @@ If that is what you want, enable the addon preference
 Or apply the object scale."""
                 )
 
-            record(python_name=input_attributes.IS_SOLID, rust_name="IsSolid")
-            record(python_name=input_attributes.IS_FLUID, rust_name="IsFluid")
-            record(python_name=input_attributes.USE_VISCOSITY, rust_name="UseViscosity")
+            record(python_name=input_attributes.PARTICLE_IS_SOLID, rust_name="IsSolid")
+            record(python_name=input_attributes.PARTICLE_IS_FLUID, rust_name="IsFluid")
             record(
-                python_name=input_attributes.USE_SAND_ALPHA, rust_name="UseSandAlpha"
+                python_name=input_attributes.PARTICLE_USE_VISCOSITY,
+                rust_name="UseViscosity",
             )
-            record(python_name=input_attributes.HAS_GOAL, rust_name="HasGoal")
-
-            record(python_name=input_attributes.TRANSFORM, rust_name="Transforms")
-            record(python_name=input_attributes.SIZE, rust_name="Sizes")
-            record(python_name=input_attributes.DENSITY, rust_name="Densities")
             record(
-                python_name=input_attributes.YOUNGS_MODULUS,
+                python_name=input_attributes.PARTICLE_USE_SAND_ALPHA,
+                rust_name="UseSandAlpha",
+            )
+            record(python_name=input_attributes.PARTICLE_HAS_GOAL, rust_name="HasGoal")
+
+            record(
+                python_name=input_attributes.PARTICLE_TRANSFORM, rust_name="Transforms"
+            )
+            record(python_name=input_attributes.PARTICLE_SIZE, rust_name="Sizes")
+            record(python_name=input_attributes.PARTICLE_DENSITY, rust_name="Densities")
+            record(
+                python_name=input_attributes.PARTICLE_YOUNGS_MODULUS,
                 rust_name="YoungsModuluses",
             )
             record(
-                python_name=input_attributes.POISSONS_RATIO, rust_name="PoissonsRatios"
+                python_name=input_attributes.PARTICLE_POISSONS_RATIO,
+                rust_name="PoissonsRatios",
             )
             record(
-                python_name=input_attributes.INITIAL_POSITION,
+                python_name=input_attributes.PARTICLE_INITIAL_POSITION,
                 rust_name="InitialPositions",
             )
-            record(python_name=input_attributes.VELOCITY, rust_name="InitialVelocity")
             record(
-                python_name=input_attributes.VISCOSITY_DYNAMIC,
+                python_name=input_attributes.PARTICLE_VELOCITY,
+                rust_name="InitialVelocity",
+            )
+            record(
+                python_name=input_attributes.PARTICLE_VISCOSITY_DYNAMIC,
                 rust_name="ViscosityDynamic",
             )
             record(
-                python_name=input_attributes.VISCOSITY_BULK, rust_name="ViscosityBulk"
+                python_name=input_attributes.PARTICLE_VISCOSITY_BULK,
+                rust_name="ViscosityBulk",
             )
-            record(python_name=input_attributes.EXPONENT, rust_name="Exponent")
-            record(python_name=input_attributes.BULK_MODULUS, rust_name="BulkModulus")
-            record(python_name=input_attributes.SAND_ALPHA, rust_name="SandAlpha")
+            record(python_name=input_attributes.PARTICLE_EXPONENT, rust_name="Exponent")
             record(
-                python_name=input_attributes.GOAL_POSITION, rust_name="GoalPositions"
+                python_name=input_attributes.PARTICLE_BULK_MODULUS,
+                rust_name="BulkModulus",
+            )
+            record(
+                python_name=input_attributes.PARTICLE_SAND_ALPHA, rust_name="SandAlpha"
+            )
+            record(
+                python_name=input_attributes.PARTICLE_GOAL_POSITION,
+                rust_name="GoalPositions",
             )
 
         if input_type == INPUT_TYPE_COLLIDER:

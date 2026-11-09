@@ -55,7 +55,7 @@ class SetGoals(CustomGeometryGroup):
             geometry = (
                 geometry
                 >> g.StoreNamedAttribute.point.boolean(
-                    selection=inside, name=names.inputs.HAS_GOAL, value=True
+                    selection=inside, name=names.inputs.PARTICLE_HAS_GOAL, value=True
                 )
                 >> g.SetPosition(selection=inside, position=goal_position)
             )
@@ -64,7 +64,7 @@ class SetGoals(CustomGeometryGroup):
             (
                 geometry
                 >> g.StoreNamedAttribute.point.vector(
-                    name=names.inputs.GOAL_POSITION,
+                    name=names.inputs.PARTICLE_GOAL_POSITION,
                     value=g.Position().o.position.transform(self_matrix()),
                 )
                 >> tree.outputs.geometry()

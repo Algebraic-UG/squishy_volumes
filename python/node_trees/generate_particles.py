@@ -119,7 +119,7 @@ class ParticleParameters(CustomGeometryGroup):
 
         with g.Frame("Object Transform"):
             geometry = geometry >> g.StoreNamedAttribute.point.matrix(
-                name=names.inputs.TRANSFORM,
+                name=names.inputs.PARTICLE_TRANSFORM,
                 value=g.CombineTransform(
                     pos.transform(trans),
                     trans.rotation,
@@ -129,7 +129,7 @@ class ParticleParameters(CustomGeometryGroup):
 
         with g.Frame("Initial Velocity"):
             geometry = geometry >> g.StoreNamedAttribute.point.vector(
-                name=names.inputs.VELOCITY,
+                name=names.inputs.PARTICLE_VELOCITY,
                 value=initial_velocity_linear
                 + initial_velocity_angular.cross(pos.transform_direction(trans)),
             )
@@ -137,15 +137,18 @@ class ParticleParameters(CustomGeometryGroup):
         with g.Frame("Common Parameters"):
             geometry = (
                 geometry
-                >> g.StoreNamedAttribute.point.float(name=names.inputs.SIZE, value=size)
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.DENSITY, value=density
+                    name=names.inputs.PARTICLE_SIZE, value=size
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.VISCOSITY_DYNAMIC, value=viscosity_dynamic
+                    name=names.inputs.PARTICLE_DENSITY, value=density
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.VISCOSITY_BULK, value=viscosity_bulk
+                    name=names.inputs.PARTICLE_VISCOSITY_DYNAMIC,
+                    value=viscosity_dynamic,
+                )
+                >> g.StoreNamedAttribute.point.float(
+                    name=names.inputs.PARTICLE_VISCOSITY_BULK, value=viscosity_bulk
                 )
             )
 
@@ -153,15 +156,15 @@ class ParticleParameters(CustomGeometryGroup):
             solid = (
                 geometry
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.YOUNGS_MODULUS,
+                    name=names.inputs.PARTICLE_YOUNGS_MODULUS,
                     value=youngs_modulus,
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.POISSONS_RATIO,
+                    name=names.inputs.PARTICLE_POISSONS_RATIO,
                     value=poissons_ratio,
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.SAND_ALPHA,
+                    name=names.inputs.PARTICLE_SAND_ALPHA,
                     value=sand_alpha_value,
                 )
             )
@@ -170,11 +173,11 @@ class ParticleParameters(CustomGeometryGroup):
             fluid = (
                 geometry
                 >> g.StoreNamedAttribute.point.float(
-                    name=names.inputs.BULK_MODULUS,
+                    name=names.inputs.PARTICLE_BULK_MODULUS,
                     value=bulk_modulus,
                 )
                 >> g.StoreNamedAttribute.point.integer(
-                    name=names.inputs.EXPONENT,
+                    name=names.inputs.PARTICLE_EXPONENT,
                     value=exponent,
                 )
             )
@@ -185,19 +188,19 @@ class ParticleParameters(CustomGeometryGroup):
             geometry = (
                 geometry
                 >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.IS_SOLID,
+                    name=names.inputs.PARTICLE_IS_SOLID,
                     value=material_type == 0,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.IS_FLUID,
+                    name=names.inputs.PARTICLE_IS_FLUID,
                     value=material_type == 1,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.USE_VISCOSITY,
+                    name=names.inputs.PARTICLE_USE_VISCOSITY,
                     value=viscosity,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.USE_SAND_ALPHA,
+                    name=names.inputs.PARTICLE_USE_SAND_ALPHA,
                     value=sand_alpha,
                 )
             )

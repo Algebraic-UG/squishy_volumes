@@ -435,7 +435,7 @@
                                                         "pin_gizmo": false,
                                                         "type": "STRING",
                                                         "display_shape": "LINE",
-                                                        "default_value": "squishy_volumes_friction"
+                                                        "default_value": "sv_friction"
                                                     }
                                                 },
                                                 {
@@ -744,7 +744,7 @@
                                                         "pin_gizmo": false,
                                                         "type": "STRING",
                                                         "display_shape": "LINE",
-                                                        "default_value": "squishy_volumes_position"
+                                                        "default_value": "sv_position"
                                                     }
                                                 },
                                                 {
@@ -1270,7 +1270,7 @@
                                                         "pin_gizmo": false,
                                                         "type": "STRING",
                                                         "display_shape": "LINE",
-                                                        "default_value": "squishy_volumes_damping"
+                                                        "default_value": "sv_damping"
                                                     }
                                                 },
                                                 {
