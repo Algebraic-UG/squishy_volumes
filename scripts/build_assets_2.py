@@ -247,7 +247,7 @@ class Record(CustomGeometryGroup):
                     value=poissons_ratio,
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_sand_alpha_value",
+                    name="squishy_volumes_sand_alpha",
                     value=sand_alpha_value,
                 )
             )
