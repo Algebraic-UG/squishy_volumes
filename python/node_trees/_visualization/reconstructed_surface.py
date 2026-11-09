@@ -22,6 +22,7 @@ from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 from nodebpy.types import InputBoolean, InputFloat, InputGeometry, InputInteger
 
+from .._shared import names
 from .._shared.attributes import float_attribute
 
 
@@ -58,7 +59,7 @@ class ReconstructedSurfaceVisualization(CustomGeometryGroup):
 
         with g.Frame("Radii of the points"):
             radius = override_radii.switch.float(
-                false=float_attribute(geometry, "initial_size", 1.0),
+                false=float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1.0),
                 true=override_radii_value * 2.0,
             )
 

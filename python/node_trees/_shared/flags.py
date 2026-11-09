@@ -22,17 +22,8 @@ from nodebpy import geometry as g
 from nodebpy.builder import BooleanSocket, CustomGeometryGroup, IntegerSocket
 from nodebpy.types import InputGeometry, InputInteger, InputMenu, InputVector
 
+from . import names
 from .attributes import vector_attribute
-
-FLAG_BITS = {
-    "IS_SOLID": 0,
-    "IS_FLUID": 1,
-    "USE_VISCOSITY": 2,
-    "USE_SAND_ALPHA": 3,
-    "HAS_GOAL": 4,
-    "TOMBSTONED": 5,
-    "FAILED": 6,
-}
 
 
 # Workaround until int attributes can be read
@@ -55,6 +46,10 @@ class GetFlag(CustomGeometryGroup):
         super().__init__(Geometry=geometry, Flag=flag)
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
-        flags = vector_attribute(tree.inputs.geometry("Geometry"), "flags", (0, 0, 0))
-        bit = tree.inputs.menu("Flag") >> g.MenuSwitch.integer(items=FLAG_BITS)
+        flags = vector_attribute(
+            tree.inputs.geometry("Geometry"), names.outputs.FLAGS.name, (0, 0, 0)
+        )
+        bit = tree.inputs.menu("Flag") >> g.MenuSwitch.integer(
+            items=names.outputs.PARTICLE_FLAG_BITS
+        )
         is_bit_set(vector_2d_to_int(flags), bit) >> tree.outputs.boolean()

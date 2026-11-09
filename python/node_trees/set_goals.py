@@ -23,6 +23,7 @@ from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup, MatrixSocket
 
+from ._shared import names
 from ._shared.inside import is_inside_object
 
 
@@ -54,7 +55,7 @@ class SetGoals(CustomGeometryGroup):
             geometry = (
                 geometry
                 >> g.StoreNamedAttribute.point.boolean(
-                    selection=inside, name="squishy_volumes_has_goal", value=True
+                    selection=inside, name=names.inputs.HAS_GOAL, value=True
                 )
                 >> g.SetPosition(selection=inside, position=goal_position)
             )
@@ -63,7 +64,7 @@ class SetGoals(CustomGeometryGroup):
             (
                 geometry
                 >> g.StoreNamedAttribute.point.vector(
-                    name="squishy_volumes_goal_position",
+                    name=names.inputs.GOAL_POSITION,
                     value=g.Position().o.position.transform(self_matrix()),
                 )
                 >> tree.outputs.geometry()

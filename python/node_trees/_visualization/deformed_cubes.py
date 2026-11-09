@@ -22,6 +22,7 @@ from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 from nodebpy.types import InputFloat, InputGeometry
 
+from .._shared import names
 from .._shared.attributes import float_attribute, vector_attribute
 from .._shared.matrix import matrix_from_columns
 
@@ -40,13 +41,16 @@ class DeformedCubesVisualization(CustomGeometryGroup):
         geometry = tree.inputs.geometry("Geometry")
         scale = tree.inputs.float("Scale")
 
-        size = scale * float_attribute(geometry, "initial_size", 1)
-        deformation = matrix_from_columns(
-            vector_attribute(geometry, "position_gradient_x", (1, 0, 0)),
-            vector_attribute(geometry, "position_gradient_y", (0, 1, 0)),
-            vector_attribute(geometry, "position_gradient_z", (0, 0, 1)),
-            g.Position().o.position,
+        size = scale * float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1)
+        x, y, z = (
+            vector_attribute(geometry, column.name, column.default)
+            for column in (
+                names.outputs.POSITION_GRADIENT_X,
+                names.outputs.POSITION_GRADIENT_Y,
+                names.outputs.POSITION_GRADIENT_Z,
+            )
         )
+        deformation = matrix_from_columns(x, y, z, g.Position().o.position)
 
         (
             g.InstanceOnPoints(points=geometry, instance=g.Cube())

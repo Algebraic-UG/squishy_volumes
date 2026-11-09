@@ -23,6 +23,7 @@ from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 
+from ._shared import names
 from ._shared.inside import is_inside_object
 
 
@@ -115,7 +116,7 @@ class ParticleParameters(CustomGeometryGroup):
 
         with g.Frame("Object Transform"):
             geometry = geometry >> g.StoreNamedAttribute.point.matrix(
-                name="squishy_volumes_transform",
+                name=names.inputs.TRANSFORM,
                 value=g.CombineTransform(
                     pos.transform(trans),
                     trans.rotation,
@@ -125,7 +126,7 @@ class ParticleParameters(CustomGeometryGroup):
 
         with g.Frame("Initial Velocity"):
             geometry = geometry >> g.StoreNamedAttribute.point.vector(
-                name="squishy_volumes_velocity",
+                name=names.inputs.VELOCITY,
                 value=initial_velocity_linear
                 + initial_velocity_angular.cross(pos.transform_direction(trans)),
             )
@@ -133,17 +134,15 @@ class ParticleParameters(CustomGeometryGroup):
         with g.Frame("Common Parameters"):
             geometry = (
                 geometry
+                >> g.StoreNamedAttribute.point.float(name=names.inputs.SIZE, value=size)
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_size", value=size
+                    name=names.inputs.DENSITY, value=density
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_density", value=density
+                    name=names.inputs.VISCOSITY_DYNAMIC, value=viscosity_dynamic
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_viscosity_dynamic", value=viscosity_dynamic
-                )
-                >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_viscosity_bulk", value=viscosity_bulk
+                    name=names.inputs.VISCOSITY_BULK, value=viscosity_bulk
                 )
             )
 
@@ -151,15 +150,15 @@ class ParticleParameters(CustomGeometryGroup):
             solid = (
                 geometry
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_youngs_modulus",
+                    name=names.inputs.YOUNGS_MODULUS,
                     value=youngs_modulus,
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_poissons_ratio",
+                    name=names.inputs.POISSONS_RATIO,
                     value=poissons_ratio,
                 )
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_sand_alpha",
+                    name=names.inputs.SAND_ALPHA,
                     value=sand_alpha_value,
                 )
             )
@@ -168,11 +167,11 @@ class ParticleParameters(CustomGeometryGroup):
             fluid = (
                 geometry
                 >> g.StoreNamedAttribute.point.float(
-                    name="squishy_volumes_bulk_modulus",
+                    name=names.inputs.BULK_MODULUS,
                     value=bulk_modulus,
                 )
                 >> g.StoreNamedAttribute.point.integer(
-                    name="squishy_volumes_exponent",
+                    name=names.inputs.EXPONENT,
                     value=exponent,
                 )
             )
@@ -183,19 +182,19 @@ class ParticleParameters(CustomGeometryGroup):
             geometry = (
                 geometry
                 >> g.StoreNamedAttribute.point.boolean(
-                    name="squishy_volumes_is_solid",
+                    name=names.inputs.IS_SOLID,
                     value=material_type == 0,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name="squishy_volumes_is_fluid",
+                    name=names.inputs.IS_FLUID,
                     value=material_type == 1,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name="squishy_volumes_use_viscosity",
+                    name=names.inputs.USE_VISCOSITY,
                     value=viscosity,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name="squishy_volumes_use_sand_alpha",
+                    name=names.inputs.USE_SAND_ALPHA,
                     value=sand_alpha,
                 )
             )

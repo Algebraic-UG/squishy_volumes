@@ -22,6 +22,7 @@ from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 from nodebpy.types import InputFloat, InputGeometry
 
+from .._shared import names
 from .._shared.attributes import float_attribute
 from .._shared.flags import GetFlag
 
@@ -47,7 +48,8 @@ class PointVisualization(CustomGeometryGroup):
         (
             geometry
             >> g.SetPointRadius(
-                radius=scale * float_attribute(geometry, "initial_size", 1)
+                radius=scale
+                * float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1)
             )
             >> tree.outputs.geometry()
         )
