@@ -20,6 +20,7 @@ import bpy  # ty: ignore[unresolved-import]
 import mathutils  # ty: ignore[unresolved-import]
 import numpy as np  # ty: ignore[unresolved-import]
 
+from . import input_attributes
 from .bridge import SimulationInputHandle
 from .get_preferences import get_allow_scaled_input, get_domain_max, get_domain_min
 from .squishy_volumes_properties import (
@@ -217,43 +218,41 @@ If that is what you want, enable the addon preference
 Or apply the object scale."""
                 )
 
-            record(python_name="squishy_volumes_is_solid", rust_name="IsSolid")
-            record(python_name="squishy_volumes_is_fluid", rust_name="IsFluid")
+            record(python_name=input_attributes.IS_SOLID, rust_name="IsSolid")
+            record(python_name=input_attributes.IS_FLUID, rust_name="IsFluid")
+            record(python_name=input_attributes.USE_VISCOSITY, rust_name="UseViscosity")
             record(
-                python_name="squishy_volumes_use_viscosity", rust_name="UseViscosity"
+                python_name=input_attributes.USE_SAND_ALPHA, rust_name="UseSandAlpha"
             )
-            record(
-                python_name="squishy_volumes_use_sand_alpha", rust_name="UseSandAlpha"
-            )
-            record(python_name="squishy_volumes_has_goal", rust_name="HasGoal")
+            record(python_name=input_attributes.HAS_GOAL, rust_name="HasGoal")
 
-            record(python_name="squishy_volumes_transform", rust_name="Transforms")
-            record(python_name="squishy_volumes_size", rust_name="Sizes")
-            record(python_name="squishy_volumes_density", rust_name="Densities")
+            record(python_name=input_attributes.TRANSFORM, rust_name="Transforms")
+            record(python_name=input_attributes.SIZE, rust_name="Sizes")
+            record(python_name=input_attributes.DENSITY, rust_name="Densities")
             record(
-                python_name="squishy_volumes_youngs_modulus",
+                python_name=input_attributes.YOUNGS_MODULUS,
                 rust_name="YoungsModuluses",
             )
             record(
-                python_name="squishy_volumes_poissons_ratio", rust_name="PoissonsRatios"
+                python_name=input_attributes.POISSONS_RATIO, rust_name="PoissonsRatios"
             )
             record(
-                python_name="squishy_volumes_initial_position",
+                python_name=input_attributes.INITIAL_POSITION,
                 rust_name="InitialPositions",
             )
-            record(python_name="squishy_volumes_velocity", rust_name="InitialVelocity")
+            record(python_name=input_attributes.VELOCITY, rust_name="InitialVelocity")
             record(
-                python_name="squishy_volumes_viscosity_dynamic",
+                python_name=input_attributes.VISCOSITY_DYNAMIC,
                 rust_name="ViscosityDynamic",
             )
             record(
-                python_name="squishy_volumes_viscosity_bulk", rust_name="ViscosityBulk"
+                python_name=input_attributes.VISCOSITY_BULK, rust_name="ViscosityBulk"
             )
-            record(python_name="squishy_volumes_exponent", rust_name="Exponent")
-            record(python_name="squishy_volumes_bulk_modulus", rust_name="BulkModulus")
-            record(python_name="squishy_volumes_sand_alpha", rust_name="SandAlpha")
+            record(python_name=input_attributes.EXPONENT, rust_name="Exponent")
+            record(python_name=input_attributes.BULK_MODULUS, rust_name="BulkModulus")
+            record(python_name=input_attributes.SAND_ALPHA, rust_name="SandAlpha")
             record(
-                python_name="squishy_volumes_goal_position", rust_name="GoalPositions"
+                python_name=input_attributes.GOAL_POSITION, rust_name="GoalPositions"
             )
 
         if input_type == INPUT_TYPE_COLLIDER:
@@ -261,15 +260,22 @@ Or apply the object scale."""
                 "Is the mesh triangulated?"
             )
 
-            record(python_name="squishy_volumes_position", rust_name="VertexPositions")
+            record(
+                python_name=input_attributes.COLLIDER_POSITION,
+                rust_name="VertexPositions",
+            )
 
             # the topology is recorded only once and can't change (yet?)
             if sim_props.capture_start_frame == bpy.context.scene.frame_current:
                 record(python_name=None, rust_name="Triangles", triangle_indices=True)
 
             record(
-                python_name="squishy_volumes_friction", rust_name="TriangleFrictions"
+                python_name=input_attributes.COLLIDER_FRICTION,
+                rust_name="TriangleFrictions",
             )
-            record(python_name="squishy_volumes_damping", rust_name="TriangleDampings")
+            record(
+                python_name=input_attributes.COLLIDER_DAMPING,
+                rust_name="TriangleDampings",
+            )
 
     return True
