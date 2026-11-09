@@ -26,6 +26,9 @@ from nodebpy.builder import CustomGeometryGroup
 from ._shared import names
 from ._shared.inside import is_inside_object
 
+DRIVEN_BY_SIMULATION = "This is driven by the simulation this input is assigned to."
+STIFFNESS = "Stiffness of the material in Pascal, i.e. kg/m/s^2"
+
 
 class GenerateGrid(CustomGeometryGroup):
     _name = "Generate Grid"
@@ -209,13 +212,35 @@ class GenerateParticles(CustomGeometryGroup):
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         with tree.inputs.panel("Sampling"):
             spacing = g.Math.divide(
-                value=tree.inputs.float("Grid Node Size", default_value=0.5),
-                value_001=tree.inputs.float("Sampling Factor", default_value=2.0),
+                value=tree.inputs.float(
+                    "Grid Node Size",
+                    default_value=0.5,
+                    min_value=0.0,
+                    subtype="DISTANCE",
+                    description=DRIVEN_BY_SIMULATION,
+                ),
+                value_001=tree.inputs.float(
+                    "Sampling Factor",
+                    default_value=2.0,
+                    min_value=1.0,
+                    max_value=10.0,
+                    subtype="FACTOR",
+                    description="Creates more particles but doesn't change the "
+                    "simulation resolution.",
+                ),
             )
             sampling_bundle = g.CombineBundle(
                 {
                     "Spacing": spacing,
-                    "Random": tree.inputs.float("Random", default_value=0.5),
+                    "Random": tree.inputs.float(
+                        "Random",
+                        default_value=0.5,
+                        min_value=0.0,
+                        max_value=1.0,
+                        subtype="FACTOR",
+                        description="Control the magnitude of random offsets, "
+                        "relative to the particle spacing.",
+                    ),
                 }
             )
 
@@ -229,35 +254,86 @@ class GenerateParticles(CustomGeometryGroup):
         parameters["Size"] = spacing
 
         with tree.inputs.panel("Initial Parameters"):
-            start_frame = tree.inputs.integer("Start Frame", default_value=1)
+            start_frame = tree.inputs.integer(
+                "Start Frame", default_value=1, description=DRIVEN_BY_SIMULATION
+            )
 
-            parameters["Density"] = tree.inputs.float("Density", default_value=1000.0)
-            type_switch = tree.inputs.menu(name="Type") >> g.MenuSwitch.integer()
+            parameters["Density"] = tree.inputs.float(
+                "Density",
+                default_value=1000.0,
+                min_value=0.001,
+                description="Density of the material in kg/m^3",
+            )
+            type_switch = (
+                tree.inputs.menu(
+                    name="Type",
+                    default_value="Solid",
+                    description="Depending on the type, different parameters are "
+                    "available.",
+                )
+                >> g.MenuSwitch.integer()
+            )
             is_solid = type_switch.items.new(0, "Solid").output
             is_fluid = type_switch.items.new(1, "Fluid").output
 
             parameters["Type"] = type_switch.o.output
             parameters["Young's Modulus"] = is_solid.switch.float(
-                true=tree.inputs.float("Young's Modulus", default_value=10000.0)
+                true=tree.inputs.float(
+                    "Young's Modulus",
+                    default_value=10000.0,
+                    min_value=0.0,
+                    description=STIFFNESS,
+                )
             )
             parameters["Poissons's Ratio"] = is_solid.switch.float(
-                true=tree.inputs.float("Poisson's Ratio", default_value=0.3)
+                true=tree.inputs.float(
+                    "Poisson's Ratio",
+                    default_value=0.3,
+                    min_value=0.0,
+                    max_value=0.49,
+                    subtype="FACTOR",
+                    description="How volume conserving the material should be.",
+                )
             )
             parameters["Bulk Modulus"] = is_fluid.switch.float(
-                true=tree.inputs.float("Bulk Modulus", default_value=1000.0)
+                true=tree.inputs.float(
+                    "Bulk Modulus",
+                    default_value=1000.0,
+                    min_value=0.0,
+                    description=STIFFNESS,
+                )
             )
             parameters["Exponent"] = is_fluid.switch.integer(
-                true=tree.inputs.integer("Exponent", default_value=2)
+                true=tree.inputs.integer(
+                    "Exponent",
+                    default_value=2,
+                    min_value=2,
+                    description="How sharp resistance to compression ramps up.",
+                )
             )
 
             with tree.inputs.panel(name="Viscosity"):
                 viscosity = tree.inputs.boolean(name="Viscosity", is_panel_toggle=True)
                 parameters["Viscosity"] = viscosity
                 parameters["Viscosity Dynamic"] = viscosity.switch.float(
-                    true=tree.inputs.float("Viscosity Dynamic", default_value=3.0)
+                    true=tree.inputs.float(
+                        "Viscosity Dynamic",
+                        default_value=3.0,
+                        min_value=0.0,
+                        max_value=10.0,
+                        description="Shearing resistance in Pascal per second, "
+                        "i.e., kg/m/s",
+                    )
                 )
                 parameters["Viscosity Bulk"] = viscosity.switch.float(
-                    true=tree.inputs.float("Viscosity Bulk", default_value=3.0)
+                    true=tree.inputs.float(
+                        "Viscosity Bulk",
+                        default_value=3.0,
+                        min_value=0.0,
+                        max_value=10.0,
+                        description="Volume change resistance in Pascal per "
+                        "second, i.e., kg/m/s",
+                    )
                 )
 
             with tree.inputs.panel(name="Sand Alpha"):
@@ -266,7 +342,14 @@ class GenerateParticles(CustomGeometryGroup):
                 )
                 parameters["Sand Alpha"] = sand_alpha
                 parameters["Sand Alpha Value"] = sand_alpha.switch.float(
-                    true=tree.inputs.float("Sand Alpha Value", default_value=0.3)
+                    true=tree.inputs.float(
+                        "Sand Alpha Value",
+                        default_value=0.3,
+                        min_value=0.0,
+                        max_value=1.0,
+                        subtype="FACTOR",
+                        description="Shear limit before material gives way.",
+                    )
                 )
 
             with tree.inputs.panel(name="Initial Velocity"):
@@ -275,10 +358,20 @@ class GenerateParticles(CustomGeometryGroup):
                 )
                 parameters["Initial Velocity"] = initial_velocity
                 parameters["Initial Velocity Linear"] = initial_velocity.switch.vector(
-                    true=tree.inputs.vector("Initial Velocity Linear")
+                    true=tree.inputs.vector(
+                        "Initial Velocity Linear",
+                        subtype="VELOCITY",
+                        description="Initial linear velocity in world space.",
+                    )
                 )
                 parameters["Initial Velocity Angular"] = initial_velocity.switch.vector(
-                    true=tree.inputs.vector("Initial Velocity Angular")
+                    true=tree.inputs.vector(
+                        "Initial Velocity Angular",
+                        min_value=-10_000.0,
+                        max_value=10_000.0,
+                        description="Initial angular velocity (wrt. object "
+                        "position) in world space.",
+                    )
                 )
 
         (

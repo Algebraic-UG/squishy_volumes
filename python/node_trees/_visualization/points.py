@@ -25,6 +25,7 @@ from nodebpy.types import InputFloat, InputGeometry
 from .._shared import names
 from .._shared.attributes import float_attribute
 from .._shared.flags import GetFlag
+from .interface import FAILED_SCALE, SCALE
 
 
 class PointVisualization(CustomGeometryGroup):
@@ -33,17 +34,17 @@ class PointVisualization(CustomGeometryGroup):
     def __init__(
         self,
         geometry: InputGeometry = ...,
-        scale: InputFloat = 1.0,
-        failed_scale: InputFloat = 5.0,
+        scale: InputFloat = SCALE.default,
+        failed_scale: InputFloat = FAILED_SCALE.default,
     ):
         super().__init__(
-            **{"Geometry": geometry, "Scale": scale, "Failed Scale": failed_scale}
+            **{"Geometry": geometry, SCALE.name: scale, FAILED_SCALE.name: failed_scale}
         )
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
         scale = GetFlag(geometry, "FAILED").o.boolean.switch.float(
-            tree.inputs.float("Scale"), tree.inputs.float("Failed Scale")
+            SCALE.add(tree), FAILED_SCALE.add(tree)
         )
         (
             geometry

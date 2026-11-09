@@ -24,6 +24,13 @@ from nodebpy.types import InputBoolean, InputFloat, InputGeometry, InputInteger
 
 from .._shared import names
 from .._shared.attributes import float_attribute
+from .interface import (
+    OVERRIDE_RADII,
+    OVERRIDE_RADII_VALUE,
+    SMOOTH_ITERATIONS,
+    SMOOTH_SHADING,
+    add_reconstruction_inputs,
+)
 
 
 class ReconstructedSurfaceVisualization(CustomGeometryGroup):
@@ -32,30 +39,26 @@ class ReconstructedSurfaceVisualization(CustomGeometryGroup):
     def __init__(
         self,
         geometry: InputGeometry = ...,
-        smooth_shading: InputBoolean = True,
-        smooth_iterations: InputInteger = 1,
-        override_radii: InputBoolean = False,
-        override_radii_value: InputFloat = 0.25,
+        smooth_shading: InputBoolean = SMOOTH_SHADING.default,
+        smooth_iterations: InputInteger = SMOOTH_ITERATIONS.default,
+        override_radii: InputBoolean = OVERRIDE_RADII.default,
+        override_radii_value: InputFloat = OVERRIDE_RADII_VALUE.default,
     ):
         super().__init__(
             **{
                 "Geometry": geometry,
-                "Smooth Shading": smooth_shading,
-                "Smooth Iterations": smooth_iterations,
-                "Override Radii": override_radii,
-                "Override Radii Value": override_radii_value,
+                SMOOTH_SHADING.name: smooth_shading,
+                SMOOTH_ITERATIONS.name: smooth_iterations,
+                OVERRIDE_RADII.name: override_radii,
+                OVERRIDE_RADII_VALUE.name: override_radii_value,
             }
         )
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
-        with tree.inputs.panel("Smooth"):
-            smooth_shading = tree.inputs.boolean("Smooth Shading")
-            smooth_iterations = tree.inputs.integer("Smooth Iterations")
-
-        with tree.inputs.panel("Override Radii"):
-            override_radii = tree.inputs.boolean("Override Radii", is_panel_toggle=True)
-            override_radii_value = tree.inputs.float("Override Radii Value")
+        smooth_shading, smooth_iterations, override_radii, override_radii_value = (
+            add_reconstruction_inputs(tree)
+        )
 
         with g.Frame("Radii of the points"):
             radius = override_radii.switch.float(

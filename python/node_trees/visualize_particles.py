@@ -24,6 +24,7 @@ from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 
 from ._visualization.deformed_cubes import DeformedCubesVisualization
+from ._visualization.interface import FAILED_SCALE, SCALE, add_reconstruction_inputs
 from ._visualization.points import PointVisualization
 from ._visualization.reconstructed_surface import ReconstructedSurfaceVisualization
 
@@ -34,16 +35,10 @@ class VisualizeParticles(CustomGeometryGroup):
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry()
-        display_as = tree.inputs.menu("Display As")
-        scale = tree.inputs.float("Scale")
-        failed_scale = tree.inputs.float("Failed Scale")
-
-        with tree.inputs.panel("Smooth"):
-            smooth_shading = tree.inputs.boolean("Smooth Shading")
-            smooth_iterations = tree.inputs.integer("Smooth Iterations")
-        with tree.inputs.panel("Override Radii"):
-            override_radii = tree.inputs.boolean("Override Radii", is_panel_toggle=True)
-            override_radii_value = tree.inputs.float("Override Radii Value")
+        display_as = tree.inputs.menu("Display As", "Points")
+        scale = SCALE.add(tree)
+        failed_scale = FAILED_SCALE.add(tree)
+        reconstruction_inputs = add_reconstruction_inputs(tree)
 
         (
             g.MenuSwitch.geometry(
@@ -52,11 +47,7 @@ class VisualizeParticles(CustomGeometryGroup):
                     "Points": PointVisualization(geometry, scale, failed_scale),
                     "Deformed Cubes": DeformedCubesVisualization(geometry, scale),
                     "Reconstructed": ReconstructedSurfaceVisualization(
-                        geometry,
-                        smooth_shading,
-                        smooth_iterations,
-                        override_radii,
-                        override_radii_value,
+                        geometry, *reconstruction_inputs
                     ),
                 },
             )
