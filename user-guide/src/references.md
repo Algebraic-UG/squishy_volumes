@@ -188,3 +188,4 @@ Ordinary library dependencies are not listed here.
   The 32-bit x86 variant hashes grid node ids on the GPU.
   The WGSL code is derived from the Rust [murmur3](https://github.com/stusmall/murmur3) crate by Stu Small,
   licensed under MIT or Apache-2.0, and tested against it.
+  Its MIT license text is in `rust/crates/gpu/src/shaders/`.
