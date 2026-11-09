@@ -72,30 +72,14 @@ colored_instances_name = _load_tree_clipper(
 ).rename_material[1]
 
 _load_tree_clipper_to_asset(
-    tree_clipper_jsons / "material_display_uvw.json",
-    [],
-)
-_load_tree_clipper_to_asset(
     tree_clipper_jsons / "geometry_nodes_grid_momentum.json",
     [(331, bpy.data.materials[colored_instances_name])],
-)
-_load_tree_clipper_to_asset(
-    tree_clipper_jsons / "geometry_nodes_particles.json",
-    [(1232, bpy.data.materials[colored_instances_name])],
 )
 _load_tree_clipper_to_asset(
     tree_clipper_jsons / "geometry_nodes_restrict_view.json",
     [],
 )
 _load_tree_clipper_to_asset(
-    tree_clipper_jsons / "geometry_nodes_generate_particles.json",
-    [],
-)
-_load_tree_clipper_to_asset(
     tree_clipper_jsons / "geometry_nodes_generate_collider.json",
-    [],
-)
-_load_tree_clipper_to_asset(
-    tree_clipper_jsons / "geometry_nodes_generate_goal_positions.json",
     [],
 )

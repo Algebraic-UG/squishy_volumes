@@ -21,16 +21,6 @@ from pathlib import Path
 import bpy  # ty: ignore[unresolved-import]
 
 
-def _load_material(file_stem: str, name: str) -> bpy.types.Material:
-    file_path = Path(__file__).parent / f"{file_stem}.blend"
-    with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
-        _data_src,
-        data_dst,
-    ):
-        data_dst.materials = [name]
-    return bpy.data.materials[name]
-
-
 def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:
     file_path = Path(__file__).parent / f"{file_stem}.blend"
     with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
@@ -54,10 +44,6 @@ def _load_tree_2(name: str) -> bpy.types.NodeTree:
         data_dst.node_groups = [name]
 
     return bpy.data.node_groups[name]
-
-
-def create_material_display_uvw() -> bpy.types.Material:
-    return _load_material("material_display_uvw", "Squishy Volumes Display UVW")
 
 
 def create_geometry_nodes_grid() -> bpy.types.NodeTree:
