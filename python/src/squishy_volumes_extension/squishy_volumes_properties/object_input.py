@@ -82,6 +82,17 @@ For example: half solid, half fluid, or something like this.""",
         default=True,
     )  # type:ignore
 
+    add_default_visualization: bpy.props.BoolProperty(
+        name="Add Default Visualization",
+        description="""Add default visualizing Geometry Nodes to the output object?
+
+The default visualization displays the simulated particles as points,
+deformed cubes or a reconstructed surface.
+
+This only applies when an output object is added.""",
+        default=True,
+    )  # type:ignore
+
     add_output_object: bpy.props.BoolProperty(
         name="Add Output Object",
         description="""Add matching output object?
@@ -89,10 +100,6 @@ For example: half solid, half fluid, or something like this.""",
 This creates a new object and links it to the active collection.
 This new object loads the simulation output (of the respective input object)
 via a Mesh Sequence Modifier.
-
-The new object also gets a geometry nodes modifier for visualization and some
-drivers for convenience.
-(For example to match the grid node size)
 
 This is just for convenience!
 Squishy Volumes does not track that new object afterwards.""",
