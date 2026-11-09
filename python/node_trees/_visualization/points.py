@@ -46,11 +46,9 @@ class PointVisualization(CustomGeometryGroup):
         scale = GetFlag(geometry, "FAILED").o.boolean.switch.float(
             SCALE.add(tree), FAILED_SCALE.add(tree)
         )
+        size = float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1)
         (
             geometry
-            >> g.SetPointRadius(
-                radius=scale
-                * float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1)
-            )
+            >> g.SetPointRadius(radius=0.5 * scale * size)
             >> tree.outputs.geometry()
         )

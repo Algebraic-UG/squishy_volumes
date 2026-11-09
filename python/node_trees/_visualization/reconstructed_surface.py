@@ -25,8 +25,7 @@ from nodebpy.types import InputBoolean, InputFloat, InputGeometry, InputInteger
 from .._shared import names
 from .._shared.attributes import float_attribute
 from .interface import (
-    OVERRIDE_RADII,
-    OVERRIDE_RADII_VALUE,
+    RADIUS_SCALE,
     SMOOTH_ITERATIONS,
     SMOOTH_SHADING,
     add_reconstruction_inputs,
@@ -39,31 +38,30 @@ class ReconstructedSurfaceVisualization(CustomGeometryGroup):
     def __init__(
         self,
         geometry: InputGeometry = ...,
+        radius_scale: InputFloat = RADIUS_SCALE.default,
         smooth_shading: InputBoolean = SMOOTH_SHADING.default,
         smooth_iterations: InputInteger = SMOOTH_ITERATIONS.default,
-        override_radii: InputBoolean = OVERRIDE_RADII.default,
-        override_radii_value: InputFloat = OVERRIDE_RADII_VALUE.default,
     ):
         super().__init__(
             **{
                 "Geometry": geometry,
+                RADIUS_SCALE.name: radius_scale,
                 SMOOTH_SHADING.name: smooth_shading,
                 SMOOTH_ITERATIONS.name: smooth_iterations,
-                OVERRIDE_RADII.name: override_radii,
-                OVERRIDE_RADII_VALUE.name: override_radii_value,
             }
         )
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
-        smooth_shading, smooth_iterations, override_radii, override_radii_value = (
-            add_reconstruction_inputs(tree)
+        radius_scale, smooth_shading, smooth_iterations = add_reconstruction_inputs(
+            tree
         )
 
         with g.Frame("Radii of the points"):
-            radius = override_radii.switch.float(
-                false=float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1.0),
-                true=override_radii_value * 2.0,
+            radius = (
+                radius_scale
+                * 0.5
+                * float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1.0)
             )
 
         with g.Frame("Estimate a good voxel size"):

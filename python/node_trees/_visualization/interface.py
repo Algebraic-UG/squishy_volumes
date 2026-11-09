@@ -35,20 +35,20 @@ FAILED_SCALE = Input(
 )
 SMOOTH_SHADING = Input("boolean", "Smooth Shading", True)
 SMOOTH_ITERATIONS = Input("integer", "Smooth Iterations", 1, {"min_value": 0})
-OVERRIDE_RADII = Input("boolean", "Override Radii", False, {"is_panel_toggle": True})
-OVERRIDE_RADII_VALUE = Input(
+RADIUS_SCALE = Input(
     "float",
-    "Override Radii Value",
-    0.25,
-    {"min_value": 0.0, "subtype": "DISTANCE"},
+    "Radius Scale",
+    1.5,
+    {
+        "min_value": 0.0,
+        "description": "Scales the particle radii so that neighboring spheres overlap.",
+    },
 )
 
 
-def add_reconstruction_inputs(tree: TreeBuilder) -> tuple[Any, Any, Any, Any]:
+def add_reconstruction_inputs(tree: TreeBuilder) -> tuple[Any, Any, Any]:
+    radius_scale = RADIUS_SCALE.add(tree)
     with tree.inputs.panel("Smooth"):
         smooth_shading = SMOOTH_SHADING.add(tree)
         smooth_iterations = SMOOTH_ITERATIONS.add(tree)
-    with tree.inputs.panel("Override Radii"):
-        override_radii = OVERRIDE_RADII.add(tree)
-        override_radii_value = OVERRIDE_RADII_VALUE.add(tree)
-    return smooth_shading, smooth_iterations, override_radii, override_radii_value
+    return radius_scale, smooth_shading, smooth_iterations
