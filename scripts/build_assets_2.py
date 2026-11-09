@@ -279,7 +279,7 @@ class Record(CustomGeometryGroup):
                     value=material_type == 1,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
-                    name="squishy_volumes_use_vicosity",
+                    name="squishy_volumes_use_viscosity",
                     value=viscosity,
                 )
                 >> g.StoreNamedAttribute.point.boolean(
@@ -361,10 +361,10 @@ def generate_particles() -> str:
                 )
                 parameters["Initial Velocity"] = initial_velocity
                 parameters["Initial Velocity Linear"] = initial_velocity.switch.vector(
-                    true=tree.inputs.vector("Initial Velcoity Linear")
+                    true=tree.inputs.vector("Initial Velocity Linear")
                 )
                 parameters["Initial Velocity Angular"] = initial_velocity.switch.vector(
-                    true=tree.inputs.vector("Initial Velcoity Angular")
+                    true=tree.inputs.vector("Initial Velocity Angular")
                 )
 
         (
