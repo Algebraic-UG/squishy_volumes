@@ -298,7 +298,7 @@ pub fn initialize_io_state(
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::InitialVelocity => {
+                    FrameBulkParticles::Velocity => {
                         particles
                             .replace_attr::<attribute::Velocity>(
                                 bulk.assume_floats()?.iter().cloned(),

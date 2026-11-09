@@ -64,7 +64,7 @@ pub enum FrameBulkParticles {
     YoungsModuluses,
     PoissonsRatios,
     InitialPositions,
-    InitialVelocity,
+    Velocity,
     ViscosityDynamic,
     ViscosityBulk,
     Exponent,
@@ -92,7 +92,7 @@ impl FrameBulkParticles {
             | Self::Exponent
             | Self::BulkModulus
             | Self::SandAlpha => 1,
-            Self::InitialPositions | Self::InitialVelocity | Self::GoalPositions => 3,
+            Self::InitialPositions | Self::Velocity | Self::GoalPositions => 3,
             Self::Transforms => 16,
         }
     }

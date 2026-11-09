@@ -247,10 +247,7 @@ Or apply the object scale."""
                 python_name=input_attributes.PARTICLE_INITIAL_POSITION,
                 rust_name="InitialPositions",
             )
-            record(
-                python_name=input_attributes.PARTICLE_VELOCITY,
-                rust_name="InitialVelocity",
-            )
+            record(python_name=input_attributes.PARTICLE_VELOCITY, rust_name="Velocity")
             record(
                 python_name=input_attributes.PARTICLE_VISCOSITY_DYNAMIC,
                 rust_name="ViscosityDynamic",

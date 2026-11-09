@@ -406,7 +406,7 @@ impl CpuState {
                         FrameBulkParticles::YoungsModuluses => todo!(),
                         FrameBulkParticles::PoissonsRatios => todo!(),
                         FrameBulkParticles::InitialPositions => todo!(),
-                        FrameBulkParticles::InitialVelocity => todo!(),
+                        FrameBulkParticles::Velocity => todo!(),
                         FrameBulkParticles::ViscosityDynamic => todo!(),
                         FrameBulkParticles::ViscosityBulk => todo!(),
                         FrameBulkParticles::Exponent => todo!(),

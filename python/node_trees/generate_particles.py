@@ -99,8 +99,8 @@ class ParticleParameters(CustomGeometryGroup):
         geometry = tree.inputs.geometry()
 
         items = (geometry >> g.GetGeometryBundle() >> g.SeparateBundle()).items
-        initial_velocity_linear = items.vector("Initial Velocity Linear").output
-        initial_velocity_angular = items.vector("Initial Velocity Angular").output
+        velocity_linear = items.vector("Velocity Linear").output
+        velocity_angular = items.vector("Velocity Angular").output
         density = items.float("Density").output
         viscosity_dynamic = items.float("Viscosity Dynamic").output
         viscosity_bulk = items.float("Viscosity Bulk").output
@@ -127,11 +127,11 @@ class ParticleParameters(CustomGeometryGroup):
                 ),
             )
 
-        with g.Frame("Initial Velocity"):
+        with g.Frame("Velocity"):
             geometry = geometry >> g.StoreNamedAttribute.point.vector(
                 name=names.inputs.PARTICLE_VELOCITY,
-                value=initial_velocity_linear
-                + initial_velocity_angular.cross(pos.transform_direction(trans)),
+                value=velocity_linear
+                + velocity_angular.cross(pos.transform_direction(trans)),
             )
 
         with g.Frame("Common Parameters"):
@@ -355,21 +355,19 @@ class GenerateParticles(CustomGeometryGroup):
                     )
                 )
 
-            with tree.inputs.panel(name="Initial Velocity"):
-                initial_velocity = tree.inputs.boolean(
-                    name="Initial Velocity", is_panel_toggle=True
-                )
-                parameters["Initial Velocity"] = initial_velocity
-                parameters["Initial Velocity Linear"] = initial_velocity.switch.vector(
+            with tree.inputs.panel(name="Velocity"):
+                velocity = tree.inputs.boolean(name="Velocity", is_panel_toggle=True)
+                parameters["Velocity"] = velocity
+                parameters["Velocity Linear"] = velocity.switch.vector(
                     true=tree.inputs.vector(
-                        "Initial Velocity Linear",
+                        "Velocity Linear",
                         subtype="VELOCITY",
                         description="Initial linear velocity in world space.",
                     )
                 )
-                parameters["Initial Velocity Angular"] = initial_velocity.switch.vector(
+                parameters["Velocity Angular"] = velocity.switch.vector(
                     true=tree.inputs.vector(
-                        "Initial Velocity Angular",
+                        "Velocity Angular",
                         min_value=-10_000.0,
                         max_value=10_000.0,
                         description="Initial angular velocity (wrt. object "
