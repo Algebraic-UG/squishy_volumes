@@ -15,6 +15,7 @@ members = [
     "crates/hot",
     "crates/mesh_util",
     #"crates/plot",
+    "crates/python_constants",
     "crates/util",
     "crates/util_test_with_f64",
     "crates/wrap",
