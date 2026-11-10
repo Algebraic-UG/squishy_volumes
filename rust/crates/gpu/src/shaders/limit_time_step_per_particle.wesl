@@ -156,9 +156,18 @@ fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, princi
         elastic_volume = 4. / time_step / time_step;
     }
 
+    var viscous_shear = 0.;
+    var viscous_volume = 0.;
+    if (flag & USE_VISCOSITY) > 0 {
+        let volume_ratio = principal_stretches.x * principal_stretches.y * principal_stretches.z;
+        let per_density = inverse_inertia * volume_ratio / parameters.density;
+        viscous_shear = 2. * parameters.viscosity_dynamic * per_density;
+        viscous_volume = 3. * parameters.viscosity_bulk * per_density;
+    }
+
     return min(
-        limit_time_step_of_oscillator(elastic_shear),
-        limit_time_step_of_oscillator(elastic_volume),
+        limit_time_step_of_damped_oscillator(elastic_shear, viscous_shear),
+        limit_time_step_of_damped_oscillator(elastic_volume, viscous_volume),
     );
 }
 
@@ -181,11 +190,14 @@ fn limit_time_step_by_isolated_fluid(parameters: ParticleParameters, principal_s
     return GRID_NODE_SIZE * sqrt(parameters.density / (K * second * D));
 }
 
-fn limit_time_step_of_oscillator(stiffness: f32) -> f32 {
-    if stiffness <= 0. {
+fn limit_time_step_of_damped_oscillator(stiffness: f32, damping: f32) -> f32 {
+    let positive_stiffness = max(stiffness, 0.);
+    let positive_damping = max(damping, 0.);
+    let denominator = positive_damping + sqrt(positive_damping * positive_damping + 4. * positive_stiffness);
+    if denominator <= 0. {
         return F32_MAX;
     }
-    return 2. / sqrt(stiffness);
+    return 4. / denominator;
 }
 
 fn limit_time_step_by_velocity(velocity: vec3f) -> f32 {

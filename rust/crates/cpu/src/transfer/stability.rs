@@ -229,8 +229,14 @@ fn material(youngs_modulus: f32, viscosity_dynamic: f32, viscosity_bulk: f32) ->
     }
 }
 
-fn solids() -> [Material; 1] {
-    [material(1e5, 0., 0.)]
+fn solids() -> [Material; 5] {
+    [
+        material(1e5, 0., 0.),
+        material(0., 1., 0.),
+        material(0., 0., 1.),
+        material(1e5, 30., 0.),
+        material(1e5, 10., 40.),
+    ]
 }
 
 fn isolated_in_each_mode(material: &Material) -> impl Iterator<Item = Vec<Particle>> + '_ {

@@ -180,6 +180,32 @@ fn undeformed_with_small_grid_nodes() {
 }
 
 #[test]
+fn viscous_with_small_grid_nodes() {
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    let viscosities = [[1., 0.], [0., 1.], [30., 5.], [1e3, 1e4]];
+    let materials: Vec<_> = solids_and_fluids(&mut rng)
+        .into_iter()
+        .zip(viscosities.into_iter().cycle())
+        .map(|((parameters, flags), [dynamic, bulk])| {
+            (
+                ParticleParameters {
+                    viscosity_dynamic: dynamic,
+                    viscosity_bulk: bulk,
+                    ..parameters
+                },
+                flags | ParticleFlags::USE_VISCOSITY,
+            )
+        })
+        .collect();
+    for volume_ratio in [0.8_f32, 1.] {
+        check_at_rest_with_small_grid_nodes(
+            materials.clone(),
+            Matrix3::from_diagonal_element(volume_ratio.cbrt()),
+        );
+    }
+}
+
+#[test]
 fn many_random_props() {
     let workgroup_size = 64.try_into().unwrap();
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();

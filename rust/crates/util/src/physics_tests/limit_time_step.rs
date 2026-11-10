@@ -321,6 +321,23 @@ fn quadratic_spline_inverse_inertia() -> T {
     4. / GRID_NODE_SIZE / GRID_NODE_SIZE
 }
 
+fn viscous(base: ParticleParameters, dynamic: T, bulk: T) -> ParticleParameters {
+    ParticleParameters {
+        viscosity_dynamic: dynamic,
+        viscosity_bulk: bulk,
+        ..base
+    }
+}
+
+fn viscous_solid_time_step(parameters: &ParticleParameters, position_gradient: &Matrix3<T>) -> T {
+    limit_time_step_by_isolated_particles(
+        &(ParticleFlags::IS_SOLID | ParticleFlags::USE_VISCOSITY),
+        parameters,
+        &principal_stretches(position_gradient),
+        GRID_NODE_SIZE,
+    )
+}
+
 #[test]
 fn isolated_solid_at_rest_oscillates_in_its_volume_mode() {
     for parameters in stiff_solids() {
@@ -432,6 +449,80 @@ fn isolated_solid_limit_covers_the_stiffness_at_its_current_stretch() {
                 "ν = {}, {position_gradient}: {time_step} exceeds {stable_time_step}",
                 parameters.poissons_ratio,
             );
+        }
+    }
+}
+
+#[test]
+fn isolated_viscous_particle_is_limited_by_its_decay_rate() {
+    let without_stiffness = ParticleParameters {
+        density: DENSITY,
+        youngs_modulus: 0.,
+        ..Default::default()
+    };
+    for [dynamic, bulk] in crate::test_viscosity_parameters().filter(|[d, b]| d + b > 0.) {
+        for volume_ratio in [0.5, 1., 2.] {
+            let current_density = DENSITY / volume_ratio;
+            let decay_rate = quadratic_spline_inverse_inertia() * (2. * dynamic).max(3. * bulk)
+                / current_density;
+            assert_relative_close(
+                2. / decay_rate,
+                viscous_solid_time_step(
+                    &viscous(without_stiffness, dynamic, bulk),
+                    &uniform(volume_ratio),
+                ),
+                RELATIVE_TOLERANCE,
+            );
+        }
+    }
+}
+
+#[test]
+fn viscosity_shortens_the_time_step() {
+    for parameters in stiff_solids() {
+        let elastic = viscous_solid_time_step(&viscous(parameters, 0., 0.), &Matrix3::identity());
+        assert_relative_close(
+            solid_time_step(
+                limit_time_step_by_isolated_particles,
+                &parameters,
+                &Matrix3::identity(),
+            ),
+            elastic,
+            RELATIVE_TOLERANCE,
+        );
+        for [dynamic, bulk] in crate::test_viscosity_parameters().filter(|[d, b]| d + b > 0.) {
+            let with_viscosity = viscous_solid_time_step(
+                &viscous(parameters, dynamic * 1e3, bulk * 1e3),
+                &Matrix3::identity(),
+            );
+            assert!(with_viscosity < elastic, "{dynamic} {bulk}");
+        }
+    }
+}
+
+#[test]
+fn viscous_solid_sits_on_the_stability_boundary_of_its_weakest_mode() {
+    for parameters in stiff_solids() {
+        for [dynamic, bulk] in crate::test_viscosity_parameters().filter(|[d, b]| d + b > 0.) {
+            let parameters = viscous(parameters, dynamic * 1e3, bulk * 1e3);
+            let time_step = viscous_solid_time_step(&parameters, &Matrix3::identity());
+            let per_density = quadratic_spline_inverse_inertia() / parameters.density;
+            let modes = [
+                (2. * parameters.mu(), 2. * parameters.viscosity_dynamic),
+                (
+                    2. * parameters.mu() + 3. * parameters.lambda(),
+                    3. * parameters.viscosity_bulk,
+                ),
+            ];
+            let largest = modes
+                .into_iter()
+                .map(|(stiffness, damping)| {
+                    let stiffness = stiffness * per_density;
+                    let damping = damping * per_density;
+                    stiffness * time_step * time_step + 2. * damping * time_step
+                })
+                .fold(0., T::max);
+            assert_relative_close(4., largest, 1e-9);
         }
     }
 }

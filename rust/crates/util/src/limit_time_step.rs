@@ -50,8 +50,6 @@ pub fn limit_time_step_by_speed_of_sound(
     let first: Vector3<T>;
     let second: Matrix3<T>;
 
-    // TODO: do something with viscosity?
-
     if flags.contains(ParticleFlags::IS_SOLID) {
         first = first_piola_stress_neo_hookean_svd_in_diagonal_space(
             parameters.mu(),
@@ -120,8 +118,8 @@ pub fn limit_time_step_by_speed_of_sound(
 ///
 /// Such a particle's velocity gradient changes per step by `-Δt · 4 / (ρ h²) · τ`,
 /// where `4 / h²` is the inverse inertia of quadratic B-splines. In each isotropic mode
-/// (shear and volume change), elasticity contributes a stiffness `a`, and the explicit
-/// update stays stable while `a Δt² ≤ 4`.
+/// (shear and volume change), elasticity contributes a stiffness `a` and viscosity a
+/// damping `b`, and the explicit update stays stable while `a Δt² + 2 b Δt ≤ 4`.
 ///
 /// At rest this is the single particle restriction of Bai & Schroeder 2022,
 /// "Stability Analysis of Explicit MPM", Eq. (4), with `ξ = 4 / h²` and `r = 1`,
@@ -134,10 +132,23 @@ pub fn limit_time_step_by_isolated_particles(
     principal_stretches: &Vector3<T>,
     grid_node_size: T,
 ) -> T {
+    let inverse_inertia = 4. / grid_node_size / grid_node_size;
     let elastic = elastic_mode_stiffness(flags, parameters, principal_stretches, grid_node_size);
-    limit_time_step_of_oscillator(elastic.shear).min(limit_time_step_of_oscillator(elastic.volume))
+    let viscous = if flags.contains(ParticleFlags::USE_VISCOSITY) {
+        let per_density = inverse_inertia * principal_stretches.product() / parameters.density;
+        ModeCoefficients {
+            shear: 2. * parameters.viscosity_dynamic * per_density,
+            volume: 3. * parameters.viscosity_bulk * per_density,
+        }
+    } else {
+        ModeCoefficients::default()
+    };
+    limit_time_step_of_damped_oscillator(elastic.shear, viscous.shear).min(
+        limit_time_step_of_damped_oscillator(elastic.volume, viscous.volume),
+    )
 }
 
+#[derive(Default)]
 struct ModeCoefficients {
     shear: T,
     volume: T,
@@ -205,11 +216,14 @@ fn limit_time_step_by_isolated_fluid(
     grid_node_size * (parameters.density / (K * second * D)).sqrt()
 }
 
-fn limit_time_step_of_oscillator(stiffness: T) -> T {
-    if stiffness <= 0. {
+fn limit_time_step_of_damped_oscillator(stiffness: T, damping: T) -> T {
+    let stiffness = stiffness.max(0.);
+    let damping = damping.max(0.);
+    let denominator = damping + (damping * damping + 4. * stiffness).sqrt();
+    if denominator <= 0. {
         return T::MAX;
     }
-    2. / stiffness.sqrt()
+    4. / denominator
 }
 
 // At least somewhat similar to
