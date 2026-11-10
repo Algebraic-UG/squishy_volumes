@@ -3962,6 +3962,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "squishy_volumes_python_constants"
+version = "0.1.0"
+dependencies = [
+ "squishy_volumes_file_input",
+ "squishy_volumes_util",
+ "strum",
+]
+
+[[package]]
 name = "squishy_volumes_util"
 version = "0.1.0"
 dependencies = [

@@ -50,8 +50,6 @@
 mod common;
 mod frame;
 mod header;
-#[cfg(test)]
-mod python_constants;
 mod reading;
 mod writing;
 
