@@ -79,7 +79,3 @@ _load_tree_clipper_to_asset(
     tree_clipper_jsons / "geometry_nodes_restrict_view.json",
     [],
 )
-_load_tree_clipper_to_asset(
-    tree_clipper_jsons / "geometry_nodes_generate_collider.json",
-    [],
-)

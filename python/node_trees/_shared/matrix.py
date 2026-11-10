@@ -24,3 +24,7 @@ def matrix_from_columns(
     x: VectorSocket, y: VectorSocket, z: VectorSocket, translation: VectorSocket
 ) -> MatrixSocket:
     return g.CombineMatrix(*x, 0, *y, 0, *z, 0, *translation, 1).o.matrix
+
+
+def self_matrix() -> MatrixSocket:
+    return g.SelfObject().o.self_object.matrix()

@@ -21,14 +21,11 @@ from typing import Any, ClassVar
 from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
-from nodebpy.builder import CustomGeometryGroup, MatrixSocket
+from nodebpy.builder import CustomGeometryGroup
 
 from ._shared import names
 from ._shared.inside import is_inside_object
-
-
-def self_matrix() -> MatrixSocket:
-    return g.SelfObject().o.self_object.matrix()
+from ._shared.matrix import self_matrix
 
 
 class SetGoals(CustomGeometryGroup):

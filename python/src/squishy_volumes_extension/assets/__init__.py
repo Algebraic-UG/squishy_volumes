@@ -63,7 +63,7 @@ def create_geometry_nodes_generate_particles() -> bpy.types.NodeTree:
 
 
 def create_geometry_nodes_generate_collider() -> bpy.types.NodeTree:
-    return _load_tree("geometry_nodes_generate_collider", "Generate Collider")
+    return _load_tree_2("Squishy Volumes Generate Collider")
 
 
 def create_geometry_nodes_generate_goal_positions() -> bpy.types.NodeTree:
