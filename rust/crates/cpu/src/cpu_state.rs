@@ -400,20 +400,20 @@ impl CpuState {
                         }
 
                         FrameBulkParticles::ColliderBits => todo!(),
-                        FrameBulkParticles::Transforms => todo!(),
-                        FrameBulkParticles::Sizes => todo!(),
-                        FrameBulkParticles::Densities => todo!(),
-                        FrameBulkParticles::YoungsModuluses => todo!(),
-                        FrameBulkParticles::PoissonsRatios => todo!(),
-                        FrameBulkParticles::InitialPositions => todo!(),
-                        FrameBulkParticles::InitialVelocity => todo!(),
+                        FrameBulkParticles::Transform => todo!(),
+                        FrameBulkParticles::Size => todo!(),
+                        FrameBulkParticles::Density => todo!(),
+                        FrameBulkParticles::YoungsModulus => todo!(),
+                        FrameBulkParticles::PoissonsRatio => todo!(),
+                        FrameBulkParticles::InitialPosition => todo!(),
+                        FrameBulkParticles::Velocity => todo!(),
                         FrameBulkParticles::ViscosityDynamic => todo!(),
                         FrameBulkParticles::ViscosityBulk => todo!(),
                         FrameBulkParticles::Exponent => todo!(),
                         FrameBulkParticles::BulkModulus => todo!(),
                         FrameBulkParticles::SandAlpha => todo!(),
 
-                        FrameBulkParticles::GoalPositions => {
+                        FrameBulkParticles::GoalPosition => {
                             todo!()
                         }
                     }

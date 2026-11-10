@@ -209,7 +209,7 @@ pub fn initialize_io_state(
                             .into_par_iter()
                             .for_each(|(fs, bits)| *fs = u32_to_two_f32(*bits));
                     }
-                    FrameBulkParticles::Transforms => {
+                    FrameBulkParticles::Transform => {
                         let transforms: &[[[f32; 4]; 4]] = bulk.assume_floats()?;
                         (|| {
                             let mut positions = particles.remove_attr::<attribute::Position>()?;
@@ -263,42 +263,42 @@ pub fn initialize_io_state(
                         })()
                         .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::Sizes => {
+                    FrameBulkParticles::Size => {
                         particles
                             .replace_attr::<attribute::InitialSize>(
                                 bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::Densities => {
+                    FrameBulkParticles::Density => {
                         particles
                             .replace_attr::<attribute::Density>(
                                 bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::YoungsModuluses => {
+                    FrameBulkParticles::YoungsModulus => {
                         particles
                             .replace_attr::<attribute::YoungsModulus>(
                                 bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::PoissonsRatios => {
+                    FrameBulkParticles::PoissonsRatio => {
                         particles
                             .replace_attr::<attribute::PoissonsRatio>(
                                 bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::InitialPositions => {
+                    FrameBulkParticles::InitialPosition => {
                         particles
                             .replace_attr::<attribute::InitialPosition>(
                                 bulk.assume_floats()?.iter().cloned(),
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::InitialVelocity => {
+                    FrameBulkParticles::Velocity => {
                         particles
                             .replace_attr::<attribute::Velocity>(
                                 bulk.assume_floats()?.iter().cloned(),
@@ -340,7 +340,7 @@ pub fn initialize_io_state(
                             )
                             .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
                     }
-                    FrameBulkParticles::GoalPositions => {
+                    FrameBulkParticles::GoalPosition => {
                         particles
                             .replace_attr::<attribute::GoalPosition>(
                                 bulk.assume_floats()?.iter().cloned(),
@@ -359,16 +359,16 @@ pub fn initialize_io_state(
                     .get_collider_object(&bulk.meta.object_name)?;
 
                 match attribute {
-                    FrameBulkCollider::VertexPositions => {
+                    FrameBulkCollider::Position => {
                         io_state.collider.vertex_positions[vertex_range.clone()]
                             .copy_from_slice(bulk.assume_floats()?);
                     }
                     FrameBulkCollider::Triangles => {}
-                    FrameBulkCollider::TriangleFrictions => {
+                    FrameBulkCollider::Friction => {
                         io_state.collider.triangle_frictions[triangle_range.clone()]
                             .copy_from_slice(bulk.assume_floats()?);
                     }
-                    FrameBulkCollider::TriangleDampings => {
+                    FrameBulkCollider::Damping => {
                         io_state.collider.triangle_dampings[triangle_range.clone()]
                             .copy_from_slice(bulk.assume_floats()?);
                     }

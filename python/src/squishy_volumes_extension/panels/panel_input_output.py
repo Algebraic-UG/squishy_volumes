@@ -23,6 +23,7 @@ import bpy  # ty: ignore[unresolved-import]
 from ..assets import (
     create_geometry_nodes_generate_collider,
     create_geometry_nodes_generate_particles,
+    create_geometry_nodes_visualize_particles,
 )
 from ..drivers import add_drivers
 from ..squishy_volumes_properties import (
@@ -63,6 +64,9 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
         row.prop(item, "input_type")
         row.prop(item, "add_default_generation")
         col = row.column()
+        col.enabled = item.input_type == INPUT_TYPE_PARTICLES and item.add_output_object
+        col.prop(item, "add_default_visualization")
+        col = row.column()
         col.enabled = item.input_type == INPUT_TYPE_PARTICLES
         col.prop(item, "add_output_object")
 
@@ -71,7 +75,7 @@ def _can_add(obj: bpy.types.ID) -> bool:
     return isinstance(obj, bpy.types.Object) and obj.type == "MESH"
 
 
-def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
+def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str) -> None:
     sim_obj = get_simulation_object_with_uuid(uuid)
     input_obj = bpy.data.objects[name]
     if not _can_add(input_obj):
@@ -86,6 +90,7 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
         f"Added {input_obj.name} to input objects of {sim_obj.name}.",
     )
 
+    output_obj = None
     if input_props.input_type == INPUT_TYPE_PARTICLES:
         input_obj.squishy_volumes.alembic_attributes.clear()
         for attr_name in PARTICLE_ATTRIBUTE_MAPPING:
@@ -110,16 +115,23 @@ def _add_input_object(operator: bpy.types.Operator, uuid: str, name: str):
     else:
         raise RuntimeError(f"Unknown input type {input_props.input_type}")
 
-    if not input_props.add_default_generation:
-        return {"FINISHED"}
+    if input_props.add_default_generation:
+        _add_default_generation(sim_obj, input_obj)
 
+    if output_obj is not None and input_props.add_default_visualization:
+        modifier = output_obj.modifiers.new("Squishy Volumes Output", type="NODES")
+        modifier.node_group = create_geometry_nodes_visualize_particles()
+
+
+def _add_default_generation(sim_obj: bpy.types.Object, input_obj: bpy.types.Object):
+    input_type = input_obj.squishy_volumes.input_type
     modifier = input_obj.modifiers.new("Squishy Volumes Input", type="NODES")
-    if input_props.input_type == INPUT_TYPE_PARTICLES:
+    if input_type == INPUT_TYPE_PARTICLES:
         modifier.node_group = create_geometry_nodes_generate_particles()
-    elif input_props.input_type == INPUT_TYPE_COLLIDER:
+    elif input_type == INPUT_TYPE_COLLIDER:
         modifier.node_group = create_geometry_nodes_generate_collider()
     else:
-        raise RuntimeError(f"Unknown input type {input_props.input_type}")
+        raise RuntimeError(f"Unknown input type {input_type}")
 
     add_drivers(sim_obj, modifier)
 
@@ -171,6 +183,9 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
                 input.add_default_generation
             )
             input_obj.squishy_volumes.add_output_object = input.add_output_object
+            input_obj.squishy_volumes.add_default_visualization = (
+                input.add_default_visualization
+            )
             _add_input_object(self, self.uuid, input_obj.name)
 
         force_ui_redraw()
@@ -184,6 +199,9 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
             input.obj_type = obj.type
             input.add_default_generation = obj.squishy_volumes.add_default_generation
             input.add_output_object = obj.squishy_volumes.add_output_object
+            input.add_default_visualization = (
+                obj.squishy_volumes.add_default_visualization
+            )
         return context.window_manager.invoke_props_dialog(self, width=600)
 
     def draw(self, context):

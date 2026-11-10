@@ -290,7 +290,7 @@ fn update_collider(
             } = header.get_collider_object(&bulk.meta.object_name)?;
 
             match attr {
-                FrameBulkCollider::VertexPositions => {
+                FrameBulkCollider::Position => {
                     // TODO: clean error for length mismatch
                     collider.vertex_positions[vertex_range.clone()]
                         .copy_from_slice(bulk.assume_floats()?);
@@ -302,11 +302,11 @@ fn update_collider(
                             p[2] *= inv_scale;
                         });
                 }
-                FrameBulkCollider::TriangleFrictions => {
+                FrameBulkCollider::Friction => {
                     collider.triangle_frictions[triangle_range.clone()]
                         .copy_from_slice(bulk.assume_floats()?);
                 }
-                FrameBulkCollider::TriangleDampings => {
+                FrameBulkCollider::Damping => {
                     collider.triangle_dampings[triangle_range.clone()]
                         .copy_from_slice(bulk.assume_floats()?);
                 }

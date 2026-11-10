@@ -879,13 +879,13 @@ impl GpuState {
                         Allocation::new(self.gpu_context.device(), "new_flags", &flags)?
                     }
                     FrameBulkParticles::ColliderBits => todo!(),
-                    FrameBulkParticles::Transforms => todo!(),
-                    FrameBulkParticles::Sizes => todo!(),
-                    FrameBulkParticles::Densities => todo!(),
-                    FrameBulkParticles::YoungsModuluses => todo!(),
-                    FrameBulkParticles::PoissonsRatios => todo!(),
-                    FrameBulkParticles::InitialPositions => todo!(),
-                    FrameBulkParticles::InitialVelocity => todo!(),
+                    FrameBulkParticles::Transform => todo!(),
+                    FrameBulkParticles::Size => todo!(),
+                    FrameBulkParticles::Density => todo!(),
+                    FrameBulkParticles::YoungsModulus => todo!(),
+                    FrameBulkParticles::PoissonsRatio => todo!(),
+                    FrameBulkParticles::InitialPosition => todo!(),
+                    FrameBulkParticles::Velocity => todo!(),
                     FrameBulkParticles::ViscosityDynamic => todo!(),
                     FrameBulkParticles::ViscosityBulk => todo!(),
                     FrameBulkParticles::Exponent => todo!(),
@@ -893,7 +893,7 @@ impl GpuState {
                     FrameBulkParticles::SandAlpha => todo!(),
 
                     // already handled
-                    FrameBulkParticles::GoalPositions => {
+                    FrameBulkParticles::GoalPosition => {
                         continue;
                     }
                 };
@@ -951,20 +951,20 @@ impl GpuState {
                 }
 
                 FrameBulkParticles::ColliderBits => todo!(),
-                FrameBulkParticles::Transforms => todo!(),
-                FrameBulkParticles::Sizes => todo!(),
-                FrameBulkParticles::Densities => todo!(),
-                FrameBulkParticles::YoungsModuluses => todo!(),
-                FrameBulkParticles::PoissonsRatios => todo!(),
-                FrameBulkParticles::InitialPositions => todo!(),
-                FrameBulkParticles::InitialVelocity => todo!(),
+                FrameBulkParticles::Transform => todo!(),
+                FrameBulkParticles::Size => todo!(),
+                FrameBulkParticles::Density => todo!(),
+                FrameBulkParticles::YoungsModulus => todo!(),
+                FrameBulkParticles::PoissonsRatio => todo!(),
+                FrameBulkParticles::InitialPosition => todo!(),
+                FrameBulkParticles::Velocity => todo!(),
                 FrameBulkParticles::ViscosityDynamic => todo!(),
                 FrameBulkParticles::ViscosityBulk => todo!(),
                 FrameBulkParticles::Exponent => todo!(),
                 FrameBulkParticles::BulkModulus => todo!(),
                 FrameBulkParticles::SandAlpha => todo!(),
 
-                FrameBulkParticles::GoalPositions => unreachable!(),
+                FrameBulkParticles::GoalPosition => unreachable!(),
             }
         }
         Ok(())

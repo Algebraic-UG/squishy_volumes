@@ -282,9 +282,7 @@ fn test_object_changed_type() {
     let bulk = FrameBulk {
         meta: crate::FrameBulkMeta {
             object_name: "foo".to_string(),
-            captured_attribute: crate::BulkAttribute::Collider(
-                crate::FrameBulkCollider::VertexPositions,
-            ),
+            captured_attribute: crate::BulkAttribute::Collider(crate::FrameBulkCollider::Position),
         },
         data: InputBulk::Floats(Default::default()),
     };
@@ -309,9 +307,7 @@ fn test_object_not_in_header() {
     let bulk = FrameBulk {
         meta: crate::FrameBulkMeta {
             object_name: "newfoo".to_string(),
-            captured_attribute: crate::BulkAttribute::Collider(
-                crate::FrameBulkCollider::VertexPositions,
-            ),
+            captured_attribute: crate::BulkAttribute::Collider(crate::FrameBulkCollider::Position),
         },
         data: InputBulk::Floats(Default::default()),
     };

@@ -49,9 +49,9 @@ jobs:
         working-directory: python
         run: uv run ../scripts/build_assets.py
 
-      - name: Build assets via nodebpy
+      - name: Build node tree assets via nodebpy
         working-directory: python
-        run: uv run ../scripts/build_assets_2.py
+        run: uv run --group tools nodebpy build
 
       # =================================================================
       # Download all wheel artifacts

@@ -2,3 +2,4 @@ test_blends/
 */**/*.blend
 */**/*.blend1
 __pycache__/
+*.blend.stamp
