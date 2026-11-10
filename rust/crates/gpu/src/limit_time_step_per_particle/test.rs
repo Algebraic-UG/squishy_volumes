@@ -24,7 +24,7 @@ use nalgebra::{Matrix1x3, Matrix3, stack};
 use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
 use squishy_volumes_util::{
     limit_time_step_by_deformation, limit_time_step_by_isolated_particles,
-    limit_time_step_by_speed_of_sound, limit_time_step_by_velocity,
+    limit_time_step_by_speed_of_sound, limit_time_step_by_velocity, principal_stretches,
 };
 
 use crate::test_data::{
@@ -55,19 +55,20 @@ fn check(
         |(flags, parameters, position_gradient, velocity, velocity_gradient)| {
             let position_gradient: Matrix3<f32> = position_gradient.fixed_view::<3, 3>(0, 0).into();
             let velocity_gradient: Matrix3<f32> = velocity_gradient.fixed_view::<3, 3>(0, 0).into();
+            let principal_stretches = principal_stretches(&position_gradient);
             TimeStepLimits {
                 time_step_by_velocity: limit_time_step_by_velocity(&velocity.xyz(), grid_node_size),
                 time_step_by_deformation: limit_time_step_by_deformation(&velocity_gradient),
                 time_step_by_isolated: limit_time_step_by_isolated_particles(
                     flags,
                     parameters,
-                    &position_gradient,
+                    &principal_stretches,
                     grid_node_size,
                 ),
                 time_step_by_sound: limit_time_step_by_speed_of_sound(
                     flags,
                     parameters,
-                    &position_gradient,
+                    &principal_stretches,
                     grid_node_size,
                 ),
             }

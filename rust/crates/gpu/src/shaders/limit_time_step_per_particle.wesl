@@ -70,21 +70,21 @@ fn main(
     }
 
     let parameter = parameters[global_index];
-    var position_gradient = position_gradients[global_index];
+    let principal_stretches = svd(position_gradients[global_index]).S;
     let velocity = velocities[global_index];
     let velocity_gradient = velocity_gradients[global_index];
 
     var limits: TimeStepLimits;
-    limits.time_step_by_sound = limit_time_step_by_speed_of_sound(flag, parameter, position_gradient);
-    limits.time_step_by_isolated = limit_time_step_by_isolated(flag, parameter, position_gradient);
+    limits.time_step_by_sound = limit_time_step_by_speed_of_sound(flag, parameter, principal_stretches);
+    limits.time_step_by_isolated = limit_time_step_by_isolated(flag, parameter, principal_stretches);
     limits.time_step_by_velocity = limit_time_step_by_velocity(velocity);
     limits.time_step_by_deformation = limit_time_step_by_deformation(velocity_gradient);
 
     time_step_limits[global_index] = limits;
 }
 
-fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, position_gradient: mat3x3f) -> f32 {
-    let s = svd(position_gradient).S;
+fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, principal_stretches: vec3f) -> f32 {
+    let s = principal_stretches;
 
     let j = s.x * s.y * s.z;
 
@@ -141,40 +141,51 @@ fn limit_time_step_by_speed_of_sound(flag: u32, parameter: ParticleParameters, p
     return GRID_NODE_SIZE / c;
 }
 
-fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, position_gradient: mat3x3f) -> f32 {
+fn limit_time_step_by_isolated(flag: u32, parameters: ParticleParameters, principal_stretches: vec3f) -> f32 {
+    let inverse_inertia = 4. / GRID_NODE_SIZE / GRID_NODE_SIZE;
+    var elastic_shear = 0.;
+    var elastic_volume = 0.;
     if (flag & IS_SOLID) > 0 {
-        // Stability analysis of explicit MPM, Technical document 3.12
-        let xi = 3. / GRID_NODE_SIZE / GRID_NODE_SIZE;
-        const R: f32 = 1.; // APIC & CPIC
-        const K: f32 = 1.; // CPIC
-        const D: f32 = 3.; // 3D
-        let stiffness = mu(parameters) + D / 2. * lambda(parameters);
-        if stiffness <= 0. {
-            return F32_MAX;
-        }
-        return sqrt(parameters.density / (xi * (R - K / 2.) * stiffness));
+        let per_density = inverse_inertia / parameters.density;
+        let largest_stretch = max(max(abs(principal_stretches.x), abs(principal_stretches.y)), abs(principal_stretches.z));
+        let stretched_mu = mu(parameters) * max(largest_stretch * largest_stretch, 1.);
+        elastic_shear = 2. * stretched_mu * per_density;
+        elastic_volume = (2. * stretched_mu + 3. * lambda(parameters)) * per_density;
+    } else if (flag & IS_FLUID) > 0 {
+        let time_step = limit_time_step_by_isolated_fluid(parameters, principal_stretches);
+        elastic_volume = 4. / time_step / time_step;
     }
 
-    if (flag & IS_FLUID) > 0 {
-        // Effective time step restrictions for explicit MPM simulation,
-        // Technical document "Simple bounds"
-        if parameters.bulk_modulus <= 0. {
-            return F32_MAX;
-        }
-        let j = determinant(position_gradient);
-        const K: f32 = 6.; // quadratic splines
-        const D: f32 = 3.; // 3D
-        let first = partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
-        if abs(j - 1.) > SINGULAR_VALUE_SEPARATION {
-            return GRID_NODE_SIZE / j * sqrt(parameters.density * (j - 1.) / (K * first * D));
-        }
+    return min(
+        limit_time_step_of_oscillator(elastic_shear),
+        limit_time_step_of_oscillator(elastic_volume),
+    );
+}
 
-        let second = double_partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
-
-        return GRID_NODE_SIZE * sqrt(parameters.density / (K * second * D));
+fn limit_time_step_by_isolated_fluid(parameters: ParticleParameters, principal_stretches: vec3f) -> f32 {
+    // Effective time step restrictions for explicit MPM simulation,
+    // Technical document "Simple bounds"
+    if parameters.bulk_modulus <= 0. {
+        return F32_MAX;
+    }
+    let j = principal_stretches.x * principal_stretches.y * principal_stretches.z;
+    const K: f32 = 6.; // quadratic splines
+    const D: f32 = 3.; // 3D
+    let first = partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
+    if abs(j - 1.) > SINGULAR_VALUE_SEPARATION {
+        return GRID_NODE_SIZE / j * sqrt(parameters.density * (j - 1.) / (K * first * D));
     }
 
-    return 0.;
+    let second = double_partial_elastic_energy_inviscid_by_invariant_3(parameters.bulk_modulus, parameters.exponent, j);
+
+    return GRID_NODE_SIZE * sqrt(parameters.density / (K * second * D));
+}
+
+fn limit_time_step_of_oscillator(stiffness: f32) -> f32 {
+    if stiffness <= 0. {
+        return F32_MAX;
+    }
+    return 2. / sqrt(stiffness);
 }
 
 fn limit_time_step_by_velocity(velocity: vec3f) -> f32 {

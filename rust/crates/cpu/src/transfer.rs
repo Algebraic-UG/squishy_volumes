@@ -17,6 +17,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #[cfg(test)]
+mod stability;
+#[cfg(test)]
 mod test;
 
 use nalgebra::{Matrix3, Vector3};

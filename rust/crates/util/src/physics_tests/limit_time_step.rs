@@ -20,8 +20,9 @@ use nalgebra::{Matrix3, Vector3};
 
 use crate::{
     ParticleFlags, ParticleParameters, SINGULAR_VALUE_SEPARATION, T,
-    limit_time_step_by_deformation, limit_time_step_by_isolated_particles,
-    limit_time_step_by_speed_of_sound, limit_time_step_by_velocity,
+    first_piola_stress_neo_hookean, limit_time_step_by_deformation,
+    limit_time_step_by_isolated_particles, limit_time_step_by_speed_of_sound,
+    limit_time_step_by_velocity, principal_stretches,
     test_data::{
         assert_relative_close, test_general_deformations, test_rotations, test_solid_parameters,
     },
@@ -32,7 +33,7 @@ const GRID_NODE_SIZE: T = 0.1;
 const DENSITY: T = 4.;
 const RELATIVE_TOLERANCE: T = 1e-9;
 
-type Limit = fn(&ParticleFlags, &ParticleParameters, &Matrix3<T>, T) -> T;
+type Limit = fn(&ParticleFlags, &ParticleParameters, &Vector3<T>, T) -> T;
 
 fn solids() -> impl Iterator<Item = ParticleParameters> {
     test_solid_parameters().map(|parameters| ParticleParameters {
@@ -66,7 +67,7 @@ fn solid_time_step(
     limit(
         &ParticleFlags::IS_SOLID,
         parameters,
-        position_gradient,
+        &principal_stretches(position_gradient),
         GRID_NODE_SIZE,
     )
 }
@@ -79,7 +80,7 @@ fn fluid_time_step(
     limit(
         &ParticleFlags::IS_FLUID,
         parameters,
-        position_gradient,
+        &principal_stretches(position_gradient),
         GRID_NODE_SIZE,
     )
 }
@@ -311,6 +312,125 @@ fn materials_without_stiffness_do_not_limit_the_time_step() {
                 T::MAX,
                 fluid_time_step(limit, &pressureless_fluid, &position_gradient),
                 "volume ratio {volume_ratio}"
+            );
+        }
+    }
+}
+
+fn quadratic_spline_inverse_inertia() -> T {
+    4. / GRID_NODE_SIZE / GRID_NODE_SIZE
+}
+
+#[test]
+fn isolated_solid_at_rest_oscillates_in_its_volume_mode() {
+    for parameters in stiff_solids() {
+        let volume_stiffness = 2. * parameters.mu() + 3. * parameters.lambda();
+        let angular_frequency =
+            (quadratic_spline_inverse_inertia() * volume_stiffness / parameters.density).sqrt();
+        assert_relative_close(
+            2. / angular_frequency,
+            solid_time_step(
+                limit_time_step_by_isolated_particles,
+                &parameters,
+                &Matrix3::identity(),
+            ),
+            RELATIVE_TOLERANCE,
+        );
+    }
+}
+
+fn solids_across_poissons_ratios() -> impl Iterator<Item = ParticleParameters> {
+    [-0.3, 0., 0.3, 0.45]
+        .map(|poissons_ratio| ParticleParameters {
+            density: DENSITY,
+            youngs_modulus: 1e4,
+            poissons_ratio,
+            ..Default::default()
+        })
+        .into_iter()
+}
+
+fn stretched_and_compressed() -> Vec<Matrix3<T>> {
+    let uniform = [0.6, 0.8, 1.2, 1.5, 2.].map(Matrix3::from_diagonal_element);
+    let uniaxial =
+        [0.6, 1.5, 2.].map(|stretch| Matrix3::from_diagonal(&Vector3::new(stretch, 1., 1.)));
+    uniform
+        .into_iter()
+        .chain(uniaxial)
+        .chain(position_gradients())
+        .collect()
+}
+
+fn kirchhoff_stress_change(
+    parameters: &ParticleParameters,
+    left_stretch_squared: &Matrix3<T>,
+    perturbation: &Matrix3<T>,
+) -> Matrix3<T> {
+    parameters.mu()
+        * (perturbation * left_stretch_squared + left_stretch_squared * perturbation.transpose())
+        + Matrix3::from_diagonal_element(parameters.lambda() * perturbation.trace())
+}
+
+fn assert_stress_change_matches_the_neo_hookean_stress(
+    parameters: &ParticleParameters,
+    position_gradient: &Matrix3<T>,
+) {
+    let kirchhoff_stress = |position_gradient: &Matrix3<T>| {
+        first_piola_stress_neo_hookean(parameters.mu(), parameters.lambda(), position_gradient)
+            * position_gradient.transpose()
+    };
+    let left_stretch_squared = position_gradient * position_gradient.transpose();
+    let step = 1e-6;
+    for index in 0..9 {
+        let mut perturbation = Matrix3::zeros();
+        perturbation[index] = 1.;
+        let perturbed =
+            |sign: T| (Matrix3::identity() + perturbation * (sign * step)) * position_gradient;
+        let finite_difference =
+            (kirchhoff_stress(&perturbed(1.)) - kirchhoff_stress(&perturbed(-1.))) / (2. * step);
+        let expected = kirchhoff_stress_change(parameters, &left_stretch_squared, &perturbation);
+        assert!(
+            (finite_difference - expected).norm()
+                <= 1e-6
+                    * (parameters.mu() + parameters.lambda().abs())
+                    * (1. + left_stretch_squared.norm()),
+            "{position_gradient}"
+        );
+    }
+}
+
+fn largest_mode_stiffness(parameters: &ParticleParameters, position_gradient: &Matrix3<T>) -> T {
+    let squared_stretches = principal_stretches(position_gradient).map(|stretch| stretch * stretch);
+    let mu = parameters.mu();
+    let shear_pairs =
+        [(0, 1), (1, 2), (2, 0)].map(|(i, j)| mu * (squared_stretches[i] + squared_stretches[j]));
+    let normal_block = Matrix3::from_diagonal(&(2. * mu * squared_stretches))
+        + Matrix3::repeat(parameters.lambda());
+    shear_pairs
+        .into_iter()
+        .chain(normal_block.symmetric_eigenvalues().iter().copied())
+        .fold(0., T::max)
+}
+
+#[test]
+fn isolated_solid_limit_covers_the_stiffness_at_its_current_stretch() {
+    for parameters in solids_across_poissons_ratios() {
+        for position_gradient in stretched_and_compressed() {
+            assert_stress_change_matches_the_neo_hookean_stress(&parameters, &position_gradient);
+            let angular_frequency = (quadratic_spline_inverse_inertia()
+                * largest_mode_stiffness(&parameters, &position_gradient)
+                / parameters.density)
+                .sqrt();
+            let stable_time_step = 2. / angular_frequency;
+            let time_step = solid_time_step(
+                limit_time_step_by_isolated_particles,
+                &parameters,
+                &position_gradient,
+            );
+            assert!(
+                time_step <= stable_time_step * (1. + RELATIVE_TOLERANCE),
+                "ν = {}, {position_gradient}: {time_step} exceeds {stable_time_step}",
+                parameters.poissons_ratio,
             );
         }
     }
