@@ -64,26 +64,31 @@ fn main(
         return;
     }
 
-    var velocity = particle_velocities[global_index];
+    let velocity = particle_velocities[global_index];
+    let pushed = velocity + time_step * vec3f(globals.gravity_x, globals.gravity_y, globals.gravity_z);
+    let damping_factor = 1. + time_step * globals.damping;
 
-    velocity -= time_step * globals.damping * velocity;
-    velocity += time_step * vec3f(globals.gravity_x, globals.gravity_y, globals.gravity_z);
-
-    if (flags & HAS_GOAL) != 0 {
-        let goal_position = particle_goals[global_index];
-        let position = particle_positions_and_collider_bits[global_index].position;
-        let to_goal = goal_position - position;
-        let distance = length(to_goal);
-        if distance > NORMALIZATION_EPS {
-            let to_goal_dir = to_goal / distance;
-            velocity += (globals.goal_stiffness * distance
-                - globals.goal_damping * dot(to_goal_dir, velocity)) * time_step * to_goal_dir;
-        }
+    if (flags & HAS_GOAL) == 0 {
+        particle_velocities[global_index] = pushed / damping_factor;
+        return;
     }
 
-    particle_velocities[global_index] = velocity;
-}
+    let to_goal = particle_goals[global_index] - particle_positions_and_collider_bits[global_index].position;
+    let pulled = pushed + to_goal * (time_step * globals.goal_stiffness);
+    let spring_factor = damping_factor + time_step * time_step * globals.goal_stiffness;
 
+    let distance = length(to_goal);
+    if distance <= NORMALIZATION_EPS {
+        particle_velocities[global_index] = pulled / spring_factor;
+        return;
+    }
+    let to_goal_direction = to_goal / distance;
+    let towards_goal = dot(to_goal_direction, pulled);
+    let across = pulled - to_goal_direction * towards_goal;
+    let goal_damping_factor = spring_factor + time_step * globals.goal_damping;
+
+    particle_velocities[global_index] = across / spring_factor + to_goal_direction * (towards_goal / goal_damping_factor);
+}
 fn is_error() -> bool {
     return (atomicLoad(&status) & 0x0000FFFFu) != 0;
 }
