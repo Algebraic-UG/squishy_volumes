@@ -29,6 +29,7 @@ use crate::{AnimatedGlobals, NORMALIZATION_EPS, T};
 /// spring are integrated implicitly (backward Euler, with the spring evaluated where the
 /// particle will be after the step), so neither can make the velocity grow or overshoot,
 /// however stiff or damped they are. Goal damping only acts towards the goal.
+/// Negative stiffness or damping is treated as zero.
 pub fn apply_external_force(
     velocity: &Vector3<T>,
     to_goal: Option<&Vector3<T>>,
@@ -37,13 +38,13 @@ pub fn apply_external_force(
 ) -> Vector3<T> {
     let gravity = Vector3::new(globals.gravity_x, globals.gravity_y, globals.gravity_z).cast::<T>();
     let pushed = velocity + gravity * time_step;
-    let damping_factor = 1. + time_step * globals.damping as T;
+    let damping_factor = 1. + time_step * (globals.damping as T).max(0.);
 
     let Some(to_goal) = to_goal else {
         return pushed / damping_factor;
     };
 
-    let goal_stiffness = globals.goal_stiffness as T;
+    let goal_stiffness = (globals.goal_stiffness as T).max(0.);
     let pulled = pushed + to_goal * (time_step * goal_stiffness);
     let spring_factor = damping_factor + time_step * time_step * goal_stiffness;
 
@@ -54,7 +55,7 @@ pub fn apply_external_force(
     let to_goal_direction = to_goal / distance;
     let towards_goal = to_goal_direction.dot(&pulled);
     let across = pulled - to_goal_direction * towards_goal;
-    let goal_damping_factor = spring_factor + time_step * globals.goal_damping as T;
+    let goal_damping_factor = spring_factor + time_step * (globals.goal_damping as T).max(0.);
 
     across / spring_factor + to_goal_direction * (towards_goal / goal_damping_factor)
 }

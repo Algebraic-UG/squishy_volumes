@@ -66,7 +66,7 @@ fn main(
 
     let velocity = particle_velocities[global_index];
     let pushed = velocity + time_step * vec3f(globals.gravity_x, globals.gravity_y, globals.gravity_z);
-    let damping_factor = 1. + time_step * globals.damping;
+    let damping_factor = 1. + time_step * max(globals.damping, 0.);
 
     if (flags & HAS_GOAL) == 0 {
         particle_velocities[global_index] = pushed / damping_factor;
@@ -74,8 +74,9 @@ fn main(
     }
 
     let to_goal = particle_goals[global_index] - particle_positions_and_collider_bits[global_index].position;
-    let pulled = pushed + to_goal * (time_step * globals.goal_stiffness);
-    let spring_factor = damping_factor + time_step * time_step * globals.goal_stiffness;
+    let goal_stiffness = max(globals.goal_stiffness, 0.);
+    let pulled = pushed + to_goal * (time_step * goal_stiffness);
+    let spring_factor = damping_factor + time_step * time_step * goal_stiffness;
 
     let distance = length(to_goal);
     if distance <= NORMALIZATION_EPS {
@@ -85,7 +86,7 @@ fn main(
     let to_goal_direction = to_goal / distance;
     let towards_goal = dot(to_goal_direction, pulled);
     let across = pulled - to_goal_direction * towards_goal;
-    let goal_damping_factor = spring_factor + time_step * globals.goal_damping;
+    let goal_damping_factor = spring_factor + time_step * max(globals.goal_damping, 0.);
 
     particle_velocities[global_index] = across / spring_factor + to_goal_direction * (towards_goal / goal_damping_factor);
 }

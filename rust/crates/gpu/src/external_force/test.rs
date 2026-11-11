@@ -146,8 +146,12 @@ fn stiff_and_damped() {
         Vector4::new(0., 0., 0., 0.),
     ];
 
-    for (goal_stiffness, goal_damping, damping) in [(1e7, 0., 0.), (1e4, 1e3, 0.), (1e3, 0.5, 50.)]
-    {
+    for (goal_stiffness, goal_damping, damping) in [
+        (1e7, 0., 0.),
+        (1e4, 1e3, 0.),
+        (1e3, 0.5, 50.),
+        (-1e4, -1e3, -100.),
+    ] {
         check(
             Settings {
                 workgroup_size: 64.try_into().unwrap(),

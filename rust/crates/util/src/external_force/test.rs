@@ -193,3 +193,26 @@ fn goal_spring_is_linear_in_the_offset_even_at_the_goal() {
         assert!((expected - near_goal).norm() < 1e-5, "{offset}");
     }
 }
+
+#[test]
+fn negative_stiffness_and_damping_act_as_zero() {
+    let velocity = Vector3::new(0.7, -0.4, 0.3);
+    let to_goal = Vector3::new(0.1, 0.2, -0.3);
+    let time_step = 1e-2;
+    let without = apply_external_force(
+        &velocity,
+        Some(&to_goal),
+        &globals(-9.8, 0., 0., 0.),
+        time_step,
+    );
+    for (goal_stiffness, goal_damping, damping) in [
+        (-1e4, 0., 0.),
+        (0., -1e3, 0.),
+        (0., 0., -100.),
+        (-1e4, -1e3, -150.),
+    ] {
+        let negative = globals(-9.8, goal_stiffness, goal_damping, damping);
+        let actual = apply_external_force(&velocity, Some(&to_goal), &negative, time_step);
+        assert_eq!(without, actual);
+    }
+}
