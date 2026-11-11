@@ -285,3 +285,65 @@ fn pseudo_normals_classify_inside() {
         }
     }
 }
+
+fn labelled_feature_normals() -> FeatureNormals {
+    let label = |i: u8| Vector3::repeat(10. + i as f32);
+    FeatureNormals {
+        vertices: [label(0), label(1), label(2)],
+        edges: [label(3), label(4), label(5)],
+    }
+}
+
+#[test]
+fn closest_feature_identifies_face_edge_or_corner() {
+    let normals = labelled_feature_normals();
+    for [a, b, c] in test_triangles() {
+        let n = triangle_normal(&a, &b, &c);
+        let corners = [a, b, c];
+        let centroid = (a + b + c) / 3.;
+        let mut expectations = vec![];
+        for i in 0..3 {
+            let (start, end, opposite) = (corners[i], corners[(i + 1) % 3], corners[(i + 2) % 3]);
+            let outwards = (end - start).cross(&n).normalize();
+            assert!(outwards.dot(&(opposite - start)) < 0.);
+
+            let away_from_corner =
+                -((end - start).normalize() + (opposite - start).normalize()).normalize();
+            for distance in [1e-3, 0.3] {
+                for height in [0., 0.2, -0.2] {
+                    let lift = n * height;
+                    expectations.push((
+                        (start + end) / 2. + outwards * distance + lift,
+                        normals.edges[i],
+                    ));
+                    expectations.push((
+                        start + away_from_corner * distance + lift,
+                        normals.vertices[i],
+                    ));
+                }
+            }
+        }
+        for height in [0.2, -0.2] {
+            expectations.push((centroid + n * height, n));
+        }
+        for (p, expected) in expectations {
+            let result = closest_feature(&p, [&a, &b, &c], &n, &normals);
+            assert_eq!(result.normal, expected, "{p} on {a} {b} {c}");
+        }
+    }
+}
+
+#[test]
+fn closest_feature_prefers_the_obtuse_corner_over_the_nearer_edge_lines() {
+    let [a, b, c] = [
+        Vector3::new(0., 0., 0.),
+        Vector3::new(1., 0., 0.),
+        Vector3::new(0.5, 0.05, 0.),
+    ];
+    let n = triangle_normal(&a, &b, &c);
+    let normals = labelled_feature_normals();
+    let p = Vector3::new(0.5, 0.3, 0.1);
+    let result = closest_feature(&p, [&a, &b, &c], &n, &normals);
+    assert_eq!(result.normal, normals.vertices[2]);
+    assert!((result.to_p - (p - c)).norm() < 1e-6);
+}
