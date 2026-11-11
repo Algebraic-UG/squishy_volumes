@@ -22,7 +22,9 @@ use squishy_volumes_mesh_util::{
     DistanceResult, FeatureNormals, Triangle, barycentric_coordinates, closest_feature,
     distance_to_triangle, edge_pseudo_normal,
 };
-use squishy_volumes_util::{NORMALIZATION_EPS, ParticleFlags, collider_bits, profile};
+use squishy_volumes_util::{
+    Contact, NORMALIZATION_EPS, ParticleFlags, collider_bits, collision_response, profile,
+};
 
 use super::*;
 
@@ -162,27 +164,15 @@ impl CpuState {
                         continue;
                     }
 
-                    let collider_velocity =
-                        a_v * barycentric.x + b_v * barycentric.y + c_v * barycentric.z;
-                    let relative_velocity = *velocity - collider_velocity;
-
-                    let contact_normal = to_p / distance;
-
-                    let normal_velocity = contact_normal * relative_velocity.dot(&contact_normal);
-                    let tangential_velocity = relative_velocity - normal_velocity;
-                    let tangential_velocity_norm = tangential_velocity.norm();
-                    if tangential_velocity_norm > NORMALIZATION_EPS {
-                        let tangent = tangential_velocity / tangential_velocity_norm;
-
-                        let friction_impulse = tangent
-                            * (triangle_frictions[closest_triangle] * distance / time_step)
-                                .min(tangential_velocity_norm);
-
-                        *velocity -= friction_impulse;
-                    }
-
-                    *velocity -= triangle_dampings[closest_triangle].min(1.) * normal_velocity;
-                    *velocity -= to_p / time_step;
+                    let contact = Contact {
+                        to_p,
+                        collider_velocity: a_v * barycentric.x
+                            + b_v * barycentric.y
+                            + c_v * barycentric.z,
+                        friction: triangle_frictions[closest_triangle],
+                        damping: triangle_dampings[closest_triangle],
+                    };
+                    *velocity = collision_response(velocity, &contact, time_step);
                 }
             });
     }
