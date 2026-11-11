@@ -18,14 +18,14 @@
 
 use nalgebra::Vector3;
 use squishy_volumes_mesh_util::{
-    DistanceResult, FeatureNormals, angle_weighted_normal, closest_feature, compute_triangle_lists,
-    compute_triangle_opposites, distance_to_triangle, edge_pseudo_normal, triangle_normal,
+    DistanceResult, FeatureNormals, angle_weighted_normal, barycentric_coordinates,
+    closest_feature, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle,
+    edge_pseudo_normal, triangle_normal,
 };
-use squishy_volumes_util::{Aabb, collider_bits};
+use squishy_volumes_util::{Aabb, Contact, NORMALIZATION_EPS, collider_bits, collision_response};
 
 use super::*;
 
-// TODO: check friction and damping
 fn check(
     forget_distance: f32,
     accept_distance: f32,
@@ -34,8 +34,11 @@ fn check(
         particle_positions_and_collider_bits,
         particle_velocities,
         vertex_positions,
+        vertex_velocities,
         triangle_indices,
         triangle_collider,
+        triangle_frictions,
+        triangle_dampings,
         ..
     }: InputData,
     check_collider_bits: bool,
@@ -176,7 +179,21 @@ fn check(
                 continue;
             }
 
-            *velocity -= to_p / time_step;
+            if distance < NORMALIZATION_EPS {
+                continue;
+            }
+
+            let barycentric = barycentric_coordinates(&p, [&a, &b, &c], &n);
+            let corner_velocity = |vertex: u32| vertex_velocities[vertex as usize].xyz();
+            let contact = Contact {
+                to_p,
+                collider_velocity: corner_velocity(triangle.a) * barycentric.x
+                    + corner_velocity(triangle.b) * barycentric.y
+                    + corner_velocity(triangle.c) * barycentric.z,
+                friction: triangle_frictions[closest_triangle as usize],
+                damping: triangle_dampings[closest_triangle as usize],
+            };
+            *velocity = collision_response(velocity, &contact, time_step);
         }
     }
 
