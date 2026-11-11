@@ -247,18 +247,20 @@ fn main(
         let normal_velocity = contact_normal * dot(relative_velocity, contact_normal);
         let tangential_velocity = relative_velocity - normal_velocity;
 
+        let normal_impulse = clamp(triangle_dampings[closest_triangle], 0., 1.) * normal_velocity + to_p / time_step;
+        let pressing_against_collider = max(dot(normal_impulse, contact_normal), 0.);
+
         let tangential_velocity_norm = length(tangential_velocity);
         if tangential_velocity_norm > NORMALIZATION_EPS {
             let tangent = tangential_velocity / tangential_velocity_norm;
 
             let friction_impulse = tangent
-                * min((max(triangle_frictions[closest_triangle], 0.) * distance / time_step), tangential_velocity_norm);
+                * min(max(triangle_frictions[closest_triangle], 0.) * pressing_against_collider, tangential_velocity_norm);
 
             velocity -= friction_impulse;
         }
 
-        velocity -= clamp(triangle_dampings[closest_triangle], 0., 1.) * normal_velocity;
-        velocity -= to_p / time_step;
+        velocity -= normal_impulse;
 
         continuing {
             collider_bits &= ~(0x00010001u << collider);

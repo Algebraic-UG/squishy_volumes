@@ -77,11 +77,11 @@ fn split_is_orthogonal_and_complete() {
 fn friction_slows_sliding_without_reversing_it() {
     for tangential_velocity in test_vectors() {
         for friction in [0., 0.3, 1., 5.] {
-            for correction_speed in [0., 0.1, 1., 10.] {
+            for normal_impulse in [-1., 0., 0.1, 1., 10.] {
                 let after = tangential_velocity
-                    - friction_impulse(&tangential_velocity, friction, correction_speed);
+                    - friction_impulse(&tangential_velocity, friction, normal_impulse);
                 let expected_speed =
-                    (tangential_velocity.norm() - friction * correction_speed).max(0.);
+                    (tangential_velocity.norm() - friction * normal_impulse.max(0.)).max(0.);
                 assert!((after.norm() - expected_speed).abs() < TOLERANCE);
                 assert!(after.dot(&tangential_velocity) >= -TOLERANCE);
             }
@@ -168,4 +168,54 @@ fn particle_on_the_surface_keeps_its_velocity() {
         assert_eq!(response, on_surface.velocity);
         assert!(response.iter().all(|x| x.is_finite()));
     }
+}
+
+#[test]
+fn friction_stays_within_the_coulomb_cone() {
+    for encounter in test_encounters() {
+        let normal = encounter.to_p.normalize();
+        let (_, sliding) =
+            split_normal_tangential(&(encounter.velocity - encounter.collider_velocity), &normal);
+        for friction in [0.3, 1., 5.] {
+            for damping in [0., 0.5, 1.] {
+                let change = respond(&encounter, friction, damping) - encounter.velocity;
+                let pressing = -change.dot(&normal);
+                let (_, tangential_change) = split_normal_tangential(&change, &normal);
+                let limit = friction * pressing.max(0.);
+                let slack = 100. * TOLERANCE * (1. + sliding.norm());
+                assert!(tangential_change.norm() <= limit + slack);
+                assert!(tangential_change.dot(&sliding) <= slack);
+                let sticks = (sliding + tangential_change).norm() <= slack;
+                let slides_at_the_limit = (tangential_change.norm() - limit).abs() <= slack;
+                assert!(sticks || slides_at_the_limit);
+            }
+        }
+    }
+}
+
+fn shallow_impact(normal_speed: T) -> Encounter {
+    Encounter {
+        velocity: Vector3::new(1., 0., normal_speed),
+        collider_velocity: Vector3::zeros(),
+        to_p: Vector3::new(0., 0., 1e-4),
+    }
+}
+
+#[test]
+fn fast_shallow_impact_sticks() {
+    let after = respond(&shallow_impact(10.), 0.5, 1.);
+    assert!(after.x.abs() < TOLERANCE);
+}
+
+#[test]
+fn friction_is_proportional_to_the_normal_impulse() {
+    let pressing = 0.5 * 10. + 1e-4 / TIME_STEP;
+    let after = respond(&shallow_impact(10.), 0.1, 0.5);
+    assert!((after.x - (1. - 0.1 * pressing)).abs() < TOLERANCE);
+}
+
+#[test]
+fn separating_particle_feels_no_friction() {
+    let after = respond(&shallow_impact(-10.), 5., 1.);
+    assert!((after.x - 1.).abs() < TOLERANCE);
 }

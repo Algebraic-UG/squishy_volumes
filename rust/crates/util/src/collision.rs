@@ -42,19 +42,21 @@ pub fn split_normal_tangential(
     (normal_velocity, relative_velocity - normal_velocity)
 }
 
-/// Impulse that slows sliding by `friction · correction_speed`, but never reverses it.
-/// Negative friction is treated as none, it would accelerate the sliding.
+/// Coulomb friction: an impulse that slows sliding by at most `friction · normal_impulse`,
+/// but never reverses it. Negative friction is treated as none, it would accelerate the
+/// sliding, and so is a negative normal impulse, which pulls towards the collider instead
+/// of pressing against it.
 pub fn friction_impulse(
     tangential_velocity: &Vector3<T>,
     friction: T,
-    correction_speed: T,
+    normal_impulse: T,
 ) -> Vector3<T> {
     let tangential_speed = tangential_velocity.norm();
     if tangential_speed <= NORMALIZATION_EPS {
         return Vector3::zeros();
     }
     tangential_velocity / tangential_speed
-        * (friction.max(0.) * correction_speed).min(tangential_speed)
+        * (friction.max(0.) * normal_impulse.max(0.)).min(tangential_speed)
 }
 
 /// Impulse that removes the fraction `damping` of the normal velocity,
@@ -64,7 +66,8 @@ pub fn damping_impulse(normal_velocity: &Vector3<T>, damping: T) -> Vector3<T> {
 }
 
 /// The velocity that moves the particle back onto the surface within one time step,
-/// with friction and damping applied to its velocity relative to the surface.
+/// with damping applied to its velocity relative to the surface, and friction
+/// proportional to the resulting normal impulse.
 /// A particle closer to the surface than [`NORMALIZATION_EPS`] has no contact normal
 /// and keeps its velocity.
 pub fn collision_response(velocity: &Vector3<T>, contact: &Contact, time_step: T) -> Vector3<T> {
@@ -73,11 +76,16 @@ pub fn collision_response(velocity: &Vector3<T>, contact: &Contact, time_step: T
         return *velocity;
     }
     let contact_normal = contact.to_p / distance;
-    let correction_speed = distance / time_step;
     let (normal_velocity, tangential_velocity) =
         split_normal_tangential(&(velocity - contact.collider_velocity), &contact_normal);
+    let normal_impulse =
+        damping_impulse(&normal_velocity, contact.damping) + contact.to_p / time_step;
+    let pressing_against_collider = normal_impulse.dot(&contact_normal);
     velocity
-        - friction_impulse(&tangential_velocity, contact.friction, correction_speed)
-        - damping_impulse(&normal_velocity, contact.damping)
-        - contact.to_p / time_step
+        - friction_impulse(
+            &tangential_velocity,
+            contact.friction,
+            pressing_against_collider,
+        )
+        - normal_impulse
 }
