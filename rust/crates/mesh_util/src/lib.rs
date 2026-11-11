@@ -17,11 +17,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod bounding_volume_hierarchy;
+mod closest_point;
 mod errors;
 mod mesh;
 mod triangle;
 
 pub use bounding_volume_hierarchy::*;
+pub use closest_point::*;
 pub use errors::*;
 pub use mesh::*;
 pub use triangle::*;

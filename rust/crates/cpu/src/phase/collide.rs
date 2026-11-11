@@ -19,7 +19,8 @@
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use squishy_volumes_mesh_util::{
-    DistanceResult, Triangle, distance_to_triangle, segment_distance_result,
+    DistanceResult, FeatureNormals, Triangle, barycentric_coordinates, closest_feature,
+    distance_to_triangle, edge_pseudo_normal,
 };
 use squishy_volumes_util::{NORMALIZATION_EPS, ParticleFlags, collider_bits, profile};
 
@@ -119,56 +120,26 @@ impl CpuState {
                     let a_n = &vertex_normals[triangle.a as usize];
                     let b_n = &vertex_normals[triangle.b as usize];
                     let c_n = &vertex_normals[triangle.c as usize];
-                    let ab_n = if opps.ab != u32::MAX {
-                        n + triangle_normals[opps.ab as usize]
-                    } else {
-                        Vector3::zeros()
-                    };
-                    let bc_n = if opps.bc != u32::MAX {
-                        n + triangle_normals[opps.bc as usize]
-                    } else {
-                        Vector3::zeros()
-                    };
-                    let ca_n = if opps.ca != u32::MAX {
-                        n + triangle_normals[opps.ca as usize]
-                    } else {
-                        Vector3::zeros()
+                    let edge_normal = |opposite: u32| {
+                        let neighbour_normal =
+                            (opposite != u32::MAX).then(|| &triangle_normals[opposite as usize]);
+                        edge_pseudo_normal(n, neighbour_normal)
                     };
 
-                    let ab = a - b;
-                    let bc = b - c;
-                    let ca = c - a;
-
-                    let area2_abc = n.dot(&ca.cross(&ab));
-
-                    let a_bary = n.dot(&bc.cross(&(c - p))) / area2_abc;
-                    let b_bary = n.dot(&ca.cross(&(a - p))) / area2_abc;
-                    let c_bary = n.dot(&ab.cross(&(b - p))) / area2_abc;
-
-                    let sa = a_bary > 0.;
-                    let sb = b_bary > 0.;
-                    let sc = c_bary > 0.;
-
+                    let barycentric = barycentric_coordinates(p, [a, b, c], n);
                     let DistanceResult {
                         distance,
                         to_p,
                         normal,
-                    } = if sa && sb && sc {
-                        DistanceResult {
-                            distance: (p - a).dot(n).abs(),
-                            to_p: n * (p - a).dot(n),
-                            normal: *n,
-                        }
-                    } else {
-                        [
-                            segment_distance_result(p, a, b, a_n, &ab_n, b_n),
-                            segment_distance_result(p, b, c, b_n, &bc_n, c_n),
-                            segment_distance_result(p, c, a, c_n, &ca_n, a_n),
-                        ]
-                        .into_iter()
-                        .min_by(|a, b| a.distance.total_cmp(&b.distance))
-                        .unwrap()
-                    };
+                    } = closest_feature(
+                        p,
+                        [a, b, c],
+                        n,
+                        &FeatureNormals {
+                            vertices: [*a_n, *b_n, *c_n],
+                            edges: [opps.ab, opps.bc, opps.ca].map(edge_normal),
+                        },
+                    );
 
                     if normal == Vector3::zeros() {
                         collider_bits::set(collider_bits, collider, None);
@@ -191,7 +162,8 @@ impl CpuState {
                         continue;
                     }
 
-                    let collider_velocity = a_v * a_bary + b_v * b_bary + c_v * c_bary;
+                    let collider_velocity =
+                        a_v * barycentric.x + b_v * barycentric.y + c_v * barycentric.z;
                     let relative_velocity = *velocity - collider_velocity;
 
                     let contact_normal = to_p / distance;

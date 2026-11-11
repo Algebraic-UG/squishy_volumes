@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use nalgebra::Vector3;
-use squishy_volumes_util::NORMALIZATION_EPS;
+use squishy_volumes_mesh_util::{angle_weighted_normal, triangle_normal};
 
 use super::*;
 
@@ -47,34 +47,25 @@ fn check(
         let cpu_triangle_normals = triangle_indices
             .iter()
             .map(|Triangle { a, b, c }| {
-                let a = cpu_vertex_positions[*a as usize];
-                let b = cpu_vertex_positions[*b as usize];
-                let c = cpu_vertex_positions[*c as usize];
-                (b - a)
-                    .cross(&(c - a))
-                    .try_normalize(NORMALIZATION_EPS)
-                    .unwrap_or(Vector3::zeros())
+                triangle_normal(
+                    &cpu_vertex_positions[*a as usize],
+                    &cpu_vertex_positions[*b as usize],
+                    &cpu_vertex_positions[*c as usize],
+                )
             })
             .collect::<Vec<_>>();
         let cpu_vertex_normals = vertex_triangle_lists
             .iter()
             .enumerate()
             .map(|(vertex_index, triangles)| {
-                let mut normal = Vector3::zeros();
-                for index in triangles.iter() {
+                let incident = triangles.iter().map(|index| {
                     let triangle = triangle_indices[*index as usize];
                     let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
-                    let p = cpu_vertex_positions[vertex_index];
                     let a = cpu_vertex_positions[*others.next().unwrap() as usize];
                     let b = cpu_vertex_positions[*others.next().unwrap() as usize];
-                    let angle = (a - p).angle(&(b - p));
-
-                    normal += angle * cpu_triangle_normals[*index as usize];
-                }
-
-                normal
-                    .try_normalize(NORMALIZATION_EPS)
-                    .unwrap_or(Vector3::zeros())
+                    (a, b, cpu_triangle_normals[*index as usize])
+                });
+                angle_weighted_normal(&cpu_vertex_positions[vertex_index], incident)
             })
             .collect::<Vec<_>>();
 
