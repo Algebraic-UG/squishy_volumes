@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_util::{AnimatedGlobals, NORMALIZATION_EPS, ParticleFlags, profile};
+use squishy_volumes_util::{ParticleFlags, apply_external_force, profile};
 
 use super::*;
 
@@ -25,16 +25,7 @@ impl CpuState {
     pub fn external_force(&mut self) -> Result<(), Error> {
         profile!("external_force");
         let time_step = self.adaptive_time_step_state.allowed_time_step();
-
-        let AnimatedGlobals {
-            gravity_x,
-            gravity_y,
-            gravity_z,
-            goal_stiffness,
-            goal_damping,
-            damping,
-        } = self.animated_globals;
-        let gravity = nalgebra::Vector3::new(gravity_x, gravity_y, gravity_z);
+        let globals = &self.animated_globals;
 
         self.particles
             .positions
@@ -44,20 +35,10 @@ impl CpuState {
             .zip(&self.particles.flags)
             .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
             .for_each(|(((position, velocity), goal_position), flags)| {
-                *velocity -= time_step * damping * *velocity;
-                *velocity += time_step * gravity;
-
-                if flags.contains(ParticleFlags::HAS_GOAL) {
-                    let to_goal = goal_position - position;
-                    let distance = to_goal.norm();
-                    if distance > NORMALIZATION_EPS {
-                        let to_goal_dir = to_goal / distance;
-                        *velocity += (goal_stiffness * distance
-                            - goal_damping * to_goal_dir.dot(velocity))
-                            * time_step
-                            * to_goal_dir;
-                    }
-                }
+                let to_goal = flags
+                    .contains(ParticleFlags::HAS_GOAL)
+                    .then(|| goal_position - position);
+                *velocity = apply_external_force(velocity, to_goal.as_ref(), globals, time_step);
             });
 
         Ok(())

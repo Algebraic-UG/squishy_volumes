@@ -18,7 +18,7 @@
 
 use itertools::izip;
 use nalgebra::Vector3;
-use squishy_volumes_util::NORMALIZATION_EPS;
+use squishy_volumes_util::apply_external_force;
 
 use super::*;
 
@@ -35,46 +35,28 @@ fn check(
 ) {
     let gpu_particle_velocites = run(settings, input_data);
 
-    let AnimatedGlobals {
-        gravity_x,
-        gravity_y,
-        gravity_z,
-        goal_stiffness,
-        goal_damping,
-        damping,
-    } = globals;
-
-    let mut cpu_particle_velocites = particle_velocities.to_vec();
-    izip!(
+    let cpu_particle_velocites: Vec<Vector3<f32>> = izip!(
         particle_flags,
         particle_positions_and_collider_bits,
-        &mut cpu_particle_velocites,
+        particle_velocities,
         particle_goals,
     )
-    .for_each(
+    .map(
         |(flags, PositionAndColliderBits { position, .. }, velocity, goal)| {
-            *velocity -= time_step * damping * *velocity;
-            *velocity += time_step * Vector4::new(gravity_x, gravity_y, gravity_z, 0.);
-            if flags.contains(ParticleFlags::HAS_GOAL) {
-                let to_goal = goal.xyz() - position;
-                let distance = to_goal.norm();
-                if distance > NORMALIZATION_EPS {
-                    let to_goal_dir = to_goal / distance;
-                    *velocity = (goal_stiffness * distance
-                        - goal_damping * to_goal_dir.dot(&velocity.xyz()))
-                        * time_step
-                        * to_goal_dir.push(0.);
-                }
-            }
+            let to_goal = flags
+                .contains(ParticleFlags::HAS_GOAL)
+                .then(|| goal.xyz() - position);
+            apply_external_force(&velocity.xyz(), to_goal.as_ref(), &globals, time_step)
         },
-    );
+    )
+    .collect();
 
     for (cpu, gpu) in cpu_particle_velocites
         .into_iter()
         .zip(gpu_particle_velocites)
     {
         println!("{cpu} vs {gpu}");
-        check_iters_by_norm(&cpu.xyz(), &gpu.xyz());
+        check_iters_by_norm(&cpu, &gpu.xyz());
     }
 }
 
@@ -133,6 +115,65 @@ fn simple() {
             particle_goals: &particle_goals,
         },
     );
+}
+
+#[test]
+fn stiff_and_damped() {
+    let particle_velocities = vec![
+        Vector4::new(1., -2., 0.5, 0.),
+        Vector4::new(0.3, 0.1, -0.7, 0.),
+        Vector4::new(-1., 0., 2., 0.),
+        Vector4::new(0., 0., 0., 0.),
+    ];
+    let particle_flags = vec![ParticleFlags::HAS_GOAL; 4];
+    let positions = [
+        Vector3::new(0.1, 0.2, 0.3),
+        Vector3::new(-0.5, 0.4, 0.),
+        Vector3::new(0.25, 0.25, 0.25),
+        Vector3::new(0., 0., 1.),
+    ];
+    let particle_positions_and_collider_bits: Vec<_> = positions
+        .iter()
+        .map(|&position| PositionAndColliderBits {
+            position,
+            collider_bits: 0,
+        })
+        .collect();
+    let particle_goals = vec![
+        Vector4::new(0.1, 0.2, 0.3, 0.),
+        Vector4::new(0.5, -0.4, 0.2, 0.),
+        Vector4::new(0.25, 0.25, 0.250001, 0.),
+        Vector4::new(0., 0., 0., 0.),
+    ];
+
+    for (goal_stiffness, goal_damping, damping) in [
+        (1e7, 0., 0.),
+        (1e4, 1e3, 0.),
+        (1e3, 0.5, 50.),
+        (-1e4, -1e3, -100.),
+    ] {
+        check(
+            Settings {
+                workgroup_size: 64.try_into().unwrap(),
+                dispatch_limit: (u16::MAX as u32).try_into().unwrap(),
+            },
+            InputData {
+                time_step: 0.01,
+                globals: AnimatedGlobals {
+                    gravity_x: 0.,
+                    gravity_y: 0.,
+                    gravity_z: -9.8,
+                    goal_stiffness,
+                    goal_damping,
+                    damping,
+                },
+                particle_flags: &particle_flags,
+                particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+                particle_velocities: &particle_velocities,
+                particle_goals: &particle_goals,
+            },
+        );
+    }
 }
 
 fn run(settings: Settings, input_data: InputData) -> Vec<Vector4<f32>> {
