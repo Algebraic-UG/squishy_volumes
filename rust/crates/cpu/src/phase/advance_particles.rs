@@ -18,7 +18,7 @@
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 use squishy_volumes_util::{
-    ParticleFlags, elastic_energy_inviscid, profile, sand_plasticity,
+    ParticleFlags, elastic_energy_inviscid, fluid_plasticity, profile, sand_plasticity,
     try_elastic_energy_neo_hookean,
 };
 
@@ -68,10 +68,7 @@ impl CpuState {
                         )
                         .inspect_err(|_| *flags |= ParticleFlags::FAILED)?
                     } else if flags.contains(ParticleFlags::IS_FLUID) {
-                        let mut svd = position_gradient.svd(true, true);
-                        svd.singular_values
-                            .fill(svd.singular_values.product().powf(1. / 3.));
-                        *position_gradient = svd.recompose().unwrap();
+                        *position_gradient = fluid_plasticity(position_gradient);
                         elastic_energy_inviscid(
                             parameters.bulk_modulus,
                             parameters.exponent,

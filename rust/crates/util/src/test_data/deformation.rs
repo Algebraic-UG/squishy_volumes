@@ -30,6 +30,15 @@ pub struct PrincipalDeformation {
 }
 
 impl PrincipalDeformation {
+    pub fn from_position_gradient(position_gradient: &Matrix3<T>) -> Self {
+        let svd = position_gradient.svd(true, true);
+        Self {
+            left: svd.u.unwrap(),
+            stretches: svd.singular_values,
+            right: svd.v_t.unwrap().transpose(),
+        }
+    }
+
     pub fn position_gradient(&self) -> Matrix3<T> {
         self.left * Matrix3::from_diagonal(&self.stretches) * self.right.transpose()
     }

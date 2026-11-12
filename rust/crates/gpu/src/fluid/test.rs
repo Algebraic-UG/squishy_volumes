@@ -17,6 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, stack};
+use squishy_volumes_util::fluid_plasticity;
 
 use crate::test_data::test_position_gradients_random;
 
@@ -38,12 +39,7 @@ fn check(particle_position_gradients: &[Matrix4x3<f32>]) {
 
     cpu_particle_position_gradients
         .iter_mut()
-        .for_each(|position_gradient| {
-            let mut svd = position_gradient.svd(true, true);
-            svd.singular_values
-                .fill(svd.singular_values.product().powf(1. / 3.));
-            *position_gradient = svd.recompose().unwrap();
-        });
+        .for_each(|position_gradient| *position_gradient = fluid_plasticity(position_gradient));
 
     for (cpu, gpu) in cpu_particle_position_gradients
         .into_iter()

@@ -53,7 +53,9 @@ fn cases_for_all_parameters(
         .collect()
 }
 
-fn closed_form_plastic_multiplier(
+/// The Drucker–Prager plastic multiplier `‖ε̂‖ + (3λ + 2μ) / (2μ) · tr ε · α`,
+/// positive outside the cone, zero on its surface and negative inside.
+pub fn sand_plastic_multiplier(
     parameters: &ParticleParameters,
     deformation: &PrincipalDeformation,
 ) -> T {
@@ -70,7 +72,7 @@ fn unchanged_inside_cone(
     deformation: &PrincipalDeformation,
 ) -> Matrix3<T> {
     assert!(
-        closed_form_plastic_multiplier(parameters, deformation) <= 0.,
+        sand_plastic_multiplier(parameters, deformation) <= 0.,
         "fixture {deformation:?} is not inside the cone for {parameters:?}",
     );
     deformation.position_gradient()

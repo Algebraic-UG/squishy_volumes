@@ -17,7 +17,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use squishy_volumes_util::{ParticleFlags, profile};
+use squishy_volumes_util::{
+    ParticleFlags, limit_time_step_by_isolated_particles, limit_time_step_by_speed_of_sound,
+    principal_stretches, profile,
+};
 
 use super::*;
 
@@ -27,16 +30,19 @@ impl CpuState {
 
         let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
 
-        self.adaptive_time_step_state.time_step_by_sound =
-            self.limit_time_step_by_speed_of_sound(grid_node_size);
-        self.adaptive_time_step_state.time_step_by_isolated =
-            self.limit_time_step_by_isolated_particles(grid_node_size);
+        (
+            self.adaptive_time_step_state.time_step_by_sound,
+            self.adaptive_time_step_state.time_step_by_isolated,
+        ) = self.limit_time_step_by_sound_and_isolated_particles(grid_node_size);
 
         self.adaptive_time_step_state.push_current_limit();
     }
 
-    fn limit_time_step_by_speed_of_sound(&self, grid_node_size: f32) -> Option<f32> {
-        profile!("limit_time_step_by_speed_of_sound");
+    fn limit_time_step_by_sound_and_isolated_particles(
+        &self,
+        grid_node_size: f32,
+    ) -> (Option<f32>, Option<f32>) {
+        profile!("limit_time_step_by_sound_and_isolated_particles");
         self.particles
             .parameters
             .par_iter()
@@ -44,33 +50,31 @@ impl CpuState {
             .zip(&self.particles.flags)
             .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
             .map(|((parameters, position_gradient), flags)| {
-                squishy_volumes_util::limit_time_step_by_speed_of_sound(
-                    flags,
-                    parameters,
-                    position_gradient,
-                    grid_node_size,
+                let principal_stretches = principal_stretches(position_gradient);
+                (
+                    Some(limit_time_step_by_speed_of_sound(
+                        flags,
+                        parameters,
+                        &principal_stretches,
+                        grid_node_size,
+                    )),
+                    Some(limit_time_step_by_isolated_particles(
+                        flags,
+                        parameters,
+                        &principal_stretches,
+                        grid_node_size,
+                    )),
                 )
             })
-            .min_by(f32::total_cmp)
-    }
-
-    fn limit_time_step_by_isolated_particles(&self, grid_node_size: f32) -> Option<f32> {
-        profile!("limit_time_step_by_isolated_particles");
-        self.particles
-            .parameters
-            .par_iter()
-            .zip(&self.particles.position_gradients)
-            .zip(&self.particles.flags)
-            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
-            .map(|((parameters, position_gradient), flags)| {
-                squishy_volumes_util::limit_time_step_by_isolated_particles(
-                    flags,
-                    parameters,
-                    position_gradient,
-                    grid_node_size,
-                )
-            })
-            .min_by(f32::total_cmp)
+            .reduce(
+                || (None, None),
+                |(sound, isolated), (other_sound, other_isolated)| {
+                    (
+                        smaller_limit(sound, other_sound),
+                        smaller_limit(isolated, other_isolated),
+                    )
+                },
+            )
     }
 
     pub fn limit_time_step_before_integrate(&mut self) {
@@ -106,5 +110,13 @@ impl CpuState {
                 squishy_volumes_util::limit_time_step_by_deformation(velocity_gradient)
             })
             .min_by(f32::total_cmp)
+    }
+}
+
+fn smaller_limit(a: Option<f32>, b: Option<f32>) -> Option<f32> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(std::cmp::min_by(a, b, f32::total_cmp)),
+        (a, None) => a,
+        (None, b) => b,
     }
 }
