@@ -100,16 +100,15 @@ pub fn test_pure_expansions() -> Vec<PrincipalDeformation> {
     test_rotated_deformations([1.001, 1.2, 2.].map(Vector3::repeat))
 }
 
-/// Asserts `‖expected − actual‖ ≤ relative_tolerance · ‖expected‖` in the Frobenius norm.
-pub fn assert_relative_norm_close(
-    expected: &Matrix3<T>,
-    actual: &Matrix3<T>,
-    relative_tolerance: T,
-) {
-    let error = (expected - actual).norm();
-    let tolerance = relative_tolerance * expected.norm();
-    assert!(
-        error <= tolerance,
-        "expected {expected} but got {actual}, error={error}, tolerance={tolerance}",
-    );
+/// Anisotropic stretches, some with a repeated pair, combined with every pair of
+/// [`test_rotations`]. All are well away from inversion.
+pub fn test_general_deformations() -> Vec<PrincipalDeformation> {
+    test_rotated_deformations([
+        Vector3::new(1.3, 0.9, 0.7),
+        Vector3::new(0.6, 1.1, 1.8),
+        Vector3::new(1.02, 1., 0.97),
+        Vector3::new(0.4, 0.5, 2.5),
+        Vector3::new(1.5, 1.5, 0.8),
+        Vector3::new(0.7, 1.2, 1.2),
+    ])
 }
