@@ -91,7 +91,7 @@ fn main(
             continue;
         }
 
-        let angle = acos(clamp(dot(ap, bp) / ll, -1., 1.));
+        let angle = atan2(length(cross(ap, bp)), dot(ap, bp));
 
         normal += angle * triangle_normals[triangle_index];
     }

@@ -18,8 +18,8 @@
 
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator as _, IntoParallelRefIterator, ParallelIterator as _};
-use squishy_volumes_mesh_util::Triangle;
-use squishy_volumes_util::{NORMALIZATION_EPS, profile};
+use squishy_volumes_mesh_util::{Triangle, angle_weighted_normal, triangle_normal};
+use squishy_volumes_util::profile;
 
 use super::*;
 
@@ -45,13 +45,11 @@ impl CpuState {
         let triangle_normals: Vec<Vector3<f32>> = triangle_indices
             .par_iter()
             .map(|Triangle { a, b, c }| {
-                let a = &vertex_positions[*a as usize];
-                let b = &vertex_positions[*b as usize];
-                let c = &vertex_positions[*c as usize];
-                (b - a)
-                    .cross(&(c - a))
-                    .try_normalize(NORMALIZATION_EPS)
-                    .unwrap_or(Vector3::zeros())
+                triangle_normal(
+                    &vertex_positions[*a as usize],
+                    &vertex_positions[*b as usize],
+                    &vertex_positions[*c as usize],
+                )
             })
             .collect();
 
@@ -64,20 +62,14 @@ impl CpuState {
             .par_iter()
             .enumerate()
             .map(|(vertex_index, triangles)| {
-                triangles
-                    .iter()
-                    .map(|triangle_index| {
-                        let triangle = triangle_indices[*triangle_index as usize];
-                        let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
-                        let p = vertex_positions[vertex_index];
-                        let a = vertex_positions[*others.next().unwrap() as usize];
-                        let b = vertex_positions[*others.next().unwrap() as usize];
-                        let angle = (a - p).angle(&(b - p));
-                        angle * triangle_normals[*triangle_index as usize]
-                    })
-                    .sum::<Vector3<f32>>()
-                    .try_normalize(NORMALIZATION_EPS)
-                    .unwrap_or(Vector3::zeros())
+                let incident = triangles.iter().map(|triangle_index| {
+                    let triangle = triangle_indices[*triangle_index as usize];
+                    let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
+                    let a = vertex_positions[*others.next().unwrap() as usize];
+                    let b = vertex_positions[*others.next().unwrap() as usize];
+                    (a, b, triangle_normals[*triangle_index as usize])
+                });
+                angle_weighted_normal(&vertex_positions[vertex_index], incident)
             })
             .collect();
 

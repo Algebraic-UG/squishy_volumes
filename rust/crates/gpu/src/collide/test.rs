@@ -18,14 +18,14 @@
 
 use nalgebra::Vector3;
 use squishy_volumes_mesh_util::{
-    DistanceResult, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle,
-    segment_distance_result,
+    DistanceResult, FeatureNormals, angle_weighted_normal, closest_feature, compute_triangle_lists,
+    compute_triangle_opposites, distance_to_triangle, edge_pseudo_normal,
+    surface_velocity_at_closest_point, triangle_normal,
 };
-use squishy_volumes_util::{Aabb, NORMALIZATION_EPS, collider_bits};
+use squishy_volumes_util::{Aabb, Contact, NORMALIZATION_EPS, collider_bits, collision_response};
 
 use super::*;
 
-// TODO: check friction and damping
 fn check(
     forget_distance: f32,
     accept_distance: f32,
@@ -34,8 +34,11 @@ fn check(
         particle_positions_and_collider_bits,
         particle_velocities,
         vertex_positions,
+        vertex_velocities,
         triangle_indices,
         triangle_collider,
+        triangle_frictions,
+        triangle_dampings,
         ..
     }: InputData,
     check_collider_bits: bool,
@@ -45,27 +48,27 @@ fn check(
     let triangle_normals = triangle_indices
         .iter()
         .map(|Triangle { a, b, c }| {
-            let a = vertex_positions[*a as usize].xyz();
-            let b = vertex_positions[*b as usize].xyz();
-            let c = vertex_positions[*c as usize].xyz();
-            (b - a)
-                .cross(&(c - a))
-                .try_normalize(NORMALIZATION_EPS)
-                .unwrap_or(Vector3::zeros())
-                .push(0.)
+            triangle_normal(
+                &vertex_positions[*a as usize].xyz(),
+                &vertex_positions[*b as usize].xyz(),
+                &vertex_positions[*c as usize].xyz(),
+            )
+            .push(0.)
         })
         .collect::<Vec<_>>();
     let vertex_normals = vertex_triangle_lists
         .iter()
         .take(vertex_positions.len())
-        .map(|triangles| {
-            let mut normal = Vector4::zeros();
-            for index in triangles.iter() {
-                normal += triangle_normals[*index as usize];
-            }
-            normal
-                .try_normalize(NORMALIZATION_EPS)
-                .unwrap_or(Vector4::zeros())
+        .enumerate()
+        .map(|(vertex_index, triangles)| {
+            let incident = triangles.iter().map(|index| {
+                let triangle = triangle_indices[*index as usize];
+                let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
+                let a = vertex_positions[*others.next().unwrap() as usize].xyz();
+                let b = vertex_positions[*others.next().unwrap() as usize].xyz();
+                (a, b, triangle_normals[*index as usize].xyz())
+            });
+            angle_weighted_normal(&vertex_positions[vertex_index].xyz(), incident).push(0.)
         })
         .collect::<Vec<_>>();
     let triangle_opposites = compute_triangle_opposites(triangle_indices);
@@ -139,53 +142,25 @@ fn check(
             let a = vertex_positions[triangle.a as usize].xyz();
             let b = vertex_positions[triangle.b as usize].xyz();
             let c = vertex_positions[triangle.c as usize].xyz();
-            let a_n = vertex_normals[triangle.a as usize].xyz();
-            let b_n = vertex_normals[triangle.b as usize].xyz();
-            let c_n = vertex_normals[triangle.c as usize].xyz();
-            let ab_n = if opps.ab != u32::MAX {
-                triangle_normals[opps.ab as usize].xyz()
-            } else {
-                Vector3::zeros()
+            let edge_normal = |opposite: u32| {
+                let neighbour_normal =
+                    (opposite != u32::MAX).then(|| triangle_normals[opposite as usize].xyz());
+                edge_pseudo_normal(&n, neighbour_normal.as_ref())
             };
-            let bc_n = if opps.bc != u32::MAX {
-                triangle_normals[opps.bc as usize].xyz()
-            } else {
-                Vector3::zeros()
-            };
-            let ca_n = if opps.ca != u32::MAX {
-                triangle_normals[opps.ca as usize].xyz()
-            } else {
-                Vector3::zeros()
-            };
-
-            let ab = a - b;
-            let bc = b - c;
-            let ca = c - a;
-
-            let sa = n.dot(&bc.cross(&(c - p))) > 0.;
-            let sb = n.dot(&ca.cross(&(a - p))) > 0.;
-            let sc = n.dot(&ab.cross(&(b - p))) > 0.;
-
             let DistanceResult {
                 distance,
                 to_p,
                 normal,
-            } = if sa && sb && sc {
-                DistanceResult {
-                    distance: (p - a).dot(&n).abs(),
-                    to_p: n * (p - a).dot(&n),
-                    normal: n,
-                }
-            } else {
-                [
-                    segment_distance_result(&p, &a, &b, &a_n, &ab_n, &b_n),
-                    segment_distance_result(&p, &b, &c, &b_n, &bc_n, &c_n),
-                    segment_distance_result(&p, &c, &a, &c_n, &ca_n, &a_n),
-                ]
-                .into_iter()
-                .min_by(|a, b| a.distance.total_cmp(&b.distance))
-                .unwrap()
-            };
+            } = closest_feature(
+                &p,
+                [&a, &b, &c],
+                &n,
+                &FeatureNormals {
+                    vertices: [triangle.a, triangle.b, triangle.c]
+                        .map(|vertex| vertex_normals[vertex as usize].xyz()),
+                    edges: [opps.ab, opps.bc, opps.ca].map(edge_normal),
+                },
+            );
 
             if normal == Vector3::zeros() {
                 collider_bits::set(bits, collider, None);
@@ -204,7 +179,25 @@ fn check(
                 continue;
             }
 
-            *velocity -= to_p / time_step;
+            if distance < NORMALIZATION_EPS {
+                continue;
+            }
+
+            let corner_velocities = [triangle.a, triangle.b, triangle.c]
+                .map(|vertex| vertex_velocities[vertex as usize].xyz());
+            let contact = Contact {
+                to_p,
+                collider_velocity: surface_velocity_at_closest_point(
+                    &p,
+                    &to_p,
+                    [&a, &b, &c],
+                    &n,
+                    corner_velocities.each_ref(),
+                ),
+                friction: triangle_frictions[closest_triangle as usize],
+                damping: triangle_dampings[closest_triangle as usize],
+            };
+            *velocity = collision_response(velocity, &contact, time_step);
         }
     }
 
@@ -409,6 +402,148 @@ fn torus() {
             triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
+            vertex_normals: &[],
+            triangle_normals: &[],
+            triangle_opposites: &[],
+        },
+        false,
+    );
+}
+
+#[test]
+fn dented_octahedron_with_concave_edges_and_corner() {
+    let vertex_positions = [
+        [1., 0., 0.],
+        [-1., 0., 0.],
+        [0., 1., 0.],
+        [0., -1., 0.],
+        [0., 0., -0.3],
+        [0., 0., -1.],
+    ]
+    .map(|[x, y, z]| Vector4::new(x, y, z, 0.))
+    .to_vec();
+    let triangle_indices = [
+        [0, 2, 4],
+        [2, 1, 4],
+        [1, 3, 4],
+        [3, 0, 4],
+        [2, 0, 5],
+        [1, 2, 5],
+        [3, 1, 5],
+        [0, 3, 5],
+    ]
+    .map(|[a, b, c]| Triangle { a, b, c })
+    .to_vec();
+
+    let off_the_symmetry_planes = Vector3::new(0.013, 0.007, 0.011);
+    let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));
+    let particle_positions_and_collider_bits: Vec<_> = aabb
+        .lattice(0.1)
+        .1
+        .map(|position| PositionAndColliderBits {
+            position: position + off_the_symmetry_planes,
+            collider_bits: 0,
+        })
+        .collect();
+    let particle_flags = vec![Default::default(); particle_positions_and_collider_bits.len()];
+    let towards_the_center: Vec<_> = particle_positions_and_collider_bits
+        .iter()
+        .map(|particle| (-particle.position).push(0.))
+        .collect();
+    let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
+    let triangle_frictions = vec![0.; triangle_indices.len()];
+    let triangle_dampings = vec![0.; triangle_indices.len()];
+
+    check(
+        0.7,
+        0.5,
+        InputData {
+            time_step: 0.01,
+            leaf_size: 0.5,
+            leaf_threshold: 0,
+            particle_flags: &particle_flags,
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+            particle_velocities: &towards_the_center,
+            vertex_positions: &vertex_positions,
+            vertex_velocities: &vec![Vector4::zeros(); vertex_positions.len()],
+            triangle_indices: &triangle_indices,
+            triangle_collider: &triangle_collider,
+            triangle_frictions: &triangle_frictions,
+            triangle_dampings: &triangle_dampings,
+
+            // hacky: will be computed in check
+            vertex_normals: &[],
+            triangle_normals: &[],
+            triangle_opposites: &[],
+        },
+        true,
+    );
+}
+
+#[test]
+fn deforming_torus_with_friction_and_damping() {
+    check_deforming_torus(0.4, 0.3);
+}
+
+#[test]
+fn deforming_torus_with_invalid_friction_and_damping() {
+    check_deforming_torus(-0.4, -0.3);
+    check_deforming_torus(0.4, 1.5);
+}
+
+fn check_deforming_torus(friction: f32, damping: f32) {
+    let vertex_positions = torus::vertices();
+    let triangle_indices = torus::triangles();
+
+    let angular_velocity = Vector3::new(0.3, -1.2, 0.7);
+    let translation_velocity = Vector3::new(0.5, 0.2, -0.4);
+    let deforming_velocity = |x: Vector3<f32>| {
+        translation_velocity
+            + angular_velocity.cross(&x)
+            + Vector3::new((3. * x.x).sin(), (2. * x.y).cos(), (5. * x.z).sin())
+    };
+    let vertex_velocities: Vec<Vector4<f32>> = vertex_positions
+        .iter()
+        .map(|position| deforming_velocity(position.xyz()).push(0.))
+        .collect();
+
+    let aabb = Aabb::new(vertex_positions.iter().map(Vector4::xyz));
+    let known_to_be_outside = 0x0001_0001;
+    let off_the_symmetry_planes = Vector3::new(0.0123, 0.0371, 0.0219);
+    let particle_positions_and_collider_bits: Vec<_> = aabb
+        .lattice(0.2)
+        .1
+        .map(|position| PositionAndColliderBits {
+            position: position + off_the_symmetry_planes,
+            collider_bits: known_to_be_outside,
+        })
+        .collect();
+    let particle_count = particle_positions_and_collider_bits.len();
+    let particle_flags = vec![Default::default(); particle_count];
+    let particle_velocities: Vec<Vector4<f32>> = particle_positions_and_collider_bits
+        .iter()
+        .map(|particle| Vector4::new(particle.position.y, -particle.position.z, 0.5, 0.))
+        .collect();
+    let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
+    let triangle_frictions = vec![friction; triangle_indices.len()];
+    let triangle_dampings = vec![damping; triangle_indices.len()];
+
+    check(
+        0.7,
+        0.5,
+        InputData {
+            time_step: 0.01,
+            leaf_size: 0.5,
+            leaf_threshold: 0,
+            particle_flags: &particle_flags,
+            particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
+            particle_velocities: &particle_velocities,
+            vertex_positions: &vertex_positions,
+            vertex_velocities: &vertex_velocities,
+            triangle_indices: &triangle_indices,
+            triangle_collider: &triangle_collider,
+            triangle_frictions: &triangle_frictions,
+            triangle_dampings: &triangle_dampings,
             vertex_normals: &[],
             triangle_normals: &[],
             triangle_opposites: &[],

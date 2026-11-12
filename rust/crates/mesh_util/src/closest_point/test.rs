@@ -1,0 +1,472 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// This file is part of the Squishy Volumes extension.
+// Copyright (C) 2025-2026  Algebraic UG (haftungsbeschränkt)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+use nalgebra::Vector3;
+use rand::{RngExt as _, SeedableRng as _, rngs::ChaCha8Rng};
+
+use super::*;
+use crate::{Triangle, compute_triangle_lists, compute_triangle_opposites, distance_to_triangle};
+
+fn random_point(rng: &mut ChaCha8Rng, extent: f32) -> Vector3<f32> {
+    Vector3::from_fn(|_, _| rng.random_range(-extent..extent))
+}
+
+fn test_triangles() -> Vec<[Vector3<f32>; 3]> {
+    let mut rng = ChaCha8Rng::seed_from_u64(0);
+    let obtuse = [
+        Vector3::new(0., 0., 0.),
+        Vector3::new(1., 0., 0.),
+        Vector3::new(0.5, 0.05, 0.),
+    ];
+    let needle = [
+        Vector3::new(0., 0., 0.),
+        Vector3::new(1., 0., 0.),
+        Vector3::new(1., 0.02, 0.3),
+    ];
+    let mut triangles = vec![obtuse, needle];
+    while triangles.len() < 20 {
+        let triangle = [(); 3].map(|_| random_point(&mut rng, 1.));
+        if triangle_normal(&triangle[0], &triangle[1], &triangle[2]) != Vector3::zeros() {
+            triangles.push(triangle);
+        }
+    }
+    triangles
+}
+
+#[test]
+fn barycentric_identities() {
+    let mut rng = ChaCha8Rng::seed_from_u64(1);
+    for [a, b, c] in test_triangles() {
+        let n = triangle_normal(&a, &b, &c);
+        for (vertex, expected) in [(a, Vector3::x()), (b, Vector3::y()), (c, Vector3::z())] {
+            let barycentric = barycentric_coordinates(&vertex, [&a, &b, &c], &n);
+            assert!((barycentric - expected).norm() < 1e-4, "{barycentric}");
+        }
+        for _ in 0..100 {
+            let p = random_point(&mut rng, 2.);
+            let barycentric = barycentric_coordinates(&p, [&a, &b, &c], &n);
+            assert!((barycentric.sum() - 1.).abs() < 1e-3);
+            let projection = p - n * (p - a).dot(&n);
+            let reconstructed = a * barycentric.x + b * barycentric.y + c * barycentric.z;
+            assert!((reconstructed - projection).norm() < 1e-3 * (1. + p.norm()));
+        }
+    }
+}
+
+fn unit_in_plane(angle: f32) -> Vector3<f32> {
+    Vector3::new(angle.cos(), angle.sin(), 0.)
+}
+
+#[test]
+fn pseudo_normal_weighs_by_exact_corner_angles() {
+    let vertex = Vector3::zeros();
+    let wide_angle = 1.;
+    let wide_corner = (
+        vertex + Vector3::x(),
+        vertex + unit_in_plane(wide_angle) * 2.,
+        Vector3::x(),
+    );
+    for angle in [1e-4, 1e-3, 1e-2, std::f32::consts::PI - 1e-3] {
+        let corner = (
+            vertex + Vector3::x() * 0.5,
+            vertex + unit_in_plane(angle) * 3.,
+            Vector3::z(),
+        );
+        let normal = angle_weighted_normal(&vertex, [wide_corner, corner].into_iter());
+        let expected_slope = angle / wide_angle;
+        let slope = normal.z / normal.x;
+        assert!(
+            (slope - expected_slope).abs() <= 1e-5 * expected_slope,
+            "angle {angle}: slope {slope} instead of {expected_slope}"
+        );
+    }
+}
+
+fn brute_force_distance(p: &Vector3<f32>, [a, b, c]: &[Vector3<f32>; 3]) -> f32 {
+    const N: usize = 100;
+    let mut distance = f32::MAX;
+    for i in 0..=N {
+        for j in 0..=N - i {
+            let (u, v) = (i as f32 / N as f32, j as f32 / N as f32);
+            distance = distance.min((a + (b - a) * u + (c - a) * v - p).norm());
+        }
+    }
+    distance
+}
+
+#[test]
+fn distance_matches_brute_force() {
+    let mut rng = ChaCha8Rng::seed_from_u64(2);
+    for triangle @ [a, b, c] in test_triangles() {
+        let n = triangle_normal(&a, &b, &c);
+        let resolution = [(b - a).norm(), (c - a).norm()].into_iter().sum::<f32>() / 100.;
+        for _ in 0..20 {
+            let p = random_point(&mut rng, 1.5);
+            let distance = distance_to_triangle(&p, &a, &b, &c, &n);
+            let brute_force = brute_force_distance(&p, &triangle);
+            assert!(
+                distance <= brute_force + 1e-5,
+                "{p}: {distance} vs {brute_force}"
+            );
+            assert!(
+                brute_force <= distance + resolution,
+                "{p}: {distance} vs {brute_force}"
+            );
+        }
+    }
+}
+
+#[test]
+fn closest_feature_is_on_triangle() {
+    let mut rng = ChaCha8Rng::seed_from_u64(3);
+    let normals = test_feature_normals();
+    for [a, b, c] in test_triangles() {
+        let n = triangle_normal(&a, &b, &c);
+        for _ in 0..100 {
+            let p = random_point(&mut rng, 1.5);
+            let result = closest_feature(&p, [&a, &b, &c], &n, &normals);
+            let expected = distance_to_triangle(&p, &a, &b, &c, &n);
+            assert!((result.distance - expected).abs() < 1e-5);
+            assert!((result.to_p.norm() - result.distance).abs() < 1e-5);
+            let closest = p - result.to_p;
+            assert!((closest - a).dot(&n).abs() < 1e-5);
+            let barycentric = barycentric_coordinates(&closest, [&a, &b, &c], &n);
+            assert!(barycentric.iter().all(|x| (-1e-4..=1. + 1e-4).contains(x)));
+        }
+    }
+}
+
+fn test_feature_normals() -> FeatureNormals {
+    FeatureNormals {
+        vertices: [Vector3::x(); 3],
+        edges: [Vector3::x(); 3],
+    }
+}
+
+fn surface_velocity_around(
+    p: &Vector3<f32>,
+    [a, b, c]: &[Vector3<f32>; 3],
+    corner_velocities: &[Vector3<f32>; 3],
+) -> (Vector3<f32>, Vector3<f32>) {
+    let n = triangle_normal(a, b, c);
+    let closest = closest_feature(p, [a, b, c], &n, &test_feature_normals());
+    let velocity = surface_velocity_at_closest_point(
+        p,
+        &closest.to_p,
+        [a, b, c],
+        &n,
+        corner_velocities.each_ref(),
+    );
+    (p - closest.to_p, velocity)
+}
+
+#[test]
+fn surface_velocity_follows_rigid_motion_at_the_closest_point() {
+    let mut rng = ChaCha8Rng::seed_from_u64(5);
+    let translation_velocity = Vector3::new(0.5, -0.2, 0.3);
+    let angular_velocity = Vector3::new(2., -1., 3.);
+    let rigid_velocity = |x: &Vector3<f32>| translation_velocity + angular_velocity.cross(x);
+    for triangle in test_triangles() {
+        let corner_velocities = triangle.map(|corner| rigid_velocity(&corner));
+        for _ in 0..100 {
+            let p = random_point(&mut rng, 1.5);
+            let (closest_point, velocity) =
+                surface_velocity_around(&p, &triangle, &corner_velocities);
+            let expected = rigid_velocity(&closest_point);
+            assert!(
+                (velocity - expected).norm() <= 1e-4 * expected.norm(),
+                "{p}: {velocity} instead of {expected}"
+            );
+        }
+    }
+}
+
+#[test]
+fn surface_velocity_stays_within_the_corner_velocities() {
+    let mut rng = ChaCha8Rng::seed_from_u64(6);
+    for triangle in test_triangles() {
+        let corner_velocities = [(); 3].map(|_| random_point(&mut rng, 1.));
+        let [first, second, third] = corner_velocities;
+        let lowest = first.inf(&second).inf(&third);
+        let highest = first.sup(&second).sup(&third);
+        let slack = Vector3::repeat(1e-4);
+        for _ in 0..100 {
+            let p = random_point(&mut rng, 1.5);
+            let (_, velocity) = surface_velocity_around(&p, &triangle, &corner_velocities);
+            assert!(
+                velocity >= lowest - slack && velocity <= highest + slack,
+                "{p}: {velocity} outside of {lowest} to {highest}"
+            );
+        }
+    }
+}
+
+#[test]
+fn surface_velocity_at_a_stationary_tip_is_zero() {
+    let tip = Vector3::new(0.3, -0.2, 0.5);
+    let half_angle = 30_f32.to_radians();
+    let slant_length = 1.;
+    let rim_speed = 1.;
+    let depth_below_tip = 0.1;
+    let segments = 8;
+    let slant_directions: Vec<Vector3<f32>> = (0..segments)
+        .map(|segment| {
+            let around = std::f32::consts::TAU * segment as f32 / segments as f32;
+            let outward = Vector3::new(around.cos(), around.sin(), 0.);
+            Vector3::z() * half_angle.cos() + outward * half_angle.sin()
+        })
+        .collect();
+    let p = tip - Vector3::z() * depth_below_tip;
+    for segment in 0..segments {
+        let [first, second] = [segment, (segment + 1) % segments].map(|i| slant_directions[i]);
+        let triangle = [tip, tip + first * slant_length, tip + second * slant_length];
+        let corner_velocities = [Vector3::zeros(), -first * rim_speed, -second * rim_speed];
+        let (closest_point, velocity) = surface_velocity_around(&p, &triangle, &corner_velocities);
+        assert!(
+            (closest_point - tip).norm() < 1e-5,
+            "segment {segment}: closest point {closest_point} instead of the tip {tip}"
+        );
+        assert!(
+            velocity.norm() < 1e-5,
+            "segment {segment}: {velocity} instead of the stationary tip"
+        );
+    }
+}
+
+struct Mesh {
+    vertices: Vec<Vector3<f32>>,
+    triangles: Vec<Triangle>,
+}
+
+fn mesh(vertices: Vec<[f32; 3]>, triangles: &[[u32; 3]]) -> Mesh {
+    Mesh {
+        vertices: vertices.into_iter().map(Vector3::from).collect(),
+        triangles: triangles.iter().map(|t| t.iter().cloned().into()).collect(),
+    }
+}
+
+fn test_meshes() -> Vec<Mesh> {
+    let tetrahedron = mesh(
+        vec![[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+        &[[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]],
+    );
+    let cube = mesh(
+        (0..8)
+            .map(|i| [(i & 1) as f32, ((i >> 1) & 1) as f32, ((i >> 2) & 1) as f32])
+            .collect(),
+        &[
+            [0, 2, 1],
+            [1, 2, 3],
+            [4, 5, 6],
+            [5, 7, 6],
+            [0, 1, 4],
+            [1, 5, 4],
+            [2, 6, 3],
+            [3, 6, 7],
+            [0, 4, 2],
+            [2, 4, 6],
+            [1, 3, 5],
+            [3, 7, 5],
+        ],
+    );
+    let dented_octahedron = mesh(
+        vec![
+            [1., 0., 0.],
+            [-1., 0., 0.],
+            [0., 1., 0.],
+            [0., -1., 0.],
+            [0., 0., -0.3],
+            [0., 0., -1.],
+        ],
+        &[
+            [0, 2, 4],
+            [2, 1, 4],
+            [1, 3, 4],
+            [3, 0, 4],
+            [2, 0, 5],
+            [1, 2, 5],
+            [3, 1, 5],
+            [0, 3, 5],
+        ],
+    );
+    vec![tetrahedron, cube, dented_octahedron]
+}
+
+fn winding_number(p: &Vector3<f32>, mesh: &Mesh) -> f32 {
+    let solid_angles: f32 = mesh
+        .triangles
+        .iter()
+        .map(|t| {
+            let [a, b, c] = [t.a, t.b, t.c].map(|i| mesh.vertices[i as usize] - p);
+            let (la, lb, lc) = (a.norm(), b.norm(), c.norm());
+            let numerator = a.dot(&b.cross(&c));
+            let denominator = la * lb * lc + a.dot(&b) * lc + b.dot(&c) * la + c.dot(&a) * lb;
+            2. * numerator.atan2(denominator)
+        })
+        .sum();
+    solid_angles / (4. * std::f32::consts::PI)
+}
+
+fn pseudo_normal_inside(p: &Vector3<f32>, mesh: &Mesh) -> bool {
+    let vertices = &mesh.vertices;
+    let triangle_normals: Vec<_> = mesh
+        .triangles
+        .iter()
+        .map(|t| {
+            triangle_normal(
+                &vertices[t.a as usize],
+                &vertices[t.b as usize],
+                &vertices[t.c as usize],
+            )
+        })
+        .collect();
+    let vertex_normals: Vec<_> = compute_triangle_lists(vertices.len(), &mesh.triangles)
+        .iter()
+        .enumerate()
+        .map(|(vertex_index, triangles)| {
+            let incident = triangles.iter().map(|&triangle_index| {
+                let triangle = mesh.triangles[triangle_index as usize];
+                let mut others = triangle.iter().filter(|&&i| i != vertex_index as u32);
+                let a = vertices[*others.next().unwrap() as usize];
+                let b = vertices[*others.next().unwrap() as usize];
+                (a, b, triangle_normals[triangle_index as usize])
+            });
+            angle_weighted_normal(&vertices[vertex_index], incident)
+        })
+        .collect();
+    let opposites = compute_triangle_opposites(&mesh.triangles);
+
+    let (closest, _) = mesh
+        .triangles
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            let [a, b, c] = [t.a, t.b, t.c].map(|i| &vertices[i as usize]);
+            (i, distance_to_triangle(p, a, b, c, &triangle_normals[i]))
+        })
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .unwrap();
+
+    let t = mesh.triangles[closest];
+    let n = triangle_normals[closest];
+    let edge_normal = |opposite: u32| {
+        let neighbour_normal = (opposite != u32::MAX).then(|| &triangle_normals[opposite as usize]);
+        edge_pseudo_normal(&n, neighbour_normal)
+    };
+    let o = opposites[closest];
+    let result = closest_feature(
+        p,
+        [t.a, t.b, t.c].map(|i| &vertices[i as usize]),
+        &n,
+        &FeatureNormals {
+            vertices: [t.a, t.b, t.c].map(|i| vertex_normals[i as usize]),
+            edges: [edge_normal(o.ab), edge_normal(o.bc), edge_normal(o.ca)],
+        },
+    );
+    result.to_p.dot(&result.normal) < 0.
+}
+
+#[test]
+fn pseudo_normals_classify_inside() {
+    let mut rng = ChaCha8Rng::seed_from_u64(4);
+    for mesh in test_meshes() {
+        let random_points: Vec<_> = (0..2000).map(|_| random_point(&mut rng, 1.5)).collect();
+        let points_near_corners: Vec<_> = mesh
+            .vertices
+            .iter()
+            .flat_map(|vertex| [*vertex; 200])
+            .map(|vertex| vertex + random_point(&mut rng, 0.1))
+            .collect();
+        for p in random_points.into_iter().chain(points_near_corners) {
+            let winding = winding_number(&p, &mesh);
+            let closed_mesh_winding = winding.round();
+            assert!(
+                (winding - closed_mesh_winding).abs() < 1e-3
+                    && (0. ..=1.).contains(&closed_mesh_winding),
+                "{p}: winding number {winding} of a closed mesh"
+            );
+            assert_eq!(
+                pseudo_normal_inside(&p, &mesh),
+                closed_mesh_winding == 1.,
+                "{p}"
+            );
+        }
+    }
+}
+
+fn labelled_feature_normals() -> FeatureNormals {
+    let label = |i: u8| Vector3::repeat(10. + i as f32);
+    FeatureNormals {
+        vertices: [label(0), label(1), label(2)],
+        edges: [label(3), label(4), label(5)],
+    }
+}
+
+#[test]
+fn closest_feature_identifies_face_edge_or_corner() {
+    let normals = labelled_feature_normals();
+    for [a, b, c] in test_triangles() {
+        let n = triangle_normal(&a, &b, &c);
+        let corners = [a, b, c];
+        let centroid = (a + b + c) / 3.;
+        let mut expectations = vec![];
+        for i in 0..3 {
+            let (start, end, opposite) = (corners[i], corners[(i + 1) % 3], corners[(i + 2) % 3]);
+            let outwards = (end - start).cross(&n).normalize();
+            assert!(outwards.dot(&(opposite - start)) < 0.);
+
+            let away_from_corner =
+                -((end - start).normalize() + (opposite - start).normalize()).normalize();
+            for distance in [1e-3, 0.3] {
+                for height in [0., 0.2, -0.2] {
+                    let lift = n * height;
+                    expectations.push((
+                        (start + end) / 2. + outwards * distance + lift,
+                        normals.edges[i],
+                    ));
+                    expectations.push((
+                        start + away_from_corner * distance + lift,
+                        normals.vertices[i],
+                    ));
+                }
+            }
+        }
+        for height in [0.2, -0.2] {
+            expectations.push((centroid + n * height, n));
+        }
+        for (p, expected) in expectations {
+            let result = closest_feature(&p, [&a, &b, &c], &n, &normals);
+            assert_eq!(result.normal, expected, "{p} on {a} {b} {c}");
+        }
+    }
+}
+
+#[test]
+fn closest_feature_prefers_the_obtuse_corner_over_the_nearer_edge_lines() {
+    let [a, b, c] = [
+        Vector3::new(0., 0., 0.),
+        Vector3::new(1., 0., 0.),
+        Vector3::new(0.5, 0.05, 0.),
+    ];
+    let n = triangle_normal(&a, &b, &c);
+    let normals = labelled_feature_normals();
+    let p = Vector3::new(0.5, 0.3, 0.1);
+    let result = closest_feature(&p, [&a, &b, &c], &n, &normals);
+    assert_eq!(result.normal, normals.vertices[2]);
+    assert!((result.to_p - (p - c)).norm() < 1e-6);
+}

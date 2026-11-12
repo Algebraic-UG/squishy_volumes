@@ -142,7 +142,8 @@ fn main(
 
         let triangle = triangle_indices[closest_triangle];
         let opposites = triangle_opposites[closest_triangle];
-        var normal = triangle_normals[closest_triangle];
+        let normal_of_triangle = triangle_normals[closest_triangle];
+        var normal = normal_of_triangle;
 
         let a = vertex_positions[triangle.a];
         let b = vertex_positions[triangle.b];
@@ -234,7 +235,11 @@ fn main(
             continue;
         }
 
-        let collider_velocity = a_v * bary_a + b_v * bary_b + c_v * bary_c;
+        let closest_point = p - to_p;
+        let closest_bary_a = dot(normal_of_triangle, cross(bc, c - closest_point)) / area_2;
+        let closest_bary_b = dot(normal_of_triangle, cross(ca, a - closest_point)) / area_2;
+        let closest_bary_c = dot(normal_of_triangle, cross(ab, b - closest_point)) / area_2;
+        let collider_velocity = a_v * closest_bary_a + b_v * closest_bary_b + c_v * closest_bary_c;
         let relative_velocity = velocity - collider_velocity;
 
         let contact_normal = to_p / distance;
@@ -242,18 +247,20 @@ fn main(
         let normal_velocity = contact_normal * dot(relative_velocity, contact_normal);
         let tangential_velocity = relative_velocity - normal_velocity;
 
+        let normal_impulse = clamp(triangle_dampings[closest_triangle], 0., 1.) * normal_velocity + to_p / time_step;
+        let pressing_against_collider = max(dot(normal_impulse, contact_normal), 0.);
+
         let tangential_velocity_norm = length(tangential_velocity);
         if tangential_velocity_norm > NORMALIZATION_EPS {
             let tangent = tangential_velocity / tangential_velocity_norm;
 
             let friction_impulse = tangent
-                * min((triangle_frictions[closest_triangle] * distance / time_step), tangential_velocity_norm);
+                * min(max(triangle_frictions[closest_triangle], 0.) * pressing_against_collider, tangential_velocity_norm);
 
             velocity -= friction_impulse;
         }
 
-        velocity -= min(triangle_dampings[closest_triangle], 1.) * normal_velocity;
-        velocity -= to_p / time_step;
+        velocity -= normal_impulse;
 
         continuing {
             collider_bits &= ~(0x00010001u << collider);

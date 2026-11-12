@@ -20,6 +20,7 @@ mod aabb;
 mod animated_globals;
 mod attributes;
 pub mod collider_bits;
+mod collision;
 mod consts;
 mod elastic;
 mod flat;
@@ -37,6 +38,7 @@ pub use aabb::*;
 
 pub use animated_globals::*;
 pub use attributes::*;
+pub use collision::*;
 pub use consts::*;
 pub use elastic::*;
 pub use flat::*;
