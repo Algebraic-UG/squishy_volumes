@@ -28,6 +28,7 @@ from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
 from .get_preferences import get_print_debug_info
 from .hint_at_info import *
 from .shim import *
+from .util import absolute_cache_directory
 
 
 @hint_at_info
@@ -79,7 +80,7 @@ class SimulationInputHandle:
         return SimulationInputHandle(
             handle=squishy_volumes_wrap.SimulationInput.new(
                 uuid=uuid,
-                directory=directory,
+                directory=str(absolute_cache_directory(directory)),
                 input_header=json.dumps(input_header),
                 max_bytes_on_disk=max_bytes_on_disk,
             )
@@ -135,7 +136,7 @@ class SimulationHandle:
         return SimulationHandle(
             handle=squishy_volumes_wrap.Simulation.load(
                 uuid=uuid,
-                directory=directory,
+                directory=str(absolute_cache_directory(directory)),
             )
         )
 

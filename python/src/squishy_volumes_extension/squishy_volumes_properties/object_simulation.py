@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 import re
 from pathlib import Path
 
@@ -85,9 +86,15 @@ def update_capture_end_frame(self, _context):
     keep_capture_end_after_start(self)
 
 
+def normalize_directory(directory: str) -> str:
+    if directory.startswith("//"):
+        return "//" + str(Path(directory[2:]))
+    return str(Path(directory))
+
+
 def update_directory(self, context):
-    if self.directory != str(Path(self.directory)):
-        self.directory = str(Path(self.directory))
+    if self.directory != normalize_directory(self.directory):
+        self.directory = normalize_directory(self.directory)
         return  # we'll re-enter anyway
 
     if duplicate_simulation_directory(self):
@@ -106,7 +113,7 @@ def update_directory(self, context):
         sim.drop()
 
     if self.cache_file is not None:
-        self.cache_file.filepath = str(Path(self.directory) / "frame_00000.abc")
+        self.cache_file.filepath = os.path.join(self.directory, "frame_00000.abc")
 
 
 class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
@@ -125,6 +132,7 @@ class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
     directory: bpy.props.StringProperty(
         name="Cache",
         description="""Directory that holds the relevant simulation data.
+Paths starting with '//' are relative to the .blend file.
 This includes settings, meshes, animations and simulated frames.
 If there exists a cache at the location it can be loaded.
 
@@ -134,7 +142,7 @@ The latter is locked while a simulation uses the directory.""",
         get=get_directory_with_default,
         set=set_directory,
         subtype="DIR_PATH",
-        options=set(),
+        options={"PATH_SUPPORTS_BLEND_RELATIVE"},
         update=update_directory,
     )  # type: ignore
 

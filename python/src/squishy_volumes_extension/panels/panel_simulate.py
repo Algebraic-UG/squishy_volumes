@@ -47,7 +47,12 @@ from ..squishy_volumes_properties import (
     get_simulation_object_with_uuid,
     stored_range,
 )
-from ..util import giga_f32_to_u64, simulation_input_exists, u64_to_giga_f32
+from ..util import (
+    absolute_cache_directory,
+    giga_f32_to_u64,
+    simulation_input_exists,
+    u64_to_giga_f32,
+)
 
 
 def rebake_frame(
@@ -83,7 +88,9 @@ def start_compute(
 
     if get_sanity_check_allowed_disk_space():
         allowed = sim_props.max_giga_bytes_on_disk
-        free = u64_to_giga_f32(shutil.disk_usage(sim_props.directory).free)
+        free = u64_to_giga_f32(
+            shutil.disk_usage(absolute_cache_directory(sim_props.directory)).free
+        )
         if allowed > free:
             raise RuntimeError(
                 f"""The disk might run out of space!
