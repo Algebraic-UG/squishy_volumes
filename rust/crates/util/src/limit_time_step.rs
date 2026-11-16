@@ -233,6 +233,17 @@ pub fn limit_time_step_by_velocity(velocity: &Vector3<T>, grid_node_size: T) -> 
     grid_node_size * 0.5 / velocity.norm().max(grid_node_size * 0.5)
 }
 
+/// Restriction by collider vertex velocities, the same as [`limit_time_step_by_velocity`] for particles.
+pub fn limit_time_step_by_collider_velocities(
+    vertex_velocities: impl IntoIterator<Item = Vector3<T>>,
+    grid_node_size: T,
+) -> Option<T> {
+    vertex_velocities
+        .into_iter()
+        .map(|velocity| limit_time_step_by_velocity(&velocity, grid_node_size))
+        .min_by(T::total_cmp)
+}
+
 /// Restriction by the change of the deformation gradient, similar to [Sun et al. 2020, "Effective Time Step Restrictions for Explicit MPM Simulation"](https://doi.org/10.1111/cgf.14101), Sec. 4.4.
 pub fn limit_time_step_by_deformation(velocity_gradient: &Matrix3<T>) -> T {
     const DELTA: T = 0.2;

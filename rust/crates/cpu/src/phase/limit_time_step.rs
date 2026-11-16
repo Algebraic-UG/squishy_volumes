@@ -100,6 +100,13 @@ impl CpuState {
             .min_by(f32::total_cmp)
     }
 
+    pub fn limit_time_step_by_collider(&self) -> Option<f32> {
+        squishy_volumes_util::limit_time_step_by_collider_velocities(
+            self.frame_input.vertex_velocities().iter().copied(),
+            self.frame_input.header().consts.scaled_grid_node_size(),
+        )
+    }
+
     fn limit_time_step_by_deformation(&self) -> Option<f32> {
         self.particles
             .velocity_gradients

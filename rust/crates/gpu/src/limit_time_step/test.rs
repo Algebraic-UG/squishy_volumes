@@ -34,6 +34,7 @@ fn check(settings: Settings, input_data: InputData, expected: &[TimeStepLimits])
         input_data.clone(),
         Parameters {
             current_step: input_data.limits_over_time.len() as u32 - 1,
+            time_step_by_collider: f32::MAX,
         },
     );
     println!("gpu_limits_over_time: {gpu_limits_over_time:#?}");

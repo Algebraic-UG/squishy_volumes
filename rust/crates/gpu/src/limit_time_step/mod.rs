@@ -45,6 +45,7 @@ pub struct Settings {
 
 pub struct Parameters {
     pub current_step: u32,
+    pub time_step_by_collider: f32,
 }
 
 pub struct Input {
@@ -172,7 +173,7 @@ impl PipelinePart for LimitTimeStep {
                     (TimeStepLimits::MIN_BINDING_SIZE, false),
                     (f32::MIN_BINDING_SIZE, false),
                 ],
-                immediate_size: 4,
+                immediate_size: 8,
                 constants: [
                     ("MAX_TIME_STEP", max_time_step as f64),
                     ("TIME_STEP_HISTORY_LENGTH", time_step_history_length as f64)
@@ -208,7 +209,10 @@ impl PipelinePart for LimitTimeStep {
             particle_velocity_gradients,
             limits_over_time,
         }: Input,
-        Parameters { current_step }: Parameters,
+        Parameters {
+            current_step,
+            time_step_by_collider,
+        }: Parameters,
     ) -> Result<Output, GpuError> {
         assert!((current_step as u64) < limits_over_time.len::<TimeStepLimits>().get());
 
@@ -259,6 +263,7 @@ impl PipelinePart for LimitTimeStep {
             [limits_over_time.binding(), time_step.binding()],
         );
         compute_pass.set_immediates(0, bytemuck::bytes_of(&current_step));
+        compute_pass.set_immediates(4, bytemuck::bytes_of(&time_step_by_collider));
         compute_pass.dispatch_workgroups(self.combine_time_step_limits.subgroup_size.get(), 1, 1);
         drop(compute_pass);
 

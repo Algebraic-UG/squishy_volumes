@@ -26,6 +26,7 @@ pub struct AdaptiveTimeStepState {
     pub time_step_by_deformation: Option<f32>,
     pub time_step_by_isolated: Option<f32>,
     pub time_step_by_sound: Option<f32>,
+    pub time_step_by_collider: Option<f32>,
     pub time_step_prior: std::collections::VecDeque<f32>,
 }
 
@@ -37,6 +38,7 @@ impl Default for AdaptiveTimeStepState {
             time_step_by_deformation: Default::default(),
             time_step_by_isolated: Default::default(),
             time_step_by_sound: Default::default(),
+            time_step_by_collider: Default::default(),
             time_step_prior: Default::default(),
         }
     }
@@ -58,6 +60,7 @@ impl AdaptiveTimeStepState {
 
     pub fn allowed_time_step(&self) -> f32 {
         once(self.allowed_time_step_without_prior())
+            .chain(self.time_step_by_collider)
             .chain(self.time_step_prior.iter().cloned())
             .min_by(f32::total_cmp)
             .unwrap()
