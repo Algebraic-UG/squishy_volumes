@@ -76,13 +76,28 @@ def force_ui_redraw():
                 area.tag_redraw()
 
 
+def cache_directory_is_resolvable(directory: str) -> bool:
+    return not directory.startswith("//") or bool(bpy.data.filepath)
+
+
+def absolute_cache_directory(directory: str) -> Path:
+    if not cache_directory_is_resolvable(directory):
+        raise RuntimeError(
+            f"The cache directory '{directory}' is relative to the .blend file.\n"
+            "Save the .blend file first or choose an absolute cache directory."
+        )
+    return Path(bpy.path.abspath(directory))
+
+
 def simulation_input_exists(directory: str):
-    return os.path.exists(Path(directory) / "simulation_input.bin")
+    return cache_directory_is_resolvable(directory) and os.path.exists(
+        absolute_cache_directory(directory) / "simulation_input.bin"
+    )
 
 
 # written by the store thread, see rust/crates/cache/src/stats.rs
 def simulation_stats_path(directory: str):
-    return Path(directory) / "stats.csv"
+    return absolute_cache_directory(directory) / "stats.csv"
 
 
 def _parse_stat(value: str) -> int | float | None:

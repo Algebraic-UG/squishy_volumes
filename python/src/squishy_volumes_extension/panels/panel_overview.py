@@ -18,8 +18,8 @@
 
 import datetime
 import json
+import os
 import uuid
-from pathlib import Path
 
 import bpy  # ty: ignore[unresolved-import]
 
@@ -96,7 +96,7 @@ def setup_cache_file(sim_obj):
     # weird little dance since we have to use the operator
     before = {c.name for c in bpy.data.cache_files}
     bpy.ops.cachefile.open(
-        filepath=str(Path(sim_obj.squishy_volumes.directory) / "frame_00000.abc")
+        filepath=os.path.join(sim_obj.squishy_volumes.directory, "frame_00000.abc")
     )
     created = {c.name for c in bpy.data.cache_files} - before
     if len(created) != 1:
