@@ -39,6 +39,17 @@ pub enum Error {
     #[error("The time step ended up being 0")]
     ZeroTimeStep,
 
+    #[error(
+        "Triangle {triangle} of collider '{object}' is degenerate (zero area) \
+         between input frames {frame} and {}",
+        frame + 1
+    )]
+    DegenerateTriangle {
+        object: String,
+        triangle: usize,
+        frame: usize,
+    },
+
     #[error("Something went wrong with the harness")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 

@@ -18,6 +18,7 @@
 
 use nalgebra::Vector3;
 use rayon::iter::{IndexedParallelIterator as _, IntoParallelRefIterator, ParallelIterator as _};
+use squishy_volumes_file_input::{Object, ObjectCollider};
 use squishy_volumes_mesh_util::{Triangle, angle_weighted_normal, triangle_normal};
 use squishy_volumes_util::profile;
 
@@ -53,6 +54,13 @@ impl CpuState {
             })
             .collect();
 
+        if let Some(triangle) = triangle_normals
+            .par_iter()
+            .position_any(|normal| *normal == Vector3::zeros())
+        {
+            return Err(self.degenerate_triangle_error(triangle));
+        }
+
         // Important to weigh the normals by angle
         // https://github.com/Algebraic-UG/squishy_volumes/issues/313
         let vertex_normals: Vec<Vector3<f32>> = self
@@ -80,5 +88,27 @@ impl CpuState {
         });
 
         Ok(())
+    }
+
+    fn degenerate_triangle_error(&self, triangle: usize) -> Error {
+        let (object, triangle) = self
+            .frame_input
+            .header()
+            .objects
+            .iter()
+            .find_map(|(name, object)| match object {
+                Object::Collider(ObjectCollider { triangle_range, .. })
+                    if triangle_range.contains(&triangle) =>
+                {
+                    Some((name.clone(), triangle - triangle_range.start))
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| ("<unknown>".to_string(), triangle));
+        Error::DegenerateTriangle {
+            object,
+            triangle,
+            frame: self.frame_input.frame(),
+        }
     }
 }
