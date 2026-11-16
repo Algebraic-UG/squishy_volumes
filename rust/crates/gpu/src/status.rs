@@ -45,6 +45,8 @@ pub enum GpuShaderError {
     TimeStepZero { reporting_shader: &'static str },
     #[error("Next frame is ready.")]
     FrameTimeReached,
+    #[error("{reporting_shader} found a degenerate (zero area) collider triangle.")]
+    DegenerateTriangle { reporting_shader: &'static str },
     #[error("{reporting_shader} unknown error: {error}")]
     UnknownError {
         reporting_shader: &'static str,
@@ -58,6 +60,7 @@ const INDIRECT_LIMIT_EXCEEDED: u32 = 4;
 const PARTICLE_CLOSE_TO_INVERTED: u32 = 8;
 const TIME_STEP_ZERO: u32 = 16;
 const REACHED_FRAME_TIME: u32 = 32;
+const DEGENERATE_TRIANGLE: u32 = 64;
 
 impl GpuStatus {
     pub fn to_result(&self, context: &GpuContext) -> Result<(), GpuError> {
@@ -94,6 +97,10 @@ impl GpuStatus {
 
         if self.0 & TIME_STEP_ZERO != 0 {
             Err(GpuShaderError::TimeStepZero { reporting_shader })?;
+        }
+
+        if self.0 & DEGENERATE_TRIANGLE != 0 {
+            Err(GpuShaderError::DegenerateTriangle { reporting_shader })?;
         }
 
         if self.0 & REACHED_FRAME_TIME != 0 {

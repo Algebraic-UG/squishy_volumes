@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, Triangle, try_normalize};
+import super::util::{get_global_index, Triangle, try_normalize, DEGENERATE_TRIANGLE};
 
 @group(0) @binding(0)
 var<storage, read_write> vertex_positions: array<vec3f>;
@@ -55,7 +55,11 @@ fn main(
     let b = vertex_positions[triangle.b];
     let c = vertex_positions[triangle.c];
 
-    triangle_normals[global_index] = try_normalize(cross(b - a, c - a), vec3f(0.));
+    let normal = try_normalize(cross(b - a, c - a), vec3f(0.));
+    if all(normal == vec3f(0.)) {
+        atomicOr(&status, DEGENERATE_TRIANGLE);
+    }
+    triangle_normals[global_index] = normal;
 }
 
 fn is_error() -> bool {
