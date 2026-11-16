@@ -27,7 +27,12 @@ var<storage, read_write> time_step: f32;
 @group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
-var<immediate> current_step: u32;
+struct Immediates {
+    current_step: u32,
+    time_step_by_collider: f32,
+}
+
+var<immediate> immediates: Immediates;
 
 override MAX_TIME_STEP: f32;
 override TIME_STEP_HISTORY_LENGTH: u32;
@@ -48,7 +53,7 @@ fn main(
         set_shader_id();
     }
 
-    let valid_entries = current_step + 1;
+    let valid_entries = immediates.current_step + 1;
     let size = min(valid_entries, TIME_STEP_HISTORY_LENGTH);
     let offset = valid_entries - size;
 
@@ -68,7 +73,7 @@ fn main(
         return;
     }
 
-    time_step = min(MAX_TIME_STEP, limit);
+    time_step = min(min(MAX_TIME_STEP, immediates.time_step_by_collider), limit);
 
     if time_step == 0. {
         atomicOr(&status, TIME_STEP_ZERO);

@@ -32,6 +32,7 @@ use squishy_volumes_file_frame::{
 use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
 use squishy_volumes_util::{
     AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, attribute,
+    limit_time_step_by_collider_velocities,
 };
 use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
@@ -380,6 +381,11 @@ fn get_collider_input(
         .iter()
         .map(|v| v.push(0.))
         .collect();
+    let time_step_by_collider = limit_time_step_by_collider_velocities(
+        frame_input.vertex_velocities().iter().copied(),
+        frame_input.header().consts.scaled_grid_node_size(),
+    )
+    .unwrap_or(f32::MAX);
 
     let vertex_triangle_lists = topology.vertex_triangle_lists();
     let vertex_triangle_offsets = prefix_sum_on_cpu(
@@ -451,6 +457,7 @@ fn get_collider_input(
         triangle_frictions,
         triangle_dampings,
         bvh,
+        time_step_by_collider,
     }))
 }
 

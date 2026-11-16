@@ -334,6 +334,9 @@ impl CpuState {
         )?;
 
         self.adaptive_time_step_state.max_time_step = max_time_step;
+        self.adaptive_time_step_state.time_step_by_collider = adaptive_time_steps
+            .then(|| self.limit_time_step_by_collider())
+            .flatten();
 
         while !self.frame_input.is_frame_finished() {
             harness.check()?;

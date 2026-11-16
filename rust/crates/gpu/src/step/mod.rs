@@ -25,7 +25,9 @@ use nalgebra::{Matrix4x3, Vector3, Vector4};
 use squishy_volumes_mesh_util::{
     BoundingVolumeHierarchy, Opposites, Triangle, compute_triangle_lists, triangles_to_leaf_aabbs,
 };
-use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, ParticleParameters};
+use squishy_volumes_util::{
+    AnimatedGlobals, ParticleFlags, ParticleParameters, limit_time_step_by_collider_velocities,
+};
 
 use crate::time_step_limits::TimeStepLimits;
 
@@ -85,6 +87,8 @@ pub struct ColliderInput {
     pub triangle_dampings: Allocation,
 
     pub bvh: BoundingVolumeHierarchyAllocations,
+
+    pub time_step_by_collider: f32,
 }
 
 #[derive(Clone)]
@@ -155,7 +159,9 @@ impl ColliderInput {
         leaf_threshold: u32,
         frames_per_second: u32,
         Settings {
-            forget_distance, ..
+            forget_distance,
+            grid_node_size,
+            ..
         }: Settings,
         ColliderInputData {
             vertex_positions_start,
@@ -219,6 +225,11 @@ impl ColliderInput {
             .zip(vertex_positions_end)
             .map(|(start, end)| (end - start) * frames_per_second as f32)
             .collect();
+        let time_step_by_collider = limit_time_step_by_collider_velocities(
+            vertex_velocities.iter().map(Vector4::xyz),
+            grid_node_size,
+        )
+        .unwrap_or(f32::MAX);
 
         let vertex_positions_start =
             Allocation::new(device, "vertex_positions_start", vertex_positions_start)?;
@@ -251,6 +262,7 @@ impl ColliderInput {
             triangle_frictions,
             triangle_dampings,
             bvh,
+            time_step_by_collider,
         })
     }
 }
@@ -564,8 +576,11 @@ impl PipelinePart for Step {
             adaptive_time_steps,
         }: Parameters,
     ) -> Result<Output, GpuError> {
-        // TODO: use collider velocities?
         let time_step = if adaptive_time_steps {
+            let time_step_by_collider =
+                collider_input.as_ref().map_or(f32::MAX, |collider_input| {
+                    collider_input.time_step_by_collider
+                });
             let limit_time_step::Output { time_step } = self.limit_time_step.record(
                 context,
                 encoder,
@@ -578,7 +593,10 @@ impl PipelinePart for Step {
                     particle_velocity_gradients: particle_velocity_gradients.clone(),
                     limits_over_time,
                 },
-                limit_time_step::Parameters { current_step },
+                limit_time_step::Parameters {
+                    current_step,
+                    time_step_by_collider,
+                },
             )?;
             time_step
         } else {
@@ -612,6 +630,7 @@ impl PipelinePart for Step {
             triangle_frictions,
             triangle_dampings,
             bvh,
+            time_step_by_collider: _,
         }) = collider_input
         {
             let animate_mesh::Output {
