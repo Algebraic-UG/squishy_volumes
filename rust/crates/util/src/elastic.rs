@@ -579,6 +579,21 @@ pub fn elastic_energy_inviscid(
 }
 
 #[inline]
+pub fn try_elastic_energy_inviscid(
+    bulk_modulus: T,
+    exponent: i32,
+    position_gradient: &Matrix3<T>,
+) -> Result<T, EnergyError> {
+    let invariant_3 = invariant_3(position_gradient);
+    ensure_err!(invariant_3 > 0., EnergyError::PositionGradientNonPositive);
+    Ok(elastic_energy_inviscid_by_invariant(
+        bulk_modulus,
+        exponent,
+        invariant_3,
+    ))
+}
+
+#[inline]
 pub fn first_piola_stress_inviscid(
     bulk_modulus: T,
     exponent: i32,
