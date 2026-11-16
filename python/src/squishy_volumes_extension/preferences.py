@@ -43,7 +43,7 @@ Paths starting with '//' are relative to the .blend file.
 It's a good idea to point this to a separate disk from the operating system.""",
         default="//squishy_volumes_cache",
         subtype="DIR_PATH",
-        options=set(),
+        options={"PATH_SUPPORTS_BLEND_RELATIVE"},
     )  # type: ignore
 
     sanity_check_allowed_disk_space: bpy.props.BoolProperty(

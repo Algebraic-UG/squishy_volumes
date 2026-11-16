@@ -142,7 +142,7 @@ The latter is locked while a simulation uses the directory.""",
         get=get_directory_with_default,
         set=set_directory,
         subtype="DIR_PATH",
-        options=set(),
+        options={"PATH_SUPPORTS_BLEND_RELATIVE"},
         update=update_directory,
     )  # type: ignore
 
