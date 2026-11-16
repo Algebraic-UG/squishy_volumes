@@ -39,6 +39,8 @@ pub struct CpuState {
     pub(crate) grid_nodes: GridNodes,
 
     pub(crate) interpolated_input: Option<InterpolatedInput>,
+
+    pub(crate) last_frame_substeps: u32,
 }
 
 impl CpuState {
@@ -143,6 +145,7 @@ impl CpuState {
             adaptive_time_step_state: Default::default(),
             grid_nodes: Default::default(),
             interpolated_input: Default::default(),
+            last_frame_substeps: 0,
         })
     }
 
@@ -337,6 +340,7 @@ impl CpuState {
         self.adaptive_time_step_state.time_step_by_collider = adaptive_time_steps
             .then(|| self.limit_time_step_by_collider())
             .flatten();
+        self.last_frame_substeps = 0;
 
         while !self.frame_input.is_frame_finished() {
             harness.check()?;
@@ -362,6 +366,7 @@ impl CpuState {
             if self.phase == Default::default() {
                 self.frame_input
                     .advance(self.adaptive_time_step_state.allowed_time_step() as f64);
+                self.last_frame_substeps += 1;
             }
             harness.step_to((self.frame_input.seconds_into_frame() * 1000.) as usize)?;
         }
@@ -420,5 +425,9 @@ impl CpuState {
         self.frame_input.load_next()?;
 
         Ok((self.to_io_state(store_bvh, store_grid)?, Ok(())))
+    }
+
+    pub fn last_frame_substeps(&self) -> u32 {
+        self.last_frame_substeps
     }
 }
