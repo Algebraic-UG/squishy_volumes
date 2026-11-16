@@ -56,7 +56,6 @@ struct PendingParticleUpdate {
 }
 
 pub struct GpuState {
-    time: f64,
     animated_globals: AnimatedGlobals,
 
     gpu_context: GpuContext,
@@ -201,7 +200,7 @@ impl GpuState {
         let time = io_state.time;
         let animated_globals = io_state.animated_globals;
 
-        let frame_input = FrameInput::new(input_reader, take(&mut io_state.collider), frame)?;
+        let frame_input = FrameInput::new(input_reader, take(&mut io_state.collider), frame, time)?;
         let consts = &frame_input.header().consts;
 
         let num_particles = frame_input.header().total_particles;
@@ -285,8 +284,7 @@ impl GpuState {
 
         tracing::info!("creating particle allocations");
 
-        let start_time =
-            (io_state.time % (1. / frame_input.header().consts.frames_per_second as f64)) as f32;
+        let start_time = frame_input.seconds_into_frame() as f32;
 
         let step_input = {
             let time = Allocation::new(device, "time", &[start_time])?;
@@ -336,7 +334,6 @@ impl GpuState {
         harness.step()?;
 
         Ok(Self {
-            time,
             animated_globals,
             gpu_context,
             update_flags,
@@ -467,17 +464,28 @@ impl GpuState {
     pub fn produce_next_state(
         &mut self,
         harness: &squishy_volumes_xpu::Harness,
+        gpu_run_parameters: GpuRunParameters,
+    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
+        squishy_volumes_util::profile!("produce_next_state");
+
+        let start_time = self.frame_input.seconds_into_frame() as f32;
+        tracing::info!(start_time);
+
+        self.produce_next_state_from(harness, gpu_run_parameters, start_time)
+    }
+
+    // Redoing a frame has to reuse the start time,
+    // the frame input has already moved on to the next frame by then.
+    fn produce_next_state_from(
+        &mut self,
+        harness: &squishy_volumes_xpu::Harness,
         gpu_run_parameters @ GpuRunParameters {
             adaptive_time_steps,
             store_bvh,
             store_grid,
         }: GpuRunParameters,
+        start_time: f32,
     ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
-        squishy_volumes_util::profile!("produce_next_state");
-
-        let frame_factor = self.frame_input.frame_factor(self.time)?;
-        let start_time = frame_factor / self.frame_input.header().consts.frames_per_second as f32;
-        tracing::info!(start_time);
         self.step_input.time = Allocation::new(self.gpu_context.device(), "time", &[start_time])?;
         self.step_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
 
@@ -609,7 +617,7 @@ impl GpuState {
                 false,
             )?;
             self.pending_input = Some(pending_input);
-            return self.produce_next_state(harness, gpu_run_parameters);
+            return self.produce_next_state_from(harness, gpu_run_parameters, start_time);
         }
 
         let MappedDownloads {
@@ -627,16 +635,16 @@ impl GpuState {
             grid,
         } = mapped_downloads;
 
-        let advanced_time = time - start_time;
-        self.time += advanced_time as f64;
+        let seconds_per_frame = self.frame_input.header().consts.seconds_per_frame();
+        self.frame_input
+            .set_seconds_into_frame(time as f64 - seconds_per_frame);
         self.animated_globals = pending_input.animated_globals;
         self.step_input.globals = pending_input.globals;
         self.step_input.collider_input = pending_input.next_collider_input;
 
         if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
             profile_data_csv_writer.write_frame(
-                self.time
-                    ..self.time + 1. / self.frame_input.header().consts.frames_per_second as f64,
+                self.frame_input.time()..self.frame_input.time() + seconds_per_frame,
             )?;
         };
 
@@ -812,7 +820,7 @@ impl GpuState {
         );
 
         let mut io_state = IoState {
-            time: self.time,
+            time: self.frame_input.time(),
             animated_globals: self.animated_globals,
             particle_objects,
             collider,

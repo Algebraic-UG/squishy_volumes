@@ -26,8 +26,8 @@ use crate::Collider;
 
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
-    #[error("Wanted to interpolate from {frame_low}, but {frame} is loaded")]
-    WrongFrameLoaded { frame_low: usize, frame: usize },
+    #[error("The time {time} is before the start of frame {frame}")]
+    TimeBeforeFrame { time: f64, frame: usize },
 
     #[error("Failed to input from file")]
     InputError(#[from] squishy_volumes_file_input::InputError),
@@ -36,8 +36,11 @@ pub enum FrameInputError {
     MeshError(#[from] squishy_volumes_mesh_util::Error),
 }
 
+const TOLERATED_FRAMES_BEFORE_FRAME_START: f64 = 1e-4;
+
 pub struct FrameInput {
     frame: usize,
+    seconds_into_frame: f64,
     input_reader: InputReader,
 
     topology: Topology,
@@ -59,7 +62,11 @@ impl FrameInput {
         mut input_reader: InputReader,
         io_collider: squishy_volumes_file_frame::Collider,
         frame: usize,
+        time: f64,
     ) -> Result<Self, FrameInputError> {
+        let seconds_into_frame =
+            seconds_into_frame(time, frame, input_reader.header().consts.frames_per_second)?;
+
         let inv_scale = 1. / input_reader.header().consts.simulation_scale;
 
         let topology = create_topology(&mut input_reader)?;
@@ -99,6 +106,7 @@ impl FrameInput {
 
         Ok(Self {
             frame,
+            seconds_into_frame,
             input_reader,
             topology,
             bvh,
@@ -117,8 +125,35 @@ impl FrameInput {
         self.next_input_frame.take()
     }
 
+    pub fn time(&self) -> f64 {
+        frame_start(self.frame, self.header().consts.frames_per_second) + self.seconds_into_frame
+    }
+
+    pub fn seconds_into_frame(&self) -> f64 {
+        self.seconds_into_frame
+    }
+
+    pub fn set_seconds_into_frame(&mut self, seconds_into_frame: f64) {
+        self.seconds_into_frame = seconds_into_frame.max(0.);
+    }
+
+    pub fn advance(&mut self, seconds: f64) {
+        self.seconds_into_frame += seconds;
+    }
+
+    pub fn is_frame_finished(&self) -> bool {
+        self.seconds_into_frame >= self.header().consts.seconds_per_frame()
+    }
+
+    pub fn frame_factor(&self) -> f32 {
+        (self.seconds_into_frame * self.header().consts.frames_per_second as f64) as f32
+    }
+
     pub fn load_next(&mut self) -> Result<(), FrameInputError> {
         self.frame += 1;
+        self.set_seconds_into_frame(
+            self.seconds_into_frame - self.header().consts.seconds_per_frame(),
+        );
 
         if self.frame >= self.input_reader.len() {
             return Ok(());
@@ -182,20 +217,23 @@ impl FrameInput {
     pub fn vertex_velocities(&self) -> &[nalgebra::Vector3<f32>] {
         &self.vertex_velocities
     }
+}
 
-    pub fn frame_factor(&self, time: f64) -> Result<f32, FrameInputError> {
-        let frame_time = time * self.header().consts.frames_per_second as f64;
-        let frame_low = frame_time.floor() as usize;
+fn frame_start(frame: usize, frames_per_second: u32) -> f64 {
+    frame as f64 / frames_per_second as f64
+}
 
-        if self.frame != frame_low {
-            return Err(FrameInputError::WrongFrameLoaded {
-                frame_low,
-                frame: self.frame,
-            });
-        }
-
-        Ok((frame_time % 1.) as f32)
+fn seconds_into_frame(
+    time: f64,
+    frame: usize,
+    frames_per_second: u32,
+) -> Result<f64, FrameInputError> {
+    let seconds_into_frame = time - frame_start(frame, frames_per_second);
+    let tolerated_seconds = TOLERATED_FRAMES_BEFORE_FRAME_START / frames_per_second as f64;
+    if seconds_into_frame < -tolerated_seconds {
+        return Err(FrameInputError::TimeBeforeFrame { time, frame });
     }
+    Ok(seconds_into_frame.max(0.))
 }
 
 fn linear_vertex_velocities(
@@ -318,4 +356,38 @@ fn update_collider(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FrameInputError, frame_start, seconds_into_frame};
+
+    const FRAMES_PER_SECOND: u32 = 24;
+
+    #[test]
+    fn overshoot_is_kept() {
+        let overshoot = 0.001;
+        let time = frame_start(22, FRAMES_PER_SECOND) + overshoot;
+        let seconds = seconds_into_frame(time, 22, FRAMES_PER_SECOND).unwrap();
+        assert!((seconds - overshoot).abs() < 1e-12);
+    }
+
+    #[test]
+    fn rounding_to_just_before_the_frame_is_zero_seconds_into_it() {
+        let time = frame_start(22, FRAMES_PER_SECOND).next_down();
+        assert_eq!(seconds_into_frame(time, 22, FRAMES_PER_SECOND).unwrap(), 0.);
+
+        let seconds_lost_to_f32 = 1e-7 / FRAMES_PER_SECOND as f64;
+        let time = frame_start(22, FRAMES_PER_SECOND) - seconds_lost_to_f32;
+        assert_eq!(seconds_into_frame(time, 22, FRAMES_PER_SECOND).unwrap(), 0.);
+    }
+
+    #[test]
+    fn time_of_the_previous_frame_is_rejected() {
+        let time = frame_start(21, FRAMES_PER_SECOND);
+        assert!(matches!(
+            seconds_into_frame(time, 22, FRAMES_PER_SECOND),
+            Err(FrameInputError::TimeBeforeFrame { frame: 22, .. })
+        ));
+    }
 }
