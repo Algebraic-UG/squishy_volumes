@@ -96,16 +96,21 @@ impl Leaf {
 
 impl BoundingVolumeHierarchy {
     pub fn new(aabbs: Vec<Aabb<Vector3<i32>>>, leaf_threshold: u32) -> Self {
+        if aabbs.is_empty() {
+            return Self {
+                level: 0,
+                nodes: vec![Node::Leaf(Leaf {
+                    aabb: aabb_from_offset_and_level(&Vector3::zeros(), 0),
+                    indices: Vec::new(),
+                })],
+            };
+        }
+
         let aabb = aabbs
             .clone()
             .into_par_iter()
             .reduce(Aabb::default, |a, b| a.extend(&b.min).extend(&b.max));
-        let longest_side = aabb.extents().max();
-
-        if longest_side <= 0 {
-            tracing::warn!("Bounding Volumes Hierarchy emtpy.");
-            return Self::default();
-        }
+        let longest_side = aabb.extents().max().max(1);
 
         let level = longest_side.ilog(4) + 1;
         let middle_2 = aabb.min + aabb.max;
@@ -333,6 +338,26 @@ mod test {
                 panic!();
             }
         }
+    }
+
+    #[test]
+    fn empty_input() {
+        let bvh = BoundingVolumeHierarchy::new(Vec::new(), 4);
+        assert_eq!(bvh.nodes().len(), 1);
+        assert!(bvh.query(&bvh.aabb().min).is_empty());
+    }
+
+    #[test]
+    fn single_point_input() {
+        let point = Vector3::new(3, -5, 7);
+        let bvh = BoundingVolumeHierarchy::new(
+            vec![Aabb {
+                min: point,
+                max: point,
+            }],
+            4,
+        );
+        assert_eq!(bvh.query(&point), &[0]);
     }
 
     //#[test]
