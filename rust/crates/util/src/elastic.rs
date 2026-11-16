@@ -57,19 +57,19 @@ pub fn poissons_ratio_in_bounds(value: T) -> Result<(), EnergyError> {
     }
 }
 
-// Stable Neo-Hookean Flesh Simulation 3.4 Lamé Reparameterization
+/// Lamé reparameterization of `μ`, see [Smith et al. 2018, "Stable Neo-Hookean Flesh Simulation"](https://doi.org/10.1145/3180491), Sec. 3.4.
 #[inline]
 pub fn mu_stable_neo_hookean(mu: T) -> T {
     4. / 3. * mu
 }
 
-// Stable Neo-Hookean Flesh Simulation 3.4 Lamé Reparameterization
+/// Lamé reparameterization of `λ`, see [Smith et al. 2018, "Stable Neo-Hookean Flesh Simulation"](https://doi.org/10.1145/3180491), Sec. 3.4.
 #[inline]
 pub fn lambda_stable_neo_hookean(lambda: T, mu: T) -> T {
     lambda + 5. / 6. * mu
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (B.7)
+/// Second invariant `I₂ = ‖F‖²`, see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (B.7).
 #[inline]
 pub fn invariant_2(position_gradient: &Matrix3<T>) -> T {
     position_gradient.norm_squared()
@@ -80,7 +80,7 @@ pub fn invariant_2_by_svd(singular_values: &Vector3<T>) -> T {
     singular_values.norm_squared()
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (B.20)
+/// See [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (B.20).
 #[inline]
 #[allow(clippy::toplevel_ref_arg)]
 pub fn partial_invariant_2_by_position_gradient(position_gradient: &Matrix3<T>) -> Matrix3<T> {
@@ -92,7 +92,7 @@ pub fn partial_invariant_2_by_svd(singular_values: &Vector3<T>) -> Vector3<T> {
     2. * *singular_values
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (B.8)
+/// Third invariant `I₃ = det F`, see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (B.8).
 #[inline]
 pub fn invariant_3(position_gradient: &Matrix3<T>) -> T {
     position_gradient.determinant()
@@ -103,7 +103,7 @@ pub fn invariant_3_by_svd(singular_values: &Vector3<T>) -> T {
     singular_values.product()
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (B.23)
+/// See [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (B.23).
 #[inline]
 #[allow(clippy::toplevel_ref_arg)]
 pub fn partial_invariant_3_by_position_gradient(position_gradient: &Matrix3<T>) -> Matrix3<T> {
@@ -134,7 +134,7 @@ pub fn double_partial_invariant_3_by_svd(singular_values: &Vector3<T>) -> Matrix
     ])
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (4.24)
+/// See [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (4.24).
 #[inline]
 #[allow(clippy::toplevel_ref_arg)]
 pub fn double_partial_invariant_3_by_position_gradient(
@@ -148,7 +148,7 @@ pub fn double_partial_invariant_3_by_position_gradient(
     ]
 }
 
-/// Stable Neo-Hookean Flesh Simulation (Smith et al. 2018), Eq. 14:
+/// [Smith et al. 2018, "Stable Neo-Hookean Flesh Simulation"](https://doi.org/10.1145/3180491), Eq. (14):
 /// `μ/2 (I₂ − 3) + λ/2 (J − α)² − μ/2 ln(I₂ + 1)` with `α = 1 + 3μ / (4λ)`,
 /// expanded to avoid dividing by `λ` and shifted by a constant to vanish at rest.
 /// Its Lamé parameters are [`mu_stable_neo_hookean`] and [`lambda_stable_neo_hookean`].
@@ -209,7 +209,7 @@ pub fn first_piola_stress_stable_neo_hookean_svd(
     ) * v_t
 }
 
-// The Material Point Method for Simulating Continuum Materials (46)
+/// Neo-Hookean energy density in terms of `F`, see [Jiang et al. 2016, "The Material Point Method for Simulating Continuum Materials"](https://doi.org/10.1145/2897826.2927348), Eq. (46).
 #[inline]
 pub fn elastic_energy_neo_hookean_old(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
     mu / 2. * ((position_gradient.transpose() * position_gradient).trace() - 3.)
@@ -217,7 +217,7 @@ pub fn elastic_energy_neo_hookean_old(mu: T, lambda: T, position_gradient: &Matr
         + lambda / 2. * position_gradient.determinant().ln().powi(2)
 }
 
-// The Material Point Method for Simulating Continuum Materials (48)
+/// Neo-Hookean first Piola-Kirchhoff stress, see [Jiang et al. 2016, "The Material Point Method for Simulating Continuum Materials"](https://doi.org/10.1145/2897826.2927348), Eq. (48).
 #[inline]
 pub fn first_piola_stress_neo_hookean_old(
     mu: T,
@@ -232,7 +232,7 @@ pub fn first_piola_stress_neo_hookean_old(
         + position_gradient_inv_t * lambda * position_gradient.determinant().ln())
 }
 
-// Dynamic Deformables Implementation and Production Practicalities 5.5.1
+/// Neo-Hookean energy density in terms of the invariants, see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Sec. 5.5.1.
 #[inline]
 pub fn elastic_energy_neo_hookean_by_invariants(
     mu: T,
@@ -244,7 +244,7 @@ pub fn elastic_energy_neo_hookean_by_invariants(
     mu / 2. * (invariant_2 - 3.) - mu * invariant_3.ln() + lambda / 2. * invariant_3.ln().powi(2)
 }
 
-// Dynamic Deformables Implementation and Production Practicalities 5.5.1
+/// Neo-Hookean energy density, see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Sec. 5.5.1.
 #[inline]
 pub fn elastic_energy_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> T {
     elastic_energy_neo_hookean_by_invariants(
@@ -271,19 +271,19 @@ pub fn try_elastic_energy_neo_hookean(
     ))
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (5.51)
+/// See [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (5.51).
 #[inline]
 pub fn partial_elastic_energy_neo_hookean_by_invariant_2(mu: T) -> T {
     mu / 2.
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (5.53)
+/// See [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (5.53).
 #[inline]
 pub fn partial_elastic_energy_neo_hookean_by_invariant_3(mu: T, lambda: T, invariant_3: T) -> T {
     (lambda * invariant_3.ln() - mu) / invariant_3
 }
 
-// Dynamic Deformables Implementation and Production Practicalities (5.53)
+/// Derivative of [`partial_elastic_energy_neo_hookean_by_invariant_3`], see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (5.53).
 #[inline]
 pub fn double_partial_elastic_energy_neo_hookean_by_invariant_3(
     mu: T,
@@ -294,7 +294,7 @@ pub fn double_partial_elastic_energy_neo_hookean_by_invariant_3(
     (lambda * (1. - invariant_3.ln()) + mu) / invariant_3.powi(2)
 }
 
-// The Material Point Method for Simulating Continuum Materials (48)
+/// Neo-Hookean first Piola-Kirchhoff stress, see [Jiang et al. 2016, "The Material Point Method for Simulating Continuum Materials"](https://doi.org/10.1145/2897826.2927348), Eq. (48).
 #[inline]
 pub fn first_piola_stress_neo_hookean(
     mu: T,
@@ -351,7 +351,7 @@ pub fn first_piola_stress_neo_hookean_svd(
     )) * v_t
 }
 
-// Dynamic Deformables Implementation and Production Practicalities 5.5.1
+/// Neo-Hookean energy Hessian, see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Sec. 5.5.1.
 #[inline]
 pub fn hessian_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> Matrix9<T> {
     let g = Vector9::from_iterator(
@@ -368,7 +368,7 @@ pub fn hessian_neo_hookean(mu: T, lambda: T, position_gradient: &Matrix3<T>) -> 
             * double_partial_invariant_3_by_position_gradient(position_gradient)
 }
 
-// Practical course on computing derivatives in code 5.1
+/// Neo-Hookean energy Hessian from the SVD `F = U Σ Vᵀ`, see [Schroeder 2019, "Practical Course on Computing Derivatives in Code"](https://doi.org/10.1145/3305366.3328073), Sec. 5.1.
 #[inline]
 pub fn hessian_neo_hookean_svd(
     mu: T,
@@ -539,9 +539,9 @@ pub fn exponent_in_bounds(value: i32) -> Result<(), EnergyError> {
     }
 }
 
-// Something like
-// Multi-species simulation of porous sand and water mixtures (11)
-// Weakly compressible SPH for free surface flows (7)
+/// Tait-like energy density of a weakly compressible fluid, similar to
+/// [Tampubolon et al. 2017, "Multi-Species Simulation of Porous Sand and Water Mixtures"](https://doi.org/10.1145/3072959.3073651), Eq. (11),
+/// and [Becker & Teschner 2007, "Weakly Compressible SPH for Free Surface Flows"](https://doi.org/10.2312/SCA/SCA07/209-218), Eq. (7).
 #[inline]
 pub fn elastic_energy_inviscid_by_invariant(bulk_modulus: T, exponent: i32, invariant_3: T) -> T {
     bulk_modulus_in_bounds(bulk_modulus).unwrap();
@@ -606,7 +606,7 @@ pub fn first_piola_stress_inviscid_svd(
     )) * v_t
 }
 
-// Dynamic Deformables Implementation and Production Practicalities 5.50
+/// Hessian of the inviscid fluid energy, see [Kim & Eberle 2020, "Dynamic Deformables"](https://doi.org/10.1145/3388769.3407490), Eq. (5.50).
 #[inline]
 pub fn hessian_inviscid(
     bulk_modulus: T,
@@ -665,7 +665,8 @@ pub fn velocity_divergence(velocity_gradient: &Matrix3<T>) -> T {
     velocity_gradient.trace()
 }
 
-// Fluid Mechanics, Second Edition, L. D. Landau and E. M. Lifshitz (15.3)
+/// Cauchy stress of a viscous fluid with dynamic and bulk viscosity,
+/// see Landau & Lifshitz, "Fluid Mechanics", second edition, Eq. (15.3).
 #[inline]
 pub fn cauchy_stress_general_viscosity(
     dynamic_viscosity: T,

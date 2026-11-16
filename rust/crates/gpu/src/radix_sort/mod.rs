@@ -16,9 +16,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// This implementation of radix sort is heavily inspired by
-// Harada, Takahiro, and Lee Howes. "Introduction to GPU radix sort." Heterogeneous Computing with OpenCL. Morgan Kaufman (2011).
-
 use std::num::NonZeroU32;
 
 use super::*;
@@ -26,6 +23,8 @@ use super::*;
 #[cfg(test)]
 mod test;
 
+/// GPU radix sort, following
+/// [Harada & Howes 2011, "Introduction to GPU Radix Sort"](https://hgpu.org/?p=5888).
 pub struct RadixSort {
     bit_count: u32,
     count_subkeys: CountSubkeys,

@@ -24,6 +24,8 @@ pub fn kernel_linear(x: f32) -> f32 {
     if x < 1. { 1. - x } else { 0. }
 }
 
+/// Quadratic B-spline interpolation weight, as used in
+/// [Jiang et al. 2016, "The Material Point Method for Simulating Continuum Materials"](https://doi.org/10.1145/2897826.2927348).
 pub fn kernel_quadratic(x: f32) -> f32 {
     let x = x.abs();
     if x < 1. / 2. {

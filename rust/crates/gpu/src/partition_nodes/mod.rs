@@ -23,6 +23,8 @@ mod test;
 
 use super::*;
 
+/// Assigns each grid node to one owning particle via a lock-free hash table, inspired by
+/// [Farrell 2020, "A Simple GPU Hash Table"](https://nosferalatu.com/SimpleGPUHashTable.html).
 pub struct PartitionNodes {
     partition_nodes: CompiledModule,
 

@@ -75,7 +75,7 @@ struct Indirect {
 }
 
 // This is derived from https://github.com/stusmall/murmur3
-// and tested against it
+// and tested against it, its license is in LICENSE-murmur3-MIT.txt
 
 fn rotl32(x: u32, r: u32) -> u32 {
     return (x << r) | (x >> (32u - r));
