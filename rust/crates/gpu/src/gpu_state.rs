@@ -467,17 +467,29 @@ impl GpuState {
     pub fn produce_next_state(
         &mut self,
         harness: &squishy_volumes_xpu::Harness,
-        gpu_run_parameters @ GpuRunParameters {
-            adaptive_time_steps,
-            store_bvh,
-            store_grid,
-        }: GpuRunParameters,
+        gpu_run_parameters: GpuRunParameters,
     ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
         squishy_volumes_util::profile!("produce_next_state");
 
         let frame_factor = self.frame_input.frame_factor(self.time)?;
         let start_time = frame_factor / self.frame_input.header().consts.frames_per_second as f32;
         tracing::info!(start_time);
+
+        self.produce_next_state_from(harness, gpu_run_parameters, start_time)
+    }
+
+    // Redoing a frame has to reuse the start time,
+    // the frame input has already moved on to the next frame by then.
+    fn produce_next_state_from(
+        &mut self,
+        harness: &squishy_volumes_xpu::Harness,
+        gpu_run_parameters @ GpuRunParameters {
+            adaptive_time_steps,
+            store_bvh,
+            store_grid,
+        }: GpuRunParameters,
+        start_time: f32,
+    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
         self.step_input.time = Allocation::new(self.gpu_context.device(), "time", &[start_time])?;
         self.step_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
 
@@ -609,7 +621,7 @@ impl GpuState {
                 false,
             )?;
             self.pending_input = Some(pending_input);
-            return self.produce_next_state(harness, gpu_run_parameters);
+            return self.produce_next_state_from(harness, gpu_run_parameters, start_time);
         }
 
         let MappedDownloads {
