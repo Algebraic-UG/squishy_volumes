@@ -17,8 +17,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy  # ty: ignore[unresolved-import]
+from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
 
-from ..util import obj_by_index
+from ..util import index_by_object, obj_by_index
 from .object import get_simulation_objects
 
 
@@ -70,34 +71,34 @@ def _update_selection(index, context):
         obj.select_set(True)
 
 
-def _on_active_change():
-    obj = bpy.context.active_object
-    if obj is None:
-        return
-    index = next(
-        i for i, other in enumerate(bpy.data.objects) if other.name == obj.name
-    )
-
-    scene = bpy.context.scene.squishy_volumes
-
-    if not obj.squishy_volumes.is_simulation and scene.selected_input_object != index:
-        scene.selected_input_object = index
+def _could_be_selected(obj: bpy.types.Object) -> bool:
+    return obj.visible_get() and not obj.hide_select
 
 
-_owner = object()
+def _list_index_for_viewport_selection() -> int:
+    active = bpy.context.view_layer.objects.active
+    if active is None or active.squishy_volumes.is_simulation:
+        return -1
+    if active.select_get() or not _could_be_selected(active):
+        return index_by_object(active)
+    return -1
+
+
+@persistent
+def _sync_with_viewport_selection(scene, _depsgraph):
+    index = _list_index_for_viewport_selection()
+    if scene.squishy_volumes.selected_input_object != index:
+        scene.squishy_volumes.selected_input_object = index
 
 
 def subscribe_to_selection():
-    bpy.msgbus.subscribe_rna(
-        key=(bpy.types.LayerObjects, "active"),
-        owner=_owner,
-        args=(),
-        notify=_on_active_change,
-    )
+    if _sync_with_viewport_selection not in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.append(_sync_with_viewport_selection)
 
 
 def unsubscribe_from_selection():
-    bpy.msgbus.clear_by_owner(_owner)
+    if _sync_with_viewport_selection in bpy.app.handlers.depsgraph_update_post:
+        bpy.app.handlers.depsgraph_update_post.remove(_sync_with_viewport_selection)
 
 
 subscribe_to_selection()
