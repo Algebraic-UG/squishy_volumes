@@ -28,8 +28,6 @@ use squishy_volumes_xpu::{FrameInput, FrameInputError};
 use super::*;
 
 pub struct CpuState {
-    pub(crate) time: f64,
-
     pub(crate) animated_globals: AnimatedGlobals,
 
     pub(crate) adaptive_time_step_state: AdaptiveTimeStepState,
@@ -132,10 +130,9 @@ impl CpuState {
             collider_bits,
         };
 
-        let frame_input = FrameInput::new(input_reader, io_state.collider, frame)?;
+        let frame_input = FrameInput::new(input_reader, io_state.collider, frame, time)?;
 
         Ok(Self {
-            time,
             animated_globals,
 
             particles,
@@ -150,7 +147,7 @@ impl CpuState {
     }
 
     pub fn to_io_state(&self, store_bvh: bool, store_grid: bool) -> Result<IoState, Error> {
-        let time = self.time;
+        let time = self.frame_input.time();
         let animated_globals = self.animated_globals;
 
         let Particles {
@@ -309,7 +306,6 @@ impl CpuState {
 }
 
 pub struct CpuRunParameters {
-    pub target_time: f64,
     pub max_time_step: f32,
     pub adaptive_time_steps: bool,
     pub store_bvh: bool,
@@ -321,7 +317,6 @@ impl CpuState {
         &mut self,
         harness: &squishy_volumes_xpu::Harness,
         CpuRunParameters {
-            target_time,
             max_time_step,
             adaptive_time_steps,
             store_bvh,
@@ -340,7 +335,7 @@ impl CpuState {
 
         self.adaptive_time_step_state.max_time_step = max_time_step;
 
-        while self.time < target_time {
+        while !self.frame_input.is_frame_finished() {
             harness.check()?;
 
             if self.adaptive_time_step_state.allowed_time_step() == 0. {
@@ -362,12 +357,10 @@ impl CpuState {
 
             self.phase = self.phase.cycle();
             if self.phase == Default::default() {
-                self.time += self.adaptive_time_step_state.allowed_time_step() as f64;
+                self.frame_input
+                    .advance(self.adaptive_time_step_state.allowed_time_step() as f64);
             }
-            harness.step_to(
-                ((self.time % self.frame_input.header().consts.seconds_per_frame()) * 1000.)
-                    as usize,
-            )?;
+            harness.step_to((self.frame_input.seconds_into_frame() * 1000.) as usize)?;
         }
 
         if let Some(next_input_frame) = self.frame_input.next_input_frame() {

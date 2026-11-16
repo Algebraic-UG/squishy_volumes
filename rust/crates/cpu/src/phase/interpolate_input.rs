@@ -30,7 +30,7 @@ impl CpuState {
         let triangle_indices = self.frame_input.topology().triangle_indices();
 
         // linear interpolation between a and b
-        let factor_b = self.frame_input.frame_factor(self.time)?;
+        let factor_b = self.frame_input.frame_factor();
         let factor_a = 1. - factor_b;
 
         let vertex_positions: Vec<Vector3<f32>> = self

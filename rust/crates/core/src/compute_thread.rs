@@ -71,7 +71,6 @@ impl ComputeThread {
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
             .map_err(Error::StartInputReading)?;
-        let header = input_reader.header().clone();
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
@@ -139,16 +138,12 @@ impl ComputeThread {
 
                     let start_compute_frame = Instant::now();
 
-                    // TODO: remove
-                    let target_time = next_frame as f64 / header.consts.frames_per_second as f64;
-
                     let result: Result<(), Error>;
                     let io_state = match &mut compute_state {
                         ComputeState::Cpu(cpu_state) => {
                             let (io_state, cpu_result) = cpu_state.produce_next_state(
                                 &harness,
                                 CpuRunParameters {
-                                    target_time,
                                     max_time_step,
                                     adaptive_time_steps,
                                     store_grid: true,
