@@ -139,6 +139,7 @@ impl ComputeThread {
                     let start_compute_frame = Instant::now();
 
                     let result: Result<(), Error>;
+                    let last_frame_substeps;
                     let io_state = match &mut compute_state {
                         ComputeState::Cpu(cpu_state) => {
                             let (io_state, cpu_result) = cpu_state.produce_next_state(
@@ -151,6 +152,7 @@ impl ComputeThread {
                                 },
                             )?;
                             result = cpu_result.map_err(Error::CpuCompute);
+                            last_frame_substeps = cpu_state.last_frame_substeps();
                             io_state
                         }
                         ComputeState::Gpu(gpu_state) => {
@@ -163,6 +165,7 @@ impl ComputeThread {
                                 },
                             )?;
                             result = gpu_result.map_err(Error::GpuError);
+                            last_frame_substeps = gpu_state.last_frame_substeps();
                             io_state
                         }
                     };
@@ -186,7 +189,7 @@ impl ComputeThread {
                         Some(ComputeStats {
                             remaining_time_sec,
                             last_frame_time_sec,
-                            last_frame_substeps: 0, // TODO
+                            last_frame_substeps,
                         }),
                     );
 

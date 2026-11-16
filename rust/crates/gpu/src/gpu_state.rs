@@ -72,6 +72,7 @@ pub struct GpuState {
 
     steps_per_frame: u32,
     recorded_steps: u32,
+    last_frame_substeps: u32,
 
     frame_input: FrameInput,
 
@@ -343,6 +344,7 @@ impl GpuState {
             pending_input: None,
             max_num_grid_nodes,
             recorded_steps: 0,
+            last_frame_substeps: 0,
             steps_per_frame,
             frame_input,
             variable_particle_input_backup,
@@ -479,6 +481,10 @@ impl GpuState {
         tracing::info!(start_time);
 
         self.produce_next_state_from(harness, gpu_run_parameters, start_time)
+    }
+
+    pub fn last_frame_substeps(&self) -> u32 {
+        self.last_frame_substeps
     }
 
     // Redoing a frame has to reuse the start time,
@@ -630,7 +636,7 @@ impl GpuState {
         let MappedDownloads {
             status: _,
             time,
-            //step: _,
+            step,
             //limits_over_time: _,
             indirect_nodes,
             particle_flags,
@@ -645,6 +651,7 @@ impl GpuState {
         let seconds_per_frame = self.frame_input.header().consts.seconds_per_frame();
         self.frame_input
             .set_seconds_into_frame(time as f64 - seconds_per_frame);
+        self.last_frame_substeps = step;
         self.animated_globals = pending_input.animated_globals;
         self.step_input.globals = pending_input.globals;
         self.step_input.collider_input = pending_input.next_collider_input;
@@ -1058,7 +1065,7 @@ impl Downloads {
             [
                 gpu_state.gpu_context.status(),
                 gpu_state.step_input.time.clone(),
-                //gpu_state.next_input.step.clone(),
+                gpu_state.step_input.step.clone(),
                 //gpu_state.next_input.limits_over_time.clone(),
                 gpu_state.step_input.indirect_grid_nodes.clone(),
                 gpu_state
@@ -1126,7 +1133,7 @@ impl DownloadsReady<'_> {
         let [
             status,
             time,
-            //step,
+            step,
             //limits_over_time,
             indirect_nodes,
             particle_flags,
@@ -1152,7 +1159,7 @@ impl DownloadsReady<'_> {
             status: status.to_vec()?[0],
             //limits_over_time: limits_over_time.to_vec()?,
             time: time.to_vec()?[0],
-            //step: step.to_vec()?[0],
+            step: step.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
             particle_flags: particle_flags.to_vec()?,
             particle_parameters: particle_parameters.to_vec()?,
@@ -1168,8 +1175,7 @@ impl DownloadsReady<'_> {
 struct MappedDownloads {
     status: GpuStatus,
     time: f32,
-    // TODO: load this for stats
-    //step: u32,
+    step: u32,
     //limits_over_time: Vec<TimeStepLimits>,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
