@@ -59,7 +59,6 @@ pub struct Input {
     pub triangle_normals: Allocation,
     pub triangle_opposites: Allocation,
     pub triangle_frictions: Allocation,
-    pub triangle_dampings: Allocation,
     pub bvh: BoundingVolumeHierarchyAllocations,
 }
 
@@ -78,7 +77,6 @@ pub struct InputData<'a> {
     pub triangle_normals: &'a [Vector4<f32>],
     pub triangle_opposites: &'a [Opposites],
     pub triangle_frictions: &'a [f32],
-    pub triangle_dampings: &'a [f32],
 }
 
 impl Input {
@@ -102,7 +100,6 @@ impl Input {
             triangle_normals,
             triangle_opposites,
             triangle_frictions,
-            triangle_dampings,
         }: InputData,
     ) -> Result<Self, GpuError> {
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
@@ -112,7 +109,6 @@ impl Input {
         check_length!(triangle_indices, triangle_normals)?;
         check_length!(triangle_indices, triangle_opposites)?;
         check_length!(triangle_indices, triangle_frictions)?;
-        check_length!(triangle_indices, triangle_dampings)?;
         {
             let triangle_indices = triangle_indices.iter().flat_map(|indices| indices.iter());
             check_indices_valid!(triangle_indices, vertex_positions)?;
@@ -152,7 +148,6 @@ impl Input {
         let triangle_normals = Allocation::new(device, "triangle_normals", triangle_normals)?;
         let triangle_opposites = Allocation::new(device, "triangle_opposites", triangle_opposites)?;
         let triangle_frictions = Allocation::new(device, "triangle_frictions", triangle_frictions)?;
-        let triangle_dampings = Allocation::new(device, "triangle_dampings", triangle_dampings)?;
 
         let bvh = BoundingVolumeHierarchyAllocations::new(device, leaf_size, &bvh)?;
 
@@ -169,7 +164,6 @@ impl Input {
             triangle_normals,
             triangle_opposites,
             triangle_frictions,
-            triangle_dampings,
             bvh,
         })
     }
@@ -210,7 +204,6 @@ impl PipelinePart for Collide {
                     (Vector4::<f32>::MIN_BINDING_SIZE, false),          //triangle_normals
                     (Opposites::MIN_BINDING_SIZE, false),               //triangle_opposites
                     (f32::MIN_BINDING_SIZE, false),                     //triangle_frictions
-                    (f32::MIN_BINDING_SIZE, false),                     //triangle_dampings
                     (BoundingVolumeHierarchyMeta::MIN_BINDING_SIZE, false), // bvh_meta
                     (u32::MIN_BINDING_SIZE, false),                     //bvh_nodes
                     (u32::MIN_BINDING_SIZE, false),                     //bvh_indices
@@ -247,7 +240,6 @@ impl PipelinePart for Collide {
             triangle_normals,
             triangle_opposites,
             triangle_frictions,
-            triangle_dampings,
             bvh,
         }: Input,
         _: Parameters,
@@ -278,7 +270,6 @@ impl PipelinePart for Collide {
                     triangle_normals.binding(),
                     triangle_opposites.binding(),
                     triangle_frictions.binding(),
-                    triangle_dampings.binding(),
                     bvh.meta.binding(),
                     bvh.nodes.binding(),
                     bvh.indices.binding(),

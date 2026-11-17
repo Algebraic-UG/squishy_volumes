@@ -142,12 +142,10 @@ pub fn initialize_io_state(
     let squishy_volumes_file_frame::Collider {
         vertex_positions,
         triangle_frictions,
-        triangle_dampings,
     } = &mut collider;
 
     vertex_positions.resize(input_reader.header().total_vertices, Default::default());
     triangle_frictions.resize(input_reader.header().total_triangles, Default::default());
-    triangle_dampings.resize(input_reader.header().total_triangles, Default::default());
 
     let mut io_state = IoState {
         time: 0.,
@@ -366,10 +364,6 @@ pub fn initialize_io_state(
                     FrameBulkCollider::Triangles => {}
                     FrameBulkCollider::Friction => {
                         io_state.collider.triangle_frictions[triangle_range.clone()]
-                            .copy_from_slice(bulk.assume_floats()?);
-                    }
-                    FrameBulkCollider::Damping => {
-                        io_state.collider.triangle_dampings[triangle_range.clone()]
                             .copy_from_slice(bulk.assume_floats()?);
                     }
                 }

@@ -194,7 +194,6 @@ fn main() {
                     triangle_normals: &test_mesh.triangle_normals_a,
                     triangle_opposites: &test_mesh.triangle_opposites,
                     triangle_frictions: &test_mesh.triangle_frictions_a,
-                    triangle_dampings: &test_mesh.triangle_dampings_a,
                 },
             )
             .unwrap();
@@ -569,7 +568,6 @@ fn main() {
                         triangle_collider: &vec![0; test_mesh.triangle_indices.len()],
                         triangle_opposites: &test_mesh.triangle_opposites,
                         triangle_frictions: &test_mesh.triangle_frictions_a,
-                        triangle_dampings: &test_mesh.triangle_dampings_a,
                     }),
                 },
             )

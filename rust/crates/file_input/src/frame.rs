@@ -121,14 +121,13 @@ pub enum FrameBulkCollider {
     Position,
     Triangles,
     Friction,
-    Damping,
 }
 
 impl FrameBulkCollider {
     fn elem_count(&self) -> usize {
         match self {
             FrameBulkCollider::Position | FrameBulkCollider::Triangles => 3,
-            FrameBulkCollider::Friction | FrameBulkCollider::Damping => 1,
+            FrameBulkCollider::Friction => 1,
         }
     }
 }
@@ -209,8 +208,7 @@ impl FrameBulk<'_> {
                 .vertex_range
                 .len(),
             BulkAttribute::Collider(FrameBulkCollider::Triangles)
-            | BulkAttribute::Collider(FrameBulkCollider::Friction)
-            | BulkAttribute::Collider(FrameBulkCollider::Damping) => header
+            | BulkAttribute::Collider(FrameBulkCollider::Friction) => header
                 .get_collider_object(&self.meta.object_name)?
                 .triangle_range
                 .len(),

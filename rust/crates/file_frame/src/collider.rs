@@ -20,7 +20,6 @@
 pub struct Collider {
     pub vertex_positions: Vec<[f32; 3]>,
     pub triangle_frictions: Vec<f32>,
-    pub triangle_dampings: Vec<f32>,
 }
 
 impl Collider {

@@ -29,8 +29,9 @@ pub struct Contact {
     pub to_p: Vector3<T>,
     /// Velocity of the surface at the closest point.
     pub collider_velocity: Vector3<T>,
+    /// Coulomb friction coefficient. Clamped to 0..1, it is also the fraction of the normal
+    /// velocity that the contact removes.
     pub friction: T,
-    pub damping: T,
 }
 
 /// The parts of `relative_velocity` along the unit `contact_normal` and tangential to it.
@@ -66,7 +67,7 @@ pub fn damping_impulse(normal_velocity: &Vector3<T>, damping: T) -> Vector3<T> {
 }
 
 /// The velocity that moves the particle back onto the surface within one time step,
-/// with damping applied to its velocity relative to the surface, and friction
+/// with its velocity relative to the surface damped by the friction, and friction
 /// proportional to the resulting normal impulse.
 /// A particle closer to the surface than [`NORMALIZATION_EPS`] has no contact normal
 /// and keeps its velocity.
@@ -79,7 +80,7 @@ pub fn collision_response(velocity: &Vector3<T>, contact: &Contact, time_step: T
     let (normal_velocity, tangential_velocity) =
         split_normal_tangential(&(velocity - contact.collider_velocity), &contact_normal);
     let normal_impulse =
-        damping_impulse(&normal_velocity, contact.damping) + contact.to_p / time_step;
+        damping_impulse(&normal_velocity, contact.friction) + contact.to_p / time_step;
     let pressing_against_collider = normal_impulse.dot(&contact_normal);
     velocity
         - friction_impulse(

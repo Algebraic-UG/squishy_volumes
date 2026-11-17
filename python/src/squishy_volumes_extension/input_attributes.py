@@ -115,10 +115,6 @@ COLLIDER_FRICTION = InputAttribute(
     key="Friction",
     name="sv_friction",
 )
-COLLIDER_DAMPING = InputAttribute(
-    key="Damping",
-    name="sv_damping",
-)
 
 PARTICLE_ATTRIBUTES = (
     PARTICLE_IS_SOLID,
@@ -145,5 +141,4 @@ PARTICLE_ATTRIBUTES = (
 COLLIDER_ATTRIBUTES = (
     COLLIDER_POSITION,
     COLLIDER_FRICTION,
-    COLLIDER_DAMPING,
 )

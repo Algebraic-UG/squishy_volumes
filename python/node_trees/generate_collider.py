@@ -36,15 +36,7 @@ class GenerateCollider(CustomGeometryGroup):
         friction = tree.inputs.float(
             "Friction",
             0.3,
-            description="Coulomb friction factor.",
-            min_value=0.0,
-            max_value=1.0,
-            subtype="FACTOR",
-        )
-        damping = tree.inputs.float(
-            "Damping",
-            0.1,
-            description="Damps bounce in normal direction",
+            description="Coulomb friction factor, also damps the normal bounce.",
             min_value=0.0,
             max_value=1.0,
             subtype="FACTOR",
@@ -59,9 +51,6 @@ class GenerateCollider(CustomGeometryGroup):
             )
             >> g.StoreNamedAttribute.face.float(
                 name=names.inputs.COLLIDER_FRICTION.name, value=friction
-            )
-            >> g.StoreNamedAttribute.face.float(
-                name=names.inputs.COLLIDER_DAMPING.name, value=damping
             )
             >> tree.outputs.geometry()
         )

@@ -38,7 +38,6 @@ fn check(
         triangle_indices,
         triangle_collider,
         triangle_frictions,
-        triangle_dampings,
         ..
     }: InputData,
     check_collider_bits: bool,
@@ -195,7 +194,6 @@ fn check(
                     corner_velocities.each_ref(),
                 ),
                 friction: triangle_frictions[closest_triangle as usize],
-                damping: triangle_dampings[closest_triangle as usize],
             };
             *velocity = collision_response(velocity, &contact, time_step);
         }
@@ -259,7 +257,6 @@ fn simple() {
     let triangle_indices = vec![Triangle { a: 0, b: 1, c: 2 }];
     let triangle_collider = vec![0];
     let triangle_frictions = vec![0.];
-    let triangle_dampings = vec![0.];
 
     let forget_distance = 2.;
     let accept_distance = 1.;
@@ -282,7 +279,6 @@ fn simple() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
-            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],
@@ -324,7 +320,6 @@ fn simple2() {
     ];
     let triangle_collider = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
-    let triangle_dampings = vec![0.; triangle_indices.len()];
 
     let forget_distance = 2.;
     let accept_distance = 1.;
@@ -347,7 +342,6 @@ fn simple2() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
-            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],
@@ -376,7 +370,6 @@ fn torus() {
     let particle_velocities = vec![Vector4::zeros(); particle_positions_and_collider_bits.len()];
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
-    let triangle_dampings = vec![0.; triangle_indices.len()];
 
     let forget_distance = 0.7;
     let accept_distance = 0.5;
@@ -399,7 +392,6 @@ fn torus() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
-            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],
@@ -452,7 +444,6 @@ fn dented_octahedron_with_concave_edges_and_corner() {
         .collect();
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![0.; triangle_indices.len()];
-    let triangle_dampings = vec![0.; triangle_indices.len()];
 
     check(
         0.7,
@@ -469,7 +460,6 @@ fn dented_octahedron_with_concave_edges_and_corner() {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
-            triangle_dampings: &triangle_dampings,
 
             // hacky: will be computed in check
             vertex_normals: &[],
@@ -481,17 +471,17 @@ fn dented_octahedron_with_concave_edges_and_corner() {
 }
 
 #[test]
-fn deforming_torus_with_friction_and_damping() {
-    check_deforming_torus(0.4, 0.3);
+fn deforming_torus_with_friction() {
+    check_deforming_torus(0.4);
 }
 
 #[test]
-fn deforming_torus_with_invalid_friction_and_damping() {
-    check_deforming_torus(-0.4, -0.3);
-    check_deforming_torus(0.4, 1.5);
+fn deforming_torus_with_friction_outside_0_to_1() {
+    check_deforming_torus(-0.4);
+    check_deforming_torus(1.5);
 }
 
-fn check_deforming_torus(friction: f32, damping: f32) {
+fn check_deforming_torus(friction: f32) {
     let vertex_positions = torus::vertices();
     let triangle_indices = torus::triangles();
 
@@ -526,7 +516,6 @@ fn check_deforming_torus(friction: f32, damping: f32) {
         .collect();
     let triangle_collider: Vec<u32> = vec![0; triangle_indices.len()];
     let triangle_frictions = vec![friction; triangle_indices.len()];
-    let triangle_dampings = vec![damping; triangle_indices.len()];
 
     check(
         0.7,
@@ -543,7 +532,6 @@ fn check_deforming_torus(friction: f32, damping: f32) {
             triangle_indices: &triangle_indices,
             triangle_collider: &triangle_collider,
             triangle_frictions: &triangle_frictions,
-            triangle_dampings: &triangle_dampings,
             vertex_normals: &[],
             triangle_normals: &[],
             triangle_opposites: &[],

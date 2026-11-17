@@ -344,10 +344,6 @@ fn update_collider(
                     collider.triangle_frictions[triangle_range.clone()]
                         .copy_from_slice(bulk.assume_floats()?);
                 }
-                FrameBulkCollider::Damping => {
-                    collider.triangle_dampings[triangle_range.clone()]
-                        .copy_from_slice(bulk.assume_floats()?);
-                }
                 FrameBulkCollider::Triangles => {
                     // TODO:
                     tracing::error!("Updating the topology after frame 0 is not supported (yet?)");
