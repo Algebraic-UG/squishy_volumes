@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, mu, lambda, mass, initial_volume};
+import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, PARTICLE_CLOSE_TO_INVERTED, FAILED, TOMBSTONED, mu, lambda, mass, initial_volume};
 import super::sand::sand_plasticity;
 import super::fluid::fluid_plasticity;
 import super::viscosity::cauchy_stress_general_viscosity;
@@ -81,7 +81,7 @@ fn main(
     let velocity = velocities[global_index];
     let velocity_gradient = velocity_gradients[global_index];
 
-    if determinant(position_gradient) < INVERSE_EPS {
+    if determinant(position_gradient) <= 0. {
         atomicOr(&status, PARTICLE_CLOSE_TO_INVERTED);
         flags[global_index] |= FAILED;
         return;
