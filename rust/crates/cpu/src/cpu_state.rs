@@ -132,6 +132,9 @@ impl CpuState {
             collider_bits,
         };
 
+        let adaptive_time_step_state =
+            AdaptiveTimeStepState::from_history(&io_state.time_step_history);
+
         let frame_input = FrameInput::new(input_reader, io_state.collider, frame, time)?;
 
         Ok(Self {
@@ -142,7 +145,7 @@ impl CpuState {
             frame_input,
 
             phase: Default::default(),
-            adaptive_time_step_state: Default::default(),
+            adaptive_time_step_state,
             grid_nodes: Default::default(),
             interpolated_input: Default::default(),
             last_frame_substeps: 0,
@@ -300,6 +303,7 @@ impl CpuState {
             animated_globals,
             particle_objects,
             collider,
+            time_step_history: self.adaptive_time_step_state.history(),
             bvh,
             grid_nodes,
         };
@@ -350,15 +354,12 @@ impl CpuState {
                 return Err(Error::ZeroTimeStep);
             }
 
-            let run_phase = adaptive_time_steps || self.phase != Phase::LimitTimeStep;
-            if run_phase {
-                match self.run_phase() {
-                    error @ Err(Error::EnergyError(energy_error)) => {
-                        tracing::warn!(?energy_error, "Encountered an energy error.");
-                        return Ok((self.to_io_state(store_bvh, store_grid)?, error));
-                    }
-                    x => x?,
+            match self.run_phase() {
+                error @ Err(Error::EnergyError(energy_error)) => {
+                    tracing::warn!(?energy_error, "Encountered an energy error.");
+                    return Ok((self.to_io_state(store_bvh, store_grid)?, error));
                 }
+                x => x?,
             }
 
             self.phase = self.phase.cycle();

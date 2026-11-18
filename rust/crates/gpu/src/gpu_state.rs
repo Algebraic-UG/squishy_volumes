@@ -32,7 +32,7 @@ use squishy_volumes_file_frame::{
 use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
 use squishy_volumes_util::{
     AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, TIME_STEP_HISTORY_LENGTH,
-    attribute, limit_time_step_by_collider_velocities,
+    attribute, latest_time_step_limits, limit_time_step_by_collider_velocities,
 };
 use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
@@ -70,8 +70,10 @@ pub struct GpuState {
 
     max_num_grid_nodes: NonZeroU32,
 
+    max_time_step: f32,
     steps_per_frame: u32,
     recorded_steps: u32,
+    time_step_history: Vec<f32>,
     last_frame_substeps: u32,
 
     frame_input: FrameInput,
@@ -201,6 +203,7 @@ impl GpuState {
         io_state.convert_to_simulation_units(input_reader.header().consts.simulation_scale);
         let time = io_state.time;
         let animated_globals = io_state.animated_globals;
+        let time_step_history = latest_time_step_limits(&io_state.time_step_history).to_vec();
 
         let frame_input = FrameInput::new(input_reader, take(&mut io_state.collider), frame, time)?;
         let consts = &frame_input.header().consts;
@@ -303,11 +306,8 @@ impl GpuState {
 
             let collider_input = get_collider_input(device, &frame_input)?;
 
-            let limits_over_time = Allocation::new(
-                device,
-                "limits_over_time",
-                &vec![TimeStepLimits::default(); steps_per_frame as usize],
-            )?;
+            let limits_over_time =
+                limits_over_time_starting_with(device, &time_step_history, steps_per_frame)?;
 
             step::Input {
                 time,
@@ -344,6 +344,8 @@ impl GpuState {
             pending_input: None,
             max_num_grid_nodes,
             recorded_steps: 0,
+            max_time_step,
+            time_step_history,
             last_frame_substeps: 0,
             steps_per_frame,
             frame_input,
@@ -495,6 +497,11 @@ impl GpuState {
     ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
         self.step_input.time = Allocation::new(self.gpu_context.device(), "time", &[start_time])?;
         self.step_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
+        self.step_input.limits_over_time = limits_over_time_starting_with(
+            self.gpu_context.device(),
+            &self.time_step_history,
+            self.steps_per_frame,
+        )?;
 
         let mut encoder = self
             .gpu_context
@@ -567,7 +574,10 @@ impl GpuState {
                     let limits_over_time = Allocation::new(
                         self.gpu_context.device(),
                         "limits_over_time",
-                        &vec![TimeStepLimits::default(); self.steps_per_frame as usize],
+                        &vec![
+                            TimeStepLimits::default();
+                            limits_over_time_len(self.steps_per_frame)
+                        ],
                     )?;
                     encoder.copy_buffer_to_buffer(
                         self.step_input.limits_over_time.buffer(),
@@ -631,7 +641,7 @@ impl GpuState {
             status: _,
             time,
             step,
-            //limits_over_time: _,
+            limits_over_time,
             indirect_nodes,
             particle_flags,
             particle_parameters,
@@ -646,6 +656,20 @@ impl GpuState {
         self.frame_input
             .set_seconds_into_frame(time as f64 - seconds_per_frame);
         self.last_frame_substeps = step;
+        let history: Vec<f32> = if adaptive_time_steps {
+            let written = self.time_step_history.len() + step as usize;
+            limits_over_time[..written]
+                .iter()
+                .map(TimeStepLimits::time_step)
+                .collect()
+        } else {
+            self.time_step_history
+                .iter()
+                .copied()
+                .chain(repeat_n(self.max_time_step, step as usize))
+                .collect()
+        };
+        self.time_step_history = latest_time_step_limits(&history).to_vec();
         self.animated_globals = pending_input.animated_globals;
         self.step_input.globals = pending_input.globals;
         self.step_input.collider_input = pending_input.next_collider_input;
@@ -832,6 +856,7 @@ impl GpuState {
             animated_globals: self.animated_globals,
             particle_objects,
             collider,
+            time_step_history: self.time_step_history.clone(),
             bvh,
             grid_nodes,
         };
@@ -1004,7 +1029,7 @@ impl GpuState {
                 self.step_input.clone(),
                 step::Parameters {
                     max_num_grid_nodes: self.max_num_grid_nodes,
-                    current_step: self.recorded_steps,
+                    current_step: self.time_step_history.len() as u32 + self.recorded_steps,
                     adaptive_time_steps,
                 },
             )?;
@@ -1060,7 +1085,7 @@ impl Downloads {
                 gpu_state.gpu_context.status(),
                 gpu_state.step_input.time.clone(),
                 gpu_state.step_input.step.clone(),
-                //gpu_state.next_input.limits_over_time.clone(),
+                gpu_state.step_input.limits_over_time.clone(),
                 gpu_state.step_input.indirect_grid_nodes.clone(),
                 gpu_state
                     .step_input
@@ -1128,7 +1153,7 @@ impl DownloadsReady<'_> {
             status,
             time,
             step,
-            //limits_over_time,
+            limits_over_time,
             indirect_nodes,
             particle_flags,
             particle_parameters,
@@ -1151,7 +1176,7 @@ impl DownloadsReady<'_> {
 
         Ok(MappedDownloads {
             status: status.to_vec()?[0],
-            //limits_over_time: limits_over_time.to_vec()?,
+            limits_over_time: limits_over_time.to_vec()?,
             time: time.to_vec()?[0],
             step: step.to_vec()?[0],
             indirect_nodes: indirect_nodes.to_vec()?[0],
@@ -1170,7 +1195,7 @@ struct MappedDownloads {
     status: GpuStatus,
     time: f32,
     step: u32,
-    //limits_over_time: Vec<TimeStepLimits>,
+    limits_over_time: Vec<TimeStepLimits>,
     indirect_nodes: Indirect,
     particle_flags: Vec<ParticleFlags>,
     particle_parameters: Vec<ParticleParameters>,
@@ -1185,4 +1210,25 @@ struct MappedDownloads {
 struct MappedDownloadsGrid {
     node_ids_and_collider_bits: Vec<NodeIdAndColliderBits>,
     node_momentums: Vec<Vector4<f32>>,
+}
+
+fn limits_over_time_len(steps_per_frame: u32) -> usize {
+    (steps_per_frame + TIME_STEP_HISTORY_LENGTH) as usize
+}
+
+fn limits_over_time_starting_with(
+    device: &wgpu::Device,
+    time_step_history: &[f32],
+    steps_per_frame: u32,
+) -> Result<Allocation, GpuError> {
+    let mut limits_over_time =
+        vec![TimeStepLimits::default(); limits_over_time_len(steps_per_frame)];
+    for (limits, &time_step) in limits_over_time.iter_mut().zip(time_step_history) {
+        *limits = TimeStepLimits::from_time_step(time_step);
+    }
+    Ok(Allocation::new(
+        device,
+        "limits_over_time",
+        &limits_over_time,
+    )?)
 }

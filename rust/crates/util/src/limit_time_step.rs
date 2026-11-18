@@ -30,6 +30,12 @@ use nalgebra::{Matrix3, Vector3};
 /// Number of steps, including the current one, whose particle limits bound the time step.
 pub const TIME_STEP_HISTORY_LENGTH: u32 = 10;
 
+pub fn latest_time_step_limits(history: &[f32]) -> &[f32] {
+    &history[history
+        .len()
+        .saturating_sub(TIME_STEP_HISTORY_LENGTH as usize)..]
+}
+
 pub fn principal_stretches(position_gradient: &Matrix3<T>) -> Vector3<T> {
     position_gradient.svd(false, false).singular_values
 }

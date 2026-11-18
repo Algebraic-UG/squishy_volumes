@@ -28,6 +28,11 @@ impl CpuState {
     pub fn limit_time_step(&mut self) {
         profile!("limit_time_step");
 
+        if !self.adaptive_time_step_state.adaptive_time_steps {
+            self.adaptive_time_step_state.push_current_limit();
+            return;
+        }
+
         let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
 
         (

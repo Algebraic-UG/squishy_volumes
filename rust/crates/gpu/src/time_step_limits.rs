@@ -41,6 +41,15 @@ impl Default for TimeStepLimits {
 }
 
 impl TimeStepLimits {
+    pub fn from_time_step(time_step: f32) -> Self {
+        Self {
+            time_step_by_velocity: time_step,
+            time_step_by_deformation: time_step,
+            time_step_by_isolated: time_step,
+            time_step_by_sound: time_step,
+        }
+    }
+
     pub fn min(&self, other: &Self) -> Self {
         Self {
             time_step_by_velocity: self.time_step_by_velocity.min(other.time_step_by_velocity),

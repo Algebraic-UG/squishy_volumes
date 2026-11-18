@@ -18,7 +18,7 @@
 
 use std::iter::once;
 
-use squishy_volumes_util::TIME_STEP_HISTORY_LENGTH;
+use squishy_volumes_util::{TIME_STEP_HISTORY_LENGTH, latest_time_step_limits};
 
 pub struct AdaptiveTimeStepState {
     pub max_time_step: f32,
@@ -47,6 +47,17 @@ impl Default for AdaptiveTimeStepState {
 }
 
 impl AdaptiveTimeStepState {
+    pub fn from_history(history: &[f32]) -> Self {
+        Self {
+            time_step_prior: latest_time_step_limits(history).iter().copied().collect(),
+            ..Default::default()
+        }
+    }
+
+    pub fn history(&self) -> Vec<f32> {
+        self.time_step_prior.iter().copied().collect()
+    }
+
     fn allowed_time_step_without_prior(&self) -> f32 {
         [
             self.time_step_by_velocity.unwrap_or(f32::MAX),
@@ -71,11 +82,14 @@ impl AdaptiveTimeStepState {
     }
 
     pub fn push_current_limit(&mut self) {
+        let limit = if self.adaptive_time_steps {
+            self.allowed_time_step_without_prior()
+        } else {
+            self.max_time_step
+        };
         if self.time_step_prior.len() >= TIME_STEP_HISTORY_LENGTH as usize {
             self.time_step_prior.pop_front();
         }
-
-        self.time_step_prior
-            .push_back(self.allowed_time_step_without_prior());
+        self.time_step_prior.push_back(limit);
     }
 }
