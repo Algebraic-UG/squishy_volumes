@@ -101,10 +101,11 @@ impl SimulationImpl {
         to_value(&self.header).map_err(Error::EncodingInputHeader)
     }
 
-    pub fn computing_impl(&self) -> bool {
+    pub fn baking_impl(&self) -> bool {
         self.compute_thread
             .as_ref()
             .is_some_and(ComputeThread::running)
+            || self.cache.storing()
     }
 
     pub fn poll_impl(&mut self) -> Result<Value, Error> {

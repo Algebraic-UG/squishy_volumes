@@ -422,7 +422,7 @@ or cancellation occurs due to user input or error."""
         sim_handle = SimulationHandle.get(uuid=uuid)
         return (
             sim_handle is not None
-            and not sim_handle.computing()
+            and not sim_handle.baking()
             and sim_handle.available_frames() < sim_obj.squishy_volumes.bake_frames
         )
 
@@ -468,7 +468,7 @@ come after the displayed one."""
         sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
         return (
             sim_handle is not None
-            and not sim_handle.computing()
+            and not sim_handle.baking()
             and rebake_frame(sim_handle, sim_props, context.scene) is not None
         )
 
@@ -503,7 +503,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
         if uuid is None:
             return False
         sim_handle = SimulationHandle.get(uuid=uuid)
-        return sim_handle is not None and sim_handle.computing()
+        return sim_handle is not None and sim_handle.baking()
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)

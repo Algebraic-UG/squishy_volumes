@@ -21,8 +21,8 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         Ok(self.input_header_impl()?)
     }
 
-    fn computing(&self) -> bool {
-        self.computing_impl()
+    fn baking(&self) -> bool {
+        self.baking_impl()
     }
 
     fn poll(&mut self) -> anyhow::Result<serde_json::Value> {

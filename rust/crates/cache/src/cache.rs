@@ -36,6 +36,29 @@ pub struct Cache {
     state: squishy_volumes_directory_lock::DirectoryLock<CacheState>,
 }
 
+pub struct FrameStore {
+    sender: FrameSender,
+    total_bytes_on_disk: Arc<AtomicU64>,
+    max_bytes_on_disk: Arc<AtomicU64>,
+}
+
+#[allow(clippy::result_large_err)]
+impl FrameStore {
+    pub fn store_frame(
+        &self,
+        frame: squishy_volumes_file_frame::Frame,
+        stats: Stats,
+    ) -> Result<(), CacheError> {
+        if self.total_bytes_on_disk.load(Ordering::Relaxed)
+            >= self.max_bytes_on_disk.load(Ordering::Relaxed)
+        {
+            Err(CacheWritingError::ExceedingSpace)?
+        }
+        self.sender.send(frame, stats)?;
+        Ok(())
+    }
+}
+
 #[allow(clippy::result_large_err)]
 impl CacheState {
     fn new(
@@ -70,11 +93,7 @@ impl CacheState {
         truncate_stats(directory, available_frames.load(Ordering::Relaxed))
             .map_err(CacheCleanupError::IoError)?;
 
-        let store_thread = Mutex::new(StoreThread::new(
-            directory.to_path_buf(),
-            total_bytes_on_disk.clone(),
-            available_frames.clone(),
-        ));
+        let store_thread = Mutex::new(StoreThread::idle());
 
         Ok(Self {
             input_bytes_on_disk,
@@ -105,7 +124,7 @@ impl Cache {
     }
 
     pub fn available_frames(&self) -> usize {
-        self.state.available_frames.load(Ordering::Relaxed)
+        self.state.available_frames.load(Ordering::Acquire)
     }
 
     pub fn check(&self) -> Result<(), CacheError> {
@@ -148,31 +167,36 @@ impl Cache {
         self.state.total_bytes_on_disk.load(Ordering::Relaxed)
     }
 
-    pub fn store_frame(
-        &self,
-        frame: squishy_volumes_file_frame::Frame,
-        stats: Stats,
-    ) -> Result<(), CacheError> {
-        if self.state.total_bytes_on_disk.load(Ordering::Relaxed)
-            >= self.state.max_bytes_on_disk.load(Ordering::Relaxed)
-        {
-            Err(CacheWritingError::ExceedingSpace)?
-        }
+    pub fn start_storing(&self) -> Result<FrameStore, CacheError> {
         let sender = self
             .state
             .store_thread
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?
-            .sender()?;
-        sender.send(frame, stats)?;
-        Ok(())
+            .start(
+                self.state.directory().to_path_buf(),
+                self.state.total_bytes_on_disk.clone(),
+                self.state.available_frames.clone(),
+            );
+        Ok(FrameStore {
+            sender,
+            total_bytes_on_disk: self.state.total_bytes_on_disk.clone(),
+            max_bytes_on_disk: self.state.max_bytes_on_disk.clone(),
+        })
+    }
+
+    pub fn storing(&self) -> bool {
+        self.state
+            .store_thread
+            .lock()
+            .is_ok_and(|store_thread| store_thread.running())
     }
 
     pub fn fetch_frame(
         &self,
         frame_index: usize,
     ) -> Result<squishy_volumes_file_frame::Frame, CacheReadingError> {
-        if frame_index >= self.state.available_frames.load(Ordering::Relaxed) {
+        if frame_index >= self.state.available_frames.load(Ordering::Acquire) {
             return Err(CacheReadingError::FrameNotReady);
         }
         tracing::debug!(frame_index, "reading frame from disk");
@@ -189,11 +213,6 @@ impl Cache {
             .lock()
             .map_err(|_| CacheError::StoreThreadLockPoisoned)?;
         store_thread.stop();
-        *store_thread = StoreThread::new(
-            self.state.directory().to_path_buf(),
-            self.state.total_bytes_on_disk.clone(),
-            self.state.available_frames.clone(),
-        );
         self.state
             .available_frames
             .fetch_min(from_frame, Ordering::Relaxed);
@@ -303,8 +322,9 @@ mod tests {
     }
 
     fn store_empty_frames(cache: &Cache, count: usize) {
+        let frame_store = cache.start_storing().unwrap();
         for _ in 0..count {
-            cache
+            frame_store
                 .store_frame(
                     squishy_volumes_file_frame::Frame::default(),
                     Stats::default(),
@@ -344,6 +364,39 @@ mod tests {
         assert_eq!(written, (0..written.len()).collect::<Vec<_>>());
         assert_eq!(stats_rows(&dir), written.len());
         assert_eq!(open_cache(&dir).available_frames(), written.len());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn storing_until_queued_frames_are_written() {
+        let dir = temp_dir("storing_until_written");
+        let stored = 6;
+        let cache = open_cache(&dir);
+        store_empty_frames(&cache, stored);
+
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while cache.storing() {
+            assert!(std::time::Instant::now() < deadline, "still storing");
+            std::thread::yield_now();
+        }
+
+        assert_eq!(cache.available_frames(), stored);
+        cache.check().unwrap();
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn storing_while_frame_store_is_alive() {
+        let dir = temp_dir("storing_while_alive");
+        let cache = open_cache(&dir);
+        let frame_store = cache.start_storing().unwrap();
+        assert!(cache.storing());
+
+        drop(frame_store);
+        cache.drop_frames(0).unwrap();
+        assert!(!cache.storing());
+        drop(cache);
         std::fs::remove_dir_all(dir).unwrap();
     }
 

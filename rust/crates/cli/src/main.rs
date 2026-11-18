@@ -99,7 +99,7 @@ fn main() -> Result<()> {
         }
     })?;
 
-    while run.load(Ordering::Relaxed) && simulation.computing_impl() {
+    while run.load(Ordering::Relaxed) && simulation.baking_impl() {
         sleep(Duration::from_millis(200));
     }
 
