@@ -21,6 +21,7 @@ import time
 import bpy
 
 from .bridge import SimulationHandle
+from .registration import class_registration
 from .squishy_volumes_properties import get_simulation_object_with_uuid
 
 
@@ -55,11 +56,4 @@ classes = [
 ]
 
 
-def register_script_utils():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister_script_utils():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_script_utils, unregister_script_utils = class_registration(classes)

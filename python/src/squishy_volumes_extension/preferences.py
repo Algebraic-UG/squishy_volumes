@@ -19,6 +19,7 @@
 import bpy
 
 from .bridge import DETECTED_DEVICES
+from .registration import class_registration
 
 
 def get_default_compute_device_index(preferences) -> int:
@@ -144,9 +145,6 @@ If this device isn't detected anymore, the first detected device is used.""",
         self.layout.prop(self, "allow_scaled_input")
 
 
-def register_preferences():
-    bpy.utils.register_class(SquishyVolumesPreferences)
-
-
-def unregister_preferences():
-    bpy.utils.unregister_class(SquishyVolumesPreferences)
+register_preferences, unregister_preferences = class_registration(
+    [SquishyVolumesPreferences]
+)

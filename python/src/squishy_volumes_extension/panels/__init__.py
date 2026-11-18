@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from ..get_preferences import get_print_debug_info
+from ..get_preferences import debug_log
 from .panel_input_output import (
     register_panel_input_output,
     unregister_panel_input_output,
@@ -29,13 +29,11 @@ def register_panels():
     register_panel_overview()
     register_panel_input_output()
     register_panel_simulate()
-    if get_print_debug_info():
-        print("Squishy Volumes panels registered.")
+    debug_log("panels registered.")
 
 
 def unregister_panels():
     unregister_panel_simulate()
     unregister_panel_input_output()
     unregister_panel_overview()
-    if get_print_debug_info():
-        print("Squishy Volumes panels unregistered.")
+    debug_log("panels unregistered.")

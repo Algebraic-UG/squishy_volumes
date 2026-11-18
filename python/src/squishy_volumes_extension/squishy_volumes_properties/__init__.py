@@ -19,7 +19,8 @@
 import bpy
 
 from ..bridge import SimulationHandle
-from ..get_preferences import get_print_debug_info
+from ..get_preferences import debug_log
+from ..registration import class_registration
 from .object import *
 from .scene import *
 
@@ -50,10 +51,11 @@ classes = [
     Squishy_Volumes_Properties,
 ]
 
+register_classes, unregister_classes = class_registration(classes)
+
 
 def register_properties():
-    for cls in classes:
-        bpy.utils.register_class(cls)
+    register_classes()
     bpy.types.Object.squishy_volumes = bpy.props.PointerProperty(
         type=Squishy_Volumes_Properties
     )
@@ -61,16 +63,12 @@ def register_properties():
         type=Squishy_Volumes_Properties_Scene
     )
     subscribe_to_selection()
-
-    if get_print_debug_info():
-        print("Squishy Volumes properties registered.")
+    debug_log("properties registered.")
 
 
 def unregister_properties():
     unsubscribe_from_selection()
     del bpy.types.Scene.squishy_volumes
     del bpy.types.Object.squishy_volumes
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
-    if get_print_debug_info():
-        print("Squishy Volumes properties unregistered.")
+    unregister_classes()
+    debug_log("properties unregistered.")

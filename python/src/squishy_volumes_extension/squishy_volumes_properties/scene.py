@@ -19,6 +19,7 @@
 import bpy
 from bpy.app.handlers import persistent
 
+from ..registration import add_handler, remove_handler
 from ..util import index_by_object, obj_by_index
 from .object import get_simulation_objects
 
@@ -92,16 +93,13 @@ def _sync_with_viewport_selection(scene, _depsgraph):
 
 
 def subscribe_to_selection():
-    if _sync_with_viewport_selection not in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.append(_sync_with_viewport_selection)
+    add_handler(bpy.app.handlers.depsgraph_update_post, _sync_with_viewport_selection)
 
 
 def unsubscribe_from_selection():
-    if _sync_with_viewport_selection in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(_sync_with_viewport_selection)
-
-
-subscribe_to_selection()
+    remove_handler(
+        bpy.app.handlers.depsgraph_update_post, _sync_with_viewport_selection
+    )
 
 
 class Squishy_Volumes_Properties_Scene(bpy.types.PropertyGroup):

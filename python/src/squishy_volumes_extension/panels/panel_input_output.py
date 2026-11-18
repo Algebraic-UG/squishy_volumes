@@ -26,6 +26,7 @@ from ..assets import (
     create_geometry_nodes_visualize_particles,
 )
 from ..drivers import add_drivers
+from ..registration import class_registration
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
@@ -421,11 +422,4 @@ classes = [
 ]
 
 
-def register_panel_input_output():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister_panel_input_output():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_panel_input_output, unregister_panel_input_output = class_registration(classes)
