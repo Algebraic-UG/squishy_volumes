@@ -19,6 +19,7 @@
 import bpy  # ty: ignore[unresolved-import]
 
 from .bridge import SimulationHandle
+from .input_capture import ScaledInputError
 from .squishy_volumes_properties import get_simulation_object_with_uuid
 
 
@@ -28,6 +29,7 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
 
     uuid: bpy.props.StringProperty()  # type: ignore
     message: bpy.props.StringProperty()  # type: ignore
+    show_allow_scaled_input: bpy.props.BoolProperty(options={"SKIP_SAVE"})  # type: ignore
 
     def execute(self, context):
         sim = SimulationHandle.get(uuid=self.uuid)
@@ -56,6 +58,12 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
         assert self.layout is not None
         for line in self.message.splitlines():
             self.layout.label(text=line)
+        if self.show_allow_scaled_input:
+            self.layout.separator()
+            self.layout.prop(
+                context.preferences.addons[__package__].preferences,
+                "allow_scaled_input",
+            )
 
 
 classes = [
@@ -73,10 +81,15 @@ def unregister_popup():
         bpy.utils.unregister_class(cls)
 
 
-def popup(uuid: str, message: str):
+def popup(uuid: str, message: str, show_allow_scaled_input: bool = False):
     if not bpy.context.window:
         return
-    bpy.ops.scene.squishy_volumes_popup("INVOKE_DEFAULT", uuid=uuid, message=message)
+    bpy.ops.scene.squishy_volumes_popup(
+        "INVOKE_DEFAULT",
+        uuid=uuid,
+        message=message,
+        show_allow_scaled_input=show_allow_scaled_input,
+    )
 
 
 def with_popup(*, uuid, f):
@@ -93,4 +106,4 @@ def with_popup(*, uuid, f):
                 return
             sim.last_error = message
 
-        popup(uuid, message)
+        popup(uuid, message, isinstance(e, ScaledInputError))

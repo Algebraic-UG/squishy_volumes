@@ -31,6 +31,10 @@ from .squishy_volumes_properties import (
 )
 
 
+class ScaledInputError(RuntimeError):
+    pass
+
+
 def create_input_header(sim_props):
     depsgraph = bpy.context.evaluated_depsgraph_get()
     depsgraph.update()
@@ -217,12 +221,12 @@ def capture_input_frame(
             if not get_allow_scaled_input() and evaluated_obj.scale != mathutils.Vector(
                 (1.0, 1.0, 1.0)
             ):
-                raise RuntimeError(
+                raise ScaledInputError(
                     f"""{evaluated_obj.name} is scaled to {evaluated_obj.scale}.
 Your material will be initially compressed or stretched!
 
-If that is what you want, enable the addon preference
-"Allow Scaled Input".
+If that is what you want, enable "Allow Scaled Input" below
+(it's also an addon preference) and record again.
 
 Or apply the object scale."""
                 )
