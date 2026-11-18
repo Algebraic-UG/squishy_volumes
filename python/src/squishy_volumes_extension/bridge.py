@@ -19,11 +19,11 @@
 import json
 import platform
 from copy import deepcopy
-from typing import Any, Self  # ty: ignore[unresolved-import]
+from typing import Any
 
-import bpy  # ty: ignore[unresolved-import]
-import numpy  # ty: ignore[unresolved-import]
-from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
+import bpy
+import numpy
+from bpy.app.handlers import persistent
 
 from .get_preferences import get_print_debug_info
 from .hint_at_info import *
@@ -76,7 +76,7 @@ class SimulationInputHandle:
         directory: str,
         input_header: dict[str, Any],
         max_bytes_on_disk: int,
-    ) -> Self:
+    ) -> "SimulationInputHandle":
         return SimulationInputHandle(
             handle=squishy_volumes_wrap.SimulationInput.new(
                 uuid=uuid,
@@ -122,17 +122,17 @@ class SimulationHandle:
         return uuid in _simulations
 
     @staticmethod
-    def get(*, uuid: str) -> None | Self:
+    def get(*, uuid: str) -> "SimulationHandle | None":
         return _simulations.get(uuid)
 
     @hint_at_info
     @staticmethod
-    def new() -> Self:
+    def new() -> "SimulationHandle":
         return SimulationHandle(handle=squishy_volumes_wrap.Simulation.new())
 
     @hint_at_info
     @staticmethod
-    def load(*, uuid: str, directory: str) -> Self:
+    def load(*, uuid: str, directory: str) -> "SimulationHandle":
         return SimulationHandle(
             handle=squishy_volumes_wrap.Simulation.load(
                 uuid=uuid,

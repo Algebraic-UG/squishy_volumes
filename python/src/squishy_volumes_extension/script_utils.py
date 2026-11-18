@@ -18,7 +18,7 @@
 
 import time
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from .bridge import SimulationHandle
 from .squishy_volumes_properties import get_simulation_object_with_uuid
@@ -32,8 +32,8 @@ Loop with small sleep and return once finished the simulation or timeout.
 This is only useful for scripting."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    simulation_uuid: bpy.props.StringProperty(name="Simulation UUID")  # type: ignore
-    timeout_sec: bpy.props.FloatProperty(name="Timeout", min=0.0)  # type: ignore
+    simulation_uuid: bpy.props.StringProperty(name="Simulation UUID")
+    timeout_sec: bpy.props.FloatProperty(name="Timeout", min=0.0)
 
     def execute(self, context):
         start = time.monotonic()

@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from .get_preferences import get_enable_timeline_markers
 from .squishy_volumes_properties import (

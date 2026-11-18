@@ -19,7 +19,7 @@
 import math
 import uuid
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,

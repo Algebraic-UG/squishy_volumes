@@ -18,7 +18,7 @@
 
 import math
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from ..assets import (
     create_geometry_nodes_generate_collider,
@@ -144,8 +144,8 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
     )
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
-    name: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
+    name: bpy.props.StringProperty()
 
     def execute(self, context):
         _add_input_object(self, self.uuid, self.name)
@@ -154,8 +154,8 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Object(bpy.types.Operator):
 
 @add_fields_from(Squishy_Volumes_Properties_Input)
 class Squishy_Volumes_New_Input(bpy.types.PropertyGroup):
-    obj_name: bpy.props.StringProperty()  # type: ignore
-    obj_type: bpy.props.StringProperty()  # type: ignore
+    obj_name: bpy.props.StringProperty()
+    obj_type: bpy.props.StringProperty()
 
 
 class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
@@ -164,10 +164,10 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(bpy.types.Operator):
     bl_description = "Adds the *selected* objects to the input list of the simulation."
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
-    inputs: bpy.props.CollectionProperty(type=Squishy_Volumes_New_Input)  # type: ignore
-    selected_input: bpy.props.IntProperty()  # type: ignore
+    inputs: bpy.props.CollectionProperty(type=Squishy_Volumes_New_Input)
+    selected_input: bpy.props.IntProperty()
 
     @classmethod
     def poll(cls, context):
@@ -224,7 +224,7 @@ class OBJECT_OT_Squishy_Volumes_Remove_Input_Object(bpy.types.Operator):
 Note that this does not delete the object or remove the input modifier."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    name: bpy.props.StringProperty()  # type: ignore
+    name: bpy.props.StringProperty()
 
     def execute(self, context):
         input_obj = bpy.data.objects[self.name]
@@ -332,7 +332,8 @@ class SCENE_PT_Squishy_Volumes_Input_Output(bpy.types.Panel):
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
         sim_obj = get_selected_simulation_object(context.scene)
-        sim_props = sim_obj.squishy_volumes  # ty:ignore[unresolved-attribute]
+        assert sim_obj is not None
+        sim_props = sim_obj.squishy_volumes
 
         (header, body) = self.layout.panel("constants", default_closed=True)
         header.label(text="Constant Globals")

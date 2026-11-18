@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
-from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
+import bpy
+from bpy.app.handlers import persistent
 
 from .bridge import SimulationHandle
 from .capture_markers import capture_marker_frames

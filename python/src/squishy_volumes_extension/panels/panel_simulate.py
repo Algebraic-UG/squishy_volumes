@@ -18,7 +18,7 @@
 
 import shutil
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from ..bridge import SimulationHandle, SimulationInputHandle
 from ..capture_markers import (
@@ -128,7 +128,7 @@ With fewer, both are restored at the previously recorded range.
 With more, only the earliest and the latest are kept."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     @classmethod
     def poll(cls, context):
@@ -186,9 +186,9 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
-    blocking: bpy.props.BoolProperty(default=False)  # type: ignore
-    start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
+    uuid: bpy.props.StringProperty()
+    blocking: bpy.props.BoolProperty(default=False)
+    start_baking: bpy.props.BoolProperty(default=False)
 
     def execute(self, context: bpy.types.Context):
         assert context.scene is not None
@@ -306,10 +306,10 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
     bl_label = "Record Input Modal"
     bl_options = set()  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
-    prior_frame: bpy.props.IntProperty()  # type: ignore
-    animation_was_playing: bpy.props.BoolProperty()  # type: ignore
-    start_baking: bpy.props.BoolProperty(default=False)  # type: ignore
+    uuid: bpy.props.StringProperty()
+    prior_frame: bpy.props.IntProperty()
+    animation_was_playing: bpy.props.BoolProperty()
+    start_baking: bpy.props.BoolProperty(default=False)
 
     _timer = None
 
@@ -410,7 +410,7 @@ either until the desired number of frames is reached
 or cancellation occurs due to user input or error."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     @classmethod
     def poll(cls, context):
@@ -455,7 +455,7 @@ Note that this discards already computed frames that
 come after the displayed one."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     @classmethod
     def poll(cls, context):
@@ -495,7 +495,7 @@ class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
     bl_description = "Pause the computation of the simulation frames."
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     @classmethod
     def poll(cls, context):

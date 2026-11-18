@@ -17,7 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from ..bridge import SimulationHandle
 from ..util import simulation_input_exists
@@ -59,14 +59,14 @@ class Squishy_Volumes_Properties(bpy.types.PropertyGroup):
         description="Reference to the Simulation.",
         default="",
         options=set(),
-    )  # type: ignore
+    )
 
     is_simulation: bpy.props.BoolProperty(
         name="Is Simulation",
         description="Whether this object is a Squishy Volumes simulation object.",
         default=False,
         options=set(),
-    )  # type: ignore
+    )
 
 
 def get_input_objects() -> list[bpy.types.Object]:

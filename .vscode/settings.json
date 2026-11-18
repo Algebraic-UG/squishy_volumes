@@ -6,5 +6,6 @@
     ],
     "ruff.interpreter": [
         "${workspaceFolder}/python/.venv/bin/python"
-    ]
+    ],
+    "ty.configurationFile": "./python/ty.toml"
 }
