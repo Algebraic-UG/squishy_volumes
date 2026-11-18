@@ -21,6 +21,7 @@ import shutil
 import bpy
 
 from ..bridge import SimulationHandle, SimulationInputHandle
+from ..cache_paths import absolute_cache_directory, simulation_input_exists
 from ..capture_markers import (
     capture_markers,
     capture_markers_error,
@@ -49,9 +50,7 @@ from ..squishy_volumes_properties import (
     stored_range,
 )
 from ..util import (
-    absolute_cache_directory,
     giga_f32_to_u64,
-    simulation_input_exists,
     u64_to_giga_f32,
 )
 
