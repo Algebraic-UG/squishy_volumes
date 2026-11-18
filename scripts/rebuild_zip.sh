@@ -17,8 +17,8 @@ uv run --with toml "${scripts_dir}/update_lib_version.py"
 
 (
     cd "${repo_root}/python"
-    uv run --group tools "${scripts_dir}/build_assets.py"
-    uv run --group tools nodebpy build
+    uv run "${scripts_dir}/build_assets.py"
+    uv run nodebpy build
 )
 
 cd "${wrap_dir}"

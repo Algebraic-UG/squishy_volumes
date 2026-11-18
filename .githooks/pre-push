@@ -14,8 +14,8 @@ echo "====================================="
 echo "Python Checks"
 echo "====================================="
 echo ""
-uv run --project "${REPO_ROOT}/python" ruff format --diff
-uv run --project "${REPO_ROOT}/python" ruff check
+uv run --project "${REPO_ROOT}/python" --only-group lint ruff format --diff
+uv run --project "${REPO_ROOT}/python" --only-group lint ruff check
 
 echo ""
 echo "====================================="
@@ -25,3 +25,6 @@ echo ""
 cd "${REPO_ROOT}/rust"
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
+
+# core.hooksPath replaces .git/hooks, so the Git LFS hook has to be called from here.
+git lfs pre-push "$@"

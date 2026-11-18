@@ -11,14 +11,11 @@
             "command": "uv",
             "args": [
                 "run",
-                "--python",
-                "3.11",
-                "--with",
-                "bpy==5.0.1",
-                "--with",
-                "tree-clipper==0.1.12",
-                "./scripts/build_assets.py"
-            ]
+                "../scripts/build_assets.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/python"
+            }
         },
         {
             "label": "build-node-trees",
@@ -26,8 +23,6 @@
             "command": "uv",
             "args": [
                 "run",
-                "--group",
-                "tools",
                 "nodebpy",
                 "build"
             ],
