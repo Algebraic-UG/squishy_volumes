@@ -99,10 +99,10 @@ impl ComputeThread {
                     let frame = cache
                         .fetch_frame(next_frame - 1)
                         .map_err(Error::CacheFetch)?;
-                    if let Some(error_message) = frame.error_message.clone() {
+                    if let Some(error_message) = frame.error_message {
                         return Err(Error::StoredError(error_message));
                     }
-                    frame.io_state.clone()
+                    frame.io_state
                 };
                 harness.check()?;
 
