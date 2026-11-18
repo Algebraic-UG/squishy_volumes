@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 INPUT_TYPE_PARTICLES = "Particles"
 INPUT_TYPE_COLLIDER = "Collider"
@@ -52,8 +52,8 @@ PARTICLE_ATTRIBUTE_MAPPING = {
 
 
 class Squishy_Volumes_Alembic_Attribute(bpy.types.PropertyGroup):
-    name: bpy.props.StringProperty()  # type: ignore
-    enabled: bpy.props.BoolProperty()  # type: ignore
+    name: bpy.props.StringProperty()
+    enabled: bpy.props.BoolProperty()
 
 
 class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
@@ -68,7 +68,7 @@ class Squishy_Volumes_Properties_Input(bpy.types.PropertyGroup):
 {INPUT_TYPE_COLLIDER}:  passive (animated) mesh that is 100% user controlled.""",
         default=INPUT_TYPE_PARTICLES,
         options=set(),
-    )  # type: ignore
+    )
 
     add_default_generation: bpy.props.BoolProperty(
         name="Add Default Generation",
@@ -80,7 +80,7 @@ The default generation creates them.
 It does not matter how the attributes are created, you can customize this.
 For example: half solid, half fluid, or something like this.""",
         default=True,
-    )  # type:ignore
+    )
 
     add_default_visualization: bpy.props.BoolProperty(
         name="Add Default Visualization",
@@ -91,7 +91,7 @@ deformed cubes or a reconstructed surface.
 
 This only applies when an output object is added.""",
         default=True,
-    )  # type:ignore
+    )
 
     add_output_object: bpy.props.BoolProperty(
         name="Add Output Object",
@@ -104,16 +104,16 @@ via a Mesh Sequence Modifier.
 This is just for convenience!
 Squishy Volumes does not track that new object afterwards.""",
         default=True,
-    )  # type:ignore
+    )
 
     alembic_attributes: bpy.props.CollectionProperty(
         type=Squishy_Volumes_Alembic_Attribute,
         name="Alembic Attributes",
         description="A list of attributes that will be written to and read from the alembic files.",
         options=set(),
-    )  # type: ignore
+    )
     selected_alembic_attribute: bpy.props.IntProperty(
         name="Selected Alembic Attribute",
         description="The selected alembic attribute can be removed.",
         options=set(),
-    )  # type: ignore
+    )

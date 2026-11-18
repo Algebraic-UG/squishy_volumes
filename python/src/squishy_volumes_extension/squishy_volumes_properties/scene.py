@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
-from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
+import bpy
+from bpy.app.handlers import persistent
 
 from ..util import index_by_object, obj_by_index
 from .object import get_simulation_objects
@@ -111,7 +111,7 @@ class Squishy_Volumes_Properties_Scene(bpy.types.PropertyGroup):
         name="Selected Simulation",
         description="Most operations assume this simulation as the target.",
         options=set(),
-    )  # type: ignore
+    )
     selected_input_object: bpy.props.IntProperty(
         name="Selected Input Object",
         description="The selected input object can have it's setting edited or removed.",
@@ -119,4 +119,4 @@ class Squishy_Volumes_Properties_Scene(bpy.types.PropertyGroup):
             self.selected_input_object, context
         ),
         options=set(),
-    )  # type: ignore
+    )

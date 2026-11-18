@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
-import mathutils  # ty: ignore[unresolved-import]
+
+import bpy
+import mathutils
 
 from .assets import create_geometry_nodes_restrict_view
 from .util import local_bounding_box
@@ -35,12 +36,12 @@ This modifier deletes vertices that are outside of the cuboid."""
     empty_name: bpy.props.StringProperty(
         name="Empty Name",
         description="The name of the empty used to restrict the view.",
-    )  # type: ignore
+    )
     fit_vertices: bpy.props.BoolProperty(
         name="Fit vertices",
         description="Create the empty to just fit the vertices.",
         default=True,
-    )  # type: ignore
+    )
 
     @classmethod
     def poll(cls, context):

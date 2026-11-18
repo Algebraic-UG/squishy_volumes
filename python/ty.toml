@@ -1,0 +1,2 @@
+[rules]
+invalid-type-form = "ignore" # Blender property annotations are bpy.props calls

@@ -20,7 +20,7 @@ import os
 import re
 from pathlib import Path
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from ..bridge import DETECTED_DEVICES, SimulationHandle
 from ..get_preferences import get_default_cache_location
@@ -120,8 +120,8 @@ class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
     # ----------------------------------------------------------------
     # Updated in regular intervals
     # ----------------------------------------------------------------
-    progress_json_string: bpy.props.StringProperty()  # type: ignore
-    last_exception: bpy.props.StringProperty()  # type: ignore
+    progress_json_string: bpy.props.StringProperty()
+    last_exception: bpy.props.StringProperty()
 
     def get_directory_with_default(self):
         return self.get("directory", get_default_cache_location())
@@ -144,13 +144,13 @@ The latter is locked while a simulation uses the directory.""",
         subtype="DIR_PATH",
         options={"PATH_SUPPORTS_BLEND_RELATIVE"},
         update=update_directory,
-    )  # type: ignore
+    )
 
     cache_file: bpy.props.PointerProperty(
         name="Cache File",
         description="The cache file associated with this simulation.",
         type=bpy.types.CacheFile,
-    )  # type : ignore
+    )
 
     max_giga_bytes_on_disk: bpy.props.FloatProperty(
         name="Max Diskspace (Gigabytes)",
@@ -166,7 +166,7 @@ Changes have *no effect* on *already running* bakes.""",
         min=0.0,
         precision=2,
         options=set(),
-    )  # type: ignore
+    )
 
     # ----------------------------------------------------------------
     # These are constant
@@ -184,7 +184,7 @@ Overwrite the cache to manifest changes.""",
         subtype="DISTANCE",
         options=set(),  # can't be animated
         update=tag_simulation_for_driver_update,
-    )  # type: ignore
+    )
     frames_per_second: bpy.props.IntProperty(
         name="Frames per Second",
         description="""Controls how many simulation steps end up as viewable frames per simulated second.
@@ -200,7 +200,7 @@ Overwrite the cache to manifest changes.""",
         default=24,
         min=1,
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
     simulation_scale: bpy.props.FloatProperty(
         name="Simulation Scale",
         description="""Use this to simulate things as if they were bigger or smaller.
@@ -211,7 +211,7 @@ you can set this to 100.""",
         min=0.001,
         max=1000.0,
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
 
     # ----------------------------------------------------------------
     # These can be animated over time
@@ -221,7 +221,7 @@ you can set this to 100.""",
         description="Acts on all the particles and can be key-framed, in m/s^2",
         default=(0.0, 0.0, -9.8),
         options={"ANIMATABLE"},
-    )  # type: ignore
+    )
 
     goal_stiffness: bpy.props.FloatProperty(
         name="Goal Stiffness",
@@ -231,7 +231,7 @@ This is mass-normalized, so the unit is 1/s^2""",
         default=1000.0,
         min=0.0,
         options={"ANIMATABLE"},
-    )  # type: ignore
+    )
 
     goal_damping: bpy.props.FloatProperty(
         name="Goal Damping",
@@ -241,7 +241,7 @@ This is mass-normalized, so the unit is 1/s""",
         default=1.0,
         min=0.0,
         options={"ANIMATABLE"},
-    )  # type: ignore
+    )
 
     damping: bpy.props.FloatProperty(
         name="Damping",
@@ -250,7 +250,7 @@ This is mass-normalized, so the unit is 1/s""",
         default=0.0,
         min=0.0,
         options={"ANIMATABLE"},
-    )  # type: ignore
+    )
 
     # ----------------------------------------------------------------
     # setup for capturing animation data
@@ -266,7 +266,7 @@ You need to override the cache to manifest changes.""",
         default=1,
         options=set(),
         update=update_capture_start_frame,
-    )  # type: ignore
+    )
     capture_end_frame: bpy.props.IntProperty(
         name="End",
         description="""The last frame for which the input objects are evaluated.
@@ -278,7 +278,7 @@ You need to override the cache to manifest changes.""",
         default=1,
         options=set(),
         update=update_capture_end_frame,
-    )  # type: ignore
+    )
 
     # ----------------------------------------------------------------
     # bake settings
@@ -299,14 +299,14 @@ Smaller grid node size, stiffer objects and higher velocities dictate a smaller 
         max=1.0,
         precision=5,
         options=set(),
-    )  # type: ignore
+    )
 
     compute_device: bpy.props.EnumProperty(
         items=DETECTED_DEVICES,
         name="Device",
         description="Select the device you want Squishy Volumes to simulate on.",
         options=set(),
-    )  # type: ignore
+    )
 
     adaptive_time_steps: bpy.props.BoolProperty(
         name="Adaptive Time Steps",
@@ -317,7 +317,7 @@ the automatic one.
 (Re)Start baking to manifest changes.""",
         default=True,
         options=set(),
-    )  # type: ignore
+    )
     bake_frames: bpy.props.IntProperty(
         name="Bake Frames",
         description="""The number of frames that should be baked.
@@ -327,7 +327,7 @@ Note that first frame is defined by the state at the set start frame.
         default=250,
         min=1,
         options=set(),
-    )  # type: ignore
+    )
 
     # ----------------------------------------------------------------
     # display settings
@@ -340,7 +340,7 @@ Usually the same as the start of the input objects' evaluation.
 This only changes the display of simulation results and can be changed anytime.""",
         default=1,
         options=set(),
-    )  # type: ignore
+    )
 
 
 def stored_range(

@@ -18,7 +18,7 @@
 
 from pathlib import Path
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 
 def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:

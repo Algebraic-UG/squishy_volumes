@@ -21,7 +21,7 @@ import json
 import os
 import uuid
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from ..bridge import SimulationHandle, build_info
 from ..capture_markers import (
@@ -75,7 +75,7 @@ The UI will be blocked for a few seconds.""",
         description="Choose one of the example simulations to set up.",
         default=EXAMPLE_BOING_BLOCK,
         options=set(),
-    )  # type: ignore
+    )
 
     def execute(self, context):
         setup_example_simulation(context, self.startup_choice)
@@ -157,8 +157,8 @@ Note that this doesn't create any files yet.
 It just creates the Blender object to track the simulation."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    sim_name: bpy.props.StringProperty(default="My Simulation")  # type: ignore
-    uuid: bpy.props.StringProperty()  # type: ignore
+    sim_name: bpy.props.StringProperty(default="My Simulation")
+    uuid: bpy.props.StringProperty()
 
     def execute(self, context):
         return add_simulation(self, context)
@@ -170,7 +170,7 @@ class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
     bl_description = "Clone this Simulation."
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
@@ -212,7 +212,7 @@ class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
     bl_description = "Reloads the cache and locks it for this simulation object."
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
@@ -252,7 +252,7 @@ This does not clear the cache. If you want to delete (not overwrite) the cache,
 please use your OS's file browser."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     def execute(self, context):
         sim_obj = get_simulation_object_with_uuid(self.uuid)
@@ -273,7 +273,7 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_show_message"
     bl_label = "Show"
 
-    uuid: bpy.props.StringProperty()  # type: ignore
+    uuid: bpy.props.StringProperty()
 
     def execute(self, context):
         sim = SimulationHandle.get(uuid=self.uuid)

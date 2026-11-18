@@ -21,9 +21,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-import bpy  # ty: ignore[unresolved-import]
-import mathutils  # ty: ignore[unresolved-import]
-import numpy as np  # ty: ignore[unresolved-import]
+import bpy
+import mathutils
+import numpy as np
 
 
 def get_simulation_obj(simulation, name):

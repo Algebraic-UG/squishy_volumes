@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from .bridge import DETECTED_DEVICES
 
@@ -44,7 +44,7 @@ It's a good idea to point this to a separate disk from the operating system.""",
         default="//squishy_volumes_cache",
         subtype="DIR_PATH",
         options={"PATH_SUPPORTS_BLEND_RELATIVE"},
-    )  # type: ignore
+    )
 
     sanity_check_allowed_disk_space: bpy.props.BoolProperty(
         name="Sanity Check Max Diskspace",
@@ -54,7 +54,7 @@ Each time a bake is started, the max allowed diskspace is compared to
 the currently free space on the disk where the cache is located.""",
         default=True,
         options=set(),
-    )  # type: ignore
+    )
 
     confirm_bake_overwrite: bpy.props.BoolProperty(
         name="Confirm Overwrite",
@@ -65,7 +65,7 @@ To prevent accidental deletion a popup adds a manual confirmation step:
 
 Disable this option to skip that popup.""",
         default=False,
-    )  # type: ignore
+    )
 
     domain_min: bpy.props.FloatVectorProperty(
         name="Domain Min",
@@ -73,14 +73,14 @@ Disable this option to skip that popup.""",
 Particles that fall below this are deactivated.""",
         default=(-100.0, -100.0, -100.0),
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
     domain_max: bpy.props.FloatVectorProperty(
         name="Domain Max",
         description="""The max corner of the domain AABB
 Particles that rise above this are deactivated.""",
         default=(100.0, 100.0, 100.0),
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
 
     print_debug_info: bpy.props.BoolProperty(
         name="Print Debug Info",
@@ -88,7 +88,7 @@ Particles that rise above this are deactivated.""",
 This is most likely only relevant to developers of other extensions.""",
         default=True,
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
 
     enable_timeline_markers: bpy.props.BoolProperty(
         name="Enable Timeline Markers",
@@ -101,7 +101,7 @@ When disabled, no markers are created, read or removed,
 and the frames to record are set in the 'Simulate' panel instead.""",
         default=True,
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
 
     allow_scaled_input: bpy.props.BoolProperty(
         name="Allow Scaled Input",
@@ -114,11 +114,11 @@ This is a useful feature, but it is easy to 'misuse' by accident,
 which is why any scaling is rejected by default.""",
         default=False,
         options=set(),  # can't be animated
-    )  # type: ignore
+    )
 
     default_compute_device_identifier: bpy.props.StringProperty(
         options={"HIDDEN"},
-    )  # type: ignore
+    )
 
     default_compute_device: bpy.props.EnumProperty(
         items=DETECTED_DEVICES,
@@ -130,7 +130,7 @@ If this device isn't detected anymore, the first detected device is used.""",
         get=get_default_compute_device_index,
         set=set_default_compute_device_index,
         options=set(),
-    )  # type: ignore
+    )
 
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "default_cache_location")

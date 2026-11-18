@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
-import mathutils  # ty: ignore[unresolved-import]
-import numpy as np  # ty: ignore[unresolved-import]
+import bpy
+import mathutils
+import numpy as np
 
 from . import input_attributes
 from .bridge import SimulationInputHandle

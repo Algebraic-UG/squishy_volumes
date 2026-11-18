@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import bpy  # ty: ignore[unresolved-import]
+import bpy
 
 from .bridge import SimulationHandle
 from .input_capture import ScaledInputError
@@ -27,9 +27,9 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_popup"
     bl_label = "Squishy Volumes Message"
 
-    uuid: bpy.props.StringProperty()  # type: ignore
-    message: bpy.props.StringProperty()  # type: ignore
-    show_allow_scaled_input: bpy.props.BoolProperty(options={"SKIP_SAVE"})  # type: ignore
+    uuid: bpy.props.StringProperty()
+    message: bpy.props.StringProperty()
+    show_allow_scaled_input: bpy.props.BoolProperty(options={"SKIP_SAVE"})
 
     def execute(self, context):
         sim = SimulationHandle.get(uuid=self.uuid)
