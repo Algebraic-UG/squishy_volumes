@@ -17,39 +17,16 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::sync::{
-    Arc, Mutex, MutexGuard,
+    Arc, Mutex,
     atomic::{AtomicU64, AtomicUsize, Ordering},
 };
 
 use super::*;
 
-struct LoadedFrame {
-    frame_index: usize,
-    frame: squishy_volumes_file_frame::Frame,
-}
-
-pub struct CachedState<'a> {
-    guard: MutexGuard<'a, Option<LoadedFrame>>,
-}
-
-impl<'a> std::ops::Deref for CachedState<'a> {
-    type Target = squishy_volumes_file_frame::Frame;
-
-    fn deref(&self) -> &Self::Target {
-        &self
-            .guard
-            .as_ref()
-            .expect("cached state is never none")
-            .frame
-    }
-}
-
 struct CacheState {
     input_bytes_on_disk: u64,
     total_bytes_on_disk: Arc<AtomicU64>,
     max_bytes_on_disk: Arc<AtomicU64>,
-
-    loaded_frame: Mutex<Option<LoadedFrame>>,
 
     available_frames: Arc<AtomicUsize>,
     store_thread: Mutex<StoreThread>,
@@ -104,7 +81,6 @@ impl CacheState {
             total_bytes_on_disk,
             max_bytes_on_disk,
 
-            loaded_frame: None.into(),
             available_frames,
             store_thread,
         })
@@ -192,34 +168,18 @@ impl Cache {
         Ok(())
     }
 
-    pub fn fetch_frame<'a>(
-        &'a self,
+    pub fn fetch_frame(
+        &self,
         frame_index: usize,
-    ) -> Result<CachedState<'a>, CacheReadingError> {
-        let mut loaded_frame = self
-            .state
-            .loaded_frame
-            .lock()
-            .map_err(|_| CacheReadingError::LoadedFrameLockPoisoned)?;
-
-        if loaded_frame
-            .as_ref()
-            .is_none_or(|loaded_frame| loaded_frame.frame_index != frame_index)
-        {
-            if frame_index >= self.state.available_frames.load(Ordering::Relaxed) {
-                return Err(CacheReadingError::FrameNotReady);
-            }
-            tracing::debug!(frame_index, "reading frame from disk");
-            let frame = squishy_volumes_file_frame::Frame::read(frame_path(
-                self.state.directory(),
-                frame_index,
-            ))?;
-            *loaded_frame = Some(LoadedFrame { frame_index, frame });
+    ) -> Result<squishy_volumes_file_frame::Frame, CacheReadingError> {
+        if frame_index >= self.state.available_frames.load(Ordering::Relaxed) {
+            return Err(CacheReadingError::FrameNotReady);
         }
-
-        Ok(CachedState {
-            guard: loaded_frame,
-        })
+        tracing::debug!(frame_index, "reading frame from disk");
+        Ok(squishy_volumes_file_frame::Frame::read(frame_path(
+            self.state.directory(),
+            frame_index,
+        ))?)
     }
 
     pub fn drop_frames(&self, from_frame: usize) -> Result<(), CacheError> {

@@ -56,8 +56,6 @@ pub enum CacheWritingError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum CacheReadingError {
-    #[error("Something went really wrong and the loaded frame mutex is poisoned")]
-    LoadedFrameLockPoisoned,
     #[error("Some frames are missing from the sequence")]
     FrameSequenceBroken,
     #[error("Frame is not computed yet")]
