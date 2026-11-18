@@ -17,6 +17,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy  # ty: ignore[unresolved-import]
+from bpy.app.handlers import persistent  # ty: ignore[unresolved-import]
 
 from .bridge import SimulationHandle
 from .capture_markers import capture_marker_frames
@@ -66,13 +67,17 @@ def is_updating():
     return bpy.app.timers.is_registered(update_progress)
 
 
+@persistent
 def register_progress_update(*_scene):
     if not bpy.app.timers.is_registered(update_progress):
-        bpy.app.timers.register(update_progress, first_interval=PROGRESS_INTERVAL)
+        bpy.app.timers.register(
+            update_progress, first_interval=PROGRESS_INTERVAL, persistent=True
+        )
         if get_print_debug_info():
             print("Squishy Volumes progress update registered.")
 
 
+@persistent
 def unregister_progress_update(*_scene):
     if bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.unregister(update_progress)

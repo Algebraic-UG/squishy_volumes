@@ -27,7 +27,9 @@ from .bridge import (
     SimulationHandle,
     build_info,
     build_summary,
+    register_drop_simulation_handles_on_load,
     register_prune_simulation_handles,
+    unregister_drop_simulation_handles_on_load,
     unregister_prune_simulation_handles,
 )
 from .drivers import register_drivers, unregister_drivers
@@ -55,26 +57,6 @@ bl_info = {
 }
 
 
-@bpy.app.handlers.persistent
-def toggle_register(*_):
-    unregister()
-    register()
-
-
-def register_blend_file_change_handler():
-    if toggle_register not in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.append(toggle_register)
-        if get_print_debug_info():
-            print("Squishy Volumes load_post registered.")
-
-
-def unregister_blend_file_change_handler():
-    if toggle_register in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.remove(toggle_register)
-        if get_print_debug_info():
-            print("Squishy Volumes load_post unregistered.")
-
-
 def register():
     register_preferences()
 
@@ -91,7 +73,6 @@ def register():
         print(f"Squishy Volumes {build_summary()}")
 
     register_popup()
-    register_blend_file_change_handler()
     register_properties()
     register_panels()
     register_goals()
@@ -101,6 +82,7 @@ def register():
     register_script_utils()
     register_append_handler()
     register_prune_simulation_handles()
+    register_drop_simulation_handles_on_load()
     register_drivers()
 
     bpy.app.timers.register(reload_assets, first_interval=0)
@@ -108,6 +90,7 @@ def register():
 
 def unregister():
     unregister_drivers()
+    unregister_drop_simulation_handles_on_load()
     unregister_prune_simulation_handles()
     unregister_append_handler()
     unregister_script_utils()
@@ -117,7 +100,6 @@ def unregister():
     unregister_goals()
     unregister_panels()
     unregister_properties()
-    unregister_blend_file_change_handler()
     unregister_popup()
     unregister_preferences()
     SimulationHandle.drop_all()
