@@ -25,8 +25,13 @@ use squishy_volumes_util::{
 use super::*;
 
 impl CpuState {
-    pub fn limit_time_step_before_force(&mut self) {
-        profile!("limit_time_step_before_force");
+    pub fn limit_time_step(&mut self) {
+        profile!("limit_time_step");
+
+        if !self.adaptive_time_step_state.adaptive_time_steps {
+            self.adaptive_time_step_state.push_current_limit();
+            return;
+        }
 
         let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
 
@@ -34,6 +39,10 @@ impl CpuState {
             self.adaptive_time_step_state.time_step_by_sound,
             self.adaptive_time_step_state.time_step_by_isolated,
         ) = self.limit_time_step_by_sound_and_isolated_particles(grid_node_size);
+        self.adaptive_time_step_state.time_step_by_velocity =
+            self.limit_time_step_by_velocity(grid_node_size);
+        self.adaptive_time_step_state.time_step_by_deformation =
+            self.limit_time_step_by_deformation();
 
         self.adaptive_time_step_state.push_current_limit();
     }
@@ -75,17 +84,6 @@ impl CpuState {
                     )
                 },
             )
-    }
-
-    pub fn limit_time_step_before_integrate(&mut self) {
-        profile!("limit_time_step_before_integrate");
-        let grid_node_size = self.frame_input.header().consts.scaled_grid_node_size();
-        self.adaptive_time_step_state.time_step_by_velocity =
-            self.limit_time_step_by_velocity(grid_node_size);
-        self.adaptive_time_step_state.time_step_by_deformation =
-            self.limit_time_step_by_deformation();
-
-        self.adaptive_time_step_state.push_current_limit();
     }
 
     fn limit_time_step_by_velocity(&self, grid_node_size: f32) -> Option<f32> {

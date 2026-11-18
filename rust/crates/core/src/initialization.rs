@@ -152,6 +152,7 @@ pub fn initialize_io_state(
         animated_globals,
         particle_objects,
         collider,
+        time_step_history: Vec::new(),
         bvh: None,
         grid_nodes: None,
     };

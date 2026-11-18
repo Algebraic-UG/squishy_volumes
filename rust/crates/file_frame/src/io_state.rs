@@ -76,6 +76,10 @@ pub struct IoState {
 
     pub collider: Collider,
 
+    /// Time step limits of the latest steps in seconds, oldest first: the particle limit
+    /// of an adaptive step, the maximum time step of a non-adaptive one.
+    pub time_step_history: Vec<f32>,
+
     // these can be computed from scratch, so they are optional
     pub bvh: Option<squishy_volumes_mesh_util::BoundingVolumeHierarchy>,
     pub grid_nodes: Option<GridNodes>,
