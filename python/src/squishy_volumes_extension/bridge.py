@@ -210,3 +210,18 @@ def unregister_prune_simulation_handles():
         bpy.app.handlers.depsgraph_update_post.remove(prune_simulation_handles)
     if get_print_debug_info():
         print("Squishy Volumes prune simulation handles unregistered.")
+
+
+@persistent
+def drop_simulation_handles(*_):
+    SimulationHandle.drop_all()
+
+
+def register_drop_simulation_handles_on_load():
+    if drop_simulation_handles not in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.append(drop_simulation_handles)
+
+
+def unregister_drop_simulation_handles_on_load():
+    if drop_simulation_handles in bpy.app.handlers.load_pre:
+        bpy.app.handlers.load_pre.remove(drop_simulation_handles)
