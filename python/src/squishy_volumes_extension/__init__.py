@@ -21,7 +21,7 @@ from pathlib import Path
 
 import bpy
 
-from .append_hander import register_append_handler, unregister_append_handler
+from .append_handler import register_append_handler, unregister_append_handler
 from .assets import reload_assets
 from .bridge import (
     SimulationHandle,
@@ -33,7 +33,7 @@ from .bridge import (
     unregister_prune_simulation_handles,
 )
 from .drivers import register_drivers, unregister_drivers
-from .get_preferences import get_print_debug_info
+from .get_preferences import debug_log
 from .goals import register_goals, unregister_goals
 from .panels import register_panels, unregister_panels
 from .popup import register_popup, unregister_popup
@@ -69,8 +69,7 @@ def register():
         raise RuntimeError(
             f"Version mismatch! Expected {version_python} but loaded {version_rust}"
         )
-    if get_print_debug_info():
-        print(f"Squishy Volumes {build_summary()}")
+    debug_log(build_summary())
 
     register_popup()
     register_properties()

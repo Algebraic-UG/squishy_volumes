@@ -19,7 +19,8 @@
 import bpy
 from bpy.app.handlers import persistent
 
-from .get_preferences import get_print_debug_info
+from .get_preferences import debug_log
+from .registration import add_handler, remove_handler
 
 # See also
 # https://github.com/Algebraic-UG/squishy_volumes/issues/171
@@ -36,14 +37,10 @@ def fix_appended_data(context):
 
 
 def register_append_handler():
-    if fix_appended_data not in bpy.app.handlers.blend_import_post:
-        bpy.app.handlers.blend_import_post.append(fix_appended_data)
-    if get_print_debug_info():
-        print("Squishy Volumes append handler registered.")
+    add_handler(bpy.app.handlers.blend_import_post, fix_appended_data)
+    debug_log("append handler registered.")
 
 
 def unregister_append_handler():
-    if fix_appended_data in bpy.app.handlers.blend_import_post:
-        bpy.app.handlers.blend_import_post.remove(fix_appended_data)
-    if get_print_debug_info():
-        print("Squishy Volumes append handler unregistered.")
+    remove_handler(bpy.app.handlers.blend_import_post, fix_appended_data)
+    debug_log("append handler unregistered.")

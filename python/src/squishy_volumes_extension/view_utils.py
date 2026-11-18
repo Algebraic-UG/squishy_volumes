@@ -21,6 +21,7 @@ import bpy
 import mathutils
 
 from .assets import create_geometry_nodes_restrict_view
+from .registration import class_registration
 from .util import local_bounding_box
 
 
@@ -108,15 +109,4 @@ def menu_func_restrict_view(self, _context):
 menu_funcs = [menu_func_restrict_view]
 
 
-def register_view_utils():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-    for menu_func in menu_funcs:
-        bpy.types.VIEW3D_MT_object.append(menu_func)
-
-
-def unregister_view_utils():
-    for menu_func in menu_funcs:
-        bpy.types.VIEW3D_MT_object.remove(menu_func)
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_view_utils, unregister_view_utils = class_registration(classes, menu_funcs)

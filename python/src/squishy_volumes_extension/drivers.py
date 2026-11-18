@@ -19,6 +19,7 @@
 
 import bpy
 
+from .registration import class_registration
 from .squishy_volumes_properties import (
     get_simulation_object_with_uuid,
 )
@@ -96,26 +97,14 @@ classes = [
 ]
 
 
-def menu_func_add_goals(self, _context):
+def menu_func_add_drivers(self, _context):
     self.layout.operator(
         OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers.bl_idname,
         icon="MODIFIER",
     )
 
 
-menu_funcs = [menu_func_add_goals]
+menu_funcs = [menu_func_add_drivers]
 
 
-def register_drivers():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-    for menu_func in menu_funcs:
-        bpy.types.VIEW3D_MT_object.append(menu_func)
-
-
-def unregister_drivers():
-    for menu_func in menu_funcs:
-        bpy.types.VIEW3D_MT_object.remove(menu_func)
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_drivers, unregister_drivers = class_registration(classes, menu_funcs)

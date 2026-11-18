@@ -37,6 +37,7 @@ from ..get_preferences import (
 )
 from ..input_capture import capture_input_frame, create_input_header
 from ..popup import with_popup
+from ..registration import class_registration
 from ..squishy_volumes_properties import (
     Squishy_Volumes_Properties_Simulation,
     capture_frame_count,
@@ -654,11 +655,4 @@ classes = [
 ]
 
 
-def register_panel_simulate():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister_panel_simulate():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_panel_simulate, unregister_panel_simulate = class_registration(classes)

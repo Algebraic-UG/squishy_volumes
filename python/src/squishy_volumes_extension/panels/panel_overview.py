@@ -32,6 +32,7 @@ from ..capture_markers import (
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
 from ..get_preferences import get_default_compute_device
 from ..popup import popup
+from ..registration import class_registration
 from ..squishy_volumes_properties import (
     PER_SIMULATION_PROPERTIES,
     frame_to_load,
@@ -488,11 +489,4 @@ classes = [
 ]
 
 
-def register_panel_overview():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister_panel_overview():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_panel_overview, unregister_panel_overview = class_registration(classes)

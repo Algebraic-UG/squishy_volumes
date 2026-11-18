@@ -20,6 +20,7 @@
 import bpy
 
 from .assets import create_geometry_nodes_generate_goal_positions
+from .registration import class_registration
 from .squishy_volumes_properties import get_selected_input_object
 
 
@@ -85,16 +86,4 @@ def menu_func_add_goals(self, _context):
 menu_funcs = [menu_func_add_goals]
 
 
-def register_goals():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-    for menu_func in menu_funcs:
-        bpy.types.VIEW3D_MT_object.append(menu_func)
-
-
-def unregister_goals():
-    for menu_func in menu_funcs:
-        bpy.types.VIEW3D_MT_object.remove(menu_func)
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_goals, unregister_goals = class_registration(classes, menu_funcs)

@@ -25,8 +25,9 @@ import bpy
 import numpy
 from bpy.app.handlers import persistent
 
-from .get_preferences import get_print_debug_info
+from .get_preferences import debug_log
 from .hint_at_info import *
+from .registration import add_handler, remove_handler
 from .shim import *
 from .util import absolute_cache_directory
 
@@ -199,17 +200,13 @@ def prune_simulation_handles(scene):
 
 
 def register_prune_simulation_handles():
-    if prune_simulation_handles not in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.append(prune_simulation_handles)
-    if get_print_debug_info():
-        print("Squishy Volumes prune simulation handles registered.")
+    add_handler(bpy.app.handlers.depsgraph_update_post, prune_simulation_handles)
+    debug_log("prune simulation handles registered.")
 
 
 def unregister_prune_simulation_handles():
-    if prune_simulation_handles in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(prune_simulation_handles)
-    if get_print_debug_info():
-        print("Squishy Volumes prune simulation handles unregistered.")
+    remove_handler(bpy.app.handlers.depsgraph_update_post, prune_simulation_handles)
+    debug_log("prune simulation handles unregistered.")
 
 
 @persistent
@@ -218,10 +215,8 @@ def drop_simulation_handles(*_):
 
 
 def register_drop_simulation_handles_on_load():
-    if drop_simulation_handles not in bpy.app.handlers.load_pre:
-        bpy.app.handlers.load_pre.append(drop_simulation_handles)
+    add_handler(bpy.app.handlers.load_pre, drop_simulation_handles)
 
 
 def unregister_drop_simulation_handles_on_load():
-    if drop_simulation_handles in bpy.app.handlers.load_pre:
-        bpy.app.handlers.load_pre.remove(drop_simulation_handles)
+    remove_handler(bpy.app.handlers.load_pre, drop_simulation_handles)

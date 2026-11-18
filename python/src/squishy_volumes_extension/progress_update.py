@@ -21,8 +21,9 @@ from bpy.app.handlers import persistent
 
 from .bridge import SimulationHandle
 from .capture_markers import capture_marker_frames
-from .get_preferences import get_enable_timeline_markers, get_print_debug_info
+from .get_preferences import debug_log, get_enable_timeline_markers
 from .popup import with_popup
+from .registration import add_handler, remove_handler
 from .squishy_volumes_properties import get_simulation_objects
 from .util import force_ui_redraw
 
@@ -73,35 +74,31 @@ def register_progress_update(*_scene):
         bpy.app.timers.register(
             update_progress, first_interval=PROGRESS_INTERVAL, persistent=True
         )
-        if get_print_debug_info():
-            print("Squishy Volumes progress update registered.")
+        debug_log("progress update registered.")
 
 
 @persistent
 def unregister_progress_update(*_scene):
     if bpy.app.timers.is_registered(update_progress):
         bpy.app.timers.unregister(update_progress)
-        if get_print_debug_info():
-            print("Squishy Volumes progress update unregistered.")
+        debug_log("progress update unregistered.")
+
+
+def render_toggle_handlers():
+    return [
+        (bpy.app.handlers.render_init, unregister_progress_update),
+        (bpy.app.handlers.render_complete, register_progress_update),
+        (bpy.app.handlers.render_cancel, register_progress_update),
+    ]
 
 
 def register_progress_update_toggle():
-    if unregister_progress_update not in bpy.app.handlers.render_init:
-        bpy.app.handlers.render_init.append(unregister_progress_update)
-    if register_progress_update not in bpy.app.handlers.render_complete:
-        bpy.app.handlers.render_complete.append(register_progress_update)
-    if register_progress_update not in bpy.app.handlers.render_cancel:
-        bpy.app.handlers.render_cancel.append(register_progress_update)
-    if get_print_debug_info():
-        print("Squishy Volumes progress update toggle on render registered.")
+    for handlers, handler in render_toggle_handlers():
+        add_handler(handlers, handler)
+    debug_log("progress update toggle on render registered.")
 
 
 def unregister_progress_update_toggle():
-    if unregister_progress_update in bpy.app.handlers.render_init:
-        bpy.app.handlers.render_init.remove(unregister_progress_update)
-    if register_progress_update in bpy.app.handlers.render_complete:
-        bpy.app.handlers.render_complete.remove(register_progress_update)
-    if register_progress_update in bpy.app.handlers.render_cancel:
-        bpy.app.handlers.render_cancel.remove(register_progress_update)
-    if get_print_debug_info():
-        print("Squishy Volumes progress update toggle on render unregistered.")
+    for handlers, handler in render_toggle_handlers():
+        remove_handler(handlers, handler)
+    debug_log("progress update toggle on render unregistered.")

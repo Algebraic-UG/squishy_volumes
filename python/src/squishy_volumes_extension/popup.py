@@ -20,6 +20,7 @@ import bpy
 
 from .bridge import SimulationHandle
 from .input_capture import ScaledInputError
+from .registration import class_registration
 from .squishy_volumes_properties import get_simulation_object_with_uuid
 
 
@@ -71,14 +72,7 @@ classes = [
 ]
 
 
-def register_popup():
-    for cls in classes:
-        bpy.utils.register_class(cls)
-
-
-def unregister_popup():
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
+register_popup, unregister_popup = class_registration(classes)
 
 
 def popup(uuid: str, message: str, show_allow_scaled_input: bool = False):

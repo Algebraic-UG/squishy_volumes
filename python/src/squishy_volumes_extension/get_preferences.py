@@ -52,6 +52,11 @@ def get_print_debug_info() -> bool:
     return _get_preferences().print_debug_info
 
 
+def debug_log(message: str):
+    if get_print_debug_info():
+        print(f"Squishy Volumes {message}")
+
+
 def get_enable_timeline_markers() -> bool:
     return _get_preferences().enable_timeline_markers
 
