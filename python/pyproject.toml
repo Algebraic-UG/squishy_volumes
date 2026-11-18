@@ -21,6 +21,9 @@ tools = [
   "bpy==5.2",
 ]
 
+[tool.uv]
+default-groups = ["dev", "lint", "tools"]
+
 [tool.nodebpy.assets]
 source = "node_trees"
 blend = "src/squishy_volumes_extension/assets/assets.blend"

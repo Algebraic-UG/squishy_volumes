@@ -152,3 +152,18 @@ See https://github.com/Algebraic-UG/squishy_volumes/issues/190
 cd rust
 cargo test --release
 ```
+
+## Formatting and Lint Checks
+
+CI and a pre-push hook run these checks, from the repository root:
+```
+uv run --project python ruff format --diff
+uv run --project python ruff check
+cd rust
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+```
+Enable the hook like this:
+```
+git config core.hooksPath .githooks
+```
