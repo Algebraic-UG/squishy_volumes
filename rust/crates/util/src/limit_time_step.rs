@@ -229,6 +229,7 @@ fn limit_time_step_of_damped_oscillator(stiffness: T, damping: T) -> T {
 }
 
 /// Restriction by particle velocity, similar to [Sun et al. 2020, "Effective Time Step Restrictions for Explicit MPM Simulation"](https://doi.org/10.1111/cgf.14101), Sec. 4.2.
+#[inline]
 pub fn limit_time_step_by_velocity(velocity: &Vector3<T>, grid_node_size: T) -> T {
     grid_node_size * 0.5 / velocity.norm().max(grid_node_size * 0.5)
 }

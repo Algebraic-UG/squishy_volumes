@@ -243,6 +243,7 @@ pub struct DistanceResult {
 
 /// Pairs the closest point on the segment with the pseudonormal of the closest feature, vertex or edge, see
 /// [Bærentzen & Aanæs 2005](https://doi.org/10.1109/TVCG.2005.49).
+#[inline]
 pub fn segment_distance_result(
     p: &Vector3<f32>,
     start: &Vector3<f32>,
@@ -274,6 +275,7 @@ pub fn segment_distance_result(
     }
 }
 
+#[inline]
 fn distance_to_segment(p: &Vector3<f32>, start: &Vector3<f32>, end: &Vector3<f32>) -> f32 {
     let segment = end - start;
     let along_segment = (p - start).dot(&segment) / segment.dot(&segment);
@@ -286,6 +288,7 @@ fn distance_to_segment(p: &Vector3<f32>, start: &Vector3<f32>, end: &Vector3<f32
     }
 }
 
+#[inline]
 pub fn distance_to_triangle(
     p: &Vector3<f32>,
     a: &Vector3<f32>,

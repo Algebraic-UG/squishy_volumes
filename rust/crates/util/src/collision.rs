@@ -35,6 +35,7 @@ pub struct Contact {
 }
 
 /// The parts of `relative_velocity` along the unit `contact_normal` and tangential to it.
+#[inline]
 pub fn split_normal_tangential(
     relative_velocity: &Vector3<T>,
     contact_normal: &Vector3<T>,
@@ -47,6 +48,7 @@ pub fn split_normal_tangential(
 /// but never reverses it. Negative friction is treated as none, it would accelerate the
 /// sliding, and so is a negative normal impulse, which pulls towards the collider instead
 /// of pressing against it.
+#[inline]
 pub fn friction_impulse(
     tangential_velocity: &Vector3<T>,
     friction: T,
@@ -62,6 +64,7 @@ pub fn friction_impulse(
 
 /// Impulse that removes the fraction `damping` of the normal velocity,
 /// clamped so that it never adds to it nor reverses it.
+#[inline]
 pub fn damping_impulse(normal_velocity: &Vector3<T>, damping: T) -> Vector3<T> {
     normal_velocity * damping.clamp(0., 1.)
 }
@@ -71,6 +74,7 @@ pub fn damping_impulse(normal_velocity: &Vector3<T>, damping: T) -> Vector3<T> {
 /// proportional to the resulting normal impulse.
 /// A particle closer to the surface than [`NORMALIZATION_EPS`] has no contact normal
 /// and keeps its velocity.
+#[inline]
 pub fn collision_response(velocity: &Vector3<T>, contact: &Contact, time_step: T) -> Vector3<T> {
     let distance = contact.to_p.norm();
     if distance < NORMALIZATION_EPS {
