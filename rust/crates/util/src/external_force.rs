@@ -30,6 +30,7 @@ use crate::{AnimatedGlobals, NORMALIZATION_EPS, T};
 /// particle will be after the step), so neither can make the velocity grow or overshoot,
 /// however stiff or damped they are. Goal damping only acts towards the goal.
 /// Negative stiffness or damping is treated as zero.
+#[inline]
 pub fn apply_external_force(
     velocity: &Vector3<T>,
     to_goal: Option<&Vector3<T>>,

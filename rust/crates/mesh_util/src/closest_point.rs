@@ -25,6 +25,7 @@ use squishy_volumes_util::NORMALIZATION_EPS;
 use crate::{DistanceResult, segment_distance_result};
 
 /// Unit normal of the counter-clockwise triangle, zero if it is degenerate.
+#[inline]
 pub fn triangle_normal(a: &Vector3<f32>, b: &Vector3<f32>, c: &Vector3<f32>) -> Vector3<f32> {
     (b - a)
         .cross(&(c - a))
@@ -47,6 +48,7 @@ pub fn angle_weighted_normal(
         .unwrap_or(Vector3::zeros())
 }
 
+#[inline]
 fn corner_angle(vertex: &Vector3<f32>, a: &Vector3<f32>, b: &Vector3<f32>) -> f32 {
     let to_a = a - vertex;
     let to_b = b - vertex;
@@ -55,6 +57,7 @@ fn corner_angle(vertex: &Vector3<f32>, a: &Vector3<f32>, b: &Vector3<f32>) -> f3
 
 /// Pseudo normal of an edge: the sum of the normals of the two triangles sharing it,
 /// zero for a boundary edge without a neighbour.
+#[inline]
 pub fn edge_pseudo_normal(
     normal: &Vector3<f32>,
     neighbour_normal: Option<&Vector3<f32>>,
@@ -66,6 +69,7 @@ pub fn edge_pseudo_normal(
 
 /// Barycentric coordinates of the projection of `p` onto the plane of the
 /// triangle with unit normal `n`. They sum to one and are all positive inside.
+#[inline]
 pub fn barycentric_coordinates(
     p: &Vector3<f32>,
     [a, b, c]: [&Vector3<f32>; 3],
@@ -90,6 +94,7 @@ pub struct FeatureNormals {
 
 /// The closest point on the triangle to `p`, as the offset from it to `p`,
 /// together with the pseudo normal of the face, edge or corner it lies on.
+#[inline]
 pub fn closest_feature(
     p: &Vector3<f32>,
     [a, b, c]: [&Vector3<f32>; 3],
@@ -119,6 +124,7 @@ pub fn closest_feature(
 
 /// Velocity of the triangle's surface where it is closest to `p`, interpolated linearly
 /// from the velocities of its corners. `to_p` is the offset from that closest point to `p`.
+#[inline]
 pub fn surface_velocity_at_closest_point(
     p: &Vector3<f32>,
     to_p: &Vector3<f32>,
