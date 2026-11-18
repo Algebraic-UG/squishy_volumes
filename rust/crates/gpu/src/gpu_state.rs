@@ -757,17 +757,17 @@ impl GpuState {
                         ps.velocities[r()].iter().map(|v| v.xyz().into()),
                     )?;
                     pt.insert_attr::<a::VelocityGradientX>(
-                        ps.position_gradients[r()]
+                        ps.velocity_gradients[r()]
                             .iter()
                             .map(|p| p.column(0).xyz().into()),
                     )?;
                     pt.insert_attr::<a::VelocityGradientY>(
-                        ps.position_gradients[r()]
+                        ps.velocity_gradients[r()]
                             .iter()
                             .map(|p| p.column(1).xyz().into()),
                     )?;
                     pt.insert_attr::<a::VelocityGradientZ>(
-                        ps.position_gradients[r()]
+                        ps.velocity_gradients[r()]
                             .iter()
                             .map(|p| p.column(2).xyz().into()),
                     )?;
