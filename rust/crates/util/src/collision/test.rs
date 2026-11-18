@@ -48,14 +48,13 @@ fn test_encounters() -> Vec<Encounter> {
         .collect()
 }
 
-fn respond(encounter: &Encounter, friction: T, damping: T) -> Vector3<T> {
+fn respond(encounter: &Encounter, friction: T) -> Vector3<T> {
     collision_response(
         &encounter.velocity,
         &Contact {
             to_p: encounter.to_p,
             collider_velocity: encounter.collider_velocity,
             friction,
-            damping,
         },
         TIME_STEP,
     )
@@ -97,7 +96,7 @@ fn resting_particle_is_moved_onto_the_surface() {
             collider_velocity: Vector3::zeros(),
             to_p,
         };
-        let velocity = respond(&resting, 0.3, 0.1);
+        let velocity = respond(&resting, 0.3);
         assert!((velocity * TIME_STEP + to_p).norm() < TOLERANCE * (1. + to_p.norm()));
     }
 }
@@ -111,19 +110,19 @@ fn only_the_relative_velocity_matters() {
             collider_velocity: encounter.collider_velocity + offset,
             to_p: encounter.to_p,
         };
-        for (friction, damping) in [(0., 0.), (0.3, 0.1), (1., 1.)] {
-            let reference = respond(&encounter, friction, damping);
-            let response = respond(&moved, friction, damping);
+        for friction in [0., 0.3, 1.] {
+            let reference = respond(&encounter, friction);
+            let response = respond(&moved, friction);
             assert!((response - offset - reference).norm() < TOLERANCE * (1. + reference.norm()));
         }
     }
 }
 
 #[test]
-fn full_damping_leaves_only_the_correction_in_normal_direction() {
+fn full_friction_leaves_only_the_correction_in_normal_direction() {
     for encounter in test_encounters() {
         let normal = encounter.to_p.normalize();
-        let after = respond(&encounter, 0., 1.);
+        let after = respond(&encounter, 1.);
         let relative_normal_speed = (after - encounter.collider_velocity).dot(&normal);
         let correction_speed = -encounter.to_p.norm() / TIME_STEP;
         assert!((relative_normal_speed - correction_speed).abs() < 100. * TOLERANCE);
@@ -164,7 +163,7 @@ fn particle_on_the_surface_keeps_its_velocity() {
             to_p: encounter.to_p.normalize() * NORMALIZATION_EPS * 0.5,
             ..encounter
         };
-        let response = respond(&on_surface, 0.3, 0.1);
+        let response = respond(&on_surface, 0.3);
         assert_eq!(response, on_surface.velocity);
         assert!(response.iter().all(|x| x.is_finite()));
     }
@@ -177,18 +176,16 @@ fn friction_stays_within_the_coulomb_cone() {
         let (_, sliding) =
             split_normal_tangential(&(encounter.velocity - encounter.collider_velocity), &normal);
         for friction in [0.3, 1., 5.] {
-            for damping in [0., 0.5, 1.] {
-                let change = respond(&encounter, friction, damping) - encounter.velocity;
-                let pressing = -change.dot(&normal);
-                let (_, tangential_change) = split_normal_tangential(&change, &normal);
-                let limit = friction * pressing.max(0.);
-                let slack = 100. * TOLERANCE * (1. + sliding.norm());
-                assert!(tangential_change.norm() <= limit + slack);
-                assert!(tangential_change.dot(&sliding) <= slack);
-                let sticks = (sliding + tangential_change).norm() <= slack;
-                let slides_at_the_limit = (tangential_change.norm() - limit).abs() <= slack;
-                assert!(sticks || slides_at_the_limit);
-            }
+            let change = respond(&encounter, friction) - encounter.velocity;
+            let pressing = -change.dot(&normal);
+            let (_, tangential_change) = split_normal_tangential(&change, &normal);
+            let limit = friction * pressing.max(0.);
+            let slack = 100. * TOLERANCE * (1. + sliding.norm());
+            assert!(tangential_change.norm() <= limit + slack);
+            assert!(tangential_change.dot(&sliding) <= slack);
+            let sticks = (sliding + tangential_change).norm() <= slack;
+            let slides_at_the_limit = (tangential_change.norm() - limit).abs() <= slack;
+            assert!(sticks || slides_at_the_limit);
         }
     }
 }
@@ -203,19 +200,52 @@ fn shallow_impact(normal_speed: T) -> Encounter {
 
 #[test]
 fn fast_shallow_impact_sticks() {
-    let after = respond(&shallow_impact(10.), 0.5, 1.);
+    let after = respond(&shallow_impact(10.), 1.);
     assert!(after.x.abs() < TOLERANCE);
 }
 
 #[test]
 fn friction_is_proportional_to_the_normal_impulse() {
-    let pressing = 0.5 * 10. + 1e-4 / TIME_STEP;
-    let after = respond(&shallow_impact(10.), 0.1, 0.5);
+    let pressing = 0.1 * 10. + 1e-4 / TIME_STEP;
+    let after = respond(&shallow_impact(10.), 0.1);
     assert!((after.x - (1. - 0.1 * pressing)).abs() < TOLERANCE);
 }
 
 #[test]
 fn separating_particle_feels_no_friction() {
-    let after = respond(&shallow_impact(-10.), 5., 1.);
+    let after = respond(&shallow_impact(-10.), 5.);
     assert!((after.x - 1.).abs() < TOLERANCE);
+}
+
+#[test]
+fn resting_particle_slides_to_a_stop_like_coulomb_friction() {
+    let gravity = 9.81;
+    let sliding_speed = 0.5;
+    for friction in [0.3, 1.] {
+        let mut height: T = 0.;
+        let mut velocity = Vector3::x() * sliding_speed;
+        let coulomb_stop_time = sliding_speed / (friction * gravity);
+        let mut stop_time = None;
+        for step_index in 1..=(3. * coulomb_stop_time / TIME_STEP) as usize {
+            if height < 0. {
+                let below_floor = Encounter {
+                    velocity,
+                    collider_velocity: Vector3::zeros(),
+                    to_p: Vector3::z() * height,
+                };
+                velocity = respond(&below_floor, friction);
+            }
+            velocity.z -= gravity * TIME_STEP;
+            height += velocity.z * TIME_STEP;
+            if velocity.x <= TOLERANCE {
+                stop_time = Some(step_index as T * TIME_STEP);
+                break;
+            }
+        }
+        let stop_time = stop_time.expect("never stopped");
+        assert!(
+            (stop_time / coulomb_stop_time - 1.).abs() < 0.2,
+            "friction {friction}: stopped after {stop_time}, Coulomb friction stops after {coulomb_stop_time}"
+        );
+    }
 }

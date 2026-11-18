@@ -40,7 +40,6 @@ impl CpuState {
         let triangle_collider = topology.triangle_collider();
 
         let triangle_frictions = &self.frame_input.collider_start().triangle_frictions;
-        let triangle_dampings = &self.frame_input.collider_start().triangle_dampings;
 
         let vertex_velocities = self.frame_input.vertex_velocities();
 
@@ -173,7 +172,6 @@ impl CpuState {
                             [a_v, b_v, c_v],
                         ),
                         friction: triangle_frictions[closest_triangle],
-                        damping: triangle_dampings[closest_triangle],
                     };
                     *velocity = collision_response(velocity, &contact, time_step);
                 }

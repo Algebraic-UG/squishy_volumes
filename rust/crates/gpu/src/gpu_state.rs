@@ -432,11 +432,6 @@ fn get_collider_input(
         "triangle_frictions",
         &frame_input.collider_start().triangle_frictions,
     )?;
-    let triangle_dampings = Allocation::new(
-        device,
-        "triangle_dampings",
-        &frame_input.collider_start().triangle_dampings,
-    )?;
 
     let num_bvh_levels = frame_input.bvh().level();
     let num_bvh_nodes = frame_input.bvh().nodes().len();
@@ -457,7 +452,6 @@ fn get_collider_input(
         triangle_collider,
         triangle_opposites,
         triangle_frictions,
-        triangle_dampings,
         bvh,
         time_step_by_collider,
     }))

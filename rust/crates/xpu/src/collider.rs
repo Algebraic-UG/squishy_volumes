@@ -20,7 +20,6 @@
 pub struct Collider {
     pub vertex_positions: Vec<nalgebra::Vector3<f32>>,
     pub triangle_frictions: Vec<f32>,
-    pub triangle_dampings: Vec<f32>,
 }
 
 impl From<squishy_volumes_file_frame::Collider> for Collider {
@@ -28,13 +27,11 @@ impl From<squishy_volumes_file_frame::Collider> for Collider {
         squishy_volumes_file_frame::Collider {
             vertex_positions,
             triangle_frictions,
-            triangle_dampings,
         }: squishy_volumes_file_frame::Collider,
     ) -> Self {
         Collider {
             vertex_positions: bytemuck::cast_vec(vertex_positions),
             triangle_frictions,
-            triangle_dampings,
         }
     }
 }
@@ -44,7 +41,6 @@ impl Collider {
         squishy_volumes_file_frame::Collider {
             vertex_positions: bytemuck::cast_slice(&self.vertex_positions).to_vec(),
             triangle_frictions: self.triangle_frictions.clone(),
-            triangle_dampings: self.triangle_dampings.clone(),
         }
     }
 }
