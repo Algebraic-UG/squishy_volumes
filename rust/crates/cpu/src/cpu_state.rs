@@ -337,6 +337,7 @@ impl CpuState {
         )?;
 
         self.adaptive_time_step_state.max_time_step = max_time_step;
+        self.adaptive_time_step_state.adaptive_time_steps = adaptive_time_steps;
         self.adaptive_time_step_state.time_step_by_collider = adaptive_time_steps
             .then(|| self.limit_time_step_by_collider())
             .flatten();
@@ -349,9 +350,7 @@ impl CpuState {
                 return Err(Error::ZeroTimeStep);
             }
 
-            let run_phase = adaptive_time_steps
-                || (self.phase != Phase::LimitTimeStepBeforeForce
-                    && self.phase != Phase::LimitTimeStepBeforeIntegrate);
+            let run_phase = adaptive_time_steps || self.phase != Phase::LimitTimeStep;
             if run_phase {
                 match self.run_phase() {
                     error @ Err(Error::EnergyError(energy_error)) => {

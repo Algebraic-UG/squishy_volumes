@@ -31,8 +31,8 @@ use squishy_volumes_file_frame::{
 };
 use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
 use squishy_volumes_util::{
-    AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, attribute,
-    limit_time_step_by_collider_velocities,
+    AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, TIME_STEP_HISTORY_LENGTH,
+    attribute, limit_time_step_by_collider_velocities,
 };
 use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
 
@@ -255,8 +255,8 @@ impl GpuState {
                 forget_distance: consts.forget_distance(),
                 accept_distance: consts.accept_distance(),
                 max_time_step,
-                time_step_history_length: 10, // TODO: make configurable?
-                table_tries: 50,              // TODO: make configurable?
+                time_step_history_length: TIME_STEP_HISTORY_LENGTH,
+                table_tries: 50, // TODO: make configurable?
                 domain_min: consts.scaled_domain_min().into(),
                 domain_max: consts.scaled_domain_max().into(),
             },

@@ -38,14 +38,13 @@ pub enum Phase {
     #[default]
     InterpolateInput,
     Sort,
-    Collide,
+    LimitTimeStep,
     ExternalForce,
+    Collide,
     UpdateGridNodes,
-    LimitTimeStepBeforeForce,
     ScatterMomentum,
     MeldGrid,
     CollectVelocity,
-    LimitTimeStepBeforeIntegrate,
     AdvanceParticles,
     CullParticles,
 }
@@ -63,14 +62,13 @@ impl CpuState {
         match self.phase {
             Phase::InterpolateInput => self.interpolate_input()?,
             Phase::Sort => self.sort(),
-            Phase::Collide => self.collide(),
+            Phase::LimitTimeStep => self.limit_time_step(),
             Phase::ExternalForce => self.external_force()?,
+            Phase::Collide => self.collide(),
             Phase::UpdateGridNodes => self.update_grid_nodes(),
-            Phase::LimitTimeStepBeforeForce => self.limit_time_step_before_force(),
             Phase::ScatterMomentum => self.scatter_momentum(),
             Phase::MeldGrid => self.meld_grid(),
             Phase::CollectVelocity => self.collect_velocity(),
-            Phase::LimitTimeStepBeforeIntegrate => self.limit_time_step_before_integrate(),
             Phase::AdvanceParticles => self.advance_particles()?,
             Phase::CullParticles => self.cull_particles(),
         }
