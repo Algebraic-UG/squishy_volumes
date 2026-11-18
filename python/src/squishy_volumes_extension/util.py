@@ -22,52 +22,8 @@ from typing import Any
 
 import bpy
 import mathutils
-import numpy as np
 
 from .cache_paths import simulation_stats_path
-
-
-def get_simulation_obj(simulation, name):
-    collection_name = f"{simulation.name}"
-    object_name = f"{simulation.name} {name}"
-    mesh_name = f"{simulation.name} {name} Mesh"
-
-    collection = bpy.data.collections.get(collection_name)
-    if collection is None:
-        collection = bpy.data.collections.new(collection_name)
-        bpy.context.scene.collection.children.link(collection)
-        collection.squishy_volumes_collection.simulation_uuid = simulation.uuid
-
-    mesh = bpy.data.meshes.get(mesh_name)
-    if mesh is None:
-        mesh = bpy.data.meshes.new(mesh_name)
-
-    obj = bpy.data.objects.get(object_name)
-    if obj is None:
-        obj = bpy.data.objects.new(object_name, mesh)
-        obj.squishy_volumes_object.input_name = name
-        obj.squishy_volumes_object.simulation_uuid = simulation.uuid
-
-    if obj.name not in collection.all_objects:
-        collection.objects.link(obj)
-
-    return obj
-
-
-def fill_mesh_with_vertices_and_triangles(mesh, vertices, triangles):
-    mesh.clear_geometry()
-    mesh.from_pydata(
-        np.reshape(vertices, (vertices.size // 3, 3)),
-        [],
-        np.reshape(triangles.astype("int32"), (triangles.size // 3, 3)),
-    )
-
-
-def attribute_to_numpy(collection, attribute_name, dtype, per_count):
-    n = len(collection) * per_count
-    array = np.empty(n, dtype=dtype)
-    collection.foreach_get(attribute_name, array)
-    return array
 
 
 def force_ui_redraw():
@@ -114,10 +70,6 @@ def read_stats(directory: str) -> dict[int, dict[str, Any]]:
         stats[frame] = {name: _parse_stat(value) for name, value in row.items()}
     _stats_cache[path] = (key, stats)
     return stats
-
-
-def fix_quaternion_order(quaternion):
-    return [quaternion[3], quaternion[0], quaternion[1], quaternion[2]]
 
 
 # https://blenderartists.org/t/duplicating-pointerproperty-propertygroup-and-collectionproperty/1419096/2?

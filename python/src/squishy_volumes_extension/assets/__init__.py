@@ -46,10 +46,6 @@ def _load_tree_2(name: str) -> bpy.types.NodeTree:
     return bpy.data.node_groups[name]
 
 
-def create_geometry_nodes_grid() -> bpy.types.NodeTree:
-    return _load_tree("geometry_nodes_grid_momentum", "Squishy Volumes Grid Momentum")
-
-
 def create_geometry_nodes_visualize_particles() -> bpy.types.NodeTree:
     return _load_tree_2("Squishy Volumes Visualize Particles")
 
