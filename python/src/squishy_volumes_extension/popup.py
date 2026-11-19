@@ -21,7 +21,18 @@ import bpy
 from .bridge import SimulationHandle
 from .input_capture import ScaledInputError
 from .registration import class_registration
-from .squishy_volumes_properties import get_simulation_object_with_uuid
+from .squishy_volumes_properties import get_simulation_objects
+
+
+def popup_title(uuid: str) -> str:
+    sim_objs = [
+        obj
+        for obj in get_simulation_objects()
+        if uuid and obj.squishy_volumes.uuid == uuid
+    ]
+    if len(sim_objs) != 1:
+        return "Squishy Volumes"
+    return f"Squishy Volumes: {sim_objs[0].name}"
 
 
 class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
@@ -45,8 +56,7 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        title = f"Squishy Volumes: {sim_obj.name}"
+        title = popup_title(self.uuid)
         if SimulationHandle.exists(uuid=self.uuid):
             return context.window_manager.invoke_props_dialog(
                 self,

@@ -17,27 +17,19 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import math
-import uuid
 
 import bpy
 
-from ..squishy_volumes_properties import (
-    INPUT_TYPE_COLLIDER,
-    INPUT_TYPE_PARTICLES,
-    get_simulation_object_with_uuid,
-)
+from .. import api
+from ..squishy_volumes_properties import INPUT_TYPE_COLLIDER, INPUT_TYPE_PARTICLES
 
 EXAMPLE_BENCHMARK = "Benchmark"
 
 
 def setup_example_benchmark(context: bpy.types.Context):
-    sim_uuid = str(uuid.uuid4())
-    bpy.ops.scene.squishy_volumes_add_simulation(
-        "INVOKE_DEFAULT", sim_name=EXAMPLE_BENCHMARK, uuid=sim_uuid
-    )
-
-    sim_obj = get_simulation_object_with_uuid(sim_uuid)
+    sim_obj = api.add_simulation(EXAMPLE_BENCHMARK, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
+    sim_uuid = sim_props.uuid
 
     sim_props.grid_node_size = 0.1
     sim_props.time_step = 0.001
@@ -143,3 +135,5 @@ def setup_example_benchmark(context: bpy.types.Context):
         blocking=True,
         start_baking=False,
     )
+
+    return sim_obj
