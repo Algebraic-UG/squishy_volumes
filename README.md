@@ -153,6 +153,18 @@ cd rust
 cargo test --release
 ```
 
+### Add-on Tests
+
+These run Blender headless against a built extension ZIP
+(see [Extension](#extension) or [rebuild_zip.sh](./scripts/rebuild_zip.sh)).
+The ZIP is installed into a throwaway Blender user directory, so your own Blender setup stays untouched.
+```
+uv run tests/addon/run.py --zip python/src/squishy_volumes_extension/squishy_volumes_extension-<version>.zip
+```
+The runner only needs the Python standard library, so this doesn't set up the `python` project's environment.
+Pass `--blender <path>` (or set `BLENDER`) if `blender` isn't on your `PATH`.
+Trailing arguments only run tests whose name contains one of them, for example `BoingBlock`.
+
 ## Formatting and Lint Checks
 
 CI and a pre-push hook run these checks, from the repository root:
