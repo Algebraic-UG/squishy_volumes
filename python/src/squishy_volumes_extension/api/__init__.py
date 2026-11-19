@@ -16,7 +16,17 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .errors import SimulationNotFound, SquishyVolumesError
+from .errors import InvalidInput, SimulationNotFound, SquishyVolumesError
+from .inputs import (
+    COLLIDER,
+    PARTICLES,
+    add_input,
+    copy_alembic_attributes,
+    input_problem,
+    is_input,
+    remove_input,
+    reset_alembic_attributes,
+)
 from .simulation import (
     add_simulation,
     clone_simulation,
@@ -29,14 +39,23 @@ from .simulation import (
 )
 
 __all__ = [
+    "COLLIDER",
+    "PARTICLES",
+    "InvalidInput",
     "SimulationNotFound",
     "SquishyVolumesError",
+    "add_input",
     "add_simulation",
     "clone_simulation",
+    "copy_alembic_attributes",
     "find_simulation",
     "input_objects",
+    "input_problem",
+    "is_input",
     "reload",
     "reload_all",
+    "remove_input",
     "remove_simulation",
+    "reset_alembic_attributes",
     "simulations",
 ]
