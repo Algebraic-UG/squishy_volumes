@@ -17,7 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import bpy
-from support import (
+
+from .support import (
     AddonTestCase,
     addon,
     cache_directory,

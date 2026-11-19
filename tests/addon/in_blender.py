@@ -16,40 +16,29 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 import sys
 import unittest
 from pathlib import Path
 
-import bpy
-
-TESTS_DIR = Path(__file__).resolve().parent
+TESTS_DIR = Path(__file__).resolve().parent.parent
+ADDON_TESTS_DIR = TESTS_DIR / "addon"
 
 
 def script_arguments() -> list[str]:
     return sys.argv[sys.argv.index("--") + 1 :]
 
 
-def install_extension(zip_path: str):
-    from support import ADDON_MODULE
-
-    bpy.ops.extensions.package_install_files(
-        repo="user_default", filepath=zip_path, enable_on_install=True
-    )
-    if ADDON_MODULE not in bpy.context.preferences.addons:
-        sys.exit(f"Installing {zip_path} did not enable {ADDON_MODULE}")
-
-
 def discover_tests(patterns: list[str]) -> unittest.TestSuite:
     loader = unittest.TestLoader()
     if patterns:
         loader.testNamePatterns = [f"*{pattern}*" for pattern in patterns]
-    return loader.discover(str(TESTS_DIR))
+    return loader.discover(str(ADDON_TESTS_DIR), top_level_dir=str(TESTS_DIR))
 
 
 def main():
     zip_path, *patterns = script_arguments()
-    sys.path.insert(0, str(TESTS_DIR))
-    install_extension(zip_path)
+    os.environ["SQUISHY_VOLUMES_ZIP"] = zip_path
     result = unittest.TextTestRunner(verbosity=2).run(discover_tests(patterns))
     sys.exit(0 if result.wasSuccessful() else 1)
 

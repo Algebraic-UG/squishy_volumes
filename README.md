@@ -165,6 +165,10 @@ The runner only needs the Python standard library, so this doesn't set up the `p
 Pass `--blender <path>` (or set `BLENDER`) if `blender` isn't on your `PATH`.
 Trailing arguments only run tests whose name contains one of them, for example `BoingBlock`.
 
+VS Code's Testing view runs the same tests with the `bpy` module from `python/.venv` instead of a Blender binary.
+They install the newest `squishy_volumes_extension-*.zip` from `python/src/squishy_volumes_extension/`,
+or the ZIP that `SQUISHY_VOLUMES_ZIP` points to, again into a throwaway Blender user directory.
+
 ## Formatting and Lint Checks
 
 CI and a pre-push hook run these checks, from the repository root:
