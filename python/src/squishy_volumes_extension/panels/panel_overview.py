@@ -18,40 +18,27 @@
 
 import datetime
 import json
-import uuid
 
 import bpy
 
+from .. import api
 from ..bridge import SimulationHandle, build_info
-from ..cache_paths import first_frame_file, simulation_input_exists
-from ..capture_markers import (
-    range_to_record,
-    remove_capture_markers_if_enabled,
-    set_capture_range,
-)
+from ..cache_paths import simulation_input_exists
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
-from ..get_preferences import get_default_compute_device
+from ..operator_base import ReportingOperator, SimulationOperator
 from ..popup import popup
 from ..registration import class_registration
 from ..squishy_volumes_properties import (
-    PER_SIMULATION_PROPERTIES,
     frame_to_load,
-    get_input_objects_with_uuid,
-    get_simulation_object_with_uuid,
     get_simulation_objects,
-    stored_range,
     unloaded_simulations,
-    update_directory,
 )
-from ..util import (
-    copy_simple_property_group,
-    force_ui_redraw,
-    read_stats,
-    u64_to_giga_f32,
-)
+from ..util import force_ui_redraw, read_stats, u64_to_giga_f32
 
 
-class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(
+    ReportingOperator, bpy.types.Operator
+):
     bl_idname = "scene.squishy_volumes_add_example_simulation"
     bl_label = "Example Setup"
     bl_description = """Start with a prefabricated Squishy Volumes simulation."""
@@ -77,8 +64,9 @@ The UI will be blocked for a few seconds.""",
         options=set(),
     )
 
-    def execute(self, context):
-        setup_example_simulation(context, self.startup_choice)
+    def run(self, context):
+        sim_obj = setup_example_simulation(context, self.startup_choice)
+        select_simulation(context, sim_obj)
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -91,59 +79,7 @@ def disk_usage_factor(used_giga_bytes: float, max_giga_bytes: float) -> float:
     return used_giga_bytes / max_giga_bytes
 
 
-def setup_cache_file(sim_obj):
-
-    # weird little dance since we have to use the operator
-    before = {c.name for c in bpy.data.cache_files}
-    bpy.ops.cachefile.open(filepath=first_frame_file(sim_obj.squishy_volumes.directory))
-    created = {c.name for c in bpy.data.cache_files} - before
-    if len(created) != 1:
-        raise RuntimeError("File cache creation failed")
-    cache = bpy.data.cache_files[created.pop()]
-
-    assert isinstance(cache, bpy.types.CacheFile)
-
-    cache.is_sequence = True
-    cache.override_frame = True
-    driver = cache.driver_add("frame").driver
-    driver.expression = f"frame - {sim_obj.squishy_volumes.capture_start_frame}"
-
-    sim_obj.squishy_volumes.cache_file = cache
-
-
-def add_simulation(operator, context):
-    sim_obj = bpy.data.objects.new(name=operator.sim_name, object_data=None)
-    sim_obj.empty_display_type = "CUBE"
-    sim_obj.lock_location = (True,) * 3
-    sim_obj.lock_rotation = (True,) * 3
-    sim_obj.lock_scale = (True,) * 3
-
-    # It won't persist otherwise.
-    # https://github.com/Algebraic-UG/squishy_volumes/issues/247
-    sim_obj.use_fake_user = True
-
-    sim_props = sim_obj.squishy_volumes
-
-    sim_props.is_simulation = True
-    sim_props.uuid = operator.uuid
-    sim_props.compute_device = get_default_compute_device()
-
-    update_directory(sim_props, context)
-
-    first_frame = context.scene.frame_start
-    set_capture_range(context.scene, sim_obj, first_frame, first_frame)
-
-    setup_cache_file(sim_obj)
-
-    context.scene.squishy_volumes.selected_simulation = sim_obj
-
-    force_ui_redraw()
-
-    operator.report({"INFO"}, f"Added {sim_obj.name}.")
-    return {"FINISHED"}
-
-
-class SCENE_OT_Squishy_Volumes_Add_Simulation(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Add_Simulation(ReportingOperator, bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_add_simulation"
     bl_label = "Add Simulation"
     bl_description = """Create a new Squishy Volumes simulation object.
@@ -156,92 +92,59 @@ It just creates the Blender object to track the simulation."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     sim_name: bpy.props.StringProperty(default="My Simulation")
-    uuid: bpy.props.StringProperty()
 
-    def execute(self, context):
-        return add_simulation(self, context)
+    def run(self, context):
+        sim_obj = api.add_simulation(self.sim_name, scene=context.scene)
+        select_simulation(context, sim_obj)
+        self.report({"INFO"}, f"Added {sim_obj.name}.")
+        return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Clone_Simulation(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Clone_Simulation(SimulationOperator, bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_clone_simulation"
     bl_label = "Clone"
     bl_description = "Clone this Simulation."
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-
-        new_uuid = str(uuid.uuid4())
-        bpy.ops.scene.squishy_volumes_add_simulation(
-            "INVOKE_DEFAULT", uuid=new_uuid, sim_name=sim_obj.name
-        )
-        new_sim_obj = get_simulation_object_with_uuid(new_uuid)
-
-        copy_simple_property_group(
-            sim_obj.squishy_volumes,
-            new_sim_obj.squishy_volumes,
-            PER_SIMULATION_PROPERTIES,
-        )
-
-        source_range = range_to_record(context.scene, sim_obj)
-        if source_range is None:
-            source_range = stored_range(sim_obj.squishy_volumes)
-        set_capture_range(context.scene, new_sim_obj, *source_range)
-
-        input_mapping = {}
-        for input_obj in get_input_objects_with_uuid(self.uuid):
-            new_input_obj = input_obj.copy()
-            new_input_obj.squishy_volumes.uuid = new_uuid
-            context.collection.objects.link(new_input_obj)
-            new_input_obj.select_set(True)
-            input_mapping[input_obj.name] = new_input_obj.name
-
-        # TODO: outputs
-
+    def run(self, context):
+        sim_obj = self.sim_obj
+        clone = api.clone_simulation(sim_obj, scene=context.scene)
+        for input_obj in api.input_objects(clone):
+            input_obj.select_set(True)
+        select_simulation(context, clone)
         self.report({"INFO"}, f"Cloned {sim_obj.name}.")
         return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Reload(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Reload(SimulationOperator, bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_reload"
     bl_label = "Reload"
     bl_description = "Reloads the cache and locks it for this simulation object."
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-
-        SimulationHandle.load(
-            uuid=self.uuid,
-            directory=sim_obj.squishy_volumes.directory,
-        )
-
+    def run(self, context):
+        sim_obj = self.sim_obj
+        api.reload(sim_obj)
         self.report({"INFO"}, f"Reloaded {sim_obj.name}.")
         return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Reload_All(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Reload_All(ReportingOperator, bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_reload_all"
     bl_label = "Reload All"
     bl_description = """Reloads all simulation caches.
 This is useful when reloading a Blender file with multiple simulations."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    def execute(self, context):
-        for sim_obj in unloaded_simulations(context):
-            sim_props = sim_obj.squishy_volumes
-            SimulationHandle.load(uuid=sim_props.uuid, directory=sim_props.directory)
-
-            self.report({"INFO"}, "Reloaded simulation.")
-
+    def run(self, context):
+        reloaded = api.reload_all()
+        self.report({"INFO"}, f"Reloaded {len(reloaded)} simulation(s).")
         return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Remove_Simulation(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Remove_Simulation(
+    SimulationOperator, bpy.types.Operator
+):
     bl_idname = "scene.squishy_volumes_remove_simulation"
     bl_label = "Remove"
     bl_description = """Remove the simulation from the scene.
@@ -250,21 +153,17 @@ This does not clear the cache. If you want to delete (not overwrite) the cache,
 please use your OS's file browser."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-
-        for obj in get_input_objects_with_uuid(self.uuid):
-            obj.squishy_volumes.uuid = ""
-
-        remove_capture_markers_if_enabled(context.scene, sim_obj)
-
-        bpy.data.objects.remove(sim_obj)
-
-        self.report({"INFO"}, "Removed simulation")
-
+    def run(self, context):
+        sim_obj = self.sim_obj
+        name = sim_obj.name
+        api.remove_simulation(sim_obj, scene=context.scene)
+        self.report({"INFO"}, f"Removed {name}.")
         return {"FINISHED"}
+
+
+def select_simulation(context, sim_obj: bpy.types.Object):
+    context.scene.squishy_volumes.selected_simulation = sim_obj
+    force_ui_redraw()
 
 
 class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
@@ -327,11 +226,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
         if unloaded_simulations(context):
             layout.operator(SCENE_OT_Squishy_Volumes_Reload_All.bl_idname)
         add_row = layout.row()
-        add_op = add_row.operator(
-            SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD"
-        )
-        add_op.sim_name = "My Simulation"
-        add_op.uuid = str(uuid.uuid4())
+        add_row.operator(SCENE_OT_Squishy_Volumes_Add_Simulation.bl_idname, icon="ADD")
         add_row.operator(
             SCENE_OT_Squishy_Volumes_Add_Example_Simulation.bl_idname, icon="ADD"
         )

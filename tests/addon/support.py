@@ -31,6 +31,28 @@ def addon():
     return sys.modules[ADDON_MODULE]
 
 
+def api():
+    return addon().api
+
+
+def add_mesh_object(name: str) -> bpy.types.Object:
+    obj = bpy.data.objects.new(name, bpy.data.meshes.new(name))
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
+
+
+def make_input(obj: bpy.types.Object, sim_obj: bpy.types.Object):
+    obj.squishy_volumes.uuid = sim_obj.squishy_volumes.uuid
+
+
+def marker_frames(sim_obj: bpy.types.Object) -> list[int]:
+    return sorted(
+        marker.frame
+        for marker in bpy.context.scene.timeline_markers
+        if marker.name == sim_obj.name
+    )
+
+
 def simulation_objects() -> list[bpy.types.Object]:
     return [obj for obj in bpy.data.objects if obj.squishy_volumes.is_simulation]
 
