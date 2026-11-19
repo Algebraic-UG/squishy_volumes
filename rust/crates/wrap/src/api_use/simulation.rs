@@ -71,11 +71,11 @@ impl Simulation {
         })
     }
 
-    pub fn computing(&self) -> Result<bool> {
+    pub fn baking(&self) -> Result<bool> {
         with_context(|context| {
             context
                 .get_simulation(&self.0)
-                .is_some_and(|simulation| simulation.computing())
+                .is_some_and(|simulation| simulation.baking())
         })
     }
 

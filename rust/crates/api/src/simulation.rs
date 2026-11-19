@@ -22,7 +22,7 @@ use serde_json::Value;
 pub trait Simulation {
     fn input_header(&self) -> Result<Value>;
 
-    fn computing(&self) -> bool;
+    fn baking(&self) -> bool;
 
     fn poll(&mut self) -> Result<Value>;
 

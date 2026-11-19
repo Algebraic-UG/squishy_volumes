@@ -43,11 +43,11 @@ This is only useful for scripting."""
         sim_handle = SimulationHandle.get(uuid=self.simulation_uuid)
         assert isinstance(sim_handle, SimulationHandle)
 
-        while sim_handle.computing():
+        while sim_handle.baking():
             if (time.monotonic() - start) > self.timeout_sec:
                 raise RuntimeError("Timed out")
             time.sleep(0.01)
-        self.report({"INFO"}, f"Simulation no longer computing: {sim_obj.name}")
+        self.report({"INFO"}, f"Simulation no longer baking: {sim_obj.name}")
         return {"FINISHED"}
 
 

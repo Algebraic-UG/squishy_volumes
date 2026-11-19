@@ -75,6 +75,8 @@ impl ComputeThread {
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
 
+        let frame_store = cache.start_storing().map_err(Error::StoreError)?;
+
         let thread = {
             let harness = harness.clone();
             Some(spawn(move || -> Result<(), Error> {
@@ -82,7 +84,7 @@ impl ComputeThread {
                 let io_state = if next_frame == 0 {
                     info!("creating initial state");
                     let io_state = initialize_io_state(&harness, &mut input_reader)?;
-                    cache
+                    frame_store
                         .store_frame(
                             Frame {
                                 io_state: io_state.clone(),
@@ -200,7 +202,7 @@ impl ComputeThread {
                     };
 
                     // store state even if error occured
-                    cache
+                    frame_store
                         .store_frame(
                             Frame {
                                 io_state,

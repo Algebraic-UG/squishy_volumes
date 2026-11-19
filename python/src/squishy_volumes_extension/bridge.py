@@ -152,8 +152,8 @@ class SimulationHandle:
         return poll_info != self.poll_info
 
     @hint_at_info
-    def computing(self) -> bool:
-        return self.handle.computing()
+    def baking(self) -> bool:
+        return self.handle.baking()
 
     @hint_at_info
     def start_compute(

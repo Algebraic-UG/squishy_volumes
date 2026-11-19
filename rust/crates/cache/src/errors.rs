@@ -42,10 +42,6 @@ pub enum CacheWritingError {
     Serialization(#[from] squishy_volumes_file_frame::Error),
     #[error("Failed to forward output frame to writing thread")]
     Sending,
-    #[error("Store thread is gone")]
-    ThreadGone,
-    #[error("Store thread stopped")]
-    ThreadStopped,
     #[error("Exceeding allowed disk space")]
     ExceedingSpace,
     #[error("Unknown io error")]

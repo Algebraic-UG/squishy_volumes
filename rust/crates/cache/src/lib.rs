@@ -26,6 +26,6 @@ use stats::*;
 use store_thread::*;
 use util::*;
 
-pub use cache::Cache;
+pub use cache::{Cache, FrameStore};
 pub use errors::*;
 pub use stats::{ComputeStats, Stats};
