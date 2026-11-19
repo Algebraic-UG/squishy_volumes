@@ -154,11 +154,12 @@ def _new_cache_file(sim_obj: bpy.types.Object) -> bpy.types.CacheFile:
     filepath = first_frame_file(sim_props.directory)
     existing = set(bpy.data.cache_files)
     # bpy.data.cache_files has no new(), only this operator creates one
-    bpy.ops.cachefile.open(filepath=filepath)
+    bpy.ops.cachefile.open(filepath=bpy.path.abspath(filepath))
     created = set(bpy.data.cache_files) - existing
     if len(created) != 1:
         raise RuntimeError("File cache creation failed")
     cache_file = created.pop()
+    cache_file.filepath = filepath
     cache_file.is_sequence = True
     cache_file.override_frame = True
     driver = cache_file.driver_add("frame").driver
