@@ -64,10 +64,6 @@ def update_progress():
     return PROGRESS_INTERVAL
 
 
-def is_updating():
-    return bpy.app.timers.is_registered(update_progress)
-
-
 @persistent
 def register_progress_update(*_scene):
     if not bpy.app.timers.is_registered(update_progress):

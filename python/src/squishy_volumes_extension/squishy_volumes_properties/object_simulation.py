@@ -24,14 +24,10 @@ from ..bridge import DETECTED_DEVICES, SimulationHandle
 from ..cache_paths import first_frame_file, normalize_directory
 from ..get_preferences import get_default_cache_location
 
-TYPE_SIMULATION = "Simulation"
-
 PER_SIMULATION_PROPERTIES = (
     "uuid",
     "directory",
     "cache_file",
-    "progress_json_string",
-    "last_exception",
 )
 
 
@@ -110,12 +106,6 @@ def update_directory(self, context):
 
 
 class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
-    # ----------------------------------------------------------------
-    # Updated in regular intervals
-    # ----------------------------------------------------------------
-    progress_json_string: bpy.props.StringProperty()
-    last_exception: bpy.props.StringProperty()
-
     def get_directory_with_default(self):
         return self.get("directory", get_default_cache_location())
 

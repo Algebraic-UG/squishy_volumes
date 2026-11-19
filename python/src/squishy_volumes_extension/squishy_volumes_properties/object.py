@@ -25,10 +25,6 @@ from .object_input import *
 from .object_simulation import *
 
 
-def is_some_and(x, f):
-    return x is not None and f(x)
-
-
 def add_fields_from(source_cls, prefix=""):
     def decorator(target_cls):
         source_annotations = getattr(source_cls, "__annotations__", {})
