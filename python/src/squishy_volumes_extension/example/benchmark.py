@@ -21,7 +21,6 @@ import math
 import bpy
 
 from .. import api
-from ..squishy_volumes_properties import INPUT_TYPE_COLLIDER, INPUT_TYPE_PARTICLES
 
 EXAMPLE_BENCHMARK = "Benchmark"
 
@@ -37,26 +36,6 @@ def setup_example_benchmark(context: bpy.types.Context):
 
     sim_props.max_giga_bytes_on_disk = 15.0
 
-    def add_particles(obj: bpy.types.Object):
-        obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES
-        obj.squishy_volumes.add_default_generation = True
-        obj.squishy_volumes.add_output_object = True
-        bpy.ops.scene.squishy_volumes_add_input_object(
-            "INVOKE_DEFAULT",
-            uuid=sim_uuid,
-            name=obj.name,
-        )
-        obj.hide_set(True)
-
-    def add_collider(obj):
-        obj.squishy_volumes.input_type = INPUT_TYPE_COLLIDER
-        obj.squishy_volumes.add_default_generation = True
-        bpy.ops.scene.squishy_volumes_add_input_object(
-            "INVOKE_DEFAULT",
-            uuid=sim_uuid,
-            name=obj.name,
-        )
-
     def add_monkey(location, rotation):
         bpy.ops.mesh.primitive_monkey_add(
             size=4,
@@ -66,7 +45,9 @@ def setup_example_benchmark(context: bpy.types.Context):
             scale=(1, 1, 1),
             rotation=rotation,
         )
-        add_particles(context.active_object)
+        monkey = context.active_object
+        api.add_input(sim_obj, monkey, api.PARTICLES)
+        monkey.hide_set(True)
 
     add_monkey(
         location=(-2, -2, 0),
@@ -109,7 +90,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    add_collider(context.active_object)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
     bpy.ops.mesh.primitive_torus_add(
         align="WORLD",
@@ -118,7 +99,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         major_radius=4,
         minor_radius=1,
     )
-    add_collider(context.active_object)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -127,7 +108,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=100,
     )
-    add_collider(context.active_object)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
     bpy.ops.scene.squishy_volumes_record_input_to_cache(
         "INVOKE_DEFAULT",

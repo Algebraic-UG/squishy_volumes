@@ -23,3 +23,7 @@ class SquishyVolumesError(RuntimeError):
 
 class SimulationNotFound(SquishyVolumesError):
     pass
+
+
+class InvalidInput(SquishyVolumesError):
+    pass

@@ -19,7 +19,6 @@
 import bpy
 
 from .. import api
-from ..squishy_volumes_properties import INPUT_TYPE_COLLIDER, INPUT_TYPE_PARTICLES
 
 EXAMPLE_BOING_BLOCK = "Boing Block"
 
@@ -33,26 +32,6 @@ def setup_example_boing_block(context: bpy.types.Context):
     sim_props.simulation_scale = 5
     sim_props.time_step = 0.005
 
-    def add_particles(obj: bpy.types.Object):
-        obj.squishy_volumes.input_type = INPUT_TYPE_PARTICLES
-        obj.squishy_volumes.add_default_generation = True
-        obj.squishy_volumes.add_output_object = True
-        bpy.ops.scene.squishy_volumes_add_input_object(
-            "INVOKE_DEFAULT",
-            uuid=sim_uuid,
-            name=obj.name,
-        )
-
-    def add_collider(obj):
-        obj.squishy_volumes.input_type = INPUT_TYPE_COLLIDER
-        obj.squishy_volumes.add_default_generation = True
-        obj.squishy_volumes.add_output_object = True
-        bpy.ops.scene.squishy_volumes_add_input_object(
-            "INVOKE_DEFAULT",
-            uuid=sim_uuid,
-            name=obj.name,
-        )
-
     bpy.ops.mesh.primitive_cube_add(
         size=2,
         enter_editmode=False,
@@ -61,7 +40,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         rotation=(0, 0, 0),
     )
-    add_particles(context.active_object)
+    api.add_input(sim_obj, context.active_object, api.PARTICLES)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -70,7 +49,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=10,
     )
-    add_collider(context.active_object)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
     bpy.ops.scene.squishy_volumes_record_input_to_cache(
         "INVOKE_DEFAULT",
