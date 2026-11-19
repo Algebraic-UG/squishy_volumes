@@ -24,7 +24,7 @@ from pathlib import Path
 
 import bpy
 
-ADDON_MODULE = "bl_ext.user_default.squishy_volumes_extension"
+from .bootstrap import ADDON_MODULE, ensure_extension_installed
 
 
 def addon():
@@ -53,6 +53,10 @@ def simulation_handle(sim_obj: bpy.types.Object):
 
 
 class AddonTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        ensure_extension_installed()
+
     def setUp(self):
         self.work_dir = Path(tempfile.mkdtemp(prefix="squishy_volumes_test_"))
         bpy.ops.wm.read_homefile(use_empty=True)

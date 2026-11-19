@@ -7,5 +7,16 @@
     "ruff.interpreter": [
         "${workspaceFolder}/python/.venv/bin/python"
     ],
-    "ty.configurationFile": "./python/ty.toml"
+    "ty.configurationFile": "./python/ty.toml",
+    "python.testing.unittestEnabled": true,
+    "python.testing.pytestEnabled": false,
+    "python.testing.unittestArgs": [
+        "-v",
+        "-s",
+        "./tests/addon",
+        "-t",
+        "./tests",
+        "-p",
+        "test_*.py"
+    ]
 }
