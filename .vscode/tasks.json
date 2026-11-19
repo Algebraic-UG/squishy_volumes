@@ -1,9 +1,16 @@
 {
     "tasks": [
         {
-            "label": "Rebuild local for tests",
+            "label": "Rebuild zip",
             "type": "shell",
-            "command": "./scripts/rebuild_zip.sh"
+            "command": "./scripts/rebuild_zip.sh",
+            "group": "build"
+        },
+        {
+            "label": "Rebuild API",
+            "type": "shell",
+            "command": "./scripts/rebuild_api.sh",
+            "group": "build"
         },
         {
             "label": "build-assets",
