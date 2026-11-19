@@ -2,14 +2,16 @@
 
 set -e
 
-scripts_dir=$(dirname $(realpath "$0"))
+cd "$(dirname "$0")/.."
+
+scripts_dir=$(realpath scripts)
 blender_ext_file="${scripts_dir}/blender_ext.py"
 repo_root=$(dirname "${scripts_dir}")
 wrap_dir="${repo_root}/rust/crates/wrap"
 extension_dir="${repo_root}/python/src/squishy_volumes_extension"
 wheels_dir="${extension_dir}/wheels"
 
-rm -i "${wheels_dir}/*" || true
+rm -f python/src/squishy_volumes_extension/wheels/*.whl
 
 uv run --with toml "${scripts_dir}/update_lib_version.py"
 

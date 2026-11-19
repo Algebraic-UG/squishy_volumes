@@ -4,7 +4,7 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-rm -f python/wheels/*
+rm -f python/src/squishy_volumes_extension/wheels/*.whl
 
 echo "Updating lib version"
 uv run --with toml scripts/update_lib_version.py
