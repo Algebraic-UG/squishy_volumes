@@ -18,12 +18,12 @@
 
 import datetime
 import json
-import os
 import uuid
 
 import bpy
 
 from ..bridge import SimulationHandle, build_info
+from ..cache_paths import first_frame_file, simulation_input_exists
 from ..capture_markers import (
     range_to_record,
     remove_capture_markers_if_enabled,
@@ -47,7 +47,6 @@ from ..util import (
     copy_simple_property_group,
     force_ui_redraw,
     read_stats,
-    simulation_input_exists,
     u64_to_giga_f32,
 )
 
@@ -96,9 +95,7 @@ def setup_cache_file(sim_obj):
 
     # weird little dance since we have to use the operator
     before = {c.name for c in bpy.data.cache_files}
-    bpy.ops.cachefile.open(
-        filepath=os.path.join(sim_obj.squishy_volumes.directory, "frame_00000.abc")
-    )
+    bpy.ops.cachefile.open(filepath=first_frame_file(sim_obj.squishy_volumes.directory))
     created = {c.name for c in bpy.data.cache_files} - before
     if len(created) != 1:
         raise RuntimeError("File cache creation failed")

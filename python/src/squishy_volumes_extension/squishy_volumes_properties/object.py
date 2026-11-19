@@ -20,7 +20,7 @@
 import bpy
 
 from ..bridge import SimulationHandle
-from ..util import simulation_input_exists
+from ..cache_paths import simulation_input_exists
 from .object_input import *
 from .object_simulation import *
 

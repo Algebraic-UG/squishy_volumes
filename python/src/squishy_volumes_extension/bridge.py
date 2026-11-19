@@ -25,11 +25,11 @@ import bpy
 import numpy
 from bpy.app.handlers import persistent
 
+from .cache_paths import absolute_cache_directory
 from .get_preferences import debug_log
 from .hint_at_info import *
 from .registration import add_handler, remove_handler
 from .shim import *
-from .util import absolute_cache_directory
 
 
 @hint_at_info

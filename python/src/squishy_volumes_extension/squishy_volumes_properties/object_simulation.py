@@ -16,13 +16,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import os
 import re
-from pathlib import Path
 
 import bpy
 
 from ..bridge import DETECTED_DEVICES, SimulationHandle
+from ..cache_paths import first_frame_file, normalize_directory
 from ..get_preferences import get_default_cache_location
 
 TYPE_SIMULATION = "Simulation"
@@ -86,12 +85,6 @@ def update_capture_end_frame(self, _context):
     keep_capture_end_after_start(self)
 
 
-def normalize_directory(directory: str) -> str:
-    if directory.startswith("//"):
-        return "//" + str(Path(directory[2:]))
-    return str(Path(directory))
-
-
 def update_directory(self, context):
     if self.directory != normalize_directory(self.directory):
         self.directory = normalize_directory(self.directory)
@@ -113,7 +106,7 @@ def update_directory(self, context):
         sim.drop()
 
     if self.cache_file is not None:
-        self.cache_file.filepath = os.path.join(self.directory, "frame_00000.abc")
+        self.cache_file.filepath = first_frame_file(self.directory)
 
 
 class Squishy_Volumes_Properties_Simulation(bpy.types.PropertyGroup):
@@ -136,7 +129,8 @@ Paths starting with '//' are relative to the .blend file.
 This includes settings, meshes, animations and simulated frames.
 If there exists a cache at the location it can be loaded.
 
-The directory will contain "setup.json", "frame_xxxxx.bin", and "lock".
+The directory will contain "simulation_input.bin", "frame_xxxxx.abc",
+"stats.csv", and "lock".
 The latter is locked while a simulation uses the directory.""",
         default="",
         get=get_directory_with_default,

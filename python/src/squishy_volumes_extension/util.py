@@ -17,13 +17,14 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import csv
-import os
 from pathlib import Path
 from typing import Any
 
 import bpy
 import mathutils
 import numpy as np
+
+from .cache_paths import simulation_stats_path
 
 
 def get_simulation_obj(simulation, name):
@@ -74,30 +75,6 @@ def force_ui_redraw():
         for area in window.screen.areas:
             if area.type == "VIEW_3D":
                 area.tag_redraw()
-
-
-def cache_directory_is_resolvable(directory: str) -> bool:
-    return not directory.startswith("//") or bool(bpy.data.filepath)
-
-
-def absolute_cache_directory(directory: str) -> Path:
-    if not cache_directory_is_resolvable(directory):
-        raise RuntimeError(
-            f"The cache directory '{directory}' is relative to the .blend file.\n"
-            "Save the .blend file first or choose an absolute cache directory."
-        )
-    return Path(bpy.path.abspath(directory))
-
-
-def simulation_input_exists(directory: str):
-    return cache_directory_is_resolvable(directory) and os.path.exists(
-        absolute_cache_directory(directory) / "simulation_input.bin"
-    )
-
-
-# written by the store thread, see rust/crates/cache/src/stats.rs
-def simulation_stats_path(directory: str):
-    return absolute_cache_directory(directory) / "stats.csv"
 
 
 def _parse_stat(value: str) -> int | float | None:
