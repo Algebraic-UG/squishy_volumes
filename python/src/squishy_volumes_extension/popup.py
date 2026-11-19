@@ -19,7 +19,7 @@
 import bpy
 
 from .bridge import SimulationHandle
-from .input_capture import ScaledInputError
+from .errors import ScaledInputError
 from .registration import class_registration
 from .squishy_volumes_properties import get_simulation_objects
 
@@ -86,7 +86,7 @@ register_popup, unregister_popup = class_registration(classes)
 
 
 def popup(uuid: str, message: str, show_allow_scaled_input: bool = False):
-    if not bpy.context.window:
+    if bpy.app.background or not bpy.context.window:
         return
     bpy.ops.scene.squishy_volumes_popup(
         "INVOKE_DEFAULT",

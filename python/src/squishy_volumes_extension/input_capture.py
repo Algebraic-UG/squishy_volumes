@@ -22,6 +22,7 @@ import numpy as np
 
 from . import input_attributes
 from .bridge import SimulationInputHandle
+from .errors import InvalidInput, ScaledInputError
 from .get_preferences import get_allow_scaled_input, get_domain_max, get_domain_min
 from .squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
@@ -29,10 +30,6 @@ from .squishy_volumes_properties import (
     PARTICLE_ATTRIBUTE_MAPPING,
     get_input_objects_with_uuid,
 )
-
-
-class ScaledInputError(RuntimeError):
-    pass
 
 
 def create_input_header(sim_props):
@@ -93,7 +90,7 @@ def create_input_header(sim_props):
             collider_inputs += 1
 
     if collider_inputs > 16:
-        raise RuntimeError(f"""More than 16 colliders (you have {collider_inputs})
+        raise InvalidInput(f"""More than 16 colliders (you have {collider_inputs})
 
 Please consider joining some of them in a single object,
 or reduce the number of collider objects in other ways.

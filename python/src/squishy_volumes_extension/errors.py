@@ -27,3 +27,15 @@ class SimulationNotFound(SquishyVolumesError):
 
 class InvalidInput(SquishyVolumesError):
     pass
+
+
+class ScaledInputError(InvalidInput):
+    pass
+
+
+class CaptureRangeError(SquishyVolumesError):
+    pass
+
+
+class UnresolvableCacheDirectory(SquishyVolumesError):
+    pass
