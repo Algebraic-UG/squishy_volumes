@@ -47,12 +47,16 @@ def cache_directory_is_resolvable(directory: str) -> bool:
     return not directory.startswith(BLEND_RELATIVE_PREFIX) or bool(bpy.data.filepath)
 
 
-def absolute_cache_directory(directory: str) -> Path:
+def check_cache_directory(directory: str):
     if not cache_directory_is_resolvable(directory):
         raise UnresolvableCacheDirectory(
             f"The cache directory '{directory}' is relative to the .blend file.\n"
             "Save the .blend file first or choose an absolute cache directory."
         )
+
+
+def absolute_cache_directory(directory: str) -> Path:
+    check_cache_directory(directory)
     return Path(bpy.path.abspath(directory))
 
 

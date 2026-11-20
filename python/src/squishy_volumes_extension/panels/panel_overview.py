@@ -23,10 +23,11 @@ import bpy
 
 from .. import api
 from ..bridge import SimulationHandle, build_info
-from ..cache_paths import simulation_input_exists
+from ..cache_paths import check_cache_directory, simulation_input_exists
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
+from ..get_preferences import get_default_cache_location
 from ..operator_base import ReportingOperator, SimulationOperator
-from ..popup import popup
+from ..popup import popup, show_message
 from ..registration import class_registration
 from ..squishy_volumes_properties import (
     frame_to_load,
@@ -65,9 +66,33 @@ The UI will be blocked for a few seconds.""",
     )
 
     def run(self, context):
-        sim_obj = setup_example_simulation(context, self.startup_choice)
+        check_cache_directory(get_default_cache_location())
+        try:
+            sim_obj = setup_example_simulation(context, self.startup_choice)
+        except RuntimeError as error:
+            self.warn("", f"The example setup is incomplete:\n{error}")
+            return {"FINISHED"}
         select_simulation(context, sim_obj)
+        try:
+            api.record_input(sim_obj, scene=context.scene)
+        except RuntimeError as error:
+            self.warn(
+                sim_obj.squishy_volumes.uuid,
+                f"{sim_obj.name} is set up but not recorded:\n{error}",
+            )
+            return {"FINISHED"}
+        try:
+            api.bake(sim_obj)
+        except RuntimeError as error:
+            self.warn(
+                sim_obj.squishy_volumes.uuid,
+                f"{sim_obj.name} is set up but not baking:\n{error}",
+            )
         return {"FINISHED"}
+
+    def warn(self, uuid: str, message: str):
+        show_message(uuid, message)
+        self.report({"WARNING"}, message.splitlines()[0])
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=400)

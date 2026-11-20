@@ -16,15 +16,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import shutil
 from collections.abc import Generator
 
 import bpy
 
 from .. import api
-from ..api.record import release_cache_file
 from ..bridge import SimulationHandle
-from ..cache_paths import absolute_cache_directory, simulation_input_exists
+from ..cache_paths import simulation_input_exists
 from ..capture_markers import (
     capture_markers,
     capture_markers_error,
@@ -36,7 +34,6 @@ from ..capture_markers import (
 from ..get_preferences import (
     get_confirm_bake_overwrite,
     get_enable_timeline_markers,
-    get_sanity_check_allowed_disk_space,
 )
 from ..operator_base import SimulationOperator, report_error
 from ..registration import class_registration
@@ -50,10 +47,6 @@ from ..squishy_volumes_properties import (
     get_simulation_object_with_uuid,
     stored_range,
 )
-from ..util import (
-    giga_f32_to_u64,
-    u64_to_giga_f32,
-)
 
 
 def rebake_frame(
@@ -66,43 +59,6 @@ def rebake_frame(
     if loaded_frame is None or loaded_frame + 1 >= sim_handle.available_frames():
         return None
     return loaded_frame
-
-
-def start_compute(
-    sim_handle: SimulationHandle,
-    sim_props: Squishy_Volumes_Properties_Simulation,
-    next_frame: int,
-    number_of_frames: int,
-) -> bool:
-    sim_handle.last_error = None
-
-    if get_sanity_check_allowed_disk_space():
-        allowed = sim_props.max_giga_bytes_on_disk
-        free = u64_to_giga_f32(
-            shutil.disk_usage(absolute_cache_directory(sim_props.directory)).free
-        )
-        if allowed > free:
-            raise RuntimeError(
-                f"""The disk might run out of space!
-
-Squishy Volumes is allowed to use up to {allowed:.2f} GB,
-but only {free:.2f} GB are free.
-
-This check can be disabled in the add-on preferences."""
-            )
-
-    compute_settings = {
-        "time_step": sim_props.time_step,
-        "gpu": None if sim_props.compute_device == "CPU" else sim_props.compute_device,
-        "adaptive_time_steps": sim_props.adaptive_time_steps,
-        "next_frame": next_frame,
-        "number_of_frames": number_of_frames,
-        "max_bytes_on_disk": giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
-    }
-    release_cache_file(sim_props)
-    sim_handle.start_compute(compute_settings=compute_settings)
-
-    return True
 
 
 class SCENE_OT_Squishy_Volumes_Fix_Capture_Markers(bpy.types.Operator):
@@ -294,14 +250,18 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
 
 
 def start_baking(operator, sim_obj: bpy.types.Object):
-    sim_props = sim_obj.squishy_volumes
-    sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
-    assert sim_handle is not None
-    start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
+    api.bake(sim_obj)
     operator.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
 
 
-class SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest(bpy.types.Operator):
+def selected_simulation_handle(context) -> SimulationHandle | None:
+    uuid = get_selected_simulation_uuid(context.scene)
+    return None if uuid is None else SimulationHandle.get(uuid=uuid)
+
+
+class SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest(
+    SimulationOperator, bpy.types.Operator
+):
     bl_idname = "scene.squishy_volumes_bake_start_from_latest"
     bl_label = "Bake (from latest)"
     bl_description = """Continue baking physics.
@@ -311,39 +271,25 @@ either until the desired number of frames is reached
 or cancellation occurs due to user input or error."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-
     @classmethod
     def poll(cls, context):
         sim_obj = get_selected_simulation_object(context.scene)
-        if sim_obj is None:
-            return False
-        uuid = sim_obj.squishy_volumes.uuid
-        sim_obj = get_simulation_object_with_uuid(uuid)
-        sim_handle = SimulationHandle.get(uuid=uuid)
+        sim_handle = selected_simulation_handle(context)
         return (
-            sim_handle is not None
+            sim_obj is not None
+            and sim_handle is not None
             and not sim_handle.baking()
             and sim_handle.available_frames() < sim_obj.squishy_volumes.bake_frames
         )
 
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes
-        sim_handle = SimulationHandle.get(uuid=self.uuid)
-        assert sim_handle is not None
-        start_compute(
-            sim_handle=sim_handle,
-            sim_props=sim_props,
-            next_frame=sim_handle.available_frames(),
-            number_of_frames=sim_props.bake_frames,
-        )
-
-        self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+    def run(self, context):
+        start_baking(self, self.sim_obj)
         return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded(
+    SimulationOperator, bpy.types.Operator
+):
     bl_idname = "scene.squishy_volumes_bake_start_from_loaded"
     bl_label = "Bake"
     bl_description = """Restart baking physics.
@@ -356,61 +302,51 @@ Note that this discards already computed frames that
 come after the displayed one."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-
     @classmethod
     def poll(cls, context):
         sim_obj = get_selected_simulation_object(context.scene)
-        if sim_obj is None:
-            return False
-        sim_props = sim_obj.squishy_volumes
-        if sim_obj is None:
-            return False
-        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+        sim_handle = selected_simulation_handle(context)
         return (
-            sim_handle is not None
+            sim_obj is not None
+            and sim_handle is not None
             and not sim_handle.baking()
-            and rebake_frame(sim_handle, sim_props, context.scene) is not None
+            and rebake_frame(sim_handle, sim_obj.squishy_volumes, context.scene)
+            is not None
         )
 
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes
+    def run(self, context):
+        sim_obj = self.sim_obj
         sim_handle = SimulationHandle.get(uuid=self.uuid)
-        assert sim_handle is not None
-        loaded_frame = rebake_frame(sim_handle, sim_props, context.scene)
-        assert loaded_frame is not None
-        start_compute(
-            sim_handle=sim_handle,
-            sim_props=sim_props,
-            next_frame=loaded_frame + 1,
-            number_of_frames=sim_props.bake_frames,
+        loaded_frame = (
+            None
+            if sim_handle is None
+            else rebake_frame(sim_handle, sim_obj.squishy_volumes, context.scene)
         )
-        self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
+        if loaded_frame is None:
+            raise api.InvalidBakeRange(
+                f"The displayed frame of {sim_obj.name} has no baked frames after it"
+            )
+        api.bake(sim_obj, from_frame=loaded_frame)
+        self.report(
+            {"INFO"}, f"Commence baking of {sim_obj.name} from frame {loaded_frame}."
+        )
         return {"FINISHED"}
 
 
-class SCENE_OT_Squishy_Volumes_Bake_Pause(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Bake_Pause(SimulationOperator, bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_bake_pause"
     bl_label = "Pause"
     bl_description = "Pause the computation of the simulation frames."
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-
     @classmethod
     def poll(cls, context):
-        uuid = get_selected_simulation_uuid(context.scene)
-        if uuid is None:
-            return False
-        sim_handle = SimulationHandle.get(uuid=uuid)
+        sim_handle = selected_simulation_handle(context)
         return sim_handle is not None and sim_handle.baking()
 
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_handle = SimulationHandle.get(uuid=self.uuid)
-        assert sim_handle is not None
-        sim_handle.pause_compute()
+    def run(self, context):
+        sim_obj = self.sim_obj
+        api.pause_bake(sim_obj)
         self.report({"INFO"}, f"Baking of {sim_obj.name} paused.")
         return {"FINISHED"}
 

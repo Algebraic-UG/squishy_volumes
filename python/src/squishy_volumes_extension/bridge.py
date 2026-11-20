@@ -117,6 +117,7 @@ class SimulationHandle:
         self.handle = handle
         self.last_error = None
         self.poll_info = None
+        self.bake_errors: list[str] = []
 
     @staticmethod
     def exists(*, uuid: str) -> bool:
@@ -145,11 +146,19 @@ class SimulationHandle:
     def input_header(self) -> dict[str, Any]:
         return json.loads(self.handle.input_header())
 
-    @hint_at_info
     def poll(self) -> bool:
         poll_info = deepcopy(self.poll_info)
-        self.poll_info = json.loads(self.handle.poll())
+        try:
+            self.poll_info = json.loads(self.handle.poll())
+        except RuntimeError as error:
+            return self._record_bake_error(str(error))
         return poll_info != self.poll_info
+
+    def _record_bake_error(self, message: str) -> bool:
+        if message in self.bake_errors:
+            return False
+        self.bake_errors.append(message)
+        return True
 
     @hint_at_info
     def baking(self) -> bool:
@@ -161,13 +170,19 @@ class SimulationHandle:
         *,
         compute_settings: dict[str, Any],
     ):
+        self.clear_errors()
         self.handle.start_compute(
             compute_settings=json.dumps(compute_settings),
         )
 
-    @hint_at_info
+    def clear_errors(self):
+        self.bake_errors = []
+
     def pause_compute(self):
-        self.handle.pause_compute()
+        try:
+            self.handle.pause_compute()
+        except RuntimeError as error:
+            self._record_bake_error(str(error))
 
     @hint_at_info
     def available_frames(self) -> int:

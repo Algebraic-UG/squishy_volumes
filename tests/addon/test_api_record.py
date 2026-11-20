@@ -81,9 +81,7 @@ class RecordInputTest(RecordTestCase):
         bpy.ops.scene.squishy_volumes_record_input_to_cache(
             uuid=sim_props.uuid, start_baking=True
         )
-        bpy.ops.scene.squishy_volumes_wait_until_finished(
-            simulation_uuid=sim_props.uuid, timeout_sec=300
-        )
+        api().wait_until_baked(self.sim_obj, timeout_sec=300)
         self.assertEqual(simulation_handle(self.sim_obj).available_frames(), 2)
 
         api().record_input(self.sim_obj)
