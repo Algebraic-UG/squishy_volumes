@@ -241,6 +241,22 @@ impl ComputeThread {
             .is_some_and(|thread| !thread.is_finished())
     }
 
+    pub fn stop(mut self) -> Result<(), Error> {
+        let Some(thread) = self.thread.take() else {
+            return Ok(());
+        };
+        if !thread.is_finished() {
+            self.harness.cancel();
+        }
+        match thread
+            .join()
+            .map_err(|e| Error::ComputePanic(panic_payload_to_string(e)))?
+        {
+            Err(error) if error.is_cancellation() => Ok(()),
+            result => result,
+        }
+    }
+
     pub fn poll(&mut self) -> Result<Vec<ReportInfo>, Error> {
         let Some(thread) = self.thread.take() else {
             return Ok(Default::default());
@@ -275,5 +291,72 @@ fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
             .as_ref()
             .map(|grid_nodes| grid_nodes.collider_bits.len() as u32),
         compute,
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::result_large_err)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    fn compute_thread(
+        work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
+    ) -> ComputeThread {
+        let harness = Harness::new("test".to_string(), NonZero::new(1).unwrap());
+        let thread = {
+            let harness = harness.clone();
+            Some(spawn(move || work(harness)))
+        };
+        ComputeThread { harness, thread }
+    }
+
+    fn until_canceled(harness: Harness) -> Result<(), Error> {
+        while !harness.is_canceled() {
+            std::thread::sleep(Duration::from_millis(1));
+        }
+        harness.check()?;
+        Ok(())
+    }
+
+    #[test]
+    fn stopping_a_running_thread_is_not_an_error() {
+        let thread = compute_thread(until_canceled);
+
+        assert!(thread.stop().is_ok());
+    }
+
+    #[test]
+    fn stopping_a_thread_canceled_deep_inside_is_not_an_error() {
+        let thread = compute_thread(|harness| {
+            until_canceled(harness).map_err(|_| {
+                Error::CpuCompute(squishy_volumes_cpu::Error::HarnessError(
+                    squishy_volumes_xpu::HarnessError::Canceled,
+                ))
+            })
+        });
+
+        assert!(thread.stop().is_ok());
+    }
+
+    #[test]
+    fn stopping_a_failed_thread_returns_its_error() {
+        let thread = compute_thread(|_| Err(Error::StoredError("broken".to_string())));
+        while thread.running() {
+            std::thread::yield_now();
+        }
+
+        assert!(matches!(thread.stop(), Err(Error::StoredError(_))));
+    }
+
+    #[test]
+    fn stopping_a_panicked_thread_reports_the_panic() {
+        let thread = compute_thread(|_| panic!("compute thread test panic"));
+        while thread.running() {
+            std::thread::yield_now();
+        }
+
+        assert!(matches!(thread.stop(), Err(Error::ComputePanic(_))));
     }
 }

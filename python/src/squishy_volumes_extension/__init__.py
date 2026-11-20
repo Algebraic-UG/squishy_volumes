@@ -47,7 +47,6 @@ from .progress_update import (
     unregister_progress_update,
     unregister_progress_update_toggle,
 )
-from .script_utils import register_script_utils, unregister_script_utils
 from .squishy_volumes_properties import register_properties, unregister_properties
 from .view_utils import register_view_utils, unregister_view_utils
 
@@ -78,7 +77,6 @@ def register():
     register_progress_update()
     register_progress_update_toggle()
     register_view_utils()
-    register_script_utils()
     register_append_handler()
     register_prune_simulation_handles()
     register_drop_simulation_handles_on_load()
@@ -92,7 +90,6 @@ def unregister():
     unregister_drop_simulation_handles_on_load()
     unregister_prune_simulation_handles()
     unregister_append_handler()
-    unregister_script_utils()
     unregister_view_utils()
     unregister_progress_update_toggle()
     unregister_progress_update()

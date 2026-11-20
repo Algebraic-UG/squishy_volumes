@@ -139,7 +139,9 @@ impl SimulationImpl {
             return Ok(());
         };
 
-        self.pause_compute_impl();
+        if let Err(error) = self.pause_compute_impl() {
+            warn!(?error, "the previous computation failed");
+        }
 
         self.cache.check().map_err(Error::CacheCheck)?;
         self.cache
@@ -159,8 +161,10 @@ impl SimulationImpl {
         Ok(())
     }
 
-    pub fn pause_compute_impl(&mut self) {
-        self.compute_thread = None;
+    pub fn pause_compute_impl(&mut self) -> Result<(), Error> {
+        self.compute_thread
+            .take()
+            .map_or(Ok(()), ComputeThread::stop)
     }
 
     pub fn available_frames_impl(&self) -> usize {

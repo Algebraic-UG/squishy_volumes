@@ -109,6 +109,4 @@ def setup_example_benchmark(context: bpy.types.Context):
     )
     api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
-    api.record_input(sim_obj, scene=context.scene)
-
     return sim_obj

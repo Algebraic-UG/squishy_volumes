@@ -33,8 +33,8 @@ impl squishy_volumes_api::Simulation for crate::SimulationImpl {
         Ok(self.start_compute_impl(compute_settings)?)
     }
 
-    fn pause_compute(&mut self) {
-        self.pause_compute_impl()
+    fn pause_compute(&mut self) -> anyhow::Result<()> {
+        Ok(self.pause_compute_impl()?)
     }
 
     fn available_frames(&self) -> usize {

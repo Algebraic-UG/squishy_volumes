@@ -50,6 +50,4 @@ def setup_example_boing_block(context: bpy.types.Context):
     )
     api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
-    api.record_input(sim_obj, scene=context.scene)
-
     return sim_obj

@@ -39,3 +39,23 @@ class CaptureRangeError(SquishyVolumesError):
 
 class UnresolvableCacheDirectory(SquishyVolumesError):
     pass
+
+
+class SimulationNotLoaded(SquishyVolumesError):
+    pass
+
+
+class InsufficientDiskSpace(SquishyVolumesError):
+    pass
+
+
+class InvalidBakeRange(SquishyVolumesError):
+    pass
+
+
+class BakeFailed(SquishyVolumesError):
+    pass
+
+
+class BakeTimeout(SquishyVolumesError):
+    pass

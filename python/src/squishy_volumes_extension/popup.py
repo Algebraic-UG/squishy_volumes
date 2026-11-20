@@ -19,7 +19,6 @@
 import bpy
 
 from .bridge import SimulationHandle
-from .errors import ScaledInputError
 from .registration import class_registration
 from .squishy_volumes_properties import get_simulation_objects
 
@@ -50,9 +49,10 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
 
         self.report(
             {"INFO"},
-            message="Squishy Volumes clearing last message:\n" + sim.last_error,
+            message=f"Squishy Volumes clearing last message:\n{sim.last_error or ''}",
         )
         sim.last_error = None
+        sim.clear_errors()
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -96,18 +96,12 @@ def popup(uuid: str, message: str, show_allow_scaled_input: bool = False):
     )
 
 
-def with_popup(*, uuid, f):
-    try:
-        return f()
-    except RuntimeError as e:
-        sim = SimulationHandle.get(uuid=uuid)
-        if sim is None:
-            message = f"{e}"
-        else:
-            message = f"""{e}
+def show_message(uuid: str, message: str, show_allow_scaled_input: bool = False):
+    sim = SimulationHandle.get(uuid=uuid)
+    if sim is not None:
+        message = f"""{message}
 (Please 'Clear Message' to print to 'Info')"""
-            if sim.last_error == message:
-                return
-            sim.last_error = message
-
-        popup(uuid, message, isinstance(e, ScaledInputError))
+        if sim.last_error == message:
+            return
+        sim.last_error = message
+    popup(uuid, message, show_allow_scaled_input)
