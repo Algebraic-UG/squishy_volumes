@@ -20,6 +20,8 @@ from pathlib import Path
 
 import bpy
 
+from .errors import UnresolvableCacheDirectory
+
 BLEND_RELATIVE_PREFIX = "//"
 SIMULATION_INPUT_FILE = "simulation_input.bin"
 STATS_FILE = "stats.csv"
@@ -47,7 +49,7 @@ def cache_directory_is_resolvable(directory: str) -> bool:
 
 def absolute_cache_directory(directory: str) -> Path:
     if not cache_directory_is_resolvable(directory):
-        raise RuntimeError(
+        raise UnresolvableCacheDirectory(
             f"The cache directory '{directory}' is relative to the .blend file.\n"
             "Save the .blend file first or choose an absolute cache directory."
         )

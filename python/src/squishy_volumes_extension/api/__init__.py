@@ -16,7 +16,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .errors import InvalidInput, SimulationNotFound, SquishyVolumesError
+from ..errors import (
+    CaptureRangeError,
+    InvalidInput,
+    ScaledInputError,
+    SimulationNotFound,
+    SquishyVolumesError,
+    UnresolvableCacheDirectory,
+)
 from .inputs import (
     COLLIDER,
     PARTICLES,
@@ -26,6 +33,12 @@ from .inputs import (
     is_input,
     remove_input,
     reset_alembic_attributes,
+)
+from .record import (
+    capture_range,
+    iter_record_input,
+    record_input,
+    set_capture_range,
 )
 from .simulation import (
     add_simulation,
@@ -41,21 +54,28 @@ from .simulation import (
 __all__ = [
     "COLLIDER",
     "PARTICLES",
+    "CaptureRangeError",
     "InvalidInput",
+    "ScaledInputError",
     "SimulationNotFound",
     "SquishyVolumesError",
+    "UnresolvableCacheDirectory",
     "add_input",
     "add_simulation",
+    "capture_range",
     "clone_simulation",
     "copy_alembic_attributes",
     "find_simulation",
     "input_objects",
     "input_problem",
     "is_input",
+    "iter_record_input",
+    "record_input",
     "reload",
     "reload_all",
     "remove_input",
     "remove_simulation",
     "reset_alembic_attributes",
+    "set_capture_range",
     "simulations",
 ]

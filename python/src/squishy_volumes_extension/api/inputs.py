@@ -26,6 +26,7 @@ from ..assets import (
     create_geometry_nodes_visualize_particles,
 )
 from ..drivers import add_drivers
+from ..errors import InvalidInput
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
@@ -33,7 +34,6 @@ from ..squishy_volumes_properties import (
     get_simulation_objects,
 )
 from ..util import copy_simple_property_group
-from .errors import InvalidInput
 
 PARTICLES = INPUT_TYPE_PARTICLES
 COLLIDER = INPUT_TYPE_COLLIDER

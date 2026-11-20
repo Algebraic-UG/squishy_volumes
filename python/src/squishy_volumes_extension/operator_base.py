@@ -19,8 +19,13 @@
 import bpy
 
 from .api import find_simulation
-from .input_capture import ScaledInputError
+from .errors import ScaledInputError
 from .popup import popup
+
+
+def report_error(operator, uuid: str, error: RuntimeError):
+    popup(uuid, str(error), isinstance(error, ScaledInputError))
+    operator.report({"ERROR"}, str(error))
 
 
 class ReportingOperator:
@@ -30,8 +35,7 @@ class ReportingOperator:
         try:
             return self.run(context)
         except RuntimeError as error:
-            popup(self.popup_uuid, str(error), isinstance(error, ScaledInputError))
-            self.report({"ERROR"}, str(error))
+            report_error(self, self.popup_uuid, error)
             return {"CANCELLED"}
 
     def run(self, context) -> set[str]:

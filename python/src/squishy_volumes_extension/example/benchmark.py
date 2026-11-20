@@ -28,7 +28,6 @@ EXAMPLE_BENCHMARK = "Benchmark"
 def setup_example_benchmark(context: bpy.types.Context):
     sim_obj = api.add_simulation(EXAMPLE_BENCHMARK, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
-    sim_uuid = sim_props.uuid
 
     sim_props.grid_node_size = 0.1
     sim_props.time_step = 0.001
@@ -110,11 +109,6 @@ def setup_example_benchmark(context: bpy.types.Context):
     )
     api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
-    bpy.ops.scene.squishy_volumes_record_input_to_cache(
-        "INVOKE_DEFAULT",
-        uuid=sim_uuid,
-        blocking=True,
-        start_baking=False,
-    )
+    api.record_input(sim_obj, scene=context.scene)
 
     return sim_obj

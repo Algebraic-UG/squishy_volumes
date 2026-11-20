@@ -17,10 +17,13 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import shutil
+from collections.abc import Generator
 
 import bpy
 
-from ..bridge import SimulationHandle, SimulationInputHandle
+from .. import api
+from ..api.record import release_cache_file
+from ..bridge import SimulationHandle
 from ..cache_paths import absolute_cache_directory, simulation_input_exists
 from ..capture_markers import (
     capture_markers,
@@ -28,7 +31,6 @@ from ..capture_markers import (
     place_capture_markers,
     range_to_record,
     remove_superfluous_capture_markers,
-    store_capture_range,
     superfluous_capture_markers,
 )
 from ..get_preferences import (
@@ -36,8 +38,7 @@ from ..get_preferences import (
     get_enable_timeline_markers,
     get_sanity_check_allowed_disk_space,
 )
-from ..input_capture import capture_input_frame, create_input_header
-from ..popup import with_popup
+from ..operator_base import SimulationOperator, report_error
 from ..registration import class_registration
 from ..squishy_volumes_properties import (
     Squishy_Volumes_Properties_Simulation,
@@ -65,17 +66,6 @@ def rebake_frame(
     if loaded_frame is None or loaded_frame + 1 >= sim_handle.available_frames():
         return None
     return loaded_frame
-
-
-def release_cache_file(sim_props: Squishy_Volumes_Properties_Simulation):
-    """Close the frame Blender keeps open for display.
-
-    See https://github.com/Algebraic-UG/squishy_volumes/issues/421"""
-    cache_file = sim_props.cache_file
-    if cache_file is None:
-        return
-    layer = cache_file.layers.new(filepath="//squishy_volumes_release_handle.abc")
-    cache_file.layers.remove(layer)
 
 
 def start_compute(
@@ -113,9 +103,6 @@ This check can be disabled in the add-on preferences."""
     sim_handle.start_compute(compute_settings=compute_settings)
 
     return True
-
-
-SIMULATION_INPUT = None
 
 
 class SCENE_OT_Squishy_Volumes_Fix_Capture_Markers(bpy.types.Operator):
@@ -171,7 +158,9 @@ With more, only the earliest and the latest are kept."""
             self.layout.label(text=f"Deletes the markers at frames {frames}.")
 
 
-class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache(bpy.types.Operator):
+class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache(
+    SimulationOperator, bpy.types.Operator
+):
     bl_idname = "scene.squishy_volumes_record_input_to_cache"
     bl_label = "Record Input"
     bl_description = """(Over)Write the cache with the new input.
@@ -186,94 +175,24 @@ to the simulation cache.
 Note that this also discards all computed frames in the cache."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
-    uuid: bpy.props.StringProperty()
-    blocking: bpy.props.BoolProperty(default=False)
     start_baking: bpy.props.BoolProperty(default=False)
 
-    def execute(self, context: bpy.types.Context):
-        assert context.scene is not None
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes
-
-        capture_range = range_to_record(context.scene, sim_obj)
-        if capture_range is None:
-            self.report({"ERROR"}, capture_markers_error(context.scene, sim_obj))
-            return {"CANCELLED"}
-        store_capture_range(sim_props, *capture_range)
-
-        self.report({"INFO"}, f"Resetting {sim_obj.name}")
-
-        sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
-        if sim_handle is not None:
-            sim_handle.drop()
-
-        prior_frame = context.scene.frame_current
-        animation_was_playing = False
-        if context.screen is not None:
-            animation_was_playing = context.screen.is_animation_playing
-        bpy.ops.screen.animation_cancel()
-
-        context.scene.frame_set(sim_props.capture_start_frame)
-
-        input_header = with_popup(
-            uuid=self.uuid, f=lambda: create_input_header(sim_props)
-        )
-        if input_header is None:
-            return {"FINISHED"}
-
-        self.report({"INFO"}, f"Collected input header for {sim_obj.name}")
-
-        sim_input_handle = with_popup(
-            uuid=self.uuid,
-            f=lambda: SimulationInputHandle.new(
-                uuid=self.uuid,
-                directory=sim_props.directory,
-                input_header=input_header,
-                max_bytes_on_disk=giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
-            ),
-        )
-        if sim_input_handle is None:
-            return {"FINISHED"}
-
-        self.report({"INFO"}, f"(Re)Created {sim_obj.name}")
-        frame_dirver = sim_props.cache_file.animation_data.drivers.find("frame")
-        if frame_dirver is not None:
-            frame_dirver.driver.expression = f"frame - {sim_props.capture_start_frame}"
-
-        if not self.blocking:
-            global SIMULATION_INPUT
-            SIMULATION_INPUT = sim_input_handle
+    def run(self, context):
+        sim_obj = self.sim_obj
+        api.capture_range(sim_obj, scene=context.scene)
+        if not bpy.app.background:
             bpy.ops.scene.squishy_volumes_record_input_to_cache_modal(
-                "INVOKE_DEFAULT",
-                uuid=self.uuid,
-                prior_frame=prior_frame,
-                animation_was_playing=animation_was_playing,
-                start_baking=self.start_baking,
+                "INVOKE_DEFAULT", uuid=self.uuid, start_baking=self.start_baking
             )
             return {"FINISHED"}
-
-        for i in range(capture_frame_count(sim_props)):
-            capture_input_frame(
-                sim_props=sim_props,
-                sim_input_handle=sim_input_handle,
-            )
-            if i + 1 < capture_frame_count(sim_props):
-                context.scene.frame_set(context.scene.frame_current + 1)
-
-        context.scene.frame_set(prior_frame)
-        if animation_was_playing:
-            bpy.ops.screen.animation_play()
-
-        release_cache_file(sim_props)
-        sim_handle = SimulationHandle.new()
+        recorded_frames = api.record_input(sim_obj, scene=context.scene)
+        self.report({"INFO"}, f"Recorded {recorded_frames} frames of {sim_obj.name}.")
         if self.start_baking:
-            start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
-            self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
-
+            start_baking(self, sim_obj)
         return {"FINISHED"}
 
     def invoke(self, context, event):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
+        sim_obj = self.sim_obj
         if range_to_record(context.scene, sim_obj) is None:
             bpy.ops.scene.squishy_volumes_fix_capture_markers(
                 "INVOKE_DEFAULT", uuid=self.uuid
@@ -282,11 +201,9 @@ Note that this also discards all computed frames in the cache."""
         if (
             simulation_input_exists(sim_obj.squishy_volumes.directory)
             and get_confirm_bake_overwrite()
-            and not self.blocking  # implies script usage
         ):
             return context.window_manager.invoke_props_dialog(self)
-        else:
-            return self.execute(context)
+        return self.execute(context)
 
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
@@ -307,97 +224,81 @@ class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
     bl_options = set()  # noqa: RUF012
 
     uuid: bpy.props.StringProperty()
-    prior_frame: bpy.props.IntProperty()
-    animation_was_playing: bpy.props.BoolProperty()
     start_baking: bpy.props.BoolProperty(default=False)
 
     _timer = None
+    _recording = None
+    _animation_was_playing = False
 
     def invoke(self, context, event):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes
-
-        context.scene.frame_set(sim_props.capture_start_frame)
-
+        sim_obj = api.find_simulation(self.uuid)
+        start, end = api.capture_range(sim_obj, scene=context.scene)
+        self._animation_was_playing = bool(
+            context.screen and context.screen.is_animation_playing
+        )
+        bpy.ops.screen.animation_cancel(restore_frame=False)
+        self._recording = api.iter_record_input(sim_obj, scene=context.scene)
         self._timer = context.window_manager.event_timer_add(
             time_step=0, window=context.window
         )
-        context.window_manager.progress_begin(0, capture_frame_count(sim_props))
+        context.window_manager.progress_begin(0, end - start + 1)
         context.window_manager.modal_handler_add(self)
-
         return {"RUNNING_MODAL"}
 
+    @property
+    def recording(self) -> Generator[int]:
+        assert self._recording is not None
+        return self._recording
+
     def modal(self, context, event):
-        global SIMULATION_INPUT
-        assert isinstance(SIMULATION_INPUT, SimulationInputHandle)
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        sim_props = sim_obj.squishy_volumes
-
         if event.type in {"RIGHTMOUSE", "ESC"}:
-            context.window_manager.event_timer_remove(self._timer)
-            SIMULATION_INPUT.drop()
-            SIMULATION_INPUT = None
-            self.report(
-                {"WARNING"},
-                f"Capture of {sim_obj.name} incomplete due to user cancellation.",
-            )
-            context.scene.frame_set(self.prior_frame)
-            if self.animation_was_playing:
-                bpy.ops.screen.animation_play()
-            return {"FINISHED"}
-
+            self.cancel(context)
+            self.report({"WARNING"}, "Recording cancelled.")
+            return {"CANCELLED"}
         if event.type != "TIMER":
             return {"RUNNING_MODAL"}
+        finished = True
+        try:
+            recorded_frames = next(self.recording, None)
+            if recorded_frames is not None:
+                context.window_manager.progress_update(recorded_frames)
+                finished = False
+                return {"RUNNING_MODAL"}
+        except RuntimeError as error:
+            report_error(self, self.uuid, error)
+            return {"CANCELLED"}
+        finally:
+            if finished:
+                self.cancel(context)
+        self._report_finished()
+        return {"FINISHED"}
 
-        captured_frames = context.scene.frame_current - sim_props.capture_start_frame
-        assert captured_frames >= 0
-
-        if captured_frames < capture_frame_count(sim_props):
-            if not with_popup(
-                uuid=self.uuid,
-                f=lambda: capture_input_frame(
-                    sim_props=sim_props,
-                    sim_input_handle=SIMULATION_INPUT,  # ty: ignore[invalid-argument-type]
-                ),
-            ):
-                SIMULATION_INPUT.drop()
-                SIMULATION_INPUT = None
-                self.report(
-                    {"WARNING"},
-                    f"Capture of {sim_obj.name} incomplete due to error.",
-                )
-                return {"FINISHED"}
-
-            context.window_manager.progress_update(captured_frames)
-
-        if captured_frames + 1 < capture_frame_count(sim_props):
-            context.scene.frame_set(context.scene.frame_current + 1)
-            return {"RUNNING_MODAL"}
-
-        context.scene.frame_set(self.prior_frame)
-        if self.animation_was_playing:
+    def cancel(self, context):
+        self.recording.close()
+        if self._timer is not None:
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
+            context.window_manager.progress_end()
+        if self._animation_was_playing:
+            self._animation_was_playing = False
             bpy.ops.screen.animation_play()
 
-        context.window_manager.progress_end()
-
-        self.report({"INFO"}, f"Finished capturing input for {sim_obj.name}")
-
-        SIMULATION_INPUT = None
-        release_cache_file(sim_props)
-        sim_handle = SimulationHandle.new()
-
+    def _report_finished(self):
+        sim_obj = api.find_simulation(self.uuid)
+        self.report({"INFO"}, f"Finished recording {sim_obj.name}.")
         if self.start_baking:
-            if with_popup(
-                uuid=self.uuid,
-                f=lambda: start_compute(
-                    sim_handle, sim_props, 0, sim_props.bake_frames
-                ),
-            ):
-                self.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
-            else:
-                self.report({"WARNING"}, f"Failed to start baking of {sim_obj.name}.")
+            try:
+                start_baking(self, sim_obj)
+            except RuntimeError as error:
+                report_error(self, self.uuid, error)
 
-        return {"FINISHED"}
+
+def start_baking(operator, sim_obj: bpy.types.Object):
+    sim_props = sim_obj.squishy_volumes
+    sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
+    assert sim_handle is not None
+    start_compute(sim_handle, sim_props, 0, sim_props.bake_frames)
+    operator.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
 
 
 class SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest(bpy.types.Operator):

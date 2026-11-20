@@ -27,6 +27,7 @@ from ..capture_markers import (
     remove_capture_markers_if_enabled,
     set_capture_range,
 )
+from ..errors import SimulationNotFound, SquishyVolumesError
 from ..get_preferences import get_default_compute_device
 from ..squishy_volumes_properties import (
     PER_SIMULATION_PROPERTIES,
@@ -36,7 +37,6 @@ from ..squishy_volumes_properties import (
     update_directory,
 )
 from ..util import copy_simple_property_group
-from .errors import SimulationNotFound, SquishyVolumesError
 
 
 def simulations() -> list[bpy.types.Object]:
@@ -63,7 +63,7 @@ def add_simulation(
     directory: str | None = None,
     scene: bpy.types.Scene | None = None,
 ) -> bpy.types.Object:
-    scene = _scene_or_current(scene)
+    scene = scene_or_current(scene)
     sim_obj = _new_simulation_object(name)
     sim_props = sim_obj.squishy_volumes
     sim_props.is_simulation = True
@@ -83,7 +83,7 @@ def add_simulation(
 def clone_simulation(
     sim_obj: bpy.types.Object, *, scene: bpy.types.Scene | None = None
 ) -> bpy.types.Object:
-    scene = _scene_or_current(scene)
+    scene = scene_or_current(scene)
     clone = add_simulation(sim_obj.name, scene=scene)
     copy_simple_property_group(
         sim_obj.squishy_volumes, clone.squishy_volumes, PER_SIMULATION_PROPERTIES
@@ -102,7 +102,7 @@ def clone_simulation(
 def remove_simulation(
     sim_obj: bpy.types.Object, *, scene: bpy.types.Scene | None = None
 ):
-    scene = _scene_or_current(scene)
+    scene = scene_or_current(scene)
     for input_obj in input_objects(sim_obj):
         input_obj.squishy_volumes.uuid = ""
     remove_capture_markers_if_enabled(scene, sim_obj)
@@ -130,7 +130,7 @@ def reload_all() -> list[bpy.types.Object]:
     return unloaded
 
 
-def _scene_or_current(scene: bpy.types.Scene | None) -> bpy.types.Scene:
+def scene_or_current(scene: bpy.types.Scene | None) -> bpy.types.Scene:
     resolved = scene or bpy.context.scene
     if resolved is None:
         raise SquishyVolumesError("There is no scene to add the simulation to")
