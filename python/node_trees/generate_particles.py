@@ -120,11 +120,7 @@ class ParticleParameters(CustomGeometryGroup):
         with g.Frame("Object Transform"):
             geometry = geometry >> g.StoreNamedAttribute.point.matrix(
                 name=names.inputs.PARTICLE_TRANSFORM.name,
-                value=g.CombineTransform(
-                    pos.transform(trans),
-                    trans.rotation,
-                    trans.scale,
-                ),
+                value=trans @ g.CombineTransform(translation=pos),
             )
 
         with g.Frame("Velocity"):
