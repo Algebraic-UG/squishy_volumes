@@ -102,3 +102,61 @@ pub enum Error {
     #[error("Something went really wrong and the compute thread paniced: {0}")]
     ComputePanic(String),
 }
+
+impl Error {
+    // Cancellation hides behind many wrappers, see
+    // https://github.com/Algebraic-UG/squishy_volumes/issues/446
+    pub fn is_cancellation(&self) -> bool {
+        std::iter::successors(Some(self as &dyn std::error::Error), |error| error.source()).any(
+            |error| {
+                matches!(
+                    error.downcast_ref(),
+                    Some(squishy_volumes_xpu::HarnessError::Canceled)
+                ) || matches!(
+                    error.downcast_ref(),
+                    Some(squishy_volumes_cpu::Error::Canceled)
+                )
+            },
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use squishy_volumes_xpu::HarnessError;
+
+    use super::*;
+
+    #[test]
+    fn recognizes_wrapped_cancellations() {
+        let cancellations = [
+            Error::HarnessError(HarnessError::Canceled),
+            Error::CpuCompute(squishy_volumes_cpu::Error::Canceled),
+            Error::CpuCompute(squishy_volumes_cpu::Error::HarnessError(
+                HarnessError::Canceled,
+            )),
+            Error::GpuError(squishy_volumes_gpu::GpuError::HarnessError(
+                HarnessError::Canceled,
+            )),
+            Error::InitializationError(StateInitializationError::HarnessError(
+                HarnessError::Canceled,
+            )),
+        ];
+        for cancellation in cancellations {
+            assert!(cancellation.is_cancellation(), "{cancellation:?}");
+        }
+    }
+
+    #[test]
+    fn other_errors_are_not_cancellations() {
+        let errors = [
+            Error::StoredError("broken".to_string()),
+            Error::HarnessError(HarnessError::ReportMutexPoisoned),
+            Error::CpuCompute(squishy_volumes_cpu::Error::ZeroTimeStep),
+            Error::GpuError(squishy_volumes_gpu::GpuError::NoParticles),
+        ];
+        for error in errors {
+            assert!(!error.is_cancellation(), "{error:?}");
+        }
+    }
+}

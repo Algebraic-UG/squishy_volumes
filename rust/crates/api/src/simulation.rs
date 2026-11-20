@@ -27,7 +27,7 @@ pub trait Simulation {
     fn poll(&mut self) -> Result<Value>;
 
     fn start_compute(&mut self, settings: Value) -> Result<()>;
-    fn pause_compute(&mut self);
+    fn pause_compute(&mut self) -> Result<()>;
 
     fn available_frames(&self) -> usize;
 }

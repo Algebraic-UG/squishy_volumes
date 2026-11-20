@@ -97,8 +97,7 @@ impl Simulation {
             context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
-                .pause_compute();
-            Ok(())
+                .pause_compute()
         })
     }
 
