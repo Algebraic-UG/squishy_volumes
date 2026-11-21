@@ -111,7 +111,7 @@ class BenchmarkExampleTest(ExampleTestCase):
 class ExampleWithoutDiskSpaceTest(AddonTestCase):
     def setUp(self):
         super().setUp()
-        self.preferences = addon().get_preferences._get_preferences()
+        self.preferences = addon().get_preferences.get_preferences()
         self.checked_disk_space = self.preferences.sanity_check_allowed_disk_space
         self.preferences.sanity_check_allowed_disk_space = True
 

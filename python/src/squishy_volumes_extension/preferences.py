@@ -133,6 +133,14 @@ If this device isn't detected anymore, the first detected device is used.""",
         options=set(),
     )
 
+    first_run_setup_done: bpy.props.BoolProperty(
+        name="First Run Setup Done",
+        description="""Hides the first run setup in the Squishy Volumes sidebar.
+Disable it to show the setup again.""",
+        default=False,
+        options=set(),
+    )
+
     def draw(self, context: bpy.types.Context) -> None:
         self.layout.prop(self, "default_cache_location")
         self.layout.prop(self, "default_compute_device")
@@ -143,6 +151,7 @@ If this device isn't detected anymore, the first detected device is used.""",
         self.layout.prop(self, "print_debug_info")
         self.layout.prop(self, "enable_timeline_markers")
         self.layout.prop(self, "allow_scaled_input")
+        self.layout.prop(self, "first_run_setup_done")
 
 
 register_preferences, unregister_preferences = class_registration(

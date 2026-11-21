@@ -20,36 +20,40 @@ import bpy
 import mathutils
 
 
-def _get_preferences():
+def get_preferences():
     return bpy.context.preferences.addons.get(__package__).preferences
 
 
 def get_default_cache_location() -> str:
-    return _get_preferences().default_cache_location
+    return get_preferences().default_cache_location
+
+
+def first_run_setup_pending(preferences) -> bool:
+    return not preferences.first_run_setup_done
 
 
 def get_default_compute_device() -> str:
-    return _get_preferences().default_compute_device
+    return get_preferences().default_compute_device
 
 
 def get_sanity_check_allowed_disk_space() -> bool:
-    return _get_preferences().sanity_check_allowed_disk_space
+    return get_preferences().sanity_check_allowed_disk_space
 
 
 def get_confirm_bake_overwrite() -> bool:
-    return _get_preferences().confirm_bake_overwrite
+    return get_preferences().confirm_bake_overwrite
 
 
 def get_domain_min() -> mathutils.Vector:
-    return _get_preferences().domain_min
+    return get_preferences().domain_min
 
 
 def get_domain_max() -> mathutils.Vector:
-    return _get_preferences().domain_max
+    return get_preferences().domain_max
 
 
 def get_print_debug_info() -> bool:
-    return _get_preferences().print_debug_info
+    return get_preferences().print_debug_info
 
 
 def debug_log(message: str):
@@ -58,8 +62,8 @@ def debug_log(message: str):
 
 
 def get_enable_timeline_markers() -> bool:
-    return _get_preferences().enable_timeline_markers
+    return get_preferences().enable_timeline_markers
 
 
 def get_allow_scaled_input() -> bool:
-    return _get_preferences().allow_scaled_input
+    return get_preferences().allow_scaled_input
