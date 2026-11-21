@@ -25,7 +25,6 @@ from ..assets import (
     create_geometry_nodes_generate_particles,
     create_geometry_nodes_visualize_particles,
 )
-from ..drivers import add_drivers
 from ..errors import InvalidInput
 from ..squishy_volumes_properties import (
     INPUT_TYPE_COLLIDER,
@@ -34,6 +33,7 @@ from ..squishy_volumes_properties import (
     get_simulation_objects,
 )
 from ..util import copy_simple_property_group
+from .tools import add_modifier_drivers
 
 PARTICLES = INPUT_TYPE_PARTICLES
 COLLIDER = INPUT_TYPE_COLLIDER
@@ -126,7 +126,7 @@ def copy_alembic_attributes(
 def _add_default_generation(sim_obj: bpy.types.Object, obj: bpy.types.Object):
     modifier = obj.modifiers.new("Squishy Volumes Input", type="NODES")
     modifier.node_group = GENERATORS[obj.squishy_volumes.input_type]()
-    add_drivers(sim_obj, modifier)
+    add_modifier_drivers(sim_obj, modifier)
 
 
 def _add_output_object(

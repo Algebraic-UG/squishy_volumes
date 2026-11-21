@@ -16,79 +16,35 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 import bpy
 
+from . import api
+from .operator_base import ReportingOperator
 from .registration import class_registration
-from .squishy_volumes_properties import (
-    get_simulation_object_with_uuid,
-)
 
 
-def add_drivers(sim_obj, modifier):
-    tree = modifier.node_group.interface.items_tree
-    if "Grid Node Size" in tree:
-        identifier = tree["Grid Node Size"].identifier
-        driver = (
-            getattr(modifier.properties.inputs, identifier).driver_add("value").driver
-        )
-        driver.expression = "grid_node_size"
-        var = driver.variables.new()
-        var.name = "grid_node_size"
-        var.type = "SINGLE_PROP"
-        target = var.targets[0]
-        target.fallback_value = 1
-        target.data_path = "squishy_volumes.grid_node_size"
-        target.id_type = "OBJECT"
-        target.id = sim_obj
-    if "Start Frame" in tree:
-        identifier = tree["Start Frame"].identifier
-        driver = (
-            getattr(modifier.properties.inputs, identifier).driver_add("value").driver
-        )
-        driver.expression = "start_frame"
-        var = driver.variables.new()
-        var.name = "start_frame"
-        var.type = "SINGLE_PROP"
-        target = var.targets[0]
-        target.fallback_value = 1
-        target.data_path = "squishy_volumes.capture_start_frame"
-        target.id_type = "OBJECT"
-        target.id = sim_obj
-
-
-class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers(bpy.types.Operator):
+class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers(
+    ReportingOperator, bpy.types.Operator
+):
     bl_idname = "object.squishy_volumes_add_drivers"
     bl_label = "Squishy Volumes Add Drivers"
     bl_description = """This adds drivers to the objects' modifiers' sockets.
 
 Only changes selected objects' modifiers' sockets.
-Only changes modifiers starting with 'Squishy Volmues'.
+Only changes modifiers starting with 'Squishy Volumes'.
 
 This connects the respective value, for example, 'Grid Node Size', with the
-value of the respective simulation(s) the objects are an output of."""
+value of the respective simulation(s) the objects are an input of."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
-    def execute(self, context):
+    def run(self, context):
         for obj in context.selected_objects:
-            props = obj.squishy_volumes
-
-            sim_obj = get_simulation_object_with_uuid(props.uuid)
-            if sim_obj is None:
+            if not api.is_input(obj):
+                self.report({"INFO"}, f"Ignoring {obj.name}, it isn't an input.")
                 continue
-
-            for modifier in obj.modifiers:
-                if not modifier.name.startswith("Squishy Volumes"):
-                    self.report(
-                        {"INFO"},
-                        f"Ignoring modifier '{modifier.name}' of object '{obj.name}' because it doesn't start with 'Squishy Volumes'.",
-                    )
-                else:
-                    add_drivers(sim_obj, modifier)
-                    self.report(
-                        {"INFO"},
-                        f"Added driver to modifier '{modifier.name}' of object '{obj.name}'.",
-                    )
+            driven = api.add_drivers(obj)
+            names = ", ".join(modifier.name for modifier in driven)
+            self.report({"INFO"}, f"Added drivers to {obj.name}: {names or 'none'}.")
         return {"FINISHED"}
 
 
