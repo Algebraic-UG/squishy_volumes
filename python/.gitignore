@@ -3,3 +3,5 @@ wheels/
 **/__pycache__/*
 _vendor/
 uv.lock
+src/squishy_volumes_extension/blender_manifest.toml
+src/squishy_volumes_extension/index.json
