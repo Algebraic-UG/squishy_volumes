@@ -236,9 +236,10 @@ Or apply the object scale."""
             )
 
         if input_type == INPUT_TYPE_COLLIDER:
-            assert len(mesh.polygons) == len(mesh.loop_triangles), (
-                "Is the mesh triangulated?"
-            )
+            if len(mesh.polygons) != len(mesh.loop_triangles):
+                raise InvalidInput(
+                    f"The collider {evaluated_obj.name} isn't triangulated."
+                )
 
             # the topology is recorded only once and can't change (yet?)
             if sim_props.capture_start_frame == bpy.context.scene.frame_current:
