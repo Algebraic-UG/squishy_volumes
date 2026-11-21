@@ -16,7 +16,6 @@ dev = [
   "numpy==2.3.4", # should match what blender uses
 ]
 tools = [
-  "tree-clipper==0.1.12",
   "nodebpy==520.34.0",
   "bpy==5.2",
 ]
