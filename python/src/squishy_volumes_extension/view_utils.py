@@ -18,14 +18,13 @@
 
 
 import bpy
-import mathutils
 
-from .assets import create_geometry_nodes_restrict_view
+from . import api
+from .operator_base import ReportingOperator
 from .registration import class_registration
-from .util import local_bounding_box
 
 
-class OBJECT_OT_Squishy_Volumes_Restrict_View(bpy.types.Operator):
+class OBJECT_OT_Squishy_Volumes_Restrict_View(ReportingOperator, bpy.types.Operator):
     bl_idname = "object.squishy_volumes_restrict_view"
     bl_label = "Squishy Volumes Restrict View"
     bl_description = """Add an empty cuboid for restricting the view.
@@ -56,41 +55,12 @@ This modifier deletes vertices that are outside of the cuboid."""
         self.empty_name = f"{context.active_object.name} - View"
         return context.window_manager.invoke_props_dialog(self)
 
-    def execute(self, context):
+    def run(self, context):
         obj = context.active_object
-
-        empty = bpy.data.objects.new(self.empty_name, None)
-        empty.empty_display_type = "CUBE"
-
-        if self.fit_vertices:
-            bbox_min, bbox_max = local_bounding_box(obj)
-            mid_point = (bbox_min + bbox_max) / 2
-            size = bbox_max - bbox_min
-
-            empty.matrix_world = (
-                obj.matrix_world
-                @ mathutils.Matrix.Translation(mid_point)
-                @ mathutils.Matrix.Scale(size.x * 0.51, 4, ((1, 0, 0)))
-                @ mathutils.Matrix.Scale(size.y * 0.51, 4, ((0, 1, 0)))
-                @ mathutils.Matrix.Scale(size.z * 0.51, 4, ((0, 0, 1)))
-            )
-
-        context.collection.objects.link(empty)
-
-        modifier = obj.modifiers.new("Squishy Volumes Restrict View", type="NODES")
-        modifier.node_group = create_geometry_nodes_restrict_view()
-
-        if bpy.app.version[0] == 5 and bpy.app.version[1] < 2:
-            modifier["Socket_2"] = empty
-        else:
-            modifier.properties.inputs.Socket_2.value = empty
-
-        obj.modifiers.move(len(obj.modifiers) - 1, 0)
-
-        self.report(
-            {"INFO"},
-            message=f"Restricting view of {obj.name} with {self.empty_name}",
+        empty = api.restrict_view(
+            obj, name=self.empty_name or None, fit_vertices=self.fit_vertices
         )
+        self.report({"INFO"}, f"Restricting view of {obj.name} with {empty.name}")
         return {"FINISHED"}
 
 

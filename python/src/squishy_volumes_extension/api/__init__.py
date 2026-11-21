@@ -64,6 +64,12 @@ from .simulation import (
     remove_simulation,
     simulations,
 )
+from .tools import (
+    add_drivers,
+    add_goals,
+    restrict_view,
+    set_modifier_input,
+)
 
 __all__ = [
     "COLLIDER",
@@ -79,6 +85,8 @@ __all__ = [
     "SimulationNotLoaded",
     "SquishyVolumesError",
     "UnresolvableCacheDirectory",
+    "add_drivers",
+    "add_goals",
     "add_input",
     "add_simulation",
     "bake",
@@ -101,7 +109,9 @@ __all__ = [
     "remove_input",
     "remove_simulation",
     "reset_alembic_attributes",
+    "restrict_view",
     "set_capture_range",
+    "set_modifier_input",
     "simulations",
     "wait_until_baked",
 ]

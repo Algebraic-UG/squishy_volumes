@@ -19,12 +19,15 @@
 
 import bpy
 
-from .assets import create_geometry_nodes_generate_goal_positions
+from . import api
+from .operator_base import ReportingOperator
 from .registration import class_registration
 from .squishy_volumes_properties import get_selected_input_object
 
 
-class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(bpy.types.Operator):
+class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(
+    ReportingOperator, bpy.types.Operator
+):
     bl_idname = "object.squishy_volumes_input_object_add_goals"
     bl_label = "Squishy Volumes Add Goal Control Objects"
     bl_description = """This adds two objects and a modifier to control particles:
@@ -44,29 +47,15 @@ and forces particles to move towards them."""
     def poll(cls, context):
         return get_selected_input_object(context.scene) is not None
 
-    def execute(self, context):
+    def run(self, context):
         obj = get_selected_input_object(context.scene)
-        assert obj is not None
-
-        node_group = create_geometry_nodes_generate_goal_positions()
-        modifier = obj.modifiers.new("Squishy Volumes Goals", type="NODES")
-        modifier.node_group = node_group
-
-        bpy.ops.mesh.primitive_ico_sphere_add()
-        choose = context.active_object
-        choose.name = f"{obj.name} - Choose"
-
-        move = bpy.data.objects.new(f"{obj.name} - Move", None)
-        context.collection.objects.link(move)
-
-        move.parent = choose
-
-        modifier.properties.inputs.Socket_1.value = choose
-        modifier.properties.inputs.Socket_2.value = move
-
-        obj.update_tag()
-        context.view_layer.update()
-
+        if obj is None:
+            raise api.InvalidInput("Select an input object to add goals to")
+        choose, _move = api.add_goals(obj, location=context.scene.cursor.location)
+        for selected in context.selected_objects:
+            selected.select_set(False)
+        choose.select_set(True)
+        context.view_layer.objects.active = choose
         self.report({"INFO"}, f"Added goals to {obj.name}.")
         return {"FINISHED"}
 
