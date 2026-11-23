@@ -20,6 +20,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 from .support import AddonTestCase, add_mesh_object, api
+from .test_api_bake import BakeTestCase
 
 
 def add_cube(location=(0.0, 0.0, 0.0)) -> bpy.types.Object:
@@ -137,9 +138,63 @@ class RestrictViewTest(ToolTestCase):
         self.assertEqual(set(bpy.data.objects), objects_before)
         self.assertEqual(len(hollow.modifiers), 0)
 
-    def test_rejects_objects_that_are_not_meshes(self):
+    def test_rejects_objects_without_geometry(self):
         with self.assertRaises(api().InvalidInput):
             api().restrict_view(self.sim_obj)
+
+
+def evaluated_points(obj: bpy.types.Object) -> list[Vector]:
+    evaluated = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    return [obj.matrix_world @ point.co for point in evaluated.data.points]
+
+
+class OutputRestrictViewTest(BakeTestCase):
+    def setUp(self):
+        super().setUp()
+        self.output = bpy.data.objects["Cube - Output"]
+        self.output.modifiers["Squishy Volumes Output"].show_viewport = False
+
+    def test_restricts_the_loaded_output(self):
+        self.bake_and_wait(bake_frames=1)
+        points = evaluated_points(self.output)
+        self.assertGreater(len(points), 0)
+
+        empty = api().restrict_view(self.output)
+
+        self.assertEqual(
+            [modifier.name for modifier in self.output.modifiers],
+            [
+                "Squishy Volumes Load Output",
+                "Squishy Volumes Restrict View",
+                "Squishy Volumes Output",
+            ],
+        )
+        self.assertFalse(self.output.modifiers["Squishy Volumes Output"].show_viewport)
+        self.assertEqual(len(evaluated_points(self.output)), len(points))
+        to_view = empty.matrix_world.inverted()
+        for point in points:
+            self.assertLessEqual(max(abs(c) for c in to_view @ point), 1.0)
+
+        empty.scale *= 0.5
+        self.assertLess(len(evaluated_points(self.output)), len(points))
+
+    def test_fitting_ignores_the_visualization(self):
+        self.output.modifiers["Squishy Volumes Output"].show_viewport = True
+        self.bake_and_wait(bake_frames=1)
+
+        empty = api().restrict_view(self.output)
+
+        self.assertTrue(self.output.modifiers["Squishy Volumes Output"].show_viewport)
+        self.assertLess(max(empty.scale), 1.1)
+
+    def test_rejects_an_output_without_baked_points(self):
+        objects_before = set(bpy.data.objects)
+
+        with self.assertRaises(api().InvalidInput):
+            api().restrict_view(self.output)
+
+        self.assertEqual(set(bpy.data.objects), objects_before)
+        self.assertEqual(len(self.output.modifiers), 2)
 
 
 class AddDriversTest(ToolTestCase):

@@ -30,7 +30,8 @@ class OBJECT_OT_Squishy_Volumes_Restrict_View(ReportingOperator, bpy.types.Opera
     bl_description = """Add an empty cuboid for restricting the view.
 
 The selected object is restricted via a geometry nodes modifier.
-This modifier deletes vertices that are outside of the cuboid."""
+This modifier deletes points that are outside of the cuboid.
+On a simulation output it comes right after loading the output."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     empty_name: bpy.props.StringProperty(
@@ -39,7 +40,7 @@ This modifier deletes vertices that are outside of the cuboid."""
     )
     fit_vertices: bpy.props.BoolProperty(
         name="Fit vertices",
-        description="Create the empty to just fit the vertices.",
+        description="Create the empty to just fit the current geometry.",
         default=True,
     )
 
@@ -48,7 +49,7 @@ This modifier deletes vertices that are outside of the cuboid."""
         return (
             context.active_object is not None
             and context.active_object.select_get()
-            and context.active_object.type == "MESH"
+            and context.active_object.type in {"MESH", "POINTCLOUD"}
         )
 
     def invoke(self, context, _):
