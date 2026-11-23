@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any
 
 import bpy
-import mathutils
 
 from .cache_paths import simulation_stats_path
 
@@ -85,24 +84,6 @@ def copy_simple_property_group(source, target, skip=None):
             setattr(target, prop_name, getattr(source, prop_name))
         except (AttributeError, TypeError):
             pass
-
-
-def local_bounding_box(obj: bpy.types.Object):
-    if obj.type != "MESH":
-        raise TypeError(f"Object {obj.name!r} is not a mesh")
-
-    assert isinstance(obj.data, bpy.types.Mesh)
-    verts = obj.data.vertices
-    min_x = min(v.co.x for v in verts)
-    max_x = max(v.co.x for v in verts)
-    min_y = min(v.co.y for v in verts)
-    max_y = max(v.co.y for v in verts)
-    min_z = min(v.co.z for v in verts)
-    max_z = max(v.co.z for v in verts)
-
-    return mathutils.Vector((min_x, min_y, min_z)), mathutils.Vector(
-        (max_x, max_y, max_z)
-    )
 
 
 def obj_by_index(index):

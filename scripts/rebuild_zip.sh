@@ -19,7 +19,6 @@ uv run --with toml "${scripts_dir}/update_lib_version.py"
 
 (
     cd "${repo_root}/python"
-    uv run "${scripts_dir}/build_assets.py"
     uv run nodebpy build
 )
 

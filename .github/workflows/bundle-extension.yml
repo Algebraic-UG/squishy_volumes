@@ -45,10 +45,6 @@ jobs:
         working-directory: python
         run: uv sync --only-group tools
 
-      - name: Build assets from Tree Clipper JSONs
-        working-directory: python
-        run: uv run --only-group tools ../scripts/build_assets.py
-
       - name: Build node tree assets via nodebpy
         working-directory: python
         run: uv run --only-group tools nodebpy build

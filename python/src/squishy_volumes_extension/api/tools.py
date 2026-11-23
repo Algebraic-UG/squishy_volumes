@@ -26,7 +26,6 @@ from ..assets import (
 )
 from ..errors import InvalidInput
 from ..squishy_volumes_properties import get_simulation_objects
-from ..util import local_bounding_box
 
 DRIVEN_SOCKETS = {
     "Grid Node Size": ("grid_node_size", "squishy_volumes.grid_node_size"),
@@ -59,22 +58,23 @@ def add_goals(
 def restrict_view(
     obj: bpy.types.Object, *, name: str | None = None, fit_vertices: bool = True
 ) -> bpy.types.Object:
-    _require_mesh(obj)
-    if fit_vertices and len(obj.data.vertices) == 0:
-        raise InvalidInput(f"{obj.name} has no vertices to fit the view to")
+    if obj.type not in {"MESH", "POINTCLOUD"}:
+        raise InvalidInput(f"{obj.name} is neither a mesh nor a point cloud")
+    index = _restrict_view_index(obj)
+    fitting_box = _fitting_box(obj, index) if fit_vertices else None
     node_group = create_geometry_nodes_restrict_view()
 
     empty = bpy.data.objects.new(name or f"{obj.name} - View", None)
     empty.empty_display_type = "CUBE"
-    if fit_vertices:
-        empty.matrix_world = obj.matrix_world @ _fitting_box(obj)
+    if fitting_box is not None:
+        empty.matrix_world = obj.matrix_world @ fitting_box
     for collection in obj.users_collection:
         collection.objects.link(empty)
 
     modifier = obj.modifiers.new(f"{MODIFIER_PREFIX} Restrict View", type="NODES")
     modifier.node_group = node_group
     set_modifier_input(modifier, "Object", empty)
-    obj.modifiers.move(len(obj.modifiers) - 1, 0)
+    obj.modifiers.move(len(obj.modifiers) - 1, index)
     return empty
 
 
@@ -152,7 +152,36 @@ def _icosphere_mesh(name: str) -> bpy.types.Mesh:
     return mesh
 
 
-def _fitting_box(obj: bpy.types.Object) -> mathutils.Matrix:
-    bbox_min, bbox_max = local_bounding_box(obj)
+def _restrict_view_index(obj: bpy.types.Object) -> int:
+    loading = [
+        index
+        for index, modifier in enumerate(obj.modifiers)
+        if modifier.type == "MESH_SEQUENCE_CACHE"
+    ]
+    return loading[-1] + 1 if loading else 0
+
+
+def _bounds_before_modifier(
+    obj: bpy.types.Object, index: int
+) -> tuple[mathutils.Vector, mathutils.Vector]:
+    later = [modifier for modifier in obj.modifiers[index:] if modifier.show_viewport]
+    for modifier in later:
+        modifier.show_viewport = False
+    try:
+        evaluated = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        corners = [mathutils.Vector(corner) for corner in evaluated.bound_box]
+    finally:
+        for modifier in later:
+            modifier.show_viewport = True
+    return (
+        mathutils.Vector(min(corner[i] for corner in corners) for i in range(3)),
+        mathutils.Vector(max(corner[i] for corner in corners) for i in range(3)),
+    )
+
+
+def _fitting_box(obj: bpy.types.Object, index: int) -> mathutils.Matrix:
+    bbox_min, bbox_max = _bounds_before_modifier(obj, index)
+    if bbox_min == bbox_max:
+        raise InvalidInput(f"{obj.name} has no geometry to fit the view to")
     size = (bbox_max - bbox_min) * 0.51
     return mathutils.Matrix.LocRotScale((bbox_min + bbox_max) / 2, None, size)

@@ -20,23 +20,11 @@ from pathlib import Path
 
 import bpy
 
-
-def _load_tree(file_stem: str, name: str) -> bpy.types.NodeTree:
-    file_path = Path(__file__).parent / f"{file_stem}.blend"
-    with bpy.data.libraries.load(str(file_path), link=True, pack=True) as (
-        _data_src,
-        data_dst,
-    ):
-        data_dst.node_groups = [name]
-
-    return bpy.data.node_groups[name]
-
-
 ASSET_FILE_NAME = "assets.blend"
 ASSET_FILE_PATH = Path(__file__).parent / "assets.blend"
 
 
-def _load_tree_2(name: str) -> bpy.types.NodeTree:
+def _load_tree(name: str) -> bpy.types.NodeTree:
     with bpy.data.libraries.load(str(ASSET_FILE_PATH), link=True, pack=False) as (
         _data_src,
         data_dst,
@@ -47,23 +35,23 @@ def _load_tree_2(name: str) -> bpy.types.NodeTree:
 
 
 def create_geometry_nodes_visualize_particles() -> bpy.types.NodeTree:
-    return _load_tree_2("Squishy Volumes Visualize Particles")
+    return _load_tree("Squishy Volumes Visualize Particles")
 
 
 def create_geometry_nodes_restrict_view() -> bpy.types.NodeTree:
-    return _load_tree("geometry_nodes_restrict_view", "Squishy Volumes Restrict View")
+    return _load_tree("Squishy Volumes Restrict View")
 
 
 def create_geometry_nodes_generate_particles() -> bpy.types.NodeTree:
-    return _load_tree_2("Squishy Volumes Generate Particles")
+    return _load_tree("Squishy Volumes Generate Particles")
 
 
 def create_geometry_nodes_generate_collider() -> bpy.types.NodeTree:
-    return _load_tree_2("Squishy Volumes Generate Collider")
+    return _load_tree("Squishy Volumes Generate Collider")
 
 
 def create_geometry_nodes_generate_goal_positions() -> bpy.types.NodeTree:
-    return _load_tree_2("Squishy Volumes Set Goals")
+    return _load_tree("Squishy Volumes Set Goals")
 
 
 def reload_assets():
