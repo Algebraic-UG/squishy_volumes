@@ -94,10 +94,6 @@ pub fn try_with_context<R, F: FnOnce(&mut dyn squishy_volumes_api::Context) -> R
     bail!(BUG)
 }
 
-pub fn with_context<R, F: FnOnce(&mut dyn squishy_volumes_api::Context) -> R>(f: F) -> Result<R> {
-    try_with_context(|c| Ok(f(c)))
-}
-
 #[cfg(feature = "hot_reload")]
 pub fn handle_reload() {
     let _ = spawn(|| {

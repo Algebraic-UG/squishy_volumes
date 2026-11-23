@@ -16,7 +16,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{num::NonZero, path::PathBuf, sync::Arc};
+use std::{
+    num::NonZero,
+    path::PathBuf,
+    sync::{Arc, OnceLock},
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value, to_value};
@@ -37,6 +41,8 @@ pub struct SimulationImpl {
 
     cache: Arc<Cache>,
     compute_thread: Option<ComputeThread>,
+
+    pub(crate) panic_message: OnceLock<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -94,6 +100,7 @@ impl SimulationImpl {
             header,
             cache,
             compute_thread: None,
+            panic_message: OnceLock::new(),
         })
     }
 
@@ -165,6 +172,10 @@ impl SimulationImpl {
         self.compute_thread
             .take()
             .map_or(Ok(()), ComputeThread::stop)
+    }
+
+    pub fn is_broken(&self) -> bool {
+        self.panic_message.get().is_some()
     }
 
     pub fn available_frames_impl(&self) -> usize {

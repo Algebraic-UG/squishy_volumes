@@ -20,6 +20,7 @@ mod api_impl;
 mod compute_thread;
 mod context;
 mod errors;
+mod guard;
 mod initialization;
 mod simulation;
 mod simulation_input;

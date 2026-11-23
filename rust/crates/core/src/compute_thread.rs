@@ -75,7 +75,7 @@ impl ComputeThread {
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
 
-        let frame_store = cache.start_storing().map_err(Error::StoreError)?;
+        let frame_store = cache.start_storing();
 
         let thread = {
             let harness = harness.clone();
@@ -248,10 +248,7 @@ impl ComputeThread {
         if !thread.is_finished() {
             self.harness.cancel();
         }
-        match thread
-            .join()
-            .map_err(|e| Error::ComputePanic(panic_payload_to_string(e)))?
-        {
+        match thread.join().map_err(compute_panic)? {
             Err(error) if error.is_cancellation() => Ok(()),
             result => result,
         }
@@ -262,9 +259,7 @@ impl ComputeThread {
             return Ok(Default::default());
         };
         if thread.is_finished() {
-            thread
-                .join()
-                .map_err(|e| Error::ComputePanic(panic_payload_to_string(e)))??;
+            thread.join().map_err(compute_panic)??;
             return Ok(Default::default());
         }
         self.thread = Some(thread);
@@ -281,6 +276,13 @@ impl Drop for ComputeThread {
         if let Err(e) = thread.join() {
             tracing::error!(payload = panic_payload_to_string(e), "Compute Panic");
         }
+    }
+}
+
+fn compute_panic(payload: Box<dyn std::any::Any + Send>) -> Error {
+    Error::Panic {
+        thread: "compute",
+        message: panic_payload_to_string(payload),
     }
 }
 
@@ -357,6 +359,28 @@ mod tests {
             std::thread::yield_now();
         }
 
-        assert!(matches!(thread.stop(), Err(Error::ComputePanic(_))));
+        assert!(matches!(
+            thread.stop(),
+            Err(Error::Panic {
+                thread: "compute",
+                message,
+            }) if message == "compute thread test panic"
+        ));
+    }
+
+    #[test]
+    fn polling_a_panicked_thread_reports_the_panic() {
+        let mut thread = compute_thread(|_| panic!("compute thread test panic"));
+        while thread.running() {
+            std::thread::yield_now();
+        }
+
+        assert!(matches!(
+            thread.poll(),
+            Err(Error::Panic {
+                thread: "compute",
+                ..
+            })
+        ));
     }
 }

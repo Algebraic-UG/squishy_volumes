@@ -16,28 +16,58 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-impl squishy_volumes_api::Simulation for crate::SimulationImpl {
-    fn input_header(&self) -> anyhow::Result<serde_json::Value> {
-        Ok(self.input_header_impl()?)
+use std::sync::OnceLock;
+
+use serde_json::Value;
+
+use crate::{
+    Error, SimulationImpl,
+    guard::{Breakable, guard_breakable},
+};
+
+impl Breakable for SimulationImpl {
+    fn panic_message(&self) -> &OnceLock<String> {
+        &self.panic_message
     }
 
-    fn baking(&self) -> bool {
-        self.baking_impl()
+    fn broken(panic_message: String) -> Error {
+        Error::BrokenSimulation(panic_message)
+    }
+}
+
+#[allow(clippy::result_large_err)]
+impl squishy_volumes_api::Simulation for SimulationImpl {
+    fn input_header(&self) -> anyhow::Result<Value> {
+        Ok(guard_breakable(self, |simulation| {
+            simulation.input_header_impl()
+        })?)
     }
 
-    fn poll(&mut self) -> anyhow::Result<serde_json::Value> {
-        Ok(self.poll_impl()?)
+    fn baking(&self) -> anyhow::Result<bool> {
+        Ok(guard_breakable(self, |simulation| {
+            Ok(simulation.baking_impl())
+        })?)
     }
 
-    fn start_compute(&mut self, compute_settings: serde_json::Value) -> anyhow::Result<()> {
-        Ok(self.start_compute_impl(compute_settings)?)
+    fn poll(&mut self) -> anyhow::Result<Value> {
+        Ok(guard_breakable(self, |simulation| simulation.poll_impl())?)
+    }
+
+    fn start_compute(&mut self, compute_settings: Value) -> anyhow::Result<()> {
+        Ok(guard_breakable(self, |simulation| {
+            simulation.start_compute_impl(compute_settings)
+        })?)
     }
 
     fn pause_compute(&mut self) -> anyhow::Result<()> {
-        Ok(self.pause_compute_impl()?)
+        Ok(guard_breakable(self, |simulation| {
+            simulation.pause_compute_impl()
+        })?)
     }
 
-    fn available_frames(&self) -> usize {
-        self.available_frames_impl()
+    fn available_frames(&self) -> anyhow::Result<usize> {
+        Ok(guard_breakable(self, |simulation| {
+            Ok(simulation.available_frames_impl())
+        })?)
     }
 }

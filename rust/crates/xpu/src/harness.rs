@@ -19,7 +19,7 @@
 use std::{
     num::NonZero,
     sync::{
-        Arc, Mutex, Weak,
+        Arc, Mutex, PoisonError, Weak,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -30,8 +30,6 @@ pub enum HarnessError {
     Canceled,
     #[error("Can't create new report scope for '{new}', already reporting on '{old}'")]
     AlreadyHasSubReport { old: String, new: String },
-    #[error("Something went really wrong and the report mutex is poisoned")]
-    ReportMutexPoisoned,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -91,7 +89,7 @@ impl Harness {
     pub fn step_to(&self, completed_steps: usize) -> Result<(), HarnessError> {
         self.report
             .lock()
-            .map_err(|_| HarnessError::ReportMutexPoisoned)?
+            .unwrap_or_else(PoisonError::into_inner)
             .info
             .completed_steps = completed_steps;
         Ok(())
@@ -100,7 +98,7 @@ impl Harness {
     pub fn step(&self) -> Result<(), HarnessError> {
         self.report
             .lock()
-            .map_err(|_| HarnessError::ReportMutexPoisoned)?
+            .unwrap_or_else(PoisonError::into_inner)
             .info
             .completed_steps += 1;
         Ok(())
@@ -111,14 +109,11 @@ impl Harness {
         label: String,
         steps_to_completion: NonZero<usize>,
     ) -> Result<Self, HarnessError> {
-        let mut current_report = self
-            .report
-            .lock()
-            .map_err(|_| HarnessError::ReportMutexPoisoned)?;
+        let mut current_report = self.report.lock().unwrap_or_else(PoisonError::into_inner);
         if let Some(existing) = current_report.sub_report.upgrade() {
             let old = existing
                 .lock()
-                .map_err(|_| HarnessError::ReportMutexPoisoned)?
+                .unwrap_or_else(PoisonError::into_inner)
                 .info
                 .label
                 .clone();
@@ -138,9 +133,7 @@ impl Harness {
 
         let mut report = self.report.clone();
         loop {
-            let lock = report
-                .lock()
-                .map_err(|_| HarnessError::ReportMutexPoisoned)?;
+            let lock = report.lock().unwrap_or_else(PoisonError::into_inner);
             infos.push(lock.info.clone());
             let Some(sub_report) = lock.sub_report.upgrade() else {
                 break;
@@ -150,5 +143,41 @@ impl Harness {
         }
 
         Ok(infos)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn poisoned_report_still_returns_infos() {
+        let harness = Harness::new("outer".to_string(), NonZero::new(3).unwrap());
+        let sub_harness = harness
+            .scope("inner".to_string(), NonZero::new(2).unwrap())
+            .unwrap();
+        sub_harness.step().unwrap();
+
+        let poisoner = {
+            let harness = harness.clone();
+            let sub_harness = sub_harness.clone();
+            std::thread::spawn(move || {
+                let _outer = harness.report.lock().unwrap();
+                let _inner = sub_harness.report.lock().unwrap();
+                panic!("harness test panic");
+            })
+        };
+        assert!(poisoner.join().is_err());
+        assert!(harness.report.is_poisoned());
+        assert!(sub_harness.report.is_poisoned());
+
+        harness.step().unwrap();
+        let infos = harness.get_infos().unwrap();
+
+        let progress = infos
+            .iter()
+            .map(|info| (info.label.as_str(), info.completed_steps))
+            .collect::<Vec<_>>();
+        assert_eq!(progress, [("outer", 1), ("inner", 1)]);
     }
 }

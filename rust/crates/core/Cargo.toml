@@ -36,3 +36,6 @@ squishy_volumes_directory_lock.path = "../directory_lock"
 squishy_volumes_file_input.path = "../file_input"
 squishy_volumes_file_frame.path = "../file_frame"
 squishy_volumes_util.path = "../util"
+
+[dev-dependencies]
+tempfile = "3.23.0"

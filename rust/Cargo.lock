@@ -3767,6 +3767,7 @@ dependencies = [
  "serde",
  "squishy_volumes_directory_lock",
  "squishy_volumes_file_frame",
+ "squishy_volumes_util",
  "thiserror 2.0.21",
  "tracing",
 ]
@@ -3810,6 +3811,7 @@ dependencies = [
  "squishy_volumes_xpu",
  "strum",
  "strum_macros",
+ "tempfile",
  "thiserror 2.0.21",
  "tracing",
  "tracing-subscriber",

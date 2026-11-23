@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use pyo3::prelude::*;
 use serde_json::{from_str, to_string};
 
-use crate::hot_reloadable::{try_with_context, with_context};
+use crate::hot_reloadable::try_with_context;
 
 #[pyclass]
 pub struct Simulation(pub String);
@@ -55,8 +55,7 @@ impl Simulation {
                     .get_simulation(&self.0)
                     .with_context(|| format!("No simulation found for {}", self.0))?
                     .input_header()?,
-            )
-            .unwrap())
+            )?)
         })
     }
 
@@ -72,10 +71,10 @@ impl Simulation {
     }
 
     pub fn baking(&self) -> Result<bool> {
-        with_context(|context| {
+        try_with_context(|context| {
             context
                 .get_simulation(&self.0)
-                .is_some_and(|simulation| simulation.baking())
+                .map_or(Ok(false), |simulation| simulation.baking())
         })
     }
 
@@ -102,14 +101,14 @@ impl Simulation {
     }
 
     pub fn available_frames(&self) -> Result<usize> {
-        with_context(|context| {
+        try_with_context(|context| {
             context
                 .get_simulation(&self.0)
-                .map_or(0, |simulation| simulation.available_frames())
+                .map_or(Ok(0), |simulation| simulation.available_frames())
         })
     }
 
     pub fn drop(&self) -> Result<()> {
-        with_context(move |context| context.drop_simulation(&self.0))
+        try_with_context(move |context| context.drop_simulation(&self.0))
     }
 }
