@@ -21,6 +21,7 @@ from pathlib import Path
 
 import bpy
 
+from . import get_preferences
 from .append_handler import register_append_handler, unregister_append_handler
 from .assets import reload_assets
 from .bridge import (
@@ -58,6 +59,7 @@ bl_info = {
 
 def register():
     register_preferences()
+    get_preferences.apply_environment_defaults(get_preferences.get_preferences())
 
     version_rust = build_info()["wrapper"]["crate_info"]["version"]
     manifest_path = Path(__file__).parent / "blender_manifest.toml"

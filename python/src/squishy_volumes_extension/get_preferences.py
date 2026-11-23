@@ -16,8 +16,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
+
 import bpy
 import mathutils
+
+DEFAULT_DEVICE_VARIABLE = "SQUISHY_VOLUMES_DEFAULT_DEVICE"
+DEFAULT_CACHE_VARIABLE = "SQUISHY_VOLUMES_DEFAULT_CACHE"
 
 
 def get_preferences():
@@ -28,8 +33,21 @@ def get_default_cache_location() -> str:
     return get_preferences().default_cache_location
 
 
-def first_run_setup_pending(preferences) -> bool:
-    return not preferences.first_run_setup_done
+def first_run_setup_pending(preferences, environment=os.environ) -> bool:
+    if preferences.first_run_setup_done:
+        return False
+    return not (
+        DEFAULT_DEVICE_VARIABLE in environment and DEFAULT_CACHE_VARIABLE in environment
+    )
+
+
+def apply_environment_defaults(preferences, environment=os.environ):
+    if DEFAULT_DEVICE_VARIABLE in environment:
+        preferences.default_compute_device_identifier = environment[
+            DEFAULT_DEVICE_VARIABLE
+        ]
+    if DEFAULT_CACHE_VARIABLE in environment:
+        preferences.default_cache_location = environment[DEFAULT_CACHE_VARIABLE]
 
 
 def get_default_compute_device() -> str:

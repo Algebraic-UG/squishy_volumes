@@ -236,7 +236,7 @@ If auto-save preferences is off, this saves the preferences."""
 def draw_first_run_setup(layout: bpy.types.UILayout, context):
     preferences = get_preferences()
     box = layout.box()
-    box.label(text="First Run Setup", icon="PREFERENCES")
+    box.label(text="First Run Setup Defaults", icon="PREFERENCES")
     box.prop(preferences, "default_compute_device", text="Device")
     box.prop(preferences, "default_cache_location", text="Cache")
     if context.preferences.use_preferences_save:
@@ -287,6 +287,7 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
 
         if first_run_setup_pending(get_preferences()):
             draw_first_run_setup(layout, context)
+            return
 
         if context.mode != "OBJECT":
             layout.label(text="Squishy Volumes needs Object Mode", icon="INFO")

@@ -20,15 +20,29 @@ from pathlib import Path
 
 import bpy
 
-from .support import AddonTestCase, addon, api
+from .support import AddonTestCase, add_mesh_object, addon, api, make_input
 
 
 def preferences():
     return addon().get_preferences.get_preferences()
 
 
-def first_run_setup_pending() -> bool:
-    return addon().get_preferences.first_run_setup_pending(preferences())
+def first_run_setup_pending(environment=None) -> bool:
+    if environment is None:
+        return addon().get_preferences.first_run_setup_pending(preferences())
+    return addon().get_preferences.first_run_setup_pending(preferences(), environment)
+
+
+def apply_environment_defaults(environment):
+    addon().get_preferences.apply_environment_defaults(preferences(), environment)
+
+
+DEVICE_VARIABLE = "SQUISHY_VOLUMES_DEFAULT_DEVICE"
+CACHE_VARIABLE = "SQUISHY_VOLUMES_DEFAULT_CACHE"
+
+
+def panel_class(name):
+    return getattr(bpy.types, f"SCENE_PT_Squishy_Volumes_{name}")
 
 
 def detected_device_identifiers() -> list[str]:
@@ -58,6 +72,43 @@ class FirstRunSetupTest(AddonTestCase):
         preferences().first_run_setup_done = True
 
         self.assertFalse(first_run_setup_pending())
+
+    def test_setup_is_skipped_when_both_variables_are_set(self):
+        environment = {DEVICE_VARIABLE: "CPU", CACHE_VARIABLE: "/tmp/cache"}
+
+        self.assertFalse(first_run_setup_pending(environment))
+
+    def test_setup_is_pending_when_only_one_variable_is_set(self):
+        self.assertTrue(first_run_setup_pending({DEVICE_VARIABLE: "CPU"}))
+        self.assertTrue(first_run_setup_pending({CACHE_VARIABLE: "/tmp/cache"}))
+
+    def test_variables_set_the_defaults(self):
+        last_device = detected_device_identifiers()[-1]
+
+        apply_environment_defaults(
+            {DEVICE_VARIABLE: last_device, CACHE_VARIABLE: "/tmp/cache"}
+        )
+
+        self.assertEqual(preferences().default_compute_device, last_device)
+        self.assertEqual(preferences().default_cache_location, "/tmp/cache")
+
+    def test_unset_variables_keep_the_defaults(self):
+        preferences().default_cache_location = "//kept"
+
+        apply_environment_defaults({})
+
+        self.assertEqual(preferences().default_cache_location, "//kept")
+
+    def test_other_panels_are_hidden_only_while_setup_is_pending(self):
+        sim_obj = api().add_simulation()
+        make_input(add_mesh_object("Input"), sim_obj)
+
+        for name in ("Input_Output", "Simulate"):
+            with self.subTest(panel=name):
+                preferences().first_run_setup_done = False
+                self.assertFalse(panel_class(name).poll(bpy.context))
+                preferences().first_run_setup_done = True
+                self.assertTrue(panel_class(name).poll(bpy.context))
 
     def test_api_works_while_setup_is_pending(self):
         sim_obj = api().add_simulation()
