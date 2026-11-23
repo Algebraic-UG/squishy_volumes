@@ -21,7 +21,13 @@ import math
 import bpy
 
 from .. import api
-from .staging import add_camera, add_sun, move_to_collection, new_example_collection
+from .staging import (
+    add_camera,
+    add_sun,
+    new_example_collection,
+    stage_collider,
+    stage_particles,
+)
 
 EXAMPLE_BOING_BLOCK = "Boing Block"
 
@@ -43,8 +49,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         rotation=(0, 0, 0),
     )
-    move_to_collection(context.active_object, collection)
-    api.add_input(sim_obj, context.active_object, api.PARTICLES)
+    stage_particles(sim_obj, context.active_object, collection, 0, scale=0.1)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -53,8 +58,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=10,
     )
-    move_to_collection(context.active_object, collection)
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    stage_collider(sim_obj, context.active_object, collection, 0)
 
     add_camera(
         collection,

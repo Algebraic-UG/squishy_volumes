@@ -19,6 +19,9 @@
 import bpy
 from mathutils import Euler, Vector
 
+from .. import api
+from .palette import assign_material, collider_material, particle_material
+
 
 def new_example_collection(scene: bpy.types.Scene, name: str) -> bpy.types.Collection:
     collection = bpy.data.collections.new(name)
@@ -52,3 +55,32 @@ def add_sun(
     sun.rotation_euler = Euler(rotation)
     collection.objects.link(sun)
     return sun
+
+
+def stage_particles(
+    sim_obj: bpy.types.Object,
+    obj: bpy.types.Object,
+    collection: bpy.types.Collection,
+    material_index: int,
+    scale: float,
+) -> bpy.types.Object:
+    move_to_collection(obj, collection)
+    output_obj = api.add_input(sim_obj, obj, api.PARTICLES)
+    assert output_obj is not None
+    material = particle_material(material_index)
+    assign_material(obj, material)
+    assign_material(output_obj, material)
+    visualization = output_obj.modifiers["Squishy Volumes Output"]
+    api.set_modifier_input(visualization, "Scale", scale)
+    return output_obj
+
+
+def stage_collider(
+    sim_obj: bpy.types.Object,
+    obj: bpy.types.Object,
+    collection: bpy.types.Collection,
+    material_index: int,
+):
+    move_to_collection(obj, collection)
+    api.add_input(sim_obj, obj, api.COLLIDER)
+    assign_material(obj, collider_material(material_index))

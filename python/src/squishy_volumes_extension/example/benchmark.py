@@ -21,7 +21,13 @@ import math
 import bpy
 
 from .. import api
-from .staging import add_camera, add_sun, move_to_collection, new_example_collection
+from .staging import (
+    add_camera,
+    add_sun,
+    new_example_collection,
+    stage_collider,
+    stage_particles,
+)
 
 EXAMPLE_BENCHMARK = "Benchmark"
 
@@ -37,7 +43,7 @@ def setup_example_benchmark(context: bpy.types.Context):
 
     sim_props.max_giga_bytes_on_disk = 15.0
 
-    def add_monkey(location, rotation):
+    def add_monkey(index, location, rotation):
         bpy.ops.mesh.primitive_monkey_add(
             size=4,
             enter_editmode=False,
@@ -47,39 +53,46 @@ def setup_example_benchmark(context: bpy.types.Context):
             rotation=rotation,
         )
         monkey = context.active_object
-        move_to_collection(monkey, collection)
-        api.add_input(sim_obj, monkey, api.PARTICLES)
+        stage_particles(sim_obj, monkey, collection, index, scale=0.05)
         monkey.hide_set(True)
 
     add_monkey(
+        0,
         location=(-2, -2, 0),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
     add_monkey(
+        1,
         location=(-2, 2, 0),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
     add_monkey(
+        2,
         location=(2, 2, 0),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
     add_monkey(
+        3,
         location=(2, -2, 0),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
     add_monkey(
+        4,
         location=(-2, -2, 4),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
     add_monkey(
+        5,
         location=(-2, 2, 4),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
     add_monkey(
+        6,
         location=(2, 2, 4),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
     add_monkey(
+        7,
         location=(2, -2, 4),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
@@ -92,8 +105,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    move_to_collection(context.active_object, collection)
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    stage_collider(sim_obj, context.active_object, collection, 0)
 
     bpy.ops.mesh.primitive_torus_add(
         align="WORLD",
@@ -102,8 +114,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         major_radius=4,
         minor_radius=1,
     )
-    move_to_collection(context.active_object, collection)
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    stage_collider(sim_obj, context.active_object, collection, 1)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -112,8 +123,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=100,
     )
-    move_to_collection(context.active_object, collection)
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    stage_collider(sim_obj, context.active_object, collection, 2)
 
     add_camera(
         collection,

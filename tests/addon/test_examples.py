@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import colorsys
 import time
 from types import SimpleNamespace
 from unittest import mock
@@ -79,12 +80,23 @@ class StagingTests:
             self.assertEqual(list(obj.users_collection), [collection], obj.name)
         self.assertEqual(list(bpy.context.scene.collection.objects), [self.user_camera])
 
-    def test_camera_sees_all_particle_inputs(self):
+    def inputs_of_type(self, input_type: str) -> list[bpy.types.Object]:
+        return [
+            obj
+            for obj in input_objects(self.sim_obj)
+            if obj.squishy_volumes.input_type == input_type
+        ]
+
+    def outputs_by_input(self) -> dict[bpy.types.Object, bpy.types.Object]:
+        return {
+            obj: bpy.data.objects[f"{obj.name} - Output"]
+            for obj in self.inputs_of_type("Particles")
+        }
+
+    def assert_camera_sees(self, objects: list[bpy.types.Object]):
         [camera] = self.staged_objects("CAMERA")
         scene = bpy.context.scene
-        for obj in input_objects(self.sim_obj):
-            if obj.squishy_volumes.input_type != "Particles":
-                continue
+        for obj in objects:
             for corner in obj.bound_box:
                 view = world_to_camera_view(
                     scene, camera, obj.matrix_world @ Vector(corner)
@@ -92,6 +104,53 @@ class StagingTests:
                 self.assertTrue(0.0 <= view.x <= 1.0, obj.name)
                 self.assertTrue(0.0 <= view.y <= 1.0, obj.name)
                 self.assertGreater(view.z, 0.0, obj.name)
+
+    def test_camera_sees_all_particle_inputs(self):
+        bpy.context.scene.frame_set(bpy.context.scene.frame_start)
+
+        self.assert_camera_sees(self.inputs_of_type("Particles"))
+
+    def test_inputs_and_outputs_get_palette_materials(self):
+        for input_type in ("Particles", "Collider"):
+            for obj in self.inputs_of_type(input_type):
+                material = obj.material_slots[0].material
+                self.assertTrue(
+                    material.name.startswith(f"Squishy Volumes {input_type} "),
+                    obj.name,
+                )
+        for obj, output_obj in self.outputs_by_input().items():
+            self.assertEqual(
+                output_obj.material_slots[0].material,
+                obj.material_slots[0].material,
+            )
+
+    def test_colors_are_distinct_within_each_input_type(self):
+        for input_type in ("Particles", "Collider"):
+            colors = [
+                tuple(obj.material_slots[0].material.diffuse_color)
+                for obj in self.inputs_of_type(input_type)
+            ]
+            self.assertEqual(len(set(colors)), len(colors), input_type)
+
+    def test_visualization_scale(self):
+        for output_obj in self.outputs_by_input().values():
+            modifier = output_obj.modifiers["Squishy Volumes Output"]
+            identifier = modifier.node_group.interface.items_tree["Scale"].identifier
+            scale = getattr(modifier.properties.inputs, identifier).value
+            self.assertAlmostEqual(scale, self.visualization_scale, places=6)
+
+    def test_adding_again_reuses_the_materials(self):
+        materials = set(bpy.data.materials)
+
+        bpy.ops.scene.squishy_volumes_add_example_simulation(
+            startup_choice=self.example
+        )
+
+        self.assertEqual(set(bpy.data.materials), materials)
+        for sim_obj in simulation_objects():
+            if sim_obj != self.sim_obj:
+                addon().api.pause_bake(sim_obj)
+                addon().api.wait_until_baked(sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
 
     def test_adds_a_light(self):
         self.assertEqual(len(self.staged_objects("LIGHT")), 1)
@@ -102,6 +161,7 @@ class StagingTests:
 
 class BoingBlockExampleTest(StagingTests, ExampleTestCase):
     example = "Boing Block"
+    visualization_scale = 0.1
 
     def test_records_the_cube_and_the_plane(self):
         self.assertCountEqual(
@@ -138,6 +198,15 @@ class BoingBlockExampleTest(StagingTests, ExampleTestCase):
 
 class BenchmarkExampleTest(StagingTests, ExampleTestCase):
     example = "Benchmark"
+    visualization_scale = 0.05
+
+    def test_uses_eight_particle_and_three_collider_colors(self):
+        for input_type, count in (("Particles", 8), ("Collider", 3)):
+            materials = {
+                obj.material_slots[0].material
+                for obj in self.inputs_of_type(input_type)
+            }
+            self.assertEqual(len(materials), count, input_type)
 
     def test_records_the_monkeys_and_colliders(self):
         input_types = [
@@ -240,3 +309,33 @@ class ExampleInUnsavedFileTest(AddonTestCase):
         self.assertEqual(list(bpy.data.collections), [])
         self.assertEqual(list(bpy.data.meshes), [])
         self.assertEqual(list(bpy.data.cache_files), [])
+
+
+class PaletteTest(AddonTestCase):
+    def palette(self):
+        return addon().example.palette
+
+    def saturations(self, colors) -> list[float]:
+        return [
+            colorsys.rgb_to_hsv(*self.palette().linear_color(color)[:3])[1]
+            for color in colors
+        ]
+
+    def test_has_eight_particle_and_four_collider_colors(self):
+        palette = self.palette()
+        self.assertEqual(len(set(palette.PARTICLE_COLORS)), 8)
+        self.assertEqual(len(set(palette.COLLIDER_COLORS)), 4)
+
+    def test_colliders_are_calmer_than_particles(self):
+        palette = self.palette()
+        self.assertLess(
+            max(self.saturations(palette.COLLIDER_COLORS)),
+            min(self.saturations(palette.PARTICLE_COLORS)),
+        )
+
+    def test_materials_are_reused_by_index(self):
+        palette = self.palette()
+        material = palette.particle_material(2)
+
+        self.assertIs(palette.particle_material(2), material)
+        self.assertIsNot(palette.collider_material(2), material)
