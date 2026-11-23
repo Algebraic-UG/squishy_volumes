@@ -113,6 +113,10 @@ impl AttributeValue {
     }
 }
 
+fn attribute_error<A: attribute::Trait>(error: AttributeError) -> ParticleObjectError {
+    ParticleObjectError::AttributeError { key: A::KEY, error }
+}
+
 impl ParticlesObject {
     /// Multiplies every attribute that carries a length by `factor`.
     pub fn scale_lengths(&mut self, factor: f32) {
@@ -129,7 +133,7 @@ impl ParticlesObject {
             .get_mut(&A::KEY)
             .ok_or(AttributeError::Missing)
             .and_then(A::T::as_slice_mut)
-            .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
+            .map_err(attribute_error::<A>)
     }
 
     pub fn view_attr<A: attribute::Trait>(&self) -> Result<&[A::T], ParticleObjectError> {
@@ -137,7 +141,7 @@ impl ParticlesObject {
             .get(&A::KEY)
             .ok_or(AttributeError::Missing)
             .and_then(A::T::as_slice)
-            .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
+            .map_err(attribute_error::<A>)
     }
 
     pub fn replace_attr<A: attribute::Trait>(
@@ -148,8 +152,7 @@ impl ParticlesObject {
             .attributes
             .get_mut(&A::KEY)
             .ok_or(AttributeError::Missing)
-            .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })? =
-            AttributeValue::pack(values.collect());
+            .map_err(attribute_error::<A>)? = AttributeValue::pack(values.collect());
         Ok(())
     }
 
@@ -158,7 +161,7 @@ impl ParticlesObject {
             .remove(&A::KEY)
             .ok_or(AttributeError::Missing)
             .and_then(AttributeValue::unpack)
-            .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
+            .map_err(attribute_error::<A>)
     }
 
     pub fn insert_attr<A: attribute::Trait>(
@@ -169,6 +172,6 @@ impl ParticlesObject {
             .insert(A::KEY, AttributeValue::pack(values.collect()))
             .is_none()
             .ok_or(AttributeError::Duplicate)
-            .map_err(|error| ParticleObjectError::AttributeError { key: A::KEY, error })
+            .map_err(attribute_error::<A>)
     }
 }
