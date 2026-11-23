@@ -200,6 +200,28 @@ class BenchmarkExampleTest(StagingTests, ExampleTestCase):
     example = "Benchmark"
     visualization_scale = 0.05
 
+    def test_camera_moves_down_to_the_landing_colliders(self):
+        [camera] = self.staged_objects("CAMERA")
+        scene = bpy.context.scene
+        heights = {}
+        for frame in (scene.frame_start, 30, 60):
+            scene.frame_set(frame)
+            heights[frame] = camera.matrix_world.translation.z
+        self.assertAlmostEqual(heights[scene.frame_start], 12.0, places=4)
+        self.assertLess(heights[60], heights[30])
+        self.assertLess(heights[30], heights[scene.frame_start])
+        self.assertAlmostEqual(heights[60], 4.37588, places=4)
+
+        scene.frame_set(60)
+
+        landing = [
+            obj
+            for obj in self.inputs_of_type("Collider")
+            if obj.name.startswith(("Cone", "Torus"))
+        ]
+        self.assertEqual(len(landing), 2)
+        self.assert_camera_sees(landing)
+
     def test_uses_eight_particle_and_three_collider_colors(self):
         for input_type, count in (("Particles", 8), ("Collider", 3)):
             materials = {
