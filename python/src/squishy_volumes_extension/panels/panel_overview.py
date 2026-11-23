@@ -68,9 +68,19 @@ The UI will be blocked for a few seconds.""",
         default=EXAMPLE_BOING_BLOCK,
         options=set(),
     )
+    new_scene: bpy.props.BoolProperty(
+        name="New Scene",
+        description="Add the example to a new scene and switch to it.",
+        default=False,
+        options=set(),
+    )
 
     def run(self, context):
         check_cache_directory(get_default_cache_location())
+        if self.new_scene:
+            if context.window is None:
+                raise api.SquishyVolumesError("There is no window to switch scenes in")
+            context.window.scene = bpy.data.scenes.new(self.startup_choice)
         try:
             sim_obj = setup_example_simulation(context, self.startup_choice)
         except RuntimeError as error:

@@ -21,6 +21,8 @@ from types import SimpleNamespace
 from unittest import mock
 
 import bpy
+from bpy_extras.object_utils import world_to_camera_view
+from mathutils import Vector
 
 from .support import (
     AddonTestCase,
@@ -39,6 +41,11 @@ class ExampleTestCase(AddonTestCase):
 
     def setUp(self):
         super().setUp()
+        self.user_camera = bpy.data.objects.new(
+            "User Camera", bpy.data.cameras.new("User Camera")
+        )
+        bpy.context.scene.collection.objects.link(self.user_camera)
+        bpy.context.scene.camera = self.user_camera
         bpy.ops.scene.squishy_volumes_add_example_simulation(
             startup_choice=self.example
         )
@@ -55,7 +62,45 @@ class ExampleTestCase(AddonTestCase):
         self.assertTrue(self.baking_after_setup or self.baked_after_setup > 0)
 
 
-class BoingBlockExampleTest(ExampleTestCase):
+class StagingTests:
+    def example_collection(self) -> bpy.types.Collection:
+        return bpy.data.collections[self.sim_obj.name]
+
+    def staged_objects(self, object_type: str) -> list[bpy.types.Object]:
+        return [
+            obj for obj in self.example_collection().objects if obj.type == object_type
+        ]
+
+    def test_keeps_everything_in_its_own_collection(self):
+        collection = self.example_collection()
+        self.assertIn(collection, list(bpy.context.scene.collection.children))
+        outputs = [obj for obj in bpy.data.objects if obj.name.endswith(" - Output")]
+        for obj in [*input_objects(self.sim_obj), *outputs]:
+            self.assertEqual(list(obj.users_collection), [collection], obj.name)
+        self.assertEqual(list(bpy.context.scene.collection.objects), [self.user_camera])
+
+    def test_camera_sees_all_particle_inputs(self):
+        [camera] = self.staged_objects("CAMERA")
+        scene = bpy.context.scene
+        for obj in input_objects(self.sim_obj):
+            if obj.squishy_volumes.input_type != "Particles":
+                continue
+            for corner in obj.bound_box:
+                view = world_to_camera_view(
+                    scene, camera, obj.matrix_world @ Vector(corner)
+                )
+                self.assertTrue(0.0 <= view.x <= 1.0, obj.name)
+                self.assertTrue(0.0 <= view.y <= 1.0, obj.name)
+                self.assertGreater(view.z, 0.0, obj.name)
+
+    def test_adds_a_light(self):
+        self.assertEqual(len(self.staged_objects("LIGHT")), 1)
+
+    def test_leaves_the_scene_camera_alone(self):
+        self.assertEqual(bpy.context.scene.camera, self.user_camera)
+
+
+class BoingBlockExampleTest(StagingTests, ExampleTestCase):
     example = "Boing Block"
 
     def test_records_the_cube_and_the_plane(self):
@@ -91,7 +136,7 @@ class BoingBlockExampleTest(ExampleTestCase):
         self.assertEqual(sorted(stats), [0, 1, 2])
 
 
-class BenchmarkExampleTest(ExampleTestCase):
+class BenchmarkExampleTest(StagingTests, ExampleTestCase):
     example = "Benchmark"
 
     def test_records_the_monkeys_and_colliders(self):
@@ -106,6 +151,37 @@ class BenchmarkExampleTest(ExampleTestCase):
 
     def test_starts_baking(self):
         self.assert_started_baking()
+
+
+class ExampleInNewSceneTest(AddonTestCase):
+    def setUp(self):
+        super().setUp()
+        self.original_scene = bpy.context.scene
+        bpy.ops.scene.squishy_volumes_add_example_simulation(
+            startup_choice="Boing Block", new_scene=True
+        )
+        [self.sim_obj] = simulation_objects()
+
+    def tearDown(self):
+        addon().api.pause_bake(self.sim_obj)
+        addon().api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+        super().tearDown()
+
+    def test_switches_to_a_scene_holding_the_example(self):
+        scene = bpy.context.scene
+        self.assertNotEqual(scene, self.original_scene)
+        self.assertEqual(scene.name, "Boing Block")
+        self.assertIn(
+            bpy.data.collections[self.sim_obj.name], list(scene.collection.children)
+        )
+        self.assertEqual(
+            [marker.name for marker in scene.timeline_markers], [self.sim_obj.name] * 2
+        )
+
+    def test_leaves_the_original_scene_untouched(self):
+        self.assertEqual(list(self.original_scene.collection.all_objects), [])
+        self.assertEqual(list(self.original_scene.collection.children), [])
+        self.assertEqual(len(self.original_scene.timeline_markers), 0)
 
 
 class ExampleWithoutDiskSpaceTest(AddonTestCase):

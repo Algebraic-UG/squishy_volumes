@@ -16,9 +16,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
+
 import bpy
 
 from .. import api
+from .staging import add_camera, add_sun, move_to_collection, new_example_collection
 
 EXAMPLE_BOING_BLOCK = "Boing Block"
 
@@ -26,6 +29,7 @@ EXAMPLE_BOING_BLOCK = "Boing Block"
 def setup_example_boing_block(context: bpy.types.Context):
     sim_obj = api.add_simulation(EXAMPLE_BOING_BLOCK, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
+    collection = new_example_collection(context.scene, sim_obj.name)
 
     sim_props.grid_node_size = 0.2
     sim_props.simulation_scale = 5
@@ -39,6 +43,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         rotation=(0, 0, 0),
     )
+    move_to_collection(context.active_object, collection)
     api.add_input(sim_obj, context.active_object, api.PARTICLES)
 
     bpy.ops.mesh.primitive_plane_add(
@@ -48,6 +53,20 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=10,
     )
+    move_to_collection(context.active_object, collection)
     api.add_input(sim_obj, context.active_object, api.COLLIDER)
+
+    add_camera(
+        collection,
+        f"{sim_obj.name} Camera",
+        location=(8.0, -8.0, 2.5),
+        target=(0.0, 0.0, -0.5),
+    )
+    add_sun(
+        collection,
+        f"{sim_obj.name} Light",
+        rotation=(math.radians(40), 0.0, math.radians(30)),
+        strength=3.0,
+    )
 
     return sim_obj
