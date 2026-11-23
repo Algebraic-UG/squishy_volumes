@@ -26,11 +26,11 @@ from .scene import *
 
 
 def frame_to_load(props: Squishy_Volumes_Properties, frame: int) -> int | None:
-    frame = frame - props.display_start_frame
-
     sim = SimulationHandle.get(uuid=props.uuid)
     if sim is None:
         return None
+
+    frame = frame - sim.capture_start_frame()
 
     simulated_frames = sim.available_frames()
     if simulated_frames < 1:

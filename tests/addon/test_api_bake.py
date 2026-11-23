@@ -137,6 +137,72 @@ class BakeTest(BakeTestCase):
         api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
 
 
+class RebakeFromShownFrameTest(BakeTestCase):
+    CAPTURE_START = 10
+
+    def setUp(self):
+        super().setUp()
+        api().set_capture_range(self.sim_obj, self.CAPTURE_START, self.CAPTURE_START)
+        api().record_input(self.sim_obj)
+        self.sim_obj.squishy_volumes.bake_frames = 4
+        self.bake_and_wait()
+
+    def shown_frame(self, sim_obj: bpy.types.Object, scene_frame: int) -> float:
+        bpy.context.scene.frame_set(scene_frame)
+        return sim_obj.squishy_volumes.cache_file.frame
+
+    def frame_modification_times(self, sim_obj: bpy.types.Object) -> list[int]:
+        return [
+            path.stat().st_mtime_ns
+            for path in sorted(cache_directory(sim_obj).glob("frame_*.abc"))
+        ]
+
+    def rebake_from_scene_frame(self, sim_obj: bpy.types.Object, scene_frame: int):
+        bpy.context.scene.frame_set(scene_frame)
+        bpy.ops.scene.squishy_volumes_bake_start_from_loaded(
+            uuid=sim_obj.squishy_volumes.uuid
+        )
+        api().wait_until_baked(sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+
+    def assert_rebaked_after(self, sim_obj: bpy.types.Object, frame: int):
+        before = self.frame_modification_times(sim_obj)
+
+        self.rebake_from_scene_frame(sim_obj, self.CAPTURE_START + frame)
+
+        after = self.frame_modification_times(sim_obj)
+        self.assertEqual(len(after), 4)
+        for kept in range(frame + 1):
+            self.assertEqual(after[kept], before[kept])
+        for rebaked in range(frame + 1, 4):
+            self.assertGreater(after[rebaked], before[rebaked])
+
+    def test_shows_frames_relative_to_the_capture_start(self):
+        self.assertEqual(self.shown_frame(self.sim_obj, self.CAPTURE_START + 1), 1)
+
+    def test_rebakes_from_the_shown_frame(self):
+        self.assert_rebaked_after(self.sim_obj, 1)
+
+    def test_rebakes_from_the_recorded_start_after_the_capture_range_changed(self):
+        api().set_capture_range(self.sim_obj, 1, 1)
+
+        self.assertEqual(self.shown_frame(self.sim_obj, self.CAPTURE_START + 1), 1)
+        self.assert_rebaked_after(self.sim_obj, 1)
+
+    def test_a_reloaded_cache_lines_up_with_the_scene_frames(self):
+        directory = self.sim_obj.squishy_volumes.directory
+        simulation_handle(self.sim_obj).drop()
+        api().remove_simulation(self.sim_obj)
+        reloaded = api().add_simulation("Reloaded")
+        reloaded.squishy_volumes.directory = directory
+        reloaded.squishy_volumes.compute_device = "CPU"
+        reloaded.squishy_volumes.bake_frames = 4
+
+        api().reload(reloaded)
+
+        self.assertEqual(self.shown_frame(reloaded, self.CAPTURE_START + 1), 1)
+        self.assert_rebaked_after(reloaded, 1)
+
+
 class BakeErrorTest(BakeTestCase):
     def test_rebaking_needs_an_existing_frame(self):
         self.bake_and_wait(bake_frames=2)

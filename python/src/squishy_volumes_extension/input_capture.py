@@ -53,6 +53,7 @@ def create_input_header(sim_props):
         "frames_per_second": frames_per_second,
         "domain_min": domain_min,
         "domain_max": domain_max,
+        "capture_start_frame": sim_props.capture_start_frame,
     }
 
     objects = {}
