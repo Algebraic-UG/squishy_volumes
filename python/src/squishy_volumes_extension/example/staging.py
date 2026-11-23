@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import math
+
 import bpy
 from mathutils import Euler, Vector
 
@@ -23,19 +25,70 @@ from .. import api
 from .palette import assign_material, collider_material, particle_material
 
 
-def new_example_collection(scene: bpy.types.Scene, name: str) -> bpy.types.Collection:
-    collection = bpy.data.collections.new(name)
+def stage_example(
+    scene: bpy.types.Scene, sim_obj: bpy.types.Object, *, camera_location, camera_target
+) -> bpy.types.Object:
+    collection = bpy.data.collections.new(sim_obj.name)
     scene.collection.children.link(collection)
-    return collection
+
+    inputs = api.input_objects(sim_obj)
+    particles = [
+        obj for obj in inputs if obj.squishy_volumes.input_type == api.PARTICLES
+    ]
+    colliders = [
+        obj for obj in inputs if obj.squishy_volumes.input_type == api.COLLIDER
+    ]
+    for index, input_obj in enumerate(particles):
+        _stage_particles(sim_obj, input_obj, collection, particle_material(index))
+    for index, input_obj in enumerate(colliders):
+        _move_to_collection(input_obj, collection)
+        assign_material(input_obj, collider_material(index))
+
+    camera = _add_camera(
+        collection, f"{sim_obj.name} Camera", camera_location, camera_target
+    )
+    _add_sun(collection, f"{sim_obj.name} Light")
+    return camera
 
 
-def move_to_collection(obj: bpy.types.Object, collection: bpy.types.Collection):
+def _stage_particles(
+    sim_obj: bpy.types.Object,
+    input_obj: bpy.types.Object,
+    collection: bpy.types.Collection,
+    material: bpy.types.Material,
+):
+    _move_to_collection(input_obj, collection)
+    assign_material(input_obj, material)
+    for output_obj in _outputs_of(sim_obj, input_obj):
+        _move_to_collection(output_obj, collection)
+        assign_material(output_obj, material)
+        visualization = output_obj.modifiers.get("Squishy Volumes Output")
+        if visualization is not None:
+            api.set_modifier_input(visualization, "Material", material)
+
+
+def _outputs_of(
+    sim_obj: bpy.types.Object, input_obj: bpy.types.Object
+) -> list[bpy.types.Object]:
+    return [
+        obj
+        for obj in bpy.data.objects
+        if any(
+            modifier.type == "MESH_SEQUENCE_CACHE"
+            and modifier.cache_file == sim_obj.squishy_volumes.cache_file
+            and modifier.object_path == f"/{input_obj.name}"
+            for modifier in obj.modifiers
+        )
+    ]
+
+
+def _move_to_collection(obj: bpy.types.Object, collection: bpy.types.Collection):
     for other in list(obj.users_collection):
         other.objects.unlink(obj)
     collection.objects.link(obj)
 
 
-def add_camera(
+def _add_camera(
     collection: bpy.types.Collection, name: str, location, target
 ) -> bpy.types.Object:
     camera = bpy.data.objects.new(name, bpy.data.cameras.new(name))
@@ -46,42 +99,10 @@ def add_camera(
     return camera
 
 
-def add_sun(
-    collection: bpy.types.Collection, name: str, rotation, strength: float
-) -> bpy.types.Object:
+def _add_sun(collection: bpy.types.Collection, name: str) -> bpy.types.Object:
     light = bpy.data.lights.new(name, type="SUN")
-    light.energy = strength
+    light.energy = 3.0
     sun = bpy.data.objects.new(name, light)
-    sun.rotation_euler = Euler(rotation)
+    sun.rotation_euler = Euler((math.radians(40), 0.0, math.radians(30)))
     collection.objects.link(sun)
     return sun
-
-
-def stage_particles(
-    sim_obj: bpy.types.Object,
-    obj: bpy.types.Object,
-    collection: bpy.types.Collection,
-    material_index: int,
-    scale: float,
-) -> bpy.types.Object:
-    move_to_collection(obj, collection)
-    output_obj = api.add_input(sim_obj, obj, api.PARTICLES)
-    assert output_obj is not None
-    material = particle_material(material_index)
-    assign_material(obj, material)
-    assign_material(output_obj, material)
-    visualization = output_obj.modifiers["Squishy Volumes Output"]
-    api.set_modifier_input(visualization, "Scale", scale)
-    api.set_modifier_input(visualization, "Material", material)
-    return output_obj
-
-
-def stage_collider(
-    sim_obj: bpy.types.Object,
-    obj: bpy.types.Object,
-    collection: bpy.types.Collection,
-    material_index: int,
-):
-    move_to_collection(obj, collection)
-    api.add_input(sim_obj, obj, api.COLLIDER)
-    assign_material(obj, collider_material(material_index))

@@ -21,13 +21,7 @@ import math
 import bpy
 
 from .. import api
-from .staging import (
-    add_camera,
-    add_sun,
-    new_example_collection,
-    stage_collider,
-    stage_particles,
-)
+from .staging import stage_example
 
 EXAMPLE_BENCHMARK = "Benchmark"
 
@@ -35,7 +29,6 @@ EXAMPLE_BENCHMARK = "Benchmark"
 def setup_example_benchmark(context: bpy.types.Context):
     sim_obj = api.add_simulation(EXAMPLE_BENCHMARK, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
-    collection = new_example_collection(context.scene, sim_obj.name)
 
     sim_props.grid_node_size = 0.1
     sim_props.time_step = 0.001
@@ -43,7 +36,7 @@ def setup_example_benchmark(context: bpy.types.Context):
 
     sim_props.max_giga_bytes_on_disk = 15.0
 
-    def add_monkey(index, location, rotation):
+    def add_monkey(location, rotation):
         bpy.ops.mesh.primitive_monkey_add(
             size=4,
             enter_editmode=False,
@@ -53,46 +46,41 @@ def setup_example_benchmark(context: bpy.types.Context):
             rotation=rotation,
         )
         monkey = context.active_object
-        stage_particles(sim_obj, monkey, collection, index, scale=0.05)
+        output_obj = api.add_input(sim_obj, monkey, api.PARTICLES)
+        api.set_modifier_input(
+            output_obj.modifiers["Squishy Volumes Output"], "Scale", 0.05
+        )
         monkey.hide_set(True)
 
     add_monkey(
-        0,
         location=(-2, -2, 0),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
     add_monkey(
-        1,
         location=(-2, 2, 0),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
     add_monkey(
-        2,
         location=(2, 2, 0),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
     add_monkey(
-        3,
         location=(2, -2, 0),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
     add_monkey(
-        4,
         location=(-2, -2, 4),
         rotation=(math.radians(-45), 0, math.radians(135)),
     )
     add_monkey(
-        5,
         location=(-2, 2, 4),
         rotation=(math.radians(-45), 0, math.radians(45)),
     )
     add_monkey(
-        6,
         location=(2, 2, 4),
         rotation=(math.radians(-45), 0, math.radians(-45)),
     )
     add_monkey(
-        7,
         location=(2, -2, 4),
         rotation=(math.radians(-45), 0, math.radians(-135)),
     )
@@ -105,7 +93,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    stage_collider(sim_obj, context.active_object, collection, 0)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
     bpy.ops.mesh.primitive_torus_add(
         align="WORLD",
@@ -114,7 +102,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         major_radius=4,
         minor_radius=1,
     )
-    stage_collider(sim_obj, context.active_object, collection, 1)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -123,23 +111,22 @@ def setup_example_benchmark(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=100,
     )
-    stage_collider(sim_obj, context.active_object, collection, 2)
+    api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
-    camera = add_camera(
-        collection,
-        f"{sim_obj.name} Camera",
-        location=(24.0, -24.0, 12.0),
-        target=(0.0, 0.0, 1.0),
+    camera = stage_example(
+        context.scene,
+        sim_obj,
+        camera_location=(24.0, -24.0, 12.0),
+        camera_target=(0.0, 0.0, 1.0),
     )
-    camera.keyframe_insert("location", index=2, frame=context.scene.frame_start)
-    camera.location.z = 4.37588
-    camera.keyframe_insert("location", index=2, frame=60)
-    camera.location.z = 12.0
-    add_sun(
-        collection,
-        f"{sim_obj.name} Light",
-        rotation=(math.radians(40), 0.0, math.radians(30)),
-        strength=3.0,
-    )
+    _move_camera_down(camera, context.scene.frame_start)
 
     return sim_obj
+
+
+def _move_camera_down(camera: bpy.types.Object, start_frame: int):
+    start_height = camera.location.z
+    camera.keyframe_insert("location", index=2, frame=start_frame)
+    camera.location.z = 4.37588
+    camera.keyframe_insert("location", index=2, frame=60)
+    camera.location.z = start_height
