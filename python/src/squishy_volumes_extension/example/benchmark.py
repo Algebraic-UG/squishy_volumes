@@ -30,8 +30,6 @@ from .staging import (
 )
 
 EXAMPLE_BENCHMARK = "Benchmark"
-CAMERA_FINAL_HEIGHT = 4.37588
-CAMERA_FINAL_FRAME = 60
 
 
 def setup_example_benchmark(context: bpy.types.Context):
@@ -134,8 +132,8 @@ def setup_example_benchmark(context: bpy.types.Context):
         target=(0.0, 0.0, 1.0),
     )
     camera.keyframe_insert("location", index=2, frame=context.scene.frame_start)
-    camera.location.z = CAMERA_FINAL_HEIGHT
-    camera.keyframe_insert("location", index=2, frame=CAMERA_FINAL_FRAME)
+    camera.location.z = 4.37588
+    camera.keyframe_insert("location", index=2, frame=60)
     camera.location.z = 12.0
     add_sun(
         collection,
