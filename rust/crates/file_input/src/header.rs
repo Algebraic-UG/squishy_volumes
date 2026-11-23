@@ -29,6 +29,7 @@ pub struct InputConsts {
     pub frames_per_second: u32,
     domain_min: [f32; 3],
     domain_max: [f32; 3],
+    pub capture_start_frame: i32,
 }
 
 #[cfg(test)]
@@ -42,6 +43,7 @@ impl InputConsts {
             frames_per_second: 24,
             domain_min: [-100.; 3],
             domain_max: [100.; 3],
+            capture_start_frame: 1,
         }
     }
 }

@@ -296,12 +296,16 @@ class SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded(
     bl_label = "Bake"
     bl_description = """Restart baking physics.
 
-This uses the displayed state and runs the simulation
-either until the desired number of frames is reached
-or cancellation occurs due to user input or error.
+This continues from the simulated frame that belongs to
+the current scene frame, counted from the recorded start,
+and runs the simulation either until the desired number
+of frames is reached or cancellation occurs due to user input or error.
+
+Outputs that load the cache with their own frame offset
+may display a different state than the one rebaked from.
 
 Note that this discards already computed frames that
-come after the displayed one."""
+come after the rebaked one."""
     bl_options = {"REGISTER"}  # noqa: RUF012
 
     @classmethod

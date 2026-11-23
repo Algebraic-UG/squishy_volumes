@@ -146,6 +146,9 @@ class SimulationHandle:
     def input_header(self) -> dict[str, Any]:
         return json.loads(self.handle.input_header())
 
+    def capture_start_frame(self) -> int:
+        return self.input_header()["consts"]["capture_start_frame"]
+
     def poll(self) -> bool:
         poll_info = deepcopy(self.poll_info)
         try:

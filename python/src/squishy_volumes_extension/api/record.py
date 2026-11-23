@@ -30,7 +30,7 @@ from ..capture_markers import set_capture_range as set_stored_and_marked_range
 from ..errors import CaptureRangeError
 from ..input_capture import capture_input_frame, create_input_header
 from ..util import giga_f32_to_u64
-from .simulation import scene_or_current
+from .simulation import scene_or_current, update_frame_driver
 
 
 def capture_range(
@@ -85,7 +85,7 @@ def iter_record_input(
             input_header=create_input_header(sim_props),
             max_bytes_on_disk=giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
         )
-        _update_frame_driver(sim_props, start)
+        update_frame_driver(sim_props, start)
         yield from _record_frames(scene, sim_props, input_handle, range(start, end + 1))
     finally:
         scene.frame_set(prior_frame)
@@ -117,12 +117,3 @@ def _record_frames(
     except BaseException:
         input_handle.drop()
         raise
-
-
-def _update_frame_driver(sim_props, start: int):
-    cache_file = sim_props.cache_file
-    if cache_file is None or cache_file.animation_data is None:
-        return
-    frame_driver = cache_file.animation_data.drivers.find("frame")
-    if frame_driver is not None:
-        frame_driver.driver.expression = f"frame - {start}"

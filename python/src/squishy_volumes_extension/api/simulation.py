@@ -115,7 +115,10 @@ def input_objects(sim_obj: bpy.types.Object) -> list[bpy.types.Object]:
 
 def reload(sim_obj: bpy.types.Object):
     sim_props = sim_obj.squishy_volumes
-    SimulationHandle.load(uuid=sim_props.uuid, directory=sim_props.directory)
+    sim_handle = SimulationHandle.load(
+        uuid=sim_props.uuid, directory=sim_props.directory
+    )
+    update_frame_driver(sim_props, sim_handle.capture_start_frame())
 
 
 def reload_all() -> list[bpy.types.Object]:
@@ -135,6 +138,15 @@ def scene_or_current(scene: bpy.types.Scene | None) -> bpy.types.Scene:
     if resolved is None:
         raise SquishyVolumesError("There is no scene to add the simulation to")
     return resolved
+
+
+def update_frame_driver(sim_props, capture_start_frame: int):
+    cache_file = sim_props.cache_file
+    if cache_file is None or cache_file.animation_data is None:
+        return
+    frame_driver = cache_file.animation_data.drivers.find("frame")
+    if frame_driver is not None:
+        frame_driver.driver.expression = f"frame - {capture_start_frame}"
 
 
 def _new_simulation_object(name: str) -> bpy.types.Object:
