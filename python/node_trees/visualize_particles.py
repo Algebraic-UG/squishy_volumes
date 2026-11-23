@@ -39,19 +39,24 @@ class VisualizeParticles(CustomGeometryGroup):
         scale = SCALE.add(tree)
         failed_scale = FAILED_SCALE.add(tree)
         reconstruction_inputs = add_reconstruction_inputs(tree)
+        output = tree.outputs.geometry()
+        material = tree.inputs.material("Material")
 
         (
             g.MenuSwitch.geometry(
                 display_as,
                 {
                     "Points": PointVisualization(geometry, scale, failed_scale),
-                    "Deformed Cubes": DeformedCubesVisualization(geometry, scale),
+                    "Deformed Cubes": DeformedCubesVisualization(
+                        geometry, scale, material
+                    ),
                     "Reconstructed": ReconstructedSurfaceVisualization(
                         geometry, *reconstruction_inputs
                     ),
                 },
             )
-            >> tree.outputs.geometry()
+            >> g.SetMaterial(material=material)
+            >> output
         )
 
 

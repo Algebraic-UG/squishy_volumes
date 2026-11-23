@@ -20,7 +20,7 @@ from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
-from nodebpy.types import InputFloat, InputGeometry
+from nodebpy.types import InputFloat, InputGeometry, InputMaterial
 
 from .._shared import names
 from .._shared.attributes import float_attribute, vector_attribute
@@ -35,12 +35,16 @@ class DeformedCubesVisualization(CustomGeometryGroup):
         self,
         geometry: InputGeometry = ...,
         scale: InputFloat = SCALE.default,
+        material: InputMaterial = None,
     ):
-        super().__init__(**{"Geometry": geometry, SCALE.name: scale})
+        super().__init__(
+            **{"Geometry": geometry, SCALE.name: scale, "Material": material}
+        )
 
     def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
         geometry = tree.inputs.geometry("Geometry")
         scale = SCALE.add(tree)
+        material = tree.inputs.material("Material")
 
         size = scale * float_attribute(geometry, names.outputs.INITIAL_SIZE.name, 1)
         x, y, z = (
@@ -54,7 +58,9 @@ class DeformedCubesVisualization(CustomGeometryGroup):
         deformation = matrix_from_columns(x, y, z, g.Position().o.position)
 
         (
-            g.InstanceOnPoints(points=geometry, instance=g.Cube())
+            g.InstanceOnPoints(
+                points=geometry, instance=g.SetMaterial(g.Cube(), material=material)
+            )
             >> g.SetInstanceTransform(
                 transform=deformation @ g.CombineTransform(scale=size)
             )

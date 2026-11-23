@@ -196,6 +196,69 @@ class BoingBlockExampleTest(StagingTests, ExampleTestCase):
         self.assertEqual(sorted(stats), [0, 1, 2])
 
 
+class BoingBlockVisualizationTest(ExampleTestCase):
+    example = "Boing Block"
+
+    def evaluated_materials(self, output_obj: bpy.types.Object) -> set:
+        evaluated = output_obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        materials = list(evaluated.data.materials)
+        for reference in evaluated.evaluated_geometry().instance_references():
+            data = getattr(reference, "data", reference)
+            materials.extend(getattr(data, "materials", []))
+        return {material.original for material in materials if material is not None}
+
+    def test_output_carries_its_material_in_every_display_mode(self):
+        api = addon().api
+        deadline = time.monotonic() + BAKE_TIMEOUT_SEC
+        while api.baked_frames(self.sim_obj) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        api.pause_bake(self.sim_obj)
+        api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+        bpy.context.scene.frame_set(bpy.context.scene.frame_start + 1)
+        output_obj = bpy.data.objects["Cube - Output"]
+        material = output_obj.material_slots[0].material
+        modifier = output_obj.modifiers["Squishy Volumes Output"]
+        sockets = modifier.node_group.interface.items_tree
+
+        for mode in ("Points", "Deformed Cubes", "Reconstructed"):
+            with self.subTest(mode=mode):
+                api.set_modifier_input(modifier, "Display As", mode)
+                self.assertEqual(self.evaluated_materials(output_obj), {material})
+        self.assertEqual(
+            getattr(modifier.properties.inputs, sockets["Material"].identifier).value,
+            material,
+        )
+
+
+class VisualizationInterfaceTest(AddonTestCase):
+    def test_material_input_keeps_existing_identifiers(self):
+        tree = addon().assets.create_geometry_nodes_visualize_particles()
+
+        identifiers = {
+            (item.in_out, item.name): item.identifier
+            for item in tree.interface.items_tree
+            if item.item_type == "SOCKET"
+        }
+
+        self.assertEqual(
+            identifiers,
+            {
+                ("INPUT", "Geometry"): "Socket_0",
+                ("INPUT", "Display As"): "Socket_1",
+                ("INPUT", "Scale"): "Socket_2",
+                ("INPUT", "Failed Scale"): "Socket_3",
+                ("INPUT", "Radius Scale"): "Socket_4",
+                ("INPUT", "Smooth Shading"): "Socket_6",
+                ("INPUT", "Smooth Iterations"): "Socket_7",
+                ("OUTPUT", "Geometry"): "Socket_8",
+                ("INPUT", "Material"): "Socket_9",
+            },
+        )
+        material_input = tree.interface.items_tree["Material"]
+        self.assertEqual(material_input.socket_type, "NodeSocketMaterial")
+        self.assertIsNone(material_input.default_value)
+
+
 class BenchmarkExampleTest(StagingTests, ExampleTestCase):
     example = "Benchmark"
     visualization_scale = 0.05

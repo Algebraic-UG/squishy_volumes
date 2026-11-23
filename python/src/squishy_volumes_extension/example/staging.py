@@ -72,6 +72,7 @@ def stage_particles(
     assign_material(output_obj, material)
     visualization = output_obj.modifiers["Squishy Volumes Output"]
     api.set_modifier_input(visualization, "Scale", scale)
+    api.set_modifier_input(visualization, "Material", material)
     return output_obj
 
 
