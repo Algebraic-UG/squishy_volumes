@@ -16,11 +16,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import colorsys
 import time
 from types import SimpleNamespace
 from unittest import mock
 
 import bpy
+from bpy_extras.object_utils import world_to_camera_view
+from mathutils import Vector
 
 from .support import (
     AddonTestCase,
@@ -39,6 +42,11 @@ class ExampleTestCase(AddonTestCase):
 
     def setUp(self):
         super().setUp()
+        self.user_camera = bpy.data.objects.new(
+            "User Camera", bpy.data.cameras.new("User Camera")
+        )
+        bpy.context.scene.collection.objects.link(self.user_camera)
+        bpy.context.scene.camera = self.user_camera
         bpy.ops.scene.squishy_volumes_add_example_simulation(
             startup_choice=self.example
         )
@@ -55,8 +63,105 @@ class ExampleTestCase(AddonTestCase):
         self.assertTrue(self.baking_after_setup or self.baked_after_setup > 0)
 
 
-class BoingBlockExampleTest(ExampleTestCase):
+class StagingTests:
+    def example_collection(self) -> bpy.types.Collection:
+        return bpy.data.collections[self.sim_obj.name]
+
+    def staged_objects(self, object_type: str) -> list[bpy.types.Object]:
+        return [
+            obj for obj in self.example_collection().objects if obj.type == object_type
+        ]
+
+    def test_keeps_everything_in_its_own_collection(self):
+        collection = self.example_collection()
+        self.assertIn(collection, list(bpy.context.scene.collection.children))
+        outputs = [obj for obj in bpy.data.objects if obj.name.endswith(" - Output")]
+        for obj in [*input_objects(self.sim_obj), *outputs]:
+            self.assertEqual(list(obj.users_collection), [collection], obj.name)
+        self.assertEqual(list(bpy.context.scene.collection.objects), [self.user_camera])
+
+    def inputs_of_type(self, input_type: str) -> list[bpy.types.Object]:
+        return [
+            obj
+            for obj in input_objects(self.sim_obj)
+            if obj.squishy_volumes.input_type == input_type
+        ]
+
+    def outputs_by_input(self) -> dict[bpy.types.Object, bpy.types.Object]:
+        return {
+            obj: bpy.data.objects[f"{obj.name} - Output"]
+            for obj in self.inputs_of_type("Particles")
+        }
+
+    def assert_camera_sees(self, objects: list[bpy.types.Object]):
+        [camera] = self.staged_objects("CAMERA")
+        scene = bpy.context.scene
+        for obj in objects:
+            for corner in obj.bound_box:
+                view = world_to_camera_view(
+                    scene, camera, obj.matrix_world @ Vector(corner)
+                )
+                self.assertTrue(0.0 <= view.x <= 1.0, obj.name)
+                self.assertTrue(0.0 <= view.y <= 1.0, obj.name)
+                self.assertGreater(view.z, 0.0, obj.name)
+
+    def test_camera_sees_all_particle_inputs(self):
+        bpy.context.scene.frame_set(bpy.context.scene.frame_start)
+
+        self.assert_camera_sees(self.inputs_of_type("Particles"))
+
+    def test_inputs_and_outputs_get_palette_materials(self):
+        for input_type in ("Particles", "Collider"):
+            for obj in self.inputs_of_type(input_type):
+                material = obj.material_slots[0].material
+                self.assertTrue(
+                    material.name.startswith(f"Squishy Volumes {input_type} "),
+                    obj.name,
+                )
+        for obj, output_obj in self.outputs_by_input().items():
+            self.assertEqual(
+                output_obj.material_slots[0].material,
+                obj.material_slots[0].material,
+            )
+
+    def test_colors_are_distinct_within_each_input_type(self):
+        for input_type in ("Particles", "Collider"):
+            colors = [
+                tuple(obj.material_slots[0].material.diffuse_color)
+                for obj in self.inputs_of_type(input_type)
+            ]
+            self.assertEqual(len(set(colors)), len(colors), input_type)
+
+    def test_visualization_scale(self):
+        for output_obj in self.outputs_by_input().values():
+            modifier = output_obj.modifiers["Squishy Volumes Output"]
+            identifier = modifier.node_group.interface.items_tree["Scale"].identifier
+            scale = getattr(modifier.properties.inputs, identifier).value
+            self.assertAlmostEqual(scale, self.visualization_scale, places=6)
+
+    def test_adding_again_reuses_the_materials(self):
+        materials = set(bpy.data.materials)
+
+        bpy.ops.scene.squishy_volumes_add_example_simulation(
+            startup_choice=self.example
+        )
+
+        self.assertEqual(set(bpy.data.materials), materials)
+        for sim_obj in simulation_objects():
+            if sim_obj != self.sim_obj:
+                addon().api.pause_bake(sim_obj)
+                addon().api.wait_until_baked(sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+
+    def test_adds_a_light(self):
+        self.assertEqual(len(self.staged_objects("LIGHT")), 1)
+
+    def test_leaves_the_scene_camera_alone(self):
+        self.assertEqual(bpy.context.scene.camera, self.user_camera)
+
+
+class BoingBlockExampleTest(StagingTests, ExampleTestCase):
     example = "Boing Block"
+    visualization_scale = 0.1
 
     def test_records_the_cube_and_the_plane(self):
         self.assertCountEqual(
@@ -91,8 +196,102 @@ class BoingBlockExampleTest(ExampleTestCase):
         self.assertEqual(sorted(stats), [0, 1, 2])
 
 
-class BenchmarkExampleTest(ExampleTestCase):
+class BoingBlockVisualizationTest(ExampleTestCase):
+    example = "Boing Block"
+
+    def evaluated_materials(self, output_obj: bpy.types.Object) -> set:
+        evaluated = output_obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        materials = list(evaluated.data.materials)
+        for reference in evaluated.evaluated_geometry().instance_references():
+            data = getattr(reference, "data", reference)
+            materials.extend(getattr(data, "materials", []))
+        return {material.original for material in materials if material is not None}
+
+    def test_output_carries_its_material_in_every_display_mode(self):
+        api = addon().api
+        deadline = time.monotonic() + BAKE_TIMEOUT_SEC
+        while api.baked_frames(self.sim_obj) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        api.pause_bake(self.sim_obj)
+        api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+        bpy.context.scene.frame_set(bpy.context.scene.frame_start + 1)
+        output_obj = bpy.data.objects["Cube - Output"]
+        material = output_obj.material_slots[0].material
+        modifier = output_obj.modifiers["Squishy Volumes Output"]
+        sockets = modifier.node_group.interface.items_tree
+
+        for mode in ("Points", "Deformed Cubes", "Reconstructed"):
+            with self.subTest(mode=mode):
+                api.set_modifier_input(modifier, "Display As", mode)
+                self.assertEqual(self.evaluated_materials(output_obj), {material})
+        self.assertEqual(
+            getattr(modifier.properties.inputs, sockets["Material"].identifier).value,
+            material,
+        )
+
+
+class VisualizationInterfaceTest(AddonTestCase):
+    def test_material_input_keeps_existing_identifiers(self):
+        tree = addon().assets.create_geometry_nodes_visualize_particles()
+
+        identifiers = {
+            (item.in_out, item.name): item.identifier
+            for item in tree.interface.items_tree
+            if item.item_type == "SOCKET"
+        }
+
+        self.assertEqual(
+            identifiers,
+            {
+                ("INPUT", "Geometry"): "Socket_0",
+                ("INPUT", "Display As"): "Socket_1",
+                ("INPUT", "Scale"): "Socket_2",
+                ("INPUT", "Failed Scale"): "Socket_3",
+                ("INPUT", "Radius Scale"): "Socket_4",
+                ("INPUT", "Smooth Shading"): "Socket_6",
+                ("INPUT", "Smooth Iterations"): "Socket_7",
+                ("OUTPUT", "Geometry"): "Socket_8",
+                ("INPUT", "Material"): "Socket_9",
+            },
+        )
+        material_input = tree.interface.items_tree["Material"]
+        self.assertEqual(material_input.socket_type, "NodeSocketMaterial")
+        self.assertIsNone(material_input.default_value)
+
+
+class BenchmarkExampleTest(StagingTests, ExampleTestCase):
     example = "Benchmark"
+    visualization_scale = 0.05
+
+    def test_camera_moves_down_to_the_landing_colliders(self):
+        [camera] = self.staged_objects("CAMERA")
+        scene = bpy.context.scene
+        heights = {}
+        for frame in (scene.frame_start, 30, 60):
+            scene.frame_set(frame)
+            heights[frame] = camera.matrix_world.translation.z
+        self.assertAlmostEqual(heights[scene.frame_start], 12.0, places=4)
+        self.assertLess(heights[60], heights[30])
+        self.assertLess(heights[30], heights[scene.frame_start])
+        self.assertAlmostEqual(heights[60], 4.37588, places=4)
+
+        scene.frame_set(60)
+
+        landing = [
+            obj
+            for obj in self.inputs_of_type("Collider")
+            if obj.name.startswith(("Cone", "Torus"))
+        ]
+        self.assertEqual(len(landing), 2)
+        self.assert_camera_sees(landing)
+
+    def test_uses_eight_particle_and_three_collider_colors(self):
+        for input_type, count in (("Particles", 8), ("Collider", 3)):
+            materials = {
+                obj.material_slots[0].material
+                for obj in self.inputs_of_type(input_type)
+            }
+            self.assertEqual(len(materials), count, input_type)
 
     def test_records_the_monkeys_and_colliders(self):
         input_types = [
@@ -106,6 +305,37 @@ class BenchmarkExampleTest(ExampleTestCase):
 
     def test_starts_baking(self):
         self.assert_started_baking()
+
+
+class ExampleInNewSceneTest(AddonTestCase):
+    def setUp(self):
+        super().setUp()
+        self.original_scene = bpy.context.scene
+        bpy.ops.scene.squishy_volumes_add_example_simulation(
+            startup_choice="Boing Block", new_scene=True
+        )
+        [self.sim_obj] = simulation_objects()
+
+    def tearDown(self):
+        addon().api.pause_bake(self.sim_obj)
+        addon().api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+        super().tearDown()
+
+    def test_switches_to_a_scene_holding_the_example(self):
+        scene = bpy.context.scene
+        self.assertNotEqual(scene, self.original_scene)
+        self.assertEqual(scene.name, "Boing Block")
+        self.assertIn(
+            bpy.data.collections[self.sim_obj.name], list(scene.collection.children)
+        )
+        self.assertEqual(
+            [marker.name for marker in scene.timeline_markers], [self.sim_obj.name] * 2
+        )
+
+    def test_leaves_the_original_scene_untouched(self):
+        self.assertEqual(list(self.original_scene.collection.all_objects), [])
+        self.assertEqual(list(self.original_scene.collection.children), [])
+        self.assertEqual(len(self.original_scene.timeline_markers), 0)
 
 
 class ExampleWithoutDiskSpaceTest(AddonTestCase):
@@ -164,3 +394,33 @@ class ExampleInUnsavedFileTest(AddonTestCase):
         self.assertEqual(list(bpy.data.collections), [])
         self.assertEqual(list(bpy.data.meshes), [])
         self.assertEqual(list(bpy.data.cache_files), [])
+
+
+class PaletteTest(AddonTestCase):
+    def palette(self):
+        return addon().example.palette
+
+    def saturations(self, colors) -> list[float]:
+        return [
+            colorsys.rgb_to_hsv(*self.palette().linear_color(color)[:3])[1]
+            for color in colors
+        ]
+
+    def test_has_eight_particle_and_four_collider_colors(self):
+        palette = self.palette()
+        self.assertEqual(len(set(palette.PARTICLE_COLORS)), 8)
+        self.assertEqual(len(set(palette.COLLIDER_COLORS)), 4)
+
+    def test_colliders_are_calmer_than_particles(self):
+        palette = self.palette()
+        self.assertLess(
+            max(self.saturations(palette.COLLIDER_COLORS)),
+            min(self.saturations(palette.PARTICLE_COLORS)),
+        )
+
+    def test_materials_are_reused_by_index(self):
+        palette = self.palette()
+        material = palette.particle_material(2)
+
+        self.assertIs(palette.particle_material(2), material)
+        self.assertIsNot(palette.collider_material(2), material)

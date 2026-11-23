@@ -19,6 +19,7 @@
 import bpy
 
 from .. import api
+from .staging import stage_example
 
 EXAMPLE_BOING_BLOCK = "Boing Block"
 
@@ -39,7 +40,8 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         rotation=(0, 0, 0),
     )
-    api.add_input(sim_obj, context.active_object, api.PARTICLES)
+    output_obj = api.add_input(sim_obj, context.active_object, api.PARTICLES)
+    api.set_modifier_input(output_obj.modifiers["Squishy Volumes Output"], "Scale", 0.1)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -50,4 +52,10 @@ def setup_example_boing_block(context: bpy.types.Context):
     )
     api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
+    stage_example(
+        context.scene,
+        sim_obj,
+        camera_location=(8.0, -8.0, 2.5),
+        camera_target=(0.0, 0.0, -0.5),
+    )
     return sim_obj

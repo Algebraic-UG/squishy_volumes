@@ -21,6 +21,7 @@ import math
 import bpy
 
 from .. import api
+from .staging import stage_example
 
 EXAMPLE_BENCHMARK = "Benchmark"
 
@@ -45,7 +46,10 @@ def setup_example_benchmark(context: bpy.types.Context):
             rotation=rotation,
         )
         monkey = context.active_object
-        api.add_input(sim_obj, monkey, api.PARTICLES)
+        output_obj = api.add_input(sim_obj, monkey, api.PARTICLES)
+        api.set_modifier_input(
+            output_obj.modifiers["Squishy Volumes Output"], "Scale", 0.05
+        )
         monkey.hide_set(True)
 
     add_monkey(
@@ -109,4 +113,20 @@ def setup_example_benchmark(context: bpy.types.Context):
     )
     api.add_input(sim_obj, context.active_object, api.COLLIDER)
 
+    camera = stage_example(
+        context.scene,
+        sim_obj,
+        camera_location=(24.0, -24.0, 12.0),
+        camera_target=(0.0, 0.0, 1.0),
+    )
+    _move_camera_down(camera, context.scene.frame_start)
+
     return sim_obj
+
+
+def _move_camera_down(camera: bpy.types.Object, start_frame: int):
+    start_height = camera.location.z
+    camera.keyframe_insert("location", index=2, frame=start_frame)
+    camera.location.z = 4.37588
+    camera.keyframe_insert("location", index=2, frame=60)
+    camera.location.z = start_height
