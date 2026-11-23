@@ -25,7 +25,11 @@ from .. import api
 from ..bridge import SimulationHandle, build_info
 from ..cache_paths import check_cache_directory, simulation_input_exists
 from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
-from ..get_preferences import get_default_cache_location
+from ..get_preferences import (
+    first_run_setup_pending,
+    get_default_cache_location,
+    get_preferences,
+)
 from ..operator_base import ReportingOperator, SimulationOperator
 from ..popup import popup, show_message
 from ..registration import class_registration
@@ -205,6 +209,46 @@ class SCENE_OT_Squishy_Volumes_Show_Message(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class SCENE_OT_Squishy_Volumes_Finish_First_Run_Setup(bpy.types.Operator):
+    bl_idname = "scene.squishy_volumes_finish_first_run_setup"
+    bl_label = "Done"
+    bl_description = """Keep these defaults and hide the first run setup.
+Both can be changed later in the add-on preferences.
+
+If auto-save preferences is off, this saves the preferences."""
+
+    @classmethod
+    def poll(cls, context):
+        return first_run_setup_pending(get_preferences())
+
+    def execute(self, context):
+        get_preferences().first_run_setup_done = True
+        if context.preferences.use_preferences_save:
+            context.preferences.is_dirty = True
+            return {"FINISHED"}
+        try:
+            bpy.ops.wm.save_userpref()
+        except RuntimeError as error:
+            self.report({"WARNING"}, f"Preferences were not saved: {error}")
+        return {"FINISHED"}
+
+
+def draw_first_run_setup(layout: bpy.types.UILayout, context):
+    preferences = get_preferences()
+    box = layout.box()
+    box.label(text="First Run Setup Defaults", icon="PREFERENCES")
+    box.prop(preferences, "default_compute_device", text="Device")
+    box.prop(preferences, "default_cache_location", text="Cache")
+    if context.preferences.use_preferences_save:
+        box.operator(SCENE_OT_Squishy_Volumes_Finish_First_Run_Setup.bl_idname)
+    else:
+        box.label(text="Auto-save preferences is off.", icon="INFO")
+        box.operator(
+            SCENE_OT_Squishy_Volumes_Finish_First_Run_Setup.bl_idname,
+            text="Save Preferences & Done",
+        )
+
+
 class SCENE_OT_Squishy_Volumes_Copy_Build_Info(bpy.types.Operator):
     bl_idname = "scene.squishy_volumes_copy_build_info"
     bl_label = "Copy Build Info"
@@ -240,6 +284,10 @@ class SCENE_PT_Squishy_Volumes_Overview(bpy.types.Panel):
     def draw(self, context):
         assert isinstance(self.layout, bpy.types.UILayout)
         layout = self.layout
+
+        if first_run_setup_pending(get_preferences()):
+            draw_first_run_setup(layout, context)
+            return
 
         if context.mode != "OBJECT":
             layout.label(text="Squishy Volumes needs Object Mode", icon="INFO")
@@ -401,6 +449,7 @@ classes = [
     SCENE_OT_Squishy_Volumes_Reload_All,
     SCENE_OT_Squishy_Volumes_Remove_Simulation,
     SCENE_OT_Squishy_Volumes_Show_Message,
+    SCENE_OT_Squishy_Volumes_Finish_First_Run_Setup,
     SCENE_OT_Squishy_Volumes_Copy_Build_Info,
     SCENE_PT_Squishy_Volumes_Overview,
 ]

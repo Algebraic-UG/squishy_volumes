@@ -221,7 +221,7 @@ class BakeErrorListTest(BakeTestCase):
 class ComputeFailureTest(AddonTestCase):
     def setUp(self):
         super().setUp()
-        self.preferences = addon().get_preferences._get_preferences()
+        self.preferences = addon().get_preferences.get_preferences()
         self.allowed_scaled_input = self.preferences.allow_scaled_input
         self.preferences.allow_scaled_input = True
         self.sim_obj = api().add_simulation("Mirrored")

@@ -19,6 +19,7 @@
 import bpy
 
 from .. import api
+from ..get_preferences import first_run_setup_pending, get_preferences
 from ..operator_base import ReportingOperator, SimulationOperator
 from ..registration import class_registration
 from ..squishy_volumes_properties import (
@@ -240,6 +241,7 @@ class SCENE_PT_Squishy_Volumes_Input_Output(bpy.types.Panel):
     def poll(cls, context):
         return (
             context.mode == "OBJECT"
+            and not first_run_setup_pending(get_preferences())
             and get_selected_simulation_uuid(context.scene) is not None
         )
 

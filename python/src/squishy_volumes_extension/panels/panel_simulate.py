@@ -32,8 +32,10 @@ from ..capture_markers import (
     superfluous_capture_markers,
 )
 from ..get_preferences import (
+    first_run_setup_pending,
     get_confirm_bake_overwrite,
     get_enable_timeline_markers,
+    get_preferences,
 )
 from ..operator_base import SimulationOperator, report_error
 from ..registration import class_registration
@@ -401,7 +403,7 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        if context.mode != "OBJECT":
+        if context.mode != "OBJECT" or first_run_setup_pending(get_preferences()):
             return False
         uuid = get_selected_simulation_uuid(context.scene)
         return uuid is not None and (

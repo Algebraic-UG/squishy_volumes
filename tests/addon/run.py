@@ -69,7 +69,12 @@ def run_in_blender(blender: str, zip_path: Path, patterns: list[str]) -> int:
             str(zip_path.resolve()),
             *patterns,
         ]
-        environment = {**os.environ, "BLENDER_USER_RESOURCES": user_dir}
+        environment = {
+            name: value
+            for name, value in os.environ.items()
+            if not name.startswith("SQUISHY_VOLUMES_")
+        }
+        environment["BLENDER_USER_RESOURCES"] = user_dir
         return subprocess.run(command, env=environment, check=False).returncode
 
 
