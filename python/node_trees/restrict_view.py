@@ -40,13 +40,18 @@ class RestrictView(CustomGeometryGroup):
         output = tree.outputs.geometry()
         geometry = tree.inputs.geometry()
         view = tree.inputs.object("Object")
+        invert = tree.inputs.boolean(
+            "Invert", description="Delete the points inside the cuboid instead"
+        )
 
         position_in_view = g.Position().o.position.transform(
             view.matrix().invert() @ self_matrix()
         )
         (
             geometry
-            >> g.DeleteGeometry.point(selection=is_outside_unit_cube(position_in_view))
+            >> g.DeleteGeometry.point(
+                selection=is_outside_unit_cube(position_in_view) ^ invert
+            )
             >> output
         )
 

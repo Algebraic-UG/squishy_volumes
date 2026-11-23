@@ -48,6 +48,7 @@ class RestrictViewTest(AddonTestCase):
                 ("OUTPUT", "Geometry", "Socket_0", "NodeSocketGeometry"),
                 ("INPUT", "Geometry", "Socket_1", "NodeSocketGeometry"),
                 ("INPUT", "Object", "Socket_2", "NodeSocketObject"),
+                ("INPUT", "Invert", "Socket_3", "NodeSocketBool"),
             ],
         )
 
@@ -57,3 +58,7 @@ class RestrictViewTest(AddonTestCase):
     def test_follows_the_view_transform(self):
         self.view.matrix_world = mathutils.Matrix.Diagonal((2, 1, 3, 1))
         self.assertEqual(self.remaining_vertices(), 3)
+
+    def test_invert_keeps_the_vertices_outside_the_view_cube(self):
+        self.obj.modifiers["Restrict View"].properties.inputs.Socket_3.value = True
+        self.assertEqual(self.remaining_vertices(), 2)
