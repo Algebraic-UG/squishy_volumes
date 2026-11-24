@@ -25,9 +25,11 @@ use std::{
 };
 
 #[derive(thiserror::Error, Debug)]
+#[error("the computation was canceled")]
+pub struct Canceled;
+
+#[derive(thiserror::Error, Debug)]
 pub enum HarnessError {
-    #[error("the operation has been canceled")]
-    Canceled,
     #[error("can't create new report scope for '{new}', already reporting on '{old}'")]
     AlreadyHasSubReport { old: String, new: String },
 }
@@ -74,9 +76,9 @@ impl Harness {
         self.run.store(false, Ordering::Relaxed);
     }
 
-    pub fn check(&self) -> Result<(), HarnessError> {
+    pub fn check(&self) -> Result<(), Canceled> {
         if self.is_canceled() {
-            Err(HarnessError::Canceled)
+            Err(Canceled)
         } else {
             Ok(())
         }
@@ -86,7 +88,7 @@ impl Harness {
         !self.run.load(Ordering::Relaxed)
     }
 
-    pub fn step_to(&self, completed_steps: usize) -> Result<(), HarnessError> {
+    pub fn step_to(&self, completed_steps: usize) -> Result<(), Canceled> {
         self.check()?;
         self.report
             .lock()
@@ -96,7 +98,7 @@ impl Harness {
         Ok(())
     }
 
-    pub fn step(&self) -> Result<(), HarnessError> {
+    pub fn step(&self) -> Result<(), Canceled> {
         self.check()?;
         self.report
             .lock()

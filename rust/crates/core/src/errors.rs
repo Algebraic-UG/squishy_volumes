@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use squishy_volumes_xpu::Canceled;
+
 use crate::initialization::StateInitializationError;
 
 #[derive(Debug, thiserror::Error)]
@@ -25,14 +27,17 @@ pub enum Error {
     )]
     StoredError(String),
 
+    #[error(transparent)]
+    Canceled(#[from] Canceled),
+
     #[error("Gpu error")]
-    GpuError(#[from] squishy_volumes_gpu::Error),
+    GpuError(#[source] squishy_volumes_gpu::Error),
 
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error("Cpu compute error")]
-    CpuCompute(#[from] squishy_volumes_cpu::Error),
+    CpuCompute(#[source] squishy_volumes_cpu::Error),
 
     #[error("Cannot create a new simulation without recorded input ready")]
     MissingInput,
@@ -77,7 +82,7 @@ pub enum Error {
     DiskSpaceExceededWhileRecording(u64),
 
     #[error("Failed to create initial state")]
-    InitializationError(#[from] StateInitializationError),
+    InitializationError(#[source] StateInitializationError),
     #[error("Failed to store frame")]
     StoreError(#[source] squishy_volumes_cache::Error),
 
@@ -96,55 +101,29 @@ pub enum Error {
     BrokenSimulationInput(String),
 }
 
-impl Error {
-    // Cancellation hides behind many wrappers, see
-    // https://github.com/Algebraic-UG/squishy_volumes/issues/446
-    pub fn is_cancellation(&self) -> bool {
-        std::iter::successors(Some(self as &dyn std::error::Error), |error| error.source()).any(
-            |error| {
-                matches!(
-                    error.downcast_ref(),
-                    Some(squishy_volumes_xpu::HarnessError::Canceled)
-                )
-            },
-        )
+impl From<squishy_volumes_cpu::Error> for Error {
+    fn from(error: squishy_volumes_cpu::Error) -> Self {
+        match error {
+            squishy_volumes_cpu::Error::Canceled(canceled) => Self::Canceled(canceled),
+            error => Self::CpuCompute(error),
+        }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use squishy_volumes_xpu::HarnessError;
-
-    use super::*;
-
-    #[test]
-    fn recognizes_wrapped_cancellations() {
-        let cancellations = [
-            Error::HarnessError(HarnessError::Canceled),
-            Error::CpuCompute(squishy_volumes_cpu::Error::Harness(HarnessError::Canceled)),
-            Error::GpuError(squishy_volumes_gpu::Error::Harness(HarnessError::Canceled)),
-            Error::InitializationError(StateInitializationError::HarnessError(
-                HarnessError::Canceled,
-            )),
-        ];
-        for cancellation in cancellations {
-            assert!(cancellation.is_cancellation(), "{cancellation:?}");
+impl From<squishy_volumes_gpu::Error> for Error {
+    fn from(error: squishy_volumes_gpu::Error) -> Self {
+        match error {
+            squishy_volumes_gpu::Error::Canceled(canceled) => Self::Canceled(canceled),
+            error => Self::GpuError(error),
         }
     }
+}
 
-    #[test]
-    fn other_errors_are_not_cancellations() {
-        let errors = [
-            Error::StoredError("broken".to_string()),
-            Error::Panic {
-                thread: "compute",
-                message: "broken".to_string(),
-            },
-            Error::CpuCompute(squishy_volumes_cpu::Error::ZeroTimeStep),
-            Error::GpuError(squishy_volumes_gpu::Error::NoParticles),
-        ];
-        for error in errors {
-            assert!(!error.is_cancellation(), "{error:?}");
+impl From<StateInitializationError> for Error {
+    fn from(error: StateInitializationError) -> Self {
+        match error {
+            StateInitializationError::Canceled(canceled) => Self::Canceled(canceled),
+            error => Self::InitializationError(error),
         }
     }
 }

@@ -17,6 +17,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod api_impl;
+#[cfg(test)]
+mod cancellation_tests;
 mod compute_thread;
 mod context;
 mod errors;

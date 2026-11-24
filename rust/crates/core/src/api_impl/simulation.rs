@@ -35,7 +35,6 @@ impl Breakable for SimulationImpl {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl squishy_volumes_api::Simulation for SimulationImpl {
     fn input_header(&self) -> anyhow::Result<Value> {
         Ok(guard_breakable(self, |simulation| {

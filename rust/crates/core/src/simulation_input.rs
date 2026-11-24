@@ -48,7 +48,6 @@ pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
     cache_dir.as_ref().join("simulation_input.bin")
 }
 
-#[allow(clippy::result_large_err)]
 impl SimulationInputImpl {
     pub fn new(
         uuid: String,

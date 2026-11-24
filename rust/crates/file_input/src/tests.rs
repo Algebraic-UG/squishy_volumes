@@ -44,8 +44,7 @@ fn test_file() -> (PathBuf, TempDir) {
 }
 
 fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Header {
-    let consts = InputConsts::test_input();
-    let objects = [
+    Header::new(InputHeader::test_input([
         (
             "foo".to_string(),
             InputObject::Particles(InputObjectParticles {
@@ -68,11 +67,7 @@ fn test_header(num_particles: u32, num_vertices: u32, num_triangles: u32) -> Hea
                 num_triangles,
             }),
         ),
-    ]
-    .into_iter()
-    .collect();
-
-    Header::new(InputHeader { consts, objects })
+    ]))
 }
 
 fn test_frames(

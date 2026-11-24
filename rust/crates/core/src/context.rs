@@ -44,7 +44,6 @@ impl Default for ContextImpl {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl ContextImpl {
     pub fn new_simulation_input_impl(
         &mut self,
@@ -141,10 +140,10 @@ impl ContextImpl {
 }
 
 #[cfg(test)]
-#[allow(clippy::result_large_err)]
 mod tests {
     use serde_json::json;
     use squishy_volumes_api::Context;
+    use squishy_volumes_file_input::InputHeader;
     use tempfile::TempDir;
 
     use super::*;
@@ -156,19 +155,7 @@ mod tests {
     const PANIC_MESSAGE: &str = "api test panic";
 
     fn input_header() -> Value {
-        json!({
-            "consts": {
-                "grid_node_size": 0.5,
-                "leaf_size": 1.0,
-                "leaf_threshold": 16,
-                "simulation_scale": 1.0,
-                "frames_per_second": 24,
-                "domain_min": [-1.0, -1.0, -1.0],
-                "domain_max": [1.0, 1.0, 1.0],
-                "capture_start_frame": 1
-            },
-            "objects": {}
-        })
+        serde_json::to_value(InputHeader::test_input([])).unwrap()
     }
 
     fn context_with_input(directory: &TempDir) -> ContextImpl {

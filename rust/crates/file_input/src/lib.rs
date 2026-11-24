@@ -56,6 +56,11 @@ mod writing;
 #[cfg(test)]
 mod tests;
 
+#[cfg(any(test, feature = "test-utils"))]
+mod test_utils;
+#[cfg(any(test, feature = "test-utils"))]
+pub use test_utils::*;
+
 use common::*;
 
 mod errors;

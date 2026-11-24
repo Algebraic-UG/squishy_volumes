@@ -36,7 +36,6 @@ impl Breakable for SimulationInputImpl {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl squishy_volumes_api::SimulationInput for SimulationInputImpl {
     fn start_frame(&mut self, frame_start: Value) -> anyhow::Result<()> {
         Ok(guard_breakable(self, |simulation_input| {

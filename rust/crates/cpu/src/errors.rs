@@ -43,6 +43,9 @@ pub enum Error {
     #[error("harness error")]
     Harness(#[from] squishy_volumes_xpu::HarnessError),
 
+    #[error(transparent)]
+    Canceled(#[from] squishy_volumes_xpu::Canceled),
+
     #[error("failed to compute the elastic energy of a particle")]
     Energy(#[from] squishy_volumes_util::EnergyError),
 }
