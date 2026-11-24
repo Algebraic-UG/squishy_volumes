@@ -164,6 +164,8 @@ uv run tests/addon/run.py --zip python/src/squishy_volumes_extension/squishy_vol
 The runner only needs the Python standard library, so this doesn't set up the `python` project's environment.
 Pass `--blender <path>` (or set `BLENDER`) if `blender` isn't on your `PATH`.
 Trailing arguments only run tests whose name contains one of them, for example `BoingBlock`.
+`--video-dir <dir>` also renders the video tests into that directory, with the preview render preset
+or, given `--video-preset showcase`, the showcase one. Without it, only a tiny preview render runs.
 
 VS Code's Testing view runs the same tests with the `bpy` module from `python/.venv` instead of a Blender binary.
 They install the newest `squishy_volumes_extension-*.zip` from `python/src/squishy_volumes_extension/`,

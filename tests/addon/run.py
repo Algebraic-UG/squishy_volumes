@@ -48,6 +48,17 @@ def parse_arguments():
         help="Blender executable (default: $BLENDER or blender)",
     )
     parser.add_argument(
+        "--video-dir",
+        type=Path,
+        help="also render the video tests into this directory",
+    )
+    parser.add_argument(
+        "--video-preset",
+        choices=["preview", "showcase"],
+        default="preview",
+        help="render preset of the video tests (default: preview)",
+    )
+    parser.add_argument(
         "patterns",
         nargs="*",
         help="only run tests whose name contains one of these patterns",
@@ -55,7 +66,19 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def run_in_blender(blender: str, zip_path: Path, patterns: list[str]) -> int:
+def video_environment(video_dir: Path | None, video_preset: str) -> dict[str, str]:
+    if video_dir is None:
+        return {}
+    video_dir.mkdir(parents=True, exist_ok=True)
+    return {
+        "SQUISHY_VOLUMES_VIDEO_DIR": str(video_dir.resolve()),
+        "SQUISHY_VOLUMES_VIDEO_PRESET": video_preset.upper(),
+    }
+
+
+def run_in_blender(
+    blender: str, zip_path: Path, patterns: list[str], video: dict[str, str]
+) -> int:
     with tempfile.TemporaryDirectory(prefix="squishy_volumes_user_") as user_dir:
         command = [
             blender,
@@ -73,11 +96,16 @@ def run_in_blender(blender: str, zip_path: Path, patterns: list[str]) -> int:
             name: value
             for name, value in os.environ.items()
             if not name.startswith("SQUISHY_VOLUMES_")
+            and name != "LP_NATIVE_VECTOR_WIDTH"
         }
+        environment.update(video)
         environment["BLENDER_USER_RESOURCES"] = user_dir
         return subprocess.run(command, env=environment, check=False).returncode
 
 
 if __name__ == "__main__":
     arguments = parse_arguments()
-    sys.exit(run_in_blender(arguments.blender, arguments.zip, arguments.patterns))
+    video = video_environment(arguments.video_dir, arguments.video_preset)
+    sys.exit(
+        run_in_blender(arguments.blender, arguments.zip, arguments.patterns, video)
+    )
