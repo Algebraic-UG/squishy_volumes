@@ -20,15 +20,16 @@ use std::{
     fmt::Debug,
     fs::File,
     io::{BufWriter, Seek, Write},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use bincode::serialize_into;
 use tracing::info;
 
-use super::{Error, FrameBulk, Header, magic_bytes};
+use super::{Error, FileError, FrameBulk, Header, magic_bytes};
 
 pub struct InputWriter {
+    path: PathBuf,
     header: Header,
     writer: BufWriter<File>,
     frame_offsets: Vec<u64>,
@@ -37,10 +38,21 @@ pub struct InputWriter {
 impl InputWriter {
     pub fn new<P: AsRef<Path> + Debug>(path: P, header: Header) -> Result<Self, Error> {
         info!("Start writing input to {path:?}");
-        let mut writer = BufWriter::new(File::create(path)?);
-        squishy_volumes_file_util::write_magic_and_version(magic_bytes, &mut writer)?;
-        serialize_into(&mut writer, &header)?;
+        let path = path.as_ref();
+        Self::create(path.to_path_buf(), header).map_err(|source| Error::File {
+            path: path.to_path_buf(),
+            source,
+        })
+    }
+
+    fn create(path: PathBuf, header: Header) -> Result<Self, FileError> {
+        let file = File::create(&path).map_err(|source| FileError::Create { source })?;
+        let mut writer = BufWriter::new(file);
+        squishy_volumes_file_util::write_magic_and_version(magic_bytes, &mut writer)
+            .map_err(|source| FileError::WriteMagicAndVersion { source })?;
+        serialize_into(&mut writer, &header).map_err(|source| FileError::WriteHeader { source })?;
         Ok(Self {
+            path,
             header,
             writer,
             frame_offsets: Default::default(),
@@ -51,11 +63,19 @@ impl InputWriter {
         &mut self,
         animated_globals: &squishy_volumes_util::AnimatedGlobals,
     ) -> Result<u64, Error> {
-        let current_offset = self.writer.stream_position()?;
+        let frame = self.frame_offsets.len();
+        self.write_frame_start(animated_globals)
+            .map_err(|source| self.file_error(FileError::WriteFrame { frame, source }))
+    }
+
+    fn write_frame_start(
+        &mut self,
+        animated_globals: &squishy_volumes_util::AnimatedGlobals,
+    ) -> Result<u64, bincode::Error> {
+        let current_offset = stream_position(&mut self.writer)?;
         self.frame_offsets.push(current_offset);
         serialize_into(&mut self.writer, animated_globals)?;
-
-        Ok(self.writer.stream_position()?)
+        stream_position(&mut self.writer)
     }
 
     pub fn record_bulk(&mut self, bulk: &FrameBulk) -> Result<u64, Error> {
@@ -65,25 +85,46 @@ impl InputWriter {
         let frame = self.frame_offsets.len() - 1;
         bulk.verify(&self.header)
             .map_err(|source| Error::FrameVerification { frame, source })?;
-        serialize_into(&mut self.writer, bulk)?;
-
-        Ok(self.writer.stream_position()?)
+        serialize_into(&mut self.writer, bulk)
+            .and_then(|_| stream_position(&mut self.writer))
+            .map_err(|source| self.file_error(FileError::WriteFrame { frame, source }))
     }
 
     pub fn flush(self) -> Result<u64, Error> {
         info!("Finish writing input");
         let Self {
-            mut writer,
+            path,
+            writer,
             frame_offsets,
             ..
         } = self;
-
-        let index_offset = writer.stream_position()?;
-        serialize_into(&mut writer, &frame_offsets)?;
-
-        writer.write_all(&index_offset.to_le_bytes())?;
-        writer.flush()?;
-
-        Ok(writer.stream_position()?)
+        finish(writer, &frame_offsets).map_err(|source| Error::File { path, source })
     }
+
+    fn file_error(&self, source: FileError) -> Error {
+        Error::File {
+            path: self.path.clone(),
+            source,
+        }
+    }
+}
+
+fn stream_position(writer: &mut BufWriter<File>) -> Result<u64, bincode::Error> {
+    writer.stream_position().map_err(bincode::Error::from)
+}
+
+fn finish(mut writer: BufWriter<File>, frame_offsets: &[u64]) -> Result<u64, FileError> {
+    stream_position(&mut writer)
+        .and_then(|index_offset| {
+            serialize_into(&mut writer, frame_offsets)?;
+            writer
+                .write_all(&index_offset.to_le_bytes())
+                .map_err(bincode::Error::from)
+        })
+        .map_err(|source| FileError::WriteOffsets { source })?;
+
+    writer
+        .flush()
+        .and_then(|_| writer.stream_position())
+        .map_err(|source| FileError::Flush { source })
 }
