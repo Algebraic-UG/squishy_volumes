@@ -1,9 +1,6 @@
 {
     "blender.addon.sourceDirectory": "./python/src/squishy_volumes_extension",
     "blender.addon.buildTaskName": "build-node-trees",
-    "blender.environmentVariables": [
-        "RUST_BACKTRACE=full"
-    ],
     "ruff.interpreter": [
         "${workspaceFolder}/python/.venv/bin/python"
     ],
