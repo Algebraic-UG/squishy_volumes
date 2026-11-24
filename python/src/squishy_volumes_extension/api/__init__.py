@@ -23,6 +23,7 @@ from ..errors import (
     InsufficientDiskSpace,
     InvalidBakeRange,
     InvalidInput,
+    InvalidRenderSetup,
     ScaledInputError,
     SimulationNotFound,
     SimulationNotLoaded,
@@ -54,6 +55,13 @@ from .record import (
     record_input,
     set_capture_range,
 )
+from .render import (
+    PREVIEW,
+    RENDER_PRESETS,
+    SHOWCASE,
+    render_frames,
+    set_up_render,
+)
 from .simulation import (
     add_simulation,
     clone_simulation,
@@ -74,12 +82,16 @@ from .tools import (
 __all__ = [
     "COLLIDER",
     "PARTICLES",
+    "PREVIEW",
+    "RENDER_PRESETS",
+    "SHOWCASE",
     "BakeFailed",
     "BakeTimeout",
     "CaptureRangeError",
     "InsufficientDiskSpace",
     "InvalidBakeRange",
     "InvalidInput",
+    "InvalidRenderSetup",
     "ScaledInputError",
     "SimulationNotFound",
     "SimulationNotLoaded",
@@ -108,10 +120,12 @@ __all__ = [
     "reload_all",
     "remove_input",
     "remove_simulation",
+    "render_frames",
     "reset_alembic_attributes",
     "restrict_view",
     "set_capture_range",
     "set_modifier_input",
+    "set_up_render",
     "simulations",
     "wait_until_baked",
 ]

@@ -59,3 +59,7 @@ class BakeFailed(SquishyVolumesError):
 
 class BakeTimeout(SquishyVolumesError):
     pass
+
+
+class InvalidRenderSetup(SquishyVolumesError):
+    pass
