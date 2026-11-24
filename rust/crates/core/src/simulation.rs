@@ -51,7 +51,6 @@ struct PollInfo {
     progress: Vec<ReportInfo>,
 }
 
-#[allow(clippy::result_large_err)]
 impl SimulationImpl {
     pub fn new(
         SimulationInputImpl {

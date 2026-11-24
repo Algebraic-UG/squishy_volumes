@@ -44,7 +44,6 @@ impl Default for ContextImpl {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl ContextImpl {
     pub fn new_simulation_input_impl(
         &mut self,
@@ -141,7 +140,6 @@ impl ContextImpl {
 }
 
 #[cfg(test)]
-#[allow(clippy::result_large_err)]
 mod tests {
     use serde_json::json;
     use squishy_volumes_api::Context;

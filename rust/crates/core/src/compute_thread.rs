@@ -55,7 +55,6 @@ pub struct ComputeThreadSettings {
     pub adaptive_time_steps: bool,
 }
 
-#[allow(clippy::result_large_err)]
 impl ComputeThread {
     pub fn new(
         ComputeThreadSettings {
@@ -153,7 +152,7 @@ impl ComputeThread {
                                     store_bvh: true,
                                 },
                             )?;
-                            result = cpu_result.map_err(Error::CpuCompute);
+                            result = cpu_result.map_err(Error::from);
                             last_frame_substeps = cpu_state.last_frame_substeps();
                             io_state
                         }
@@ -166,7 +165,7 @@ impl ComputeThread {
                                     store_bvh: true,
                                 },
                             )?;
-                            result = gpu_result.map_err(Error::GpuError);
+                            result = gpu_result.map_err(Error::from);
                             last_frame_substeps = gpu_state.last_frame_substeps();
                             io_state
                         }
@@ -249,7 +248,7 @@ impl ComputeThread {
             self.harness.cancel();
         }
         match thread.join().map_err(compute_panic)? {
-            Err(error) if error.is_cancellation() => Ok(()),
+            Err(Error::Canceled(_)) => Ok(()),
             result => result,
         }
     }
@@ -297,7 +296,6 @@ fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
 }
 
 #[cfg(test)]
-#[allow(clippy::result_large_err)]
 impl ComputeThread {
     pub(crate) fn spawn_work(
         work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
@@ -320,7 +318,6 @@ impl ComputeThread {
 }
 
 #[cfg(test)]
-#[allow(clippy::result_large_err)]
 mod tests {
     use super::*;
 
@@ -337,19 +334,6 @@ mod tests {
     #[test]
     fn stopping_a_running_thread_is_not_an_error() {
         let thread = compute_thread(until_canceled);
-
-        assert!(thread.stop().is_ok());
-    }
-
-    #[test]
-    fn stopping_a_thread_canceled_deep_inside_is_not_an_error() {
-        let thread = compute_thread(|harness| {
-            until_canceled(harness).map_err(|_| {
-                Error::CpuCompute(squishy_volumes_cpu::Error::Harness(
-                    squishy_volumes_xpu::HarnessError::Canceled,
-                ))
-            })
-        });
 
         assert!(thread.stop().is_ok());
     }

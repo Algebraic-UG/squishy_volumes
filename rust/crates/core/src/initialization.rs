@@ -40,6 +40,9 @@ pub enum StateInitializationError {
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
+    #[error(transparent)]
+    Canceled(#[from] squishy_volumes_xpu::Canceled),
+
     #[error("'{name}': input particle #{particle_index} invalid")]
     ParticleInvalid {
         name: String,

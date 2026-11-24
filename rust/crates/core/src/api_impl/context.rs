@@ -23,7 +23,6 @@ use squishy_volumes_api::{Simulation, SimulationInput};
 
 use crate::{ContextImpl, guard::guard};
 
-#[allow(clippy::result_large_err)]
 impl squishy_volumes_api::Context for ContextImpl {
     fn available_gpus(&self) -> anyhow::Result<Vec<String>> {
         Ok(guard(|| {

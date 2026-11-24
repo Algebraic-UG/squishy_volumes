@@ -31,12 +31,10 @@ pub trait Breakable {
     fn broken(panic_message: String) -> Error;
 }
 
-#[allow(clippy::result_large_err)]
 pub fn guard<R>(f: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
     catch_panic(f).unwrap_or_else(|message| Err(caller_panic(message)))
 }
 
-#[allow(clippy::result_large_err)]
 pub fn guard_breakable<B: Breakable, T: Deref<Target = B>, R>(
     mut breakable: T,
     f: impl FnOnce(&mut T) -> Result<R, Error>,
