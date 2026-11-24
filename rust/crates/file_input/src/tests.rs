@@ -18,8 +18,8 @@
 
 use std::{
     fmt,
-    fs::OpenOptions,
-    io::{Seek, SeekFrom, Write},
+    fs::{File, OpenOptions},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
 };
 
@@ -29,8 +29,8 @@ use squishy_volumes_util::AnimatedGlobals;
 use tempfile::{Builder, TempDir};
 
 use crate::{
-    Error, FrameBulk, Header, InputConsts, InputObject, InputObjectCollider, InputObjectParticles,
-    InputOffsetReadingError, OwnedFrameBulk,
+    Error, FileError, FrameBulk, Header, InputConsts, InputObject, InputObjectCollider,
+    InputObjectParticles, OwnedFrameBulk,
 };
 
 use super::{InputFrame, InputHeader, InputReader, InputWriter};
@@ -178,10 +178,8 @@ fn test_wrong_magic_number() {
         let _ = f.write(&[1, 2, 3, 4]).unwrap();
     }
     assert!(matches!(
-        InputReader::new(path),
-        Err(Error::FileUtil(
-            squishy_volumes_file_util::Error::MagicMismatch { .. }
-        ))
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadMagicAndVersion { source: squishy_volumes_file_util::Error::MagicMismatch { .. } } }) if error_path == path
     ));
 }
 
@@ -200,10 +198,8 @@ fn test_wrong_version() {
         let _ = f.write(&[1, 2, 3, 4]).unwrap();
     }
     assert!(matches!(
-        InputReader::new(path),
-        Err(Error::FileUtil(
-            squishy_volumes_file_util::Error::VersionMismatch { .. }
-        ))
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadMagicAndVersion { source: squishy_volumes_file_util::Error::VersionMismatch { .. } } }) if error_path == path
     ));
 }
 
@@ -228,8 +224,9 @@ fn test_index_offset_mishap_io() {
         let _ = f.write(&[u8::MAX; 8]).unwrap();
     }
     assert!(matches!(
-        InputReader::new(path),
-        Err(Error::OffsetReading(InputOffsetReadingError::IoError(_)))
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadOffsets { source } })
+            if error_path == path && matches!(*source, bincode::ErrorKind::Io(_))
     ));
 }
 
@@ -243,10 +240,138 @@ fn test_index_offset_mishap_bincode() {
         let _ = f.write(&[0; 8]).unwrap();
     }
     assert!(matches!(
-        InputReader::new(path),
-        Err(Error::OffsetReading(InputOffsetReadingError::BincodeError(
-            _
-        )))
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadOffsets { .. } }) if error_path == path
+    ));
+}
+
+fn overwrite_at(path: &Path, pos: SeekFrom, bytes: &[u8]) {
+    let mut f = OpenOptions::new().write(true).open(path).unwrap();
+    f.seek(pos).unwrap();
+    f.write_all(bytes).unwrap();
+}
+
+fn index_offset(path: &Path) -> u64 {
+    let mut f = File::open(path).unwrap();
+    f.seek(SeekFrom::End(-8)).unwrap();
+    let mut bytes = [0; 8];
+    f.read_exact(&mut bytes).unwrap();
+    u64::from_le_bytes(bytes)
+}
+
+#[test]
+fn test_missing_input_file() {
+    let (path, _guard) = test_file();
+    assert!(matches!(
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::Open { source } })
+            if error_path == path && source.kind() == std::io::ErrorKind::NotFound
+    ));
+}
+
+#[test]
+fn test_create_in_missing_directory() {
+    let (path, _guard) = test_file();
+    let path = path.join("nested").join("input.bin");
+    assert!(matches!(
+        InputWriter::new(&path, test_header(10, 9, 3)),
+        Err(Error::File { path: error_path, source: FileError::Create { .. } }) if error_path == path
+    ));
+}
+
+#[test]
+fn test_truncated_version() {
+    let (path, _guard) = test_file();
+    write_full(&path, 10, 9, 3);
+    OpenOptions::new()
+        .write(true)
+        .open(&path)
+        .unwrap()
+        .set_len(
+            (squishy_volumes_file_util::MAGIC_LEN + 3)
+                .try_into()
+                .unwrap(),
+        )
+        .unwrap();
+    assert!(matches!(
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadMagicAndVersion { source: squishy_volumes_file_util::Error::ReadVersion(_) } }) if error_path == path
+    ));
+}
+
+#[test]
+fn test_header_object_name_past_end_of_file() {
+    let (path, _guard) = test_file();
+    write_full(&path, 10, 9, 3);
+    let object_count_pos =
+        squishy_volumes_file_util::DATA_OFFSET + size_of::<InputConsts>() + 3 * size_of::<usize>();
+    let first_object_name_len_pos = object_count_pos + size_of::<u64>();
+    overwrite_at(
+        &path,
+        SeekFrom::Start(first_object_name_len_pos.try_into().unwrap()),
+        &1_000_000u64.to_le_bytes(),
+    );
+    assert!(matches!(
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadHeader { source } })
+            if error_path == path && matches!(&*source, bincode::ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof)
+    ));
+}
+
+#[test]
+fn test_missing_offsets() {
+    let (path, _guard) = test_file();
+    let mut writer = InputWriter::new(&path, test_header(10, 9, 3)).unwrap();
+    for (animated_globals, bulk) in &test_frames(10, 9, 3) {
+        writer.start_frame(animated_globals).unwrap();
+        for bulk in bulk {
+            writer.record_bulk(bulk).unwrap();
+        }
+    }
+    drop(writer);
+    assert!(matches!(
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadOffsets { .. } }) if error_path == path
+    ));
+}
+
+#[test]
+fn test_truncated_offsets() {
+    let (path, _guard) = test_file();
+    write_full(&path, 10, 9, 3);
+    let file_len = std::fs::metadata(&path).unwrap().len();
+    overwrite_at(&path, SeekFrom::End(-8), &(file_len - 4).to_le_bytes());
+    assert!(matches!(
+        InputReader::new(&path),
+        Err(Error::File { path: error_path, source: FileError::ReadOffsets { source } })
+            if error_path == path && matches!(&*source, bincode::ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof)
+    ));
+}
+
+#[test]
+fn test_frame_truncated_mid_bulk() {
+    let (path, _guard) = test_file();
+    write_full(&path, 10, 9, 3);
+    let (_, bulk) = InputFrame::test_input_0(10, 9, 3);
+    let last_bulk = bulk.last().unwrap();
+    let element_size = match last_bulk.data {
+        InputBulk::Bool(_) => 1,
+        InputBulk::Floats(_) | InputBulk::Ints(_) => 4,
+    };
+    let data_len = u64::try_from(last_bulk.data.len()).unwrap();
+    let length_prefix_pos = index_offset(&path) - element_size * data_len - 8;
+    overwrite_at(
+        &path,
+        SeekFrom::Start(length_prefix_pos),
+        &(data_len + 1_000_000).to_le_bytes(),
+    );
+
+    let mut reader = InputReader::new(&path).unwrap();
+    let last_frame = reader.len() - 1;
+    assert!(matches!(
+        reader.read_frame(last_frame),
+        Err(Error::File { path: error_path, source: FileError::ReadFrame { frame, source } })
+            if error_path == path && frame == last_frame && matches!(&*source, bincode::ErrorKind::Io(io) if io.kind() == std::io::ErrorKind::UnexpectedEof)
     ));
 }
 

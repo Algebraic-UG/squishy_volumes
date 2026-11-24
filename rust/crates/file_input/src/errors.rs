@@ -16,24 +16,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::path::PathBuf;
+
 use crate::BulkAttribute;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("input file {path:?}")]
+    File { path: PathBuf, source: FileError },
     #[error("can't record input bulk if no frame is started")]
     NoFrameStarted,
-    #[error("expected frame to go to {end} but read to {pos}")]
-    FrameMisalign { end: u64, pos: u64 },
     #[error("requested frame {requested} but there are only {available}")]
     FrameNotAvailable { requested: usize, available: usize },
-    #[error("failed to read the frame offsets")]
-    OffsetReading(#[from] InputOffsetReadingError),
-    #[error("unknown read/write error")]
-    Io(#[from] std::io::Error),
-    #[error("unknown bincode error")]
-    Bincode(#[from] bincode::Error),
-    #[error("failed to check magic bytes and version")]
-    FileUtil(#[from] squishy_volumes_file_util::Error),
     #[error("frame #{frame} verification failed")]
     FrameVerification {
         frame: usize,
@@ -42,11 +36,45 @@ pub enum Error {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum InputOffsetReadingError {
-    #[error("Unknown read/write error")]
-    IoError(#[from] std::io::Error),
-    #[error("Unknown bincode error")]
-    BincodeError(#[from] bincode::Error),
+pub enum FileError {
+    #[error("failed to create")]
+    Create { source: std::io::Error },
+    #[error("failed to open")]
+    Open { source: std::io::Error },
+    #[error("failed to read metadata")]
+    ReadMetadata { source: std::io::Error },
+    #[error("failed to write magic bytes and version")]
+    WriteMagicAndVersion {
+        source: squishy_volumes_file_util::Error,
+    },
+    #[error("failed to check magic bytes and version")]
+    ReadMagicAndVersion {
+        source: squishy_volumes_file_util::Error,
+    },
+    #[error("failed to write header")]
+    WriteHeader { source: bincode::Error },
+    #[error("failed to read header")]
+    ReadHeader { source: bincode::Error },
+    #[error("failed to write frame #{frame}")]
+    WriteFrame {
+        frame: usize,
+        source: bincode::Error,
+    },
+    #[error("failed to read frame #{frame}")]
+    ReadFrame {
+        frame: usize,
+        source: bincode::Error,
+    },
+    #[error("expected frame #{frame} to end at {end} but read to {pos}")]
+    FrameMisalign { frame: usize, end: u64, pos: u64 },
+    #[error("failed to write frame offsets")]
+    WriteOffsets { source: bincode::Error },
+    #[error("failed to read index offset")]
+    ReadIndexOffset { source: std::io::Error },
+    #[error("failed to read frame offsets")]
+    ReadOffsets { source: bincode::Error },
+    #[error("failed to flush")]
+    Flush { source: std::io::Error },
 }
 
 #[derive(thiserror::Error, Debug)]
