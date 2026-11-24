@@ -49,5 +49,5 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[pyfunction]
 fn build_info_as_json() -> anyhow::Result<String> {
-    Ok(to_string(&CombinedBuildInfo::new())?)
+    Ok(to_string(&CombinedBuildInfo::new()?)?)
 }

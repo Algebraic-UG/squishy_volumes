@@ -18,12 +18,23 @@
 
 #[test]
 fn check_version() {
+    crate::hot_reloadable::initialize();
     assert_eq!(
         crate::CombinedBuildInfo::new()
+            .unwrap()
             .wrapper
             .crate_info
             .version
             .to_string(),
         squishy_volumes_file_util::version_string(),
     );
+}
+
+#[test]
+fn unavailable_state_reports_reason() {
+    let error = crate::hot_reloadable::HotState::Unavailable("rebuild the extension".to_string())
+        .context()
+        .err()
+        .unwrap();
+    assert_eq!(error.to_string(), "rebuild the extension");
 }

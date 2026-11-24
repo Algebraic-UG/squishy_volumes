@@ -16,13 +16,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use build_info::BuildInfo;
 use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::{
+    any::Any,
+    panic::catch_unwind,
+    sync::{Mutex, MutexGuard, PoisonError},
+};
 
 #[cfg(feature = "hot_reload")]
-use std::thread::spawn;
+use std::{thread::spawn, time::Duration};
 
 #[cfg(not(feature = "hot_reload"))]
 pub use squishy_volumes_hot as squishy_volumes_hot_reload;
@@ -52,9 +56,24 @@ pub mod squishy_volumes_hot_reload {
     pub fn subscribe() -> hot_lib_reloader::LibReloadObserver {}
 }
 
+pub enum HotState {
+    Uninitialized,
+    Ready(Box<dyn squishy_volumes_api::Context>),
+    Unavailable(String),
+}
+
+impl HotState {
+    pub fn context(&mut self) -> Result<&mut dyn squishy_volumes_api::Context> {
+        match self {
+            Self::Uninitialized => bail!(BUG),
+            Self::Ready(context) => Ok(context.as_mut()),
+            Self::Unavailable(reason) => bail!("{reason}"),
+        }
+    }
+}
+
 lazy_static! {
-    static ref LOCK: Mutex<Option<Box<dyn squishy_volumes_api::Context>>> =
-        Mutex::new(Default::default());
+    static ref STATE: Mutex<HotState> = Mutex::new(HotState::Uninitialized);
 }
 
 #[derive(serde::Serialize)]
@@ -65,11 +84,11 @@ pub struct CombinedBuildInfo {
 
 build_info::build_info!(fn _build_info);
 impl CombinedBuildInfo {
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Result<Self> {
+        Ok(Self {
             wrapper: _build_info().clone(),
-            core_libs: squishy_volumes_hot_reload::build_info(),
-        }
+            core_libs: try_with_context(|_| Ok(squishy_volumes_hot_reload::build_info()))?,
+        })
     }
 }
 
@@ -77,21 +96,49 @@ const BUG: &str = "You encountered a bug in Squishy Volumes.
 It's unlikely that the process can recover.
 Please consider restarting the application.";
 
-pub fn initialize() {
-    if let Ok(mut guard) = LOCK.lock() {
-        *guard = Some(squishy_volumes_hot_reload::create_context());
-    } else {
-        eprintln!("{BUG}");
+#[cfg(feature = "hot_reload")]
+const RELOAD_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[cfg(feature = "hot_reload")]
+const RELOAD_TIMED_OUT: &str = "Reloading the Squishy Volumes library timed out.
+Rebuild the extension (scripts/rebuild_api.sh) and restart Blender.";
+
+fn lock_state() -> MutexGuard<'static, HotState> {
+    STATE.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+fn panic_message(payload: &(dyn Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("unknown panic")
+}
+
+fn load_state() -> HotState {
+    match catch_unwind(squishy_volumes_hot_reload::create_context) {
+        Ok(context) => HotState::Ready(context),
+        Err(payload) => HotState::Unavailable(format!(
+            "Loading the Squishy Volumes library failed: {}",
+            panic_message(payload.as_ref())
+        )),
     }
+}
+
+pub fn initialize() {
+    let mut state = lock_state();
+    *state = load_state();
+    drop(state);
+    STATE.clear_poison();
 }
 
 pub fn try_with_context<R, F: FnOnce(&mut dyn squishy_volumes_api::Context) -> Result<R>>(
     f: F,
 ) -> Result<R> {
-    if let Ok(mut guard) = LOCK.lock() {
-        return f(guard.as_mut().context(BUG)?.as_mut());
-    }
-    bail!(BUG)
+    let Ok(mut state) = STATE.lock() else {
+        bail!(BUG)
+    };
+    f(state.context()?)
 }
 
 #[cfg(feature = "hot_reload")]
@@ -99,26 +146,22 @@ pub fn handle_reload() {
     let _ = spawn(|| {
         let lib_observer = squishy_volumes_hot_reload::subscribe();
         loop {
-            // wait for reload and block it
             let update_blocker = lib_observer.wait_for_about_to_reload();
 
-            // wait for any library calls to finish and block further calls
-            let mut context_guard = LOCK.lock().unwrap();
+            // held across the reload, so no call reaches a half-loaded library
+            let mut state = lock_state();
 
-            // cleanup
-            let context = context_guard.take();
-
-            // this should block until any threads are joined and any resources are dropped
-            drop(context);
-
-            // let the library update commence and wait until it's finished
+            // the context must be dropped while the old library is still loaded
+            *state = HotState::Uninitialized;
             drop(update_blocker);
-            lib_observer.wait_for_reload();
+            *state = if lib_observer.wait_for_reload_timeout(RELOAD_TIMEOUT) {
+                load_state()
+            } else {
+                HotState::Unavailable(RELOAD_TIMED_OUT.to_string())
+            };
 
-            // fresh context with new lib version
-            *context_guard = Some(squishy_volumes_hot_reload::create_context());
-
-            // context_guard is dropped and calls can continue
+            drop(state);
+            STATE.clear_poison();
         }
     });
 }
