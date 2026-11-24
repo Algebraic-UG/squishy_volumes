@@ -57,6 +57,13 @@ def find_simulation(simulation_uuid: str) -> bpy.types.Object:
     return candidates[0]
 
 
+def find_simulation_by_name(name: str) -> bpy.types.Object:
+    sim_obj = bpy.data.objects.get(name)
+    if sim_obj is None or not sim_obj.squishy_volumes.is_simulation:
+        raise SimulationNotFound(f"There is no simulation named '{name}'")
+    return sim_obj
+
+
 def add_simulation(
     name: str = "My Simulation",
     *,

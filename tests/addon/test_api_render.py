@@ -18,7 +18,7 @@
 
 import bpy
 
-from .support import AddonTestCase, api
+from .support import AddonTestCase, addon, api
 
 
 def add_camera(name: str, scene: bpy.types.Scene | None = None) -> bpy.types.Object:
@@ -154,3 +154,62 @@ class InvalidRenderSetupTest(RenderTestCase):
 
     def test_errors_are_squishy_volumes_errors(self):
         self.assertTrue(issubclass(api().InvalidRenderSetup, api().SquishyVolumesError))
+
+
+class SetUpRenderOperatorTest(RenderTestCase):
+    def test_applies_the_chosen_simulation_preset_and_camera(self):
+        bpy.ops.scene.squishy_volumes_set_up_render(
+            simulation=self.sim_obj.name,
+            preset="SHOWCASE",
+            camera=self.camera.name,
+        )
+
+        self.assertEqual(self.scene.camera, self.camera)
+        self.assertEqual(self.scene.render.resolution_percentage, 100)
+        self.assertEqual(self.scene.frame_start, 5)
+
+    def test_renders_the_given_simulation(self):
+        other = api().add_simulation("Other")
+        api().set_capture_range(other, 9, 9)
+
+        bpy.ops.scene.squishy_volumes_set_up_render(
+            simulation=other.name, camera=self.camera.name
+        )
+
+        self.assertEqual(self.scene.frame_start, 9)
+
+    def test_errors_raise_in_scripts(self):
+        bpy.data.objects.remove(self.camera)
+        before = render_state(self.scene)
+
+        with self.assertRaisesRegex(RuntimeError, "Choose a camera"):
+            bpy.ops.scene.squishy_volumes_set_up_render(
+                simulation=self.sim_obj.name, preset="PREVIEW"
+            )
+
+        self.assertEqual(render_state(self.scene), before)
+
+    def test_is_in_the_render_menu(self):
+        menu_functions = bpy.types.TOPBAR_MT_render._dyn_ui_initialize()
+
+        self.assertIn(
+            "menu_func_set_up_render",
+            [function.__name__ for function in menu_functions],
+        )
+
+
+class FindSimulationByNameTest(RenderTestCase):
+    def test_finds_simulations_only(self):
+        self.assertEqual(api().find_simulation_by_name("Jelly"), self.sim_obj)
+
+        for name in ("Camera", "Nothing"):
+            with self.assertRaises(api().SimulationNotFound):
+                api().find_simulation_by_name(name)
+
+
+class SetUpRenderDialogTest(RenderTestCase):
+    def test_lists_the_cameras_of_the_active_scene(self):
+        add_camera("Elsewhere", bpy.data.scenes.new("Other"))
+        items = addon().render_setup.camera_items(None, bpy.context)
+
+        self.assertEqual([item[0] for item in items], [self.camera.name])
