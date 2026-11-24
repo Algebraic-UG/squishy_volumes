@@ -42,8 +42,6 @@ pub enum InputError {
         #[source]
         error: FrameVerifcationError,
     },
-    #[error("Too many different colliders.")]
-    TooManyColliders,
 }
 
 #[derive(Error, Debug)]

@@ -37,9 +37,6 @@ pub enum ProfilerError {
     #[error("results vector is empty")]
     ResultsEmpty,
 
-    #[error("time is missing")]
-    NoTimeRecorded,
-
     #[error("Layout changed from {old_labels:?} to {labels:?}")]
     LayoutChanged {
         old_labels: Vec<String>,

@@ -30,12 +30,6 @@ pub enum CacheError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum CacheWritingError {
-    #[error("Failed to create output frame")]
-    CreateFrame(#[source] std::io::Error),
-    #[error("Failed to write output frame")]
-    WriteFrame(#[source] std::io::Error),
-    #[error("Failed to move output frame")]
-    MoveFrame(#[source] std::io::Error),
     #[error("Failed to write stats")]
     WriteStats(#[source] std::io::Error),
     #[error("Failed to serialize state")]
@@ -44,8 +38,6 @@ pub enum CacheWritingError {
     Sending,
     #[error("Exceeding allowed disk space")]
     ExceedingSpace,
-    #[error("Unknown io error")]
-    IoError(#[from] std::io::Error),
     #[error("Something went really wrong and the store thread paniced")]
     StoreThreadPaniced,
 }
@@ -56,8 +48,6 @@ pub enum CacheReadingError {
     FrameSequenceBroken,
     #[error("Frame is not computed yet")]
     FrameNotReady,
-    #[error("Failed to read frame")]
-    ReadFrame(#[source] std::io::Error),
     #[error("Failed to deserialize state")]
     Deserialization(#[from] squishy_volumes_file_frame::Error),
     #[error("Unknown io error")]

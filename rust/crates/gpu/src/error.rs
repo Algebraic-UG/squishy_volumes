@@ -71,9 +71,6 @@ pub enum GpuError {
     #[error("Failed to request the adapter")]
     RequestAdapterError(#[from] wgpu::RequestAdapterError),
 
-    #[error("We can not deal with variable subgroup size yet.")]
-    VariableSubgroupSize,
-
     #[error("We can not deal with a small max workgroup dispatch yet.")]
     SmallMaxWorkGroupPerDimension,
 
@@ -100,9 +97,6 @@ pub enum GpuError {
 
     #[error("Indirect allocator is missing")]
     IndirectAllocatorMissing,
-
-    #[error("Something went wrong with creating the profiler")]
-    ProfilerError(#[from] wgpu_profiler::CreationError),
 
     #[error("There's no shader registered to {0}")]
     ShaderIdMissing(u32),

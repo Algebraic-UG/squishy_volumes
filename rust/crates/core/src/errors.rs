@@ -31,19 +31,11 @@ pub enum Error {
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("Frame input error")]
-    FrameInputError(#[from] squishy_volumes_xpu::FrameInputError),
-
     #[error("Cpu compute error")]
     CpuCompute(#[from] squishy_volumes_cpu::Error),
 
-    #[error("The last input frame was not completed")]
-    LeftoverInputFrame,
-
     #[error("Cannot create a new simulation without recorded input ready")]
     MissingInput,
-    #[error("No frame has started for recording")]
-    NoFrameStarted,
     #[error("Failed to lock directory")]
     DirectoryLockingError(#[from] squishy_volumes_directory_lock::DirectoryLockingError),
 
@@ -55,19 +47,13 @@ pub enum Error {
     RecordFrame(#[source] squishy_volumes_file_input::InputError),
     #[error("Failed to finalize input")]
     FinalizingInput(#[source] squishy_volumes_file_input::InputError),
-    #[error("Failed to query size")]
-    QuerySize(#[source] squishy_volumes_file_input::InputError),
     #[error("Failed to start input reading")]
     StartInputReading(#[source] squishy_volumes_file_input::InputError),
-    #[error("Failed to read input header")]
-    ReadHeader(#[source] squishy_volumes_file_input::InputError),
 
     #[error("Failed to encode input header")]
     EncodingInputHeader(#[source] serde_json::Error),
     #[error("Failed to encode poll report")]
     EncodingReport(#[source] serde_json::Error),
-    #[error("Failed to encode attribute")]
-    EncodingAttribute(#[source] serde_json::Error),
 
     #[error("Cache creation failed")]
     CacheCreation(#[source] squishy_volumes_cache::CacheError),
@@ -75,8 +61,6 @@ pub enum Error {
     CacheCheck(#[source] squishy_volumes_cache::CacheError),
     #[error("Failed to fetch frame")]
     CacheFetch(#[source] squishy_volumes_cache::CacheReadingError),
-    #[error("Failed to fetch node count")]
-    CacheNodeCount(#[source] squishy_volumes_cache::CacheError),
     #[error("Failed to drop frame")]
     CacheDropFrames(#[source] squishy_volumes_cache::CacheError),
 
@@ -88,8 +72,6 @@ pub enum Error {
     ParsingBulkMeta(#[source] serde_json::Error),
     #[error("Failed to parse compute settings")]
     ParsingComputeSettings(#[source] serde_json::Error),
-    #[error("Failed to parse attribute")]
-    ParseAttribute(#[source] serde_json::Error),
 
     #[error("The allowed disk space of {0} bytes was exceeded while recording inputs.")]
     DiskSpaceExceededWhileRecording(u64),
@@ -112,9 +94,6 @@ impl Error {
                 matches!(
                     error.downcast_ref(),
                     Some(squishy_volumes_xpu::HarnessError::Canceled)
-                ) || matches!(
-                    error.downcast_ref(),
-                    Some(squishy_volumes_cpu::Error::Canceled)
                 )
             },
         )
@@ -131,7 +110,6 @@ mod tests {
     fn recognizes_wrapped_cancellations() {
         let cancellations = [
             Error::HarnessError(HarnessError::Canceled),
-            Error::CpuCompute(squishy_volumes_cpu::Error::Canceled),
             Error::CpuCompute(squishy_volumes_cpu::Error::HarnessError(
                 HarnessError::Canceled,
             )),

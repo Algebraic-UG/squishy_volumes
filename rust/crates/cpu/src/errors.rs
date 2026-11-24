@@ -23,18 +23,8 @@ pub enum Error {
     #[error("Io state error")]
     IoState(#[from] IoStateError),
 
-    #[error("The computation was canceled")]
-    Canceled,
-
     #[error("Something went wrong accessing frame input")]
     FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
-
-    // TODO: this needs more debug info
-    #[error("Failed to cast a vector")]
-    CastFailed,
-
-    #[error("At this point, interpolated input should be ready")]
-    InterpolatedInputMissing,
 
     #[error("The time step ended up being 0")]
     ZeroTimeStep,
@@ -52,11 +42,6 @@ pub enum Error {
 
     #[error("Something went wrong with the harness")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
-
-    #[error("The grid is missing is the serialization")]
-    GridMissing,
-    #[error("The grid node is missing is the serialization")]
-    GridNodeMissing,
 
     #[error("Failed to compute the elastic energy of a particle")]
     EnergyError(#[from] squishy_volumes_util::EnergyError),

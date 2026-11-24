@@ -17,11 +17,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod collider;
-mod errors;
 mod frame_input;
 mod harness;
 
 pub use collider::*;
-pub use errors::*;
 pub use frame_input::*;
 pub use harness::*;
