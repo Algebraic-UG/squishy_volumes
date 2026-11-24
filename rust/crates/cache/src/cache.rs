@@ -70,8 +70,7 @@ impl CacheState {
     ) -> Result<Self, Error> {
         tracing::info!(?directory, "opening cache");
 
-        let (bytes_on_disk_from_frames, frames) =
-            discover_frames(directory).map_err(ReadError::Io)?;
+        let (bytes_on_disk_from_frames, frames) = discover_frames(directory)?;
         let total_bytes_on_disk = input_bytes_on_disk + bytes_on_disk_from_frames;
 
         let mut frames = frames.into_iter().map(|(i, _)| i).collect::<Vec<_>>();
@@ -92,8 +91,7 @@ impl CacheState {
         if available_frames.load(Ordering::Relaxed) == 0 {
             tracing::info!("no frames recovered, need to build initial state");
         }
-        truncate_stats(directory, available_frames.load(Ordering::Relaxed))
-            .map_err(CleanupError::Io)?;
+        truncate_stats(directory, available_frames.load(Ordering::Relaxed))?;
 
         let store_thread = Mutex::new(StoreThread::idle());
 
@@ -130,8 +128,7 @@ impl Cache {
     }
 
     pub fn check(&self) -> Result<(), Error> {
-        let mut frames = discover_frames(self.state.directory())
-            .map_err(ReadError::Io)?
+        let mut frames = discover_frames(self.state.directory())?
             .1
             .into_iter()
             .map(|(i, _)| i)
@@ -203,10 +200,13 @@ impl Cache {
             return Err(ReadError::FrameNotReady);
         }
         tracing::debug!(frame_index, "reading frame from disk");
-        Ok(squishy_volumes_file_frame::Frame::read(frame_path(
-            self.state.directory(),
-            frame_index,
-        ))?)
+        Ok(
+            squishy_volumes_file_frame::Frame::read(frame_path(
+                self.state.directory(),
+                frame_index,
+            ))
+            .map_err(Box::new)?,
+        )
     }
 
     pub fn drop_frames(&self, from_frame: usize) -> Result<(), Error> {
@@ -221,11 +221,9 @@ impl Cache {
                 .available_frames
                 .store(frame + 1, Ordering::Relaxed);
         }
-        let truncation = truncate_stats(self.state.directory(), self.available_frames())
-            .map_err(CleanupError::Io);
+        let truncation = truncate_stats(self.state.directory(), self.available_frames());
 
-        let (bytes_on_disk_from_frames, _frames) =
-            discover_frames(self.state.directory()).map_err(ReadError::Io)?;
+        let (bytes_on_disk_from_frames, _frames) = discover_frames(self.state.directory())?;
         self.state.total_bytes_on_disk.store(
             self.state.input_bytes_on_disk + bytes_on_disk_from_frames,
             Ordering::Relaxed,
@@ -238,33 +236,42 @@ impl Cache {
 
 fn discover_frames(
     cache_dir: impl AsRef<std::path::Path>,
-) -> Result<(u64, Vec<(usize, std::path::PathBuf)>), std::io::Error> {
-    std::fs::read_dir(cache_dir)?.try_fold(
-        (0, Vec::new()),
-        |(mut bytes_on_disk, mut frames),
-         entry|
-         -> Result<(u64, Vec<(usize, std::path::PathBuf)>), std::io::Error> {
-            let entry = entry?;
-            let path = entry.path();
+) -> Result<(u64, Vec<(usize, std::path::PathBuf)>), ReadError> {
+    let cache_dir = cache_dir.as_ref();
+    let list_directory_error = |source| ReadError::ListDirectory {
+        path: cache_dir.to_path_buf(),
+        source,
+    };
+    std::fs::read_dir(cache_dir)
+        .map_err(list_directory_error)?
+        .try_fold((0, Vec::new()), |(mut bytes_on_disk, mut frames), entry| {
+            let path = entry.map_err(list_directory_error)?.path();
 
             if let Some(frame_number) = get_frame_number(&path) {
-                bytes_on_disk += entry.metadata()?.len();
+                bytes_on_disk += frame_size(&path)?;
                 frames.push((frame_number, path));
             }
 
             Ok((bytes_on_disk, frames))
-        },
-    )
+        })
 }
 
-/// Removes all frames from `from_frame` onwards, starting with the last one.
-///
-/// See <https://github.com/Algebraic-UG/squishy_volumes/issues/422>
+fn frame_size(path: &std::path::Path) -> Result<u64, ReadError> {
+    std::fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .map_err(|source| ReadError::FrameSize {
+            path: path.to_path_buf(),
+            source,
+        })
+}
+
 pub fn clean_up_frames(
     cache_dir: impl AsRef<std::path::Path>,
     from_frame: usize,
 ) -> Result<(), CleanupError> {
-    let mut frames = discover_frames(cache_dir)?.1;
+    let mut frames = discover_frames(cache_dir)
+        .map_err(CleanupError::DiscoverFrames)?
+        .1;
     frames.retain(|(frame, _)| *frame >= from_frame);
     frames.sort_unstable_by_key(|(frame, _)| std::cmp::Reverse(*frame));
     for (frame, path) in frames {
@@ -407,6 +414,116 @@ mod tests {
         clean_up_frames(&dir, 2).unwrap();
 
         assert_eq!(remaining_frames(&dir), [0, 1]);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn path_of_failed_frame_read(cache: &Cache, frame: usize) -> std::path::PathBuf {
+        match cache.fetch_frame(frame) {
+            Err(ReadError::Deserialization(error)) => match *error {
+                squishy_volumes_file_frame::Error::Read { path, .. } => path,
+                error => panic!("unexpected error: {error:?}"),
+            },
+            Err(error) => panic!("unexpected error: {error:?}"),
+            Ok(_) => panic!("frame {frame} was read"),
+        }
+    }
+
+    #[test]
+    fn fetching_a_garbage_frame_names_its_path() {
+        let dir = temp_dir("garbage_frame");
+        std::fs::write(frame_path(&dir, 0), b"not an alembic file").unwrap();
+        let cache = open_cache(&dir);
+
+        assert_eq!(path_of_failed_frame_read(&cache, 0), frame_path(&dir, 0));
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn fetching_a_truncated_frame_names_its_path() {
+        let dir = temp_dir("truncated_frame");
+        let size = squishy_volumes_file_frame::Frame::default()
+            .write(frame_path(&dir, 0))
+            .unwrap();
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(frame_path(&dir, 0))
+            .unwrap()
+            .set_len(size / 2)
+            .unwrap();
+        let cache = open_cache(&dir);
+
+        assert_eq!(path_of_failed_frame_read(&cache, 0), frame_path(&dir, 0));
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn fetching_a_frame_replaced_by_a_directory_names_its_path() {
+        let dir = temp_dir("directory_frame");
+        write_empty_frames(&dir, 1);
+        let cache = open_cache(&dir);
+        std::fs::remove_file(frame_path(&dir, 0)).unwrap();
+        std::fs::create_dir(frame_path(&dir, 0)).unwrap();
+
+        assert_eq!(path_of_failed_frame_read(&cache, 0), frame_path(&dir, 0));
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn discovering_frames_in_a_missing_directory_names_it() {
+        let dir = temp_dir("missing_directory");
+        std::fs::remove_dir(&dir).unwrap();
+
+        assert!(matches!(
+            discover_frames(&dir),
+            Err(ReadError::ListDirectory { path, .. }) if path == dir
+        ));
+        assert!(matches!(
+            clean_up_frames(&dir, 0),
+            Err(CleanupError::DiscoverFrames(ReadError::ListDirectory { path, .. })) if path == dir
+        ));
+    }
+
+    #[test]
+    fn opening_a_cache_with_unreadable_stats_names_them() {
+        let dir = temp_dir("unreadable_stats");
+        std::fs::create_dir(stats_path(&dir)).unwrap();
+        let directory_lock =
+            squishy_volumes_directory_lock::DirectoryLock::new(dir.clone()).unwrap();
+
+        assert!(matches!(
+            Cache::new(directory_lock, 0, u64::MAX),
+            Err(Error::Cleanup(CleanupError::ReadStats { path, .. })) if path == stats_path(&dir)
+        ));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    fn set_mode(path: &std::path::Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn removing_a_frame_from_a_read_only_directory_names_it() {
+        let dir = temp_dir("read_only_directory");
+        write_empty_frames(&dir, 3);
+        set_mode(&dir, 0o555);
+        let permissions_enforced = std::fs::write(dir.join("probe"), []).is_err();
+
+        let result = clean_up_frames(&dir, 1);
+
+        set_mode(&dir, 0o755);
+        if permissions_enforced {
+            assert!(matches!(
+                result,
+                Err(CleanupError::RemoveFrame { frame: 2, path, .. }) if path == frame_path(&dir, 2)
+            ));
+            assert_eq!(remaining_frames(&dir), [0, 1, 2]);
+        }
         std::fs::remove_dir_all(dir).unwrap();
     }
 

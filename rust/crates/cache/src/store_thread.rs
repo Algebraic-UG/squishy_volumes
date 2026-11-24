@@ -177,12 +177,14 @@ fn write_frame(
 ) -> StoreResult {
     let frame_index = available_frames.load(Ordering::Relaxed);
     total_bytes_on_disk.fetch_add(
-        frame.write(frame_path(cache_dir, frame_index))?,
+        frame
+            .write(frame_path(cache_dir, frame_index))
+            .map_err(Box::new)?,
         Ordering::Relaxed,
     );
     available_frames.fetch_add(1, Ordering::Release);
     // after the frame, so every row has a frame
-    append_stats(cache_dir, frame_index, stats).map_err(WriteError::Stats)?;
+    append_stats(cache_dir, frame_index, stats)?;
     tracing::debug!("stored frame {frame_index}");
     Ok(())
 }
@@ -344,13 +346,20 @@ mod tests {
     #[test]
     fn write_error_is_reported_by_check_after_the_thread_ended() {
         let mut store_thread = StoreThread::idle();
-        let sender = store_thread
-            .start_with(|_, _| Err(WriteError::Stats(std::io::Error::other("disk full"))));
+        let sender = store_thread.start_with(|_, _| {
+            Err(WriteError::Stats {
+                path: std::path::PathBuf::new(),
+                source: std::io::Error::other("disk full"),
+            })
+        });
         sender.send(Frame::default(), Stats::default()).unwrap();
 
         let mut store_thread = wait_until_stopped(store_thread);
 
-        assert!(matches!(store_thread.check(), Err(WriteError::Stats(_))));
+        assert!(matches!(
+            store_thread.check(),
+            Err(WriteError::Stats { .. })
+        ));
         assert!(store_thread.check().is_ok());
         assert!(matches!(
             sender.send(Frame::default(), Stats::default()),

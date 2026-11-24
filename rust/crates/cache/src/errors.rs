@@ -28,10 +28,13 @@ pub enum Error {
 
 #[derive(thiserror::Error, Debug)]
 pub enum WriteError {
-    #[error("failed to write stats")]
-    Stats(#[source] std::io::Error),
+    #[error("failed to write stats {path:?}")]
+    Stats {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
     #[error("failed to serialize state")]
-    Serialization(#[from] squishy_volumes_file_frame::Error),
+    Serialization(#[from] Box<squishy_volumes_file_frame::Error>),
     #[error("failed to forward output frame to writing thread")]
     Sending,
     #[error("exceeding allowed disk space")]
@@ -47,9 +50,17 @@ pub enum ReadError {
     #[error("frame is not computed yet")]
     FrameNotReady,
     #[error("failed to deserialize state")]
-    Deserialization(#[from] squishy_volumes_file_frame::Error),
-    #[error("unknown io error")]
-    Io(#[from] std::io::Error),
+    Deserialization(#[from] Box<squishy_volumes_file_frame::Error>),
+    #[error("failed to list cache directory {path:?}")]
+    ListDirectory {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
+    #[error("failed to read size of frame {path:?}")]
+    FrameSize {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -62,6 +73,16 @@ pub enum CleanupError {
         path: std::path::PathBuf,
         source: std::io::Error,
     },
-    #[error("unknown io error")]
-    Io(#[from] std::io::Error),
+    #[error("failed to discover frames to remove")]
+    DiscoverFrames(#[source] ReadError),
+    #[error("failed to read stats {path:?}")]
+    ReadStats {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
+    #[error("failed to truncate stats {path:?}")]
+    TruncateStats {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
 }
