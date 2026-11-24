@@ -26,7 +26,7 @@ use squishy_volumes_gpu::{GpuContext, GpuRunParameters, GpuState};
 use squishy_volumes_xpu::Harness;
 use tempfile::TempDir;
 
-use crate::initialization::{StateInitializationError, initialize_io_state};
+use crate::initialization::{InitializationError, initialize_io_state};
 
 fn recorded_input(directory: &TempDir) -> InputReader {
     let particles = InputObject::Particles(InputObjectParticles {
@@ -57,7 +57,7 @@ fn initialization_with_canceled_harness_is_canceled() {
 
     assert!(matches!(
         initialize_io_state(&canceled_harness(), &mut input_reader),
-        Err(StateInitializationError::Canceled(_))
+        Err(InitializationError::Canceled(_))
     ));
 }
 

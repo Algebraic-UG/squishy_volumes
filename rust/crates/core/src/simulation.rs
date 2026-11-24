@@ -63,7 +63,7 @@ impl SimulationImpl {
 
         info!("Finalizing input");
         let directory_lock = input_writer.try_map(|_, input_writer| {
-            let input_size_in_bytes = input_writer.flush().map_err(Error::FinalizingInput)?;
+            let input_size_in_bytes = input_writer.flush().map_err(Error::FinalizeInput)?;
             info!(input_size_in_bytes);
             Ok::<_, Error>(())
         })?;
@@ -83,16 +83,16 @@ impl SimulationImpl {
         clean_up: bool,
     ) -> Result<Self, Error> {
         let input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
-            .map_err(Error::StartInputReading)?;
+            .map_err(Error::StartReadingInput)?;
         let header = input_reader.header().clone();
 
         let cache = Arc::new(
             Cache::new(directory_lock, input_reader.size(), max_bytes_on_disk)
-                .map_err(Error::CacheCreation)?,
+                .map_err(Error::CreateCache)?,
         );
 
         if clean_up {
-            cache.drop_frames(0).map_err(Error::CacheDropFrames)?;
+            cache.drop_frames(0).map_err(Error::DropFrames)?;
         }
 
         Ok(Self {
@@ -104,7 +104,7 @@ impl SimulationImpl {
     }
 
     pub fn input_header_impl(&self) -> Result<Value, Error> {
-        to_value(&self.header).map_err(Error::EncodingInputHeader)
+        to_value(&self.header).map_err(Error::EncodeInputHeader)
     }
 
     pub fn baking_impl(&self) -> bool {
@@ -115,7 +115,7 @@ impl SimulationImpl {
     }
 
     pub fn poll_impl(&mut self) -> Result<Value, Error> {
-        self.cache.check().map_err(Error::CacheCheck)?;
+        self.cache.check().map_err(Error::CheckCache)?;
         serde_json::to_value(PollInfo {
             current_bytes_on_disk: self.cache.current_bytes_on_disk(),
             progress: self
@@ -125,7 +125,7 @@ impl SimulationImpl {
                 .transpose()?
                 .unwrap_or(Default::default()),
         })
-        .map_err(Error::EncodingReport)
+        .map_err(Error::EncodePollReport)
     }
 
     pub fn start_compute_impl(&mut self, compute_settings: Value) -> Result<(), Error> {
@@ -137,7 +137,7 @@ impl SimulationImpl {
             next_frame,
             number_of_frames,
             max_bytes_on_disk,
-        } = from_value(compute_settings).map_err(Error::ParsingComputeSettings)?;
+        } = from_value(compute_settings).map_err(Error::ParseComputeSettings)?;
         self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
 
         let Some(number_of_frames) = NonZero::new(number_of_frames) else {
@@ -149,10 +149,10 @@ impl SimulationImpl {
             warn!(?error, "the previous computation failed");
         }
 
-        self.cache.check().map_err(Error::CacheCheck)?;
+        self.cache.check().map_err(Error::CheckCache)?;
         self.cache
             .drop_frames(next_frame)
-            .map_err(Error::CacheDropFrames)?;
+            .map_err(Error::DropFrames)?;
 
         info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {

@@ -57,7 +57,7 @@ impl SimulationInputImpl {
     ) -> Result<Self, Error> {
         let input_writer = DirectoryLock::new(directory)?.try_map(|directory, ()| {
             InputWriter::new(simulation_input_path(directory), Header::new(input_header))
-                .map_err(Error::StartInputWriting)
+                .map_err(Error::StartRecordingInput)
         })?;
 
         Ok(Self {
@@ -78,32 +78,32 @@ impl SimulationInputImpl {
 
     pub fn start_frame_impl(&mut self, frame_start: Value) -> Result<(), Error> {
         let FrameStart { animated_globals } =
-            from_value(frame_start).map_err(Error::ParsingFrameStart)?;
+            from_value(frame_start).map_err(Error::ParseFrameStart)?;
 
         let size = self
             .input_writer
             .start_frame(&animated_globals)
-            .map_err(Error::StartFrame)?;
+            .map_err(Error::StartInputFrame)?;
 
         self.check_vs_max_bytes(size)
     }
 
     pub fn record_input_impl(&mut self, meta: Value, bulk: InputBulk) -> Result<(), Error> {
-        let meta = from_value::<FrameBulkMeta>(meta).map_err(Error::ParsingBulkMeta)?;
+        let meta = from_value::<FrameBulkMeta>(meta).map_err(Error::ParseBulkMeta)?;
 
         let size = self
             .input_writer
             .record_bulk(&FrameBulk { meta, data: bulk })
-            .map_err(Error::RecordFrame)?;
+            .map_err(Error::RecordInputFrame)?;
 
         self.check_vs_max_bytes(size)
     }
 
     fn check_vs_max_bytes(&self, size: u64) -> Result<(), Error> {
         if size > self.max_bytes_on_disk {
-            Err(Error::DiskSpaceExceededWhileRecording(
-                self.max_bytes_on_disk,
-            ))
+            Err(Error::DiskSpaceExceeded {
+                max_bytes: self.max_bytes_on_disk,
+            })
         } else {
             Ok(())
         }

@@ -18,7 +18,7 @@
 
 use squishy_volumes_xpu::Canceled;
 
-use crate::initialization::StateInitializationError;
+use crate::initialization::InitializationError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -30,73 +30,73 @@ pub enum Error {
     #[error(transparent)]
     Canceled(#[from] Canceled),
 
-    #[error("Gpu error")]
-    GpuError(#[source] squishy_volumes_gpu::Error),
+    #[error("gpu computation failed")]
+    Gpu(#[source] squishy_volumes_gpu::Error),
 
-    #[error("Harness error")]
-    HarnessError(#[from] squishy_volumes_xpu::HarnessError),
+    #[error("cpu computation failed")]
+    Cpu(#[source] squishy_volumes_cpu::Error),
 
-    #[error("Cpu compute error")]
-    CpuCompute(#[source] squishy_volumes_cpu::Error),
+    #[error("harness error")]
+    Harness(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("Cannot create a new simulation without recorded input ready")]
+    #[error("cannot create a new simulation without recorded input ready")]
     MissingInput,
-    #[error("Failed to lock directory")]
-    DirectoryLockingError(#[from] squishy_volumes_directory_lock::Error),
 
-    #[error("Failed to start input recording")]
-    StartInputWriting(#[source] squishy_volumes_file_input::Error),
-    #[error("Failed to start frame")]
-    StartFrame(#[source] squishy_volumes_file_input::Error),
-    #[error("Failed to record frame")]
-    RecordFrame(#[source] squishy_volumes_file_input::Error),
-    #[error("Failed to finalize input")]
-    FinalizingInput(#[source] squishy_volumes_file_input::Error),
-    #[error("Failed to start input reading")]
-    StartInputReading(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to lock the cache directory")]
+    DirectoryLock(#[from] squishy_volumes_directory_lock::Error),
 
-    #[error("Failed to encode input header")]
-    EncodingInputHeader(#[source] serde_json::Error),
-    #[error("Failed to encode poll report")]
-    EncodingReport(#[source] serde_json::Error),
+    #[error("failed to start recording the input")]
+    StartRecordingInput(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to start an input frame")]
+    StartInputFrame(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to record input frame data")]
+    RecordInputFrame(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to finalize the input")]
+    FinalizeInput(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to start reading the input")]
+    StartReadingInput(#[source] squishy_volumes_file_input::Error),
 
-    #[error("Cache creation failed")]
-    CacheCreation(#[source] squishy_volumes_cache::Error),
-    #[error("Cache check failed")]
-    CacheCheck(#[source] squishy_volumes_cache::Error),
-    #[error("Failed to fetch frame")]
-    CacheFetch(#[source] squishy_volumes_cache::ReadError),
-    #[error("Failed to drop frame")]
-    CacheDropFrames(#[source] squishy_volumes_cache::Error),
+    #[error("failed to encode the input header")]
+    EncodeInputHeader(#[source] serde_json::Error),
+    #[error("failed to encode the poll report")]
+    EncodePollReport(#[source] serde_json::Error),
+    #[error("failed to parse the input header")]
+    ParseInputHeader(#[source] serde_json::Error),
+    #[error("failed to parse the frame start")]
+    ParseFrameStart(#[source] serde_json::Error),
+    #[error("failed to parse the bulk meta")]
+    ParseBulkMeta(#[source] serde_json::Error),
+    #[error("failed to parse the compute settings")]
+    ParseComputeSettings(#[source] serde_json::Error),
 
-    #[error("Failed to parse input header")]
-    ParsingInputHeader(#[source] serde_json::Error),
-    #[error("Failed to parse frame start")]
-    ParsingFrameStart(#[source] serde_json::Error),
-    #[error("Failed to parse bulk meta")]
-    ParsingBulkMeta(#[source] serde_json::Error),
-    #[error("Failed to parse compute settings")]
-    ParsingComputeSettings(#[source] serde_json::Error),
+    #[error("failed to create the cache")]
+    CreateCache(#[source] squishy_volumes_cache::Error),
+    #[error("failed to check the cache")]
+    CheckCache(#[source] squishy_volumes_cache::Error),
+    #[error("failed to load the checkpoint frame")]
+    LoadCheckpoint(#[source] squishy_volumes_cache::Error),
+    #[error("failed to drop frames")]
+    DropFrames(#[source] squishy_volumes_cache::Error),
+    #[error("failed to store a frame")]
+    StoreFrame(#[source] squishy_volumes_cache::Error),
 
-    #[error("The allowed disk space of {0} bytes was exceeded while recording inputs.")]
-    DiskSpaceExceededWhileRecording(u64),
+    #[error("the allowed disk space of {max_bytes} bytes was exceeded while recording inputs")]
+    DiskSpaceExceeded { max_bytes: u64 },
 
-    #[error("Failed to create initial state")]
-    InitializationError(#[source] StateInitializationError),
-    #[error("Failed to store frame")]
-    StoreError(#[source] squishy_volumes_cache::Error),
+    #[error("failed to create the initial state")]
+    Initialization(#[source] InitializationError),
 
-    #[error("Internal error (panic) in the {thread} thread: {message}, please report this bug")]
+    #[error("internal error (panic) in the {thread} thread: {message}, please report this bug")]
     Panic {
         thread: &'static str,
         message: String,
     },
     #[error(
-        "This simulation can't be used anymore after an internal error (panic: {0}).\nPlease reload it."
+        "this simulation can't be used anymore after an internal error (panic: {0}), please reload it"
     )]
     BrokenSimulation(String),
     #[error(
-        "This input recording can't be used anymore after an internal error (panic: {0}).\nPlease record the input again."
+        "this input recording can't be used anymore after an internal error (panic: {0}), please record the input again"
     )]
     BrokenSimulationInput(String),
 }
@@ -105,7 +105,7 @@ impl From<squishy_volumes_cpu::Error> for Error {
     fn from(error: squishy_volumes_cpu::Error) -> Self {
         match error {
             squishy_volumes_cpu::Error::Canceled(canceled) => Self::Canceled(canceled),
-            error => Self::CpuCompute(error),
+            error => Self::Cpu(error),
         }
     }
 }
@@ -114,16 +114,16 @@ impl From<squishy_volumes_gpu::Error> for Error {
     fn from(error: squishy_volumes_gpu::Error) -> Self {
         match error {
             squishy_volumes_gpu::Error::Canceled(canceled) => Self::Canceled(canceled),
-            error => Self::GpuError(error),
+            error => Self::Gpu(error),
         }
     }
 }
 
-impl From<StateInitializationError> for Error {
-    fn from(error: StateInitializationError) -> Self {
+impl From<InitializationError> for Error {
+    fn from(error: InitializationError) -> Self {
         match error {
-            StateInitializationError::Canceled(canceled) => Self::Canceled(canceled),
-            error => Self::InitializationError(error),
+            InitializationError::Canceled(canceled) => Self::Canceled(canceled),
+            error => Self::Initialization(error),
         }
     }
 }

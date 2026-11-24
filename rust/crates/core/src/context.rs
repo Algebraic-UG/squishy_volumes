@@ -52,7 +52,7 @@ impl ContextImpl {
         input_header: Value,
         max_bytes_on_disk: u64,
     ) -> Result<(), Error> {
-        let input_header = from_value(input_header).map_err(Error::ParsingInputHeader)?;
+        let input_header = from_value(input_header).map_err(Error::ParseInputHeader)?;
 
         if self.simulation_input.is_some() {
             warn!("Overwriting old input.");

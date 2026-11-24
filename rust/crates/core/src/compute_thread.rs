@@ -69,7 +69,7 @@ impl ComputeThread {
         info!("starting compute thread");
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
-            .map_err(Error::StartInputReading)?;
+            .map_err(Error::StartReadingInput)?;
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
@@ -91,7 +91,7 @@ impl ComputeThread {
                             },
                             make_stats(&io_state, None),
                         )
-                        .map_err(Error::StoreError)?;
+                        .map_err(Error::StoreFrame)?;
                     next_frame += 1;
                     harness.step()?;
                     io_state
@@ -99,7 +99,7 @@ impl ComputeThread {
                     info!("loading checkpoint");
                     let frame = cache
                         .fetch_frame(next_frame - 1)
-                        .map_err(Error::CacheFetch)?;
+                        .map_err(|source| Error::LoadCheckpoint(source.into()))?;
                     if let Some(error_message) = frame.error_message {
                         return Err(Error::StoredError(error_message));
                     }
@@ -209,7 +209,7 @@ impl ComputeThread {
                             },
                             stats,
                         )
-                        .map_err(Error::StoreError)?;
+                        .map_err(Error::StoreFrame)?;
 
                     // now check for errors
                     result?;
