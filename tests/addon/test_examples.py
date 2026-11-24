@@ -196,6 +196,36 @@ class BoingBlockExampleTest(StagingTests, ExampleTestCase):
         self.assertEqual(sorted(stats), [0, 1, 2])
 
 
+class MultiMaterialExampleTest(StagingTests, ExampleTestCase):
+    example = "Multi Material"
+    visualization_scale = 0.1
+
+    def generator_type(self, name: str) -> str:
+        generator = bpy.data.objects[name].modifiers["Squishy Volumes Input"]
+        identifier = generator.node_group.interface.items_tree["Type"].identifier
+        return getattr(generator.properties.inputs, identifier).value
+
+    def test_records_a_solid_cube_a_fluid_sphere_and_a_plane(self):
+        self.assertCountEqual(
+            [obj.name for obj in input_objects(self.sim_obj)],
+            ["Cube", "Sphere", "Plane"],
+        )
+        self.assertEqual(self.generator_type("Cube"), "Solid")
+        self.assertEqual(self.generator_type("Sphere"), "Fluid")
+        self.assertTrue(
+            (cache_directory(self.sim_obj) / "simulation_input.bin").exists()
+        )
+
+    def test_solid_and_fluid_get_different_colors(self):
+        self.assertNotEqual(
+            bpy.data.objects["Cube"].material_slots[0].material,
+            bpy.data.objects["Sphere"].material_slots[0].material,
+        )
+
+    def test_starts_baking(self):
+        self.assert_started_baking()
+
+
 class BoingBlockVisualizationTest(ExampleTestCase):
     example = "Boing Block"
 
