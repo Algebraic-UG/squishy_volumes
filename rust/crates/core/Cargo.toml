@@ -10,9 +10,6 @@ workspace = true
 [features]
 profile = [ "squishy_volumes_cpu/profile", "squishy_volumes_util/profile" ]
 
-[lib]
-crate-type = ["rlib", "dylib"]
-
 [dependencies]
 tracing.workspace = true
 tracing-subscriber.workspace = true
