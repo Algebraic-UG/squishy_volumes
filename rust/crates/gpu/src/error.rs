@@ -99,8 +99,11 @@ pub enum Error {
     #[error("there's no shader registered to {0}")]
     ShaderIdMissing(u32),
 
-    #[error("a shader reported errors")]
-    Shader(#[from] ShaderError),
+    #[error("shader {reporting_shader} reported a failure")]
+    Shader {
+        reporting_shader: &'static str,
+        source: ShaderError,
+    },
 
     #[error("input to the GPU wasn't valid")]
     Input(#[from] InputError),
