@@ -17,51 +17,51 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #[derive(thiserror::Error, Debug)]
-pub enum CacheError {
-    #[error("An error occured while writing to cache")]
-    Writing(#[from] CacheWritingError),
-    #[error("An error occured while reading the cache")]
-    Reading(#[from] CacheReadingError),
-    #[error("An error occured while clearing old frames")]
-    Cleanup(#[from] CacheCleanupError),
+pub enum Error {
+    #[error("failed to write to the cache")]
+    Write(#[from] WriteError),
+    #[error("failed to read the cache")]
+    Read(#[from] ReadError),
+    #[error("failed to clear old frames")]
+    Cleanup(#[from] CleanupError),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum CacheWritingError {
-    #[error("Failed to write stats")]
-    WriteStats(#[source] std::io::Error),
-    #[error("Failed to serialize state")]
+pub enum WriteError {
+    #[error("failed to write stats")]
+    Stats(#[source] std::io::Error),
+    #[error("failed to serialize state")]
     Serialization(#[from] squishy_volumes_file_frame::Error),
-    #[error("Failed to forward output frame to writing thread")]
+    #[error("failed to forward output frame to writing thread")]
     Sending,
-    #[error("Exceeding allowed disk space")]
+    #[error("exceeding allowed disk space")]
     ExceedingSpace,
-    #[error("Internal error (panic) in the store thread: {message}, please report this bug")]
+    #[error("internal error (panic) in the store thread: {message}, please report this bug")]
     StoreThreadPanicked { message: String },
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum CacheReadingError {
-    #[error("Some frames are missing from the sequence")]
+pub enum ReadError {
+    #[error("some frames are missing from the sequence")]
     FrameSequenceBroken,
-    #[error("Frame is not computed yet")]
+    #[error("frame is not computed yet")]
     FrameNotReady,
-    #[error("Failed to deserialize state")]
+    #[error("failed to deserialize state")]
     Deserialization(#[from] squishy_volumes_file_frame::Error),
-    #[error("Unknown io error")]
-    IoError(#[from] std::io::Error),
+    #[error("unknown io error")]
+    Io(#[from] std::io::Error),
 }
+
 #[derive(thiserror::Error, Debug)]
-pub enum CacheCleanupError {
+pub enum CleanupError {
     #[error(
-        "Failed to remove frame {frame} at {path:?}, it might still be open in another program (e.g. Blender displaying it)"
+        "failed to remove frame {frame} at {path:?}, it might still be open in another program (e.g. Blender displaying it)"
     )]
     RemoveFrame {
         frame: usize,
         path: std::path::PathBuf,
-        #[source]
-        error: std::io::Error,
+        source: std::io::Error,
     },
-    #[error("Unknown io error")]
-    IoError(#[from] std::io::Error),
+    #[error("unknown io error")]
+    Io(#[from] std::io::Error),
 }

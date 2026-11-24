@@ -31,7 +31,7 @@ pub const QUEUED_FRAMES: usize = 2;
 const STOP_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(50);
 
 type StoreJob = (Frame, Stats);
-type StoreResult = Result<(), CacheWritingError>;
+type StoreResult = Result<(), WriteError>;
 
 pub struct StoreThread {
     thread: Option<std::thread::JoinHandle<StoreResult>>,
@@ -50,9 +50,9 @@ impl FrameSender {
                 tracing::warn!(
                     "store queue is full ({QUEUED_FRAMES} frames), computation waits for the disk"
                 );
-                self.0.send(job).map_err(|_| CacheWritingError::Sending)
+                self.0.send(job).map_err(|_| WriteError::Sending)
             }
-            Err(mpsc::TrySendError::Disconnected(_)) => Err(CacheWritingError::Sending),
+            Err(mpsc::TrySendError::Disconnected(_)) => Err(WriteError::Sending),
         }
     }
 }
@@ -121,7 +121,7 @@ impl StoreThread {
         self.thread.take().map_or(Ok(()), |thread| {
             thread
                 .join()
-                .map_err(|payload| CacheWritingError::StoreThreadPanicked {
+                .map_err(|payload| WriteError::StoreThreadPanicked {
                     message: panic_payload_to_string(payload),
                 })?
         })
@@ -182,7 +182,7 @@ fn write_frame(
     );
     available_frames.fetch_add(1, Ordering::Release);
     // after the frame, so every row has a frame
-    append_stats(cache_dir, frame_index, stats).map_err(CacheWritingError::WriteStats)?;
+    append_stats(cache_dir, frame_index, stats).map_err(WriteError::Stats)?;
     tracing::debug!("stored frame {frame_index}");
     Ok(())
 }
@@ -295,7 +295,7 @@ mod tests {
         assert_eq!(written.load(Ordering::Relaxed), 1);
         assert!(matches!(
             sender.send(Frame::default(), Stats::default()),
-            Err(CacheWritingError::Sending)
+            Err(WriteError::Sending)
         ));
     }
 
@@ -344,23 +344,17 @@ mod tests {
     #[test]
     fn write_error_is_reported_by_check_after_the_thread_ended() {
         let mut store_thread = StoreThread::idle();
-        let sender = store_thread.start_with(|_, _| {
-            Err(CacheWritingError::WriteStats(std::io::Error::other(
-                "disk full",
-            )))
-        });
+        let sender = store_thread
+            .start_with(|_, _| Err(WriteError::Stats(std::io::Error::other("disk full"))));
         sender.send(Frame::default(), Stats::default()).unwrap();
 
         let mut store_thread = wait_until_stopped(store_thread);
 
-        assert!(matches!(
-            store_thread.check(),
-            Err(CacheWritingError::WriteStats(_))
-        ));
+        assert!(matches!(store_thread.check(), Err(WriteError::Stats(_))));
         assert!(store_thread.check().is_ok());
         assert!(matches!(
             sender.send(Frame::default(), Stats::default()),
-            Err(CacheWritingError::Sending)
+            Err(WriteError::Sending)
         ));
     }
 
@@ -374,7 +368,7 @@ mod tests {
 
         assert!(matches!(
             store_thread.check(),
-            Err(CacheWritingError::StoreThreadPanicked { message })
+            Err(WriteError::StoreThreadPanicked { message })
                 if message == "store thread test panic"
         ));
     }

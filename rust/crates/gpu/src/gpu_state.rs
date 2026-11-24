@@ -31,7 +31,7 @@ use squishy_volumes_file_frame::{
     u32_to_two_f32,
 };
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkParticles, FrameVerifcationError, Header, Object, ObjectParticles,
+    BulkAttribute, FrameBulkParticles, FrameVerificationError, Header, Object, ObjectParticles,
     OwnedFrameBulk,
 };
 use squishy_volumes_util::{
@@ -1180,12 +1180,12 @@ fn limits_over_time_starting_with(
 }
 
 enum PendingUpdateError {
-    Input(FrameVerifcationError),
+    Input(FrameVerificationError),
     Gpu(GpuError),
 }
 
-impl From<FrameVerifcationError> for PendingUpdateError {
-    fn from(error: FrameVerifcationError) -> Self {
+impl From<FrameVerificationError> for PendingUpdateError {
+    fn from(error: FrameVerificationError) -> Self {
         Self::Input(error)
     }
 }

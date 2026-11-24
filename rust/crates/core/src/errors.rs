@@ -37,18 +37,18 @@ pub enum Error {
     #[error("Cannot create a new simulation without recorded input ready")]
     MissingInput,
     #[error("Failed to lock directory")]
-    DirectoryLockingError(#[from] squishy_volumes_directory_lock::DirectoryLockingError),
+    DirectoryLockingError(#[from] squishy_volumes_directory_lock::Error),
 
     #[error("Failed to start input recording")]
-    StartInputWriting(#[source] squishy_volumes_file_input::InputError),
+    StartInputWriting(#[source] squishy_volumes_file_input::Error),
     #[error("Failed to start frame")]
-    StartFrame(#[source] squishy_volumes_file_input::InputError),
+    StartFrame(#[source] squishy_volumes_file_input::Error),
     #[error("Failed to record frame")]
-    RecordFrame(#[source] squishy_volumes_file_input::InputError),
+    RecordFrame(#[source] squishy_volumes_file_input::Error),
     #[error("Failed to finalize input")]
-    FinalizingInput(#[source] squishy_volumes_file_input::InputError),
+    FinalizingInput(#[source] squishy_volumes_file_input::Error),
     #[error("Failed to start input reading")]
-    StartInputReading(#[source] squishy_volumes_file_input::InputError),
+    StartInputReading(#[source] squishy_volumes_file_input::Error),
 
     #[error("Failed to encode input header")]
     EncodingInputHeader(#[source] serde_json::Error),
@@ -56,13 +56,13 @@ pub enum Error {
     EncodingReport(#[source] serde_json::Error),
 
     #[error("Cache creation failed")]
-    CacheCreation(#[source] squishy_volumes_cache::CacheError),
+    CacheCreation(#[source] squishy_volumes_cache::Error),
     #[error("Cache check failed")]
-    CacheCheck(#[source] squishy_volumes_cache::CacheError),
+    CacheCheck(#[source] squishy_volumes_cache::Error),
     #[error("Failed to fetch frame")]
-    CacheFetch(#[source] squishy_volumes_cache::CacheReadingError),
+    CacheFetch(#[source] squishy_volumes_cache::ReadError),
     #[error("Failed to drop frame")]
-    CacheDropFrames(#[source] squishy_volumes_cache::CacheError),
+    CacheDropFrames(#[source] squishy_volumes_cache::Error),
 
     #[error("Failed to parse input header")]
     ParsingInputHeader(#[source] serde_json::Error),
@@ -79,7 +79,7 @@ pub enum Error {
     #[error("Failed to create initial state")]
     InitializationError(#[from] StateInitializationError),
     #[error("Failed to store frame")]
-    StoreError(#[source] squishy_volumes_cache::CacheError),
+    StoreError(#[source] squishy_volumes_cache::Error),
 
     #[error("Internal error (panic) in the {thread} thread: {message}, please report this bug")]
     Panic {

@@ -28,7 +28,7 @@ use tracing::info;
 
 use crate::Header;
 
-use super::{FrameBulk, InputError, InputFrame, InputOffsetReadingError, magic_bytes};
+use super::{Error, FrameBulk, InputFrame, InputOffsetReadingError, magic_bytes};
 
 pub struct InputReader {
     size: u64,
@@ -39,7 +39,7 @@ pub struct InputReader {
 }
 
 impl InputReader {
-    pub fn new<A: AsRef<Path> + Debug>(path: A) -> Result<Self, InputError> {
+    pub fn new<A: AsRef<Path> + Debug>(path: A) -> Result<Self, Error> {
         info!("Starting to read input from {path:?}");
         let file = File::open(path)?;
         let size = file.metadata()?.len();
@@ -74,9 +74,9 @@ impl InputReader {
         &self.header
     }
 
-    pub fn read_frame(&mut self, frame: usize) -> Result<InputFrame, InputError> {
+    pub fn read_frame(&mut self, frame: usize) -> Result<InputFrame, Error> {
         let Some(offset) = self.frame_offsets.get(frame) else {
-            return Err(InputError::FrameNotAvailable {
+            return Err(Error::FrameNotAvailable {
                 requested: frame,
                 available: self.frame_offsets.len(),
             });
@@ -94,13 +94,13 @@ impl InputReader {
         while self.reader.stream_position()? < end {
             let tmp: FrameBulk = deserialize_from(&mut self.reader)?;
             tmp.verify(&self.header)
-                .map_err(|error| InputError::FrameVerifcationError { frame, error })?;
+                .map_err(|source| Error::FrameVerification { frame, source })?;
             bulk.push(tmp.into());
         }
 
         let pos = self.reader.stream_position()?;
         if pos != end {
-            return Err(InputError::FrameMisalign { end, pos });
+            return Err(Error::FrameMisalign { end, pos });
         }
 
         Ok(InputFrame {
@@ -125,7 +125,7 @@ fn read_frame_offsets<R: Read + Seek>(
     Ok(deserialize_from(&mut r)?)
 }
 
-fn read_header<R: Read + Seek>(mut r: R) -> Result<Header, InputError> {
+fn read_header<R: Read + Seek>(mut r: R) -> Result<Header, Error> {
     r.seek(SeekFrom::Start(
         squishy_volumes_file_util::DATA_OFFSET.try_into().unwrap(),
     ))?;

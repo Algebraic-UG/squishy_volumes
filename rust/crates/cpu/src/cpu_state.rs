@@ -23,7 +23,7 @@ use squishy_volumes_file_frame::{
     u32_to_two_f32,
 };
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkParticles, FrameVerifcationError, Header, Object, ObjectParticles,
+    BulkAttribute, FrameBulkParticles, FrameVerificationError, Header, Object, ObjectParticles,
     OwnedFrameBulk,
 };
 use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, SplitParameters, attribute};
@@ -402,7 +402,7 @@ fn apply_particle_bulk(
     header: &Header,
     attribute: FrameBulkParticles,
     bulk: &OwnedFrameBulk,
-) -> Result<(), FrameVerifcationError> {
+) -> Result<(), FrameVerificationError> {
     let ObjectParticles { particle_range, .. } =
         header.get_particle_object(&bulk.meta.object_name)?;
     match attribute {

@@ -23,7 +23,7 @@ use std::{
     mem::take,
 };
 
-use crate::{AttributeError, ParticleObjectError};
+use crate::{AttributeAccessError, ParticleObjectError};
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ParticlesObject {
@@ -41,43 +41,43 @@ pub enum AttributeValue {
 }
 
 pub trait Value: Sized + Default {
-    fn as_slice_mut(attr: &mut AttributeValue) -> Result<&mut [Self], AttributeError>;
-    fn as_slice(attr: &AttributeValue) -> Result<&[Self], AttributeError>;
-    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeError>;
+    fn as_slice_mut(attr: &mut AttributeValue) -> Result<&mut [Self], AttributeAccessError>;
+    fn as_slice(attr: &AttributeValue) -> Result<&[Self], AttributeAccessError>;
+    fn unpack(attr: AttributeValue) -> Result<Vec<Self>, AttributeAccessError>;
     fn pack(values: Vec<Self>) -> AttributeValue;
 }
 
 impl<T: alembic_rust::AttributeElement> Value for T {
-    fn as_slice_mut(attr: &mut AttributeValue) -> Result<&mut [Self], AttributeError> {
+    fn as_slice_mut(attr: &mut AttributeValue) -> Result<&mut [Self], AttributeAccessError> {
         match attr {
             AttributeValue::Float1(items) => items as &mut dyn Any,
             AttributeValue::Float2(items) => items as &mut dyn Any,
             AttributeValue::Float3(items) => items as &mut dyn Any,
         }
         .downcast_mut::<Vec<Self>>()
-        .ok_or(AttributeError::TypeMismatch)
+        .ok_or(AttributeAccessError::TypeMismatch)
         .map(Vec::as_mut_slice)
     }
 
-    fn as_slice(attr: &AttributeValue) -> Result<&[Self], AttributeError> {
+    fn as_slice(attr: &AttributeValue) -> Result<&[Self], AttributeAccessError> {
         match attr {
             AttributeValue::Float1(items) => items as &dyn Any,
             AttributeValue::Float2(items) => items as &dyn Any,
             AttributeValue::Float3(items) => items as &dyn Any,
         }
         .downcast_ref::<Vec<Self>>()
-        .ok_or(AttributeError::TypeMismatch)
+        .ok_or(AttributeAccessError::TypeMismatch)
         .map(Vec::as_slice)
     }
 
-    fn unpack(mut attr: AttributeValue) -> Result<Vec<Self>, AttributeError> {
+    fn unpack(mut attr: AttributeValue) -> Result<Vec<Self>, AttributeAccessError> {
         match &mut attr {
             AttributeValue::Float1(items) => items as &mut dyn Any,
             AttributeValue::Float2(items) => items as &mut dyn Any,
             AttributeValue::Float3(items) => items as &mut dyn Any,
         }
         .downcast_mut::<Vec<Self>>()
-        .ok_or(AttributeError::TypeMismatch)
+        .ok_or(AttributeAccessError::TypeMismatch)
         .map(take)
     }
 
@@ -105,7 +105,7 @@ impl AttributeValue {
         }
     }
 
-    fn unpack<T: Value>(self) -> Result<Vec<T>, AttributeError> {
+    fn unpack<T: Value>(self) -> Result<Vec<T>, AttributeAccessError> {
         T::unpack(self)
     }
     fn pack<T: Value>(values: Vec<T>) -> Self {
@@ -113,8 +113,11 @@ impl AttributeValue {
     }
 }
 
-fn attribute_error<A: attribute::Trait>(error: AttributeError) -> ParticleObjectError {
-    ParticleObjectError::AttributeError { key: A::KEY, error }
+fn attribute_error<A: attribute::Trait>(source: AttributeAccessError) -> ParticleObjectError {
+    ParticleObjectError::Attribute {
+        key: A::KEY,
+        source,
+    }
 }
 
 impl ParticlesObject {
@@ -131,7 +134,7 @@ impl ParticlesObject {
     ) -> Result<&mut [A::T], ParticleObjectError> {
         self.attributes
             .get_mut(&A::KEY)
-            .ok_or(AttributeError::Missing)
+            .ok_or(AttributeAccessError::Missing)
             .and_then(A::T::as_slice_mut)
             .map_err(attribute_error::<A>)
     }
@@ -139,7 +142,7 @@ impl ParticlesObject {
     pub fn view_attr<A: attribute::Trait>(&self) -> Result<&[A::T], ParticleObjectError> {
         self.attributes
             .get(&A::KEY)
-            .ok_or(AttributeError::Missing)
+            .ok_or(AttributeAccessError::Missing)
             .and_then(A::T::as_slice)
             .map_err(attribute_error::<A>)
     }
@@ -151,7 +154,7 @@ impl ParticlesObject {
         *self
             .attributes
             .get_mut(&A::KEY)
-            .ok_or(AttributeError::Missing)
+            .ok_or(AttributeAccessError::Missing)
             .map_err(attribute_error::<A>)? = AttributeValue::pack(values.collect());
         Ok(())
     }
@@ -159,7 +162,7 @@ impl ParticlesObject {
     pub fn remove_attr<A: attribute::Trait>(&mut self) -> Result<Vec<A::T>, ParticleObjectError> {
         self.attributes
             .remove(&A::KEY)
-            .ok_or(AttributeError::Missing)
+            .ok_or(AttributeAccessError::Missing)
             .and_then(AttributeValue::unpack)
             .map_err(attribute_error::<A>)
     }
@@ -171,7 +174,7 @@ impl ParticlesObject {
         self.attributes
             .insert(A::KEY, AttributeValue::pack(values.collect()))
             .is_none()
-            .ok_or(AttributeError::Duplicate)
+            .ok_or(AttributeAccessError::Duplicate)
             .map_err(attribute_error::<A>)
     }
 }

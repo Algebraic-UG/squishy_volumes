@@ -23,17 +23,16 @@ use std::{
 };
 
 #[derive(thiserror::Error, Debug)]
-pub enum DirectoryLockingError {
-    #[error("Failed to create dir '{directory}'")]
-    DirCreation {
+pub enum Error {
+    #[error("failed to create directory '{directory}'")]
+    CreateDirectory {
         directory: PathBuf,
-        #[source]
-        error: std::io::Error,
+        source: std::io::Error,
     },
-    #[error("Another simulation is currently using this cache: {0}")]
+    #[error("another simulation is currently using this cache: {0}")]
     AlreadyLocked(PathBuf),
-    #[error("Unknown io error")]
-    IoError(#[from] std::io::Error),
+    #[error("unknown io error")]
+    Io(#[from] std::io::Error),
 }
 
 fn lock_path(directory: impl AsRef<Path>) -> PathBuf {
@@ -51,12 +50,12 @@ struct LockedFile {
 }
 
 impl LockedFile {
-    fn new(directory: PathBuf) -> Result<Self, DirectoryLockingError> {
-        std::fs::create_dir_all(&directory).map_err(|error| {
+    fn new(directory: PathBuf) -> Result<Self, Error> {
+        std::fs::create_dir_all(&directory).map_err(|source| {
             tracing::error!(?directory, "Failed to create directory");
-            DirectoryLockingError::DirCreation {
+            Error::CreateDirectory {
                 directory: directory.clone(),
-                error,
+                source,
             }
         })?;
 
@@ -73,7 +72,7 @@ impl LockedFile {
             }),
             Err(TryLockError::WouldBlock) => {
                 tracing::error!(?directory, "Already locked");
-                Err(DirectoryLockingError::AlreadyLocked(directory))
+                Err(Error::AlreadyLocked(directory))
             }
             Err(TryLockError::Error(error)) => Err(error.into()),
         }
@@ -92,7 +91,7 @@ pub struct DirectoryLock<T = ()> {
 const INVARIANT: &str = "only taken when consuming the lock";
 
 impl DirectoryLock {
-    pub fn new(directory: PathBuf) -> Result<Self, DirectoryLockingError> {
+    pub fn new(directory: PathBuf) -> Result<Self, Error> {
         Ok(Self {
             content: Some(()),
             locked_file: Some(LockedFile::new(directory)?),
@@ -168,7 +167,7 @@ mod tests {
 
         assert!(matches!(
             DirectoryLock::new(dir.clone()),
-            Err(DirectoryLockingError::AlreadyLocked(_))
+            Err(Error::AlreadyLocked(_))
         ));
 
         drop(first);
@@ -193,7 +192,7 @@ mod tests {
             fn drop(&mut self) {
                 assert!(matches!(
                     DirectoryLock::new(self.0.clone()),
-                    Err(DirectoryLockingError::AlreadyLocked(_))
+                    Err(Error::AlreadyLocked(_))
                 ));
             }
         }
@@ -219,7 +218,7 @@ mod tests {
             .release(|directory| {
                 assert!(matches!(
                     DirectoryLock::new(directory.to_path_buf()),
-                    Err(DirectoryLockingError::AlreadyLocked(_))
+                    Err(Error::AlreadyLocked(_))
                 ));
                 cleaned_up = true;
             });
