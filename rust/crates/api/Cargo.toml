@@ -7,6 +7,9 @@ license = "AGPL-3.0-or-later"
 [lints]
 workspace = true
 
+[features]
+build_stamp = []
+
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true

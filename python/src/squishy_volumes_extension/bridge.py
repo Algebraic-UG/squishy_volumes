@@ -49,7 +49,11 @@ def build_summary() -> str:
     info = build_info()
     wrapper_commit = short_commit_id(info["wrapper"])
     core_libs_commit = short_commit_id(info["core_libs"])
-    summary = f"v{info['wrapper']['crate_info']['version']} ({wrapper_commit}"
+    wrapper_built = info["wrapper"]["timestamp"][:19].replace("T", " ")
+    summary = (
+        f"v{info['wrapper']['crate_info']['version']}"
+        f" ({wrapper_commit}, built {wrapper_built} UTC"
+    )
     if core_libs_commit != wrapper_commit:
         summary += f", core libs {core_libs_commit}"
     return summary + ")"

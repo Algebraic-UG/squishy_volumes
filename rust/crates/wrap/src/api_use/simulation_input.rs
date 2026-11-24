@@ -24,7 +24,7 @@ use pyo3::prelude::*;
 use serde_json::from_str;
 use squishy_volumes_api::InputBulk;
 
-use crate::hot_reloadable::try_with_context;
+use crate::try_with_context;
 
 #[pyclass]
 pub struct SimulationInput;

@@ -24,7 +24,6 @@ pub mod simulation_input;
 
 #[pyfunction]
 pub fn available_gpus<'py>(py: Python<'py>) -> Result<Bound<'py, PyList>> {
-    let gpus: Vec<String> =
-        crate::hot_reloadable::try_with_context(|context| context.available_gpus())?;
+    let gpus: Vec<String> = crate::try_with_context(|context| context.available_gpus())?;
     Ok(PyList::new(py, gpus)?)
 }
