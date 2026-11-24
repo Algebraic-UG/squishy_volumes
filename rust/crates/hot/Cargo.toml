@@ -15,6 +15,10 @@ workspace = true
 #     error: cannot satisfy dependencies so <lib> only shows up once
 crate-type = ["rlib", "dylib"]
 
+[features]
+default = ["hot_reload"]
+hot_reload = ["squishy_volumes_api/build_stamp"]
+
 [dependencies]
 squishy_volumes_api.path = "../api"
 squishy_volumes_core.path = "../core"

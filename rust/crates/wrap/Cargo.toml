@@ -10,7 +10,7 @@ workspace = true
 
 [features]
 default = ["hot_reload"]
-hot_reload = ["dep:hot-lib-reloader"]
+hot_reload = ["dep:hot-lib-reloader", "squishy_volumes_hot/hot_reload"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
@@ -27,7 +27,7 @@ serde_json.workspace = true
 build-info.workspace = true
 
 squishy_volumes_api.path = "../api"
-squishy_volumes_hot.path = "../hot"
+squishy_volumes_hot = { path = "../hot", default-features = false }
 squishy_volumes_file_util.path = "../file_util"
 
 [dependencies.pyo3]

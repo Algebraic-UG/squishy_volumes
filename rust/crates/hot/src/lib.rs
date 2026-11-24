@@ -31,3 +31,7 @@ use squishy_volumes_core::ContextImpl;
 pub fn create_context() -> Box<dyn squishy_volumes_api::Context> {
     Box::new(ContextImpl::default())
 }
+
+#[cfg(feature = "hot_reload")]
+#[unsafe(no_mangle)]
+pub static SQUISHY_VOLUMES_API_BUILD_STAMP: u64 = squishy_volumes_api::BUILD_STAMP;

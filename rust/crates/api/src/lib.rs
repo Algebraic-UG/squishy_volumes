@@ -23,3 +23,9 @@ mod simulation_input;
 pub use context::*;
 pub use simulation::*;
 pub use simulation_input::*;
+
+/// Changes whenever this crate or the functions exported by the hot-reloadable
+/// library are rebuilt, so the extension can refuse a library built against
+/// different sources.
+#[cfg(feature = "build_stamp")]
+pub const BUILD_STAMP: u64 = include!(concat!(env!("OUT_DIR"), "/build_stamp.rs"));

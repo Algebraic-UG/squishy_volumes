@@ -18,12 +18,35 @@
 
 #[test]
 fn check_version() {
+    crate::initialize();
     assert_eq!(
         crate::CombinedBuildInfo::new()
+            .unwrap()
             .wrapper
             .crate_info
             .version
             .to_string(),
         squishy_volumes_file_util::version_string(),
     );
+}
+
+#[cfg(feature = "hot_reload")]
+#[test]
+fn unavailable_state_reports_reason() {
+    let error = crate::hot_reload::HotState::Unavailable("rebuild the extension".to_string())
+        .context()
+        .err()
+        .unwrap();
+    assert_eq!(error.to_string(), "rebuild the extension");
+}
+
+#[cfg(feature = "hot_reload")]
+#[test]
+fn mismatched_api_build_stamp_asks_for_rebuild() {
+    use crate::hot_reload::check_api_build_stamp;
+    assert!(check_api_build_stamp(1, Some(1)).is_ok());
+    for found in [Some(2), None] {
+        let error = check_api_build_stamp(1, found).unwrap_err();
+        assert!(error.contains("Rebuild the extension"), "{error}");
+    }
 }

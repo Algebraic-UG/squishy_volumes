@@ -23,11 +23,17 @@ mod shim;
 mod tests;
 pub use shim::*;
 
-mod hot_reloadable;
-use hot_reloadable::{initialize, CombinedBuildInfo};
-
 #[cfg(feature = "hot_reload")]
-use hot_reloadable::handle_reload;
+mod hot_reload;
+#[cfg(feature = "hot_reload")]
+use hot_reload as context;
+
+#[cfg(not(feature = "hot_reload"))]
+mod static_context;
+#[cfg(not(feature = "hot_reload"))]
+use static_context as context;
+
+use context::{core_build_info, initialize, try_with_context};
 
 mod api_use;
 use crate::api_use::{available_gpus, simulation::Simulation, simulation_input::SimulationInput};
@@ -36,7 +42,7 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     initialize();
 
     #[cfg(feature = "hot_reload")]
-    handle_reload();
+    hot_reload::handle_reload();
 
     m.add_function(wrap_pyfunction!(build_info_as_json, m)?)?;
     m.add_function(wrap_pyfunction!(available_gpus, m)?)?;
@@ -47,7 +53,27 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+const BUG: &str = "You encountered a bug in Squishy Volumes.
+It's unlikely that the process can recover.
+Please consider restarting the application.";
+
+#[derive(serde::Serialize)]
+pub struct CombinedBuildInfo {
+    pub wrapper: build_info::BuildInfo,
+    pub core_libs: build_info::BuildInfo,
+}
+
+build_info::build_info!(fn _build_info);
+impl CombinedBuildInfo {
+    pub fn new() -> anyhow::Result<Self> {
+        Ok(Self {
+            wrapper: _build_info().clone(),
+            core_libs: core_build_info()?,
+        })
+    }
+}
+
 #[pyfunction]
 fn build_info_as_json() -> anyhow::Result<String> {
-    Ok(to_string(&CombinedBuildInfo::new())?)
+    Ok(to_string(&CombinedBuildInfo::new()?)?)
 }

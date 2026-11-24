@@ -20,7 +20,7 @@ use anyhow::{Context, Result};
 use pyo3::prelude::*;
 use serde_json::{from_str, to_string};
 
-use crate::hot_reloadable::try_with_context;
+use crate::try_with_context;
 
 #[pyclass]
 pub struct Simulation(pub String);
