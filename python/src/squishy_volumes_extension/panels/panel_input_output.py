@@ -65,6 +65,13 @@ class SCENE_UL_Squishy_Volumes_Particle_Input_Object_List(bpy.types.UIList):
         col.prop(item, "add_output_object")
 
 
+def named_object(name: str) -> bpy.types.Object:
+    obj = bpy.data.objects.get(name)
+    if obj is None:
+        raise api.InvalidInput(f"There is no object named '{name}'")
+    return obj
+
+
 @add_fields_from(Squishy_Volumes_Properties_Input)
 class Squishy_Volumes_New_Input(bpy.types.PropertyGroup):
     obj_name: bpy.props.StringProperty()
@@ -88,9 +95,9 @@ class SCENE_OT_Squishy_Volumes_Add_Input_Objects(
 
     def run(self, context):
         sim_obj = self.sim_obj
+        objects = [named_object(new_input.obj_name) for new_input in self.inputs]
         added = []
-        for new_input in self.inputs:
-            obj = bpy.data.objects[new_input.obj_name]
+        for obj, new_input in zip(objects, self.inputs, strict=True):
             if api.input_problem(obj) is not None:
                 continue
             api.add_input(
@@ -147,9 +154,7 @@ Note that this does not delete the object or remove the input modifier."""
     name: bpy.props.StringProperty()
 
     def run(self, context):
-        input_obj = bpy.data.objects.get(self.name)
-        if input_obj is None:
-            raise api.InvalidInput(f"There is no object named '{self.name}'")
+        input_obj = named_object(self.name)
         api.remove_input(input_obj)
         self.report({"INFO"}, f"Removed {input_obj.name} from inputs.")
         return {"FINISHED"}

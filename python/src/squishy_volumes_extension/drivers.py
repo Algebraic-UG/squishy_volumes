@@ -42,6 +42,9 @@ value of the respective simulation(s) the objects are an input of."""
             if not api.is_input(obj):
                 self.report({"INFO"}, f"Ignoring {obj.name}, it isn't an input.")
                 continue
+            if not obj.is_editable:
+                self.report({"INFO"}, f"Ignoring {obj.name}, it is linked.")
+                continue
             driven = api.add_drivers(obj)
             names = ", ".join(modifier.name for modifier in driven)
             self.report({"INFO"}, f"Added drivers to {obj.name}: {names or 'none'}.")

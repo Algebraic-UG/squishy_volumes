@@ -21,22 +21,27 @@ import uuid
 import bpy
 
 from ..bridge import SimulationHandle
-from ..cache_paths import first_frame_file, simulation_input_exists
+from ..cache_paths import (
+    first_frame_file,
+    normalize_directory,
+    simulation_input_exists,
+)
 from ..capture_markers import (
     range_to_record,
     remove_capture_markers_if_enabled,
     set_capture_range,
 )
-from ..errors import SimulationNotFound, SquishyVolumesError
-from ..get_preferences import get_default_compute_device
+from ..errors import InvalidInput, SimulationNotFound, SquishyVolumesError
+from ..get_preferences import get_default_cache_location, get_default_compute_device
 from ..squishy_volumes_properties import (
     PER_SIMULATION_PROPERTIES,
     get_input_objects_with_uuid,
     get_simulation_objects,
+    make_unique,
     stored_range,
-    update_directory,
 )
 from ..util import copy_simple_property_group
+from .tools import require_editable
 
 
 def simulations() -> list[bpy.types.Object]:
@@ -71,19 +76,19 @@ def add_simulation(
     scene: bpy.types.Scene | None = None,
 ) -> bpy.types.Object:
     scene = scene_or_current(scene)
+    directory = _unused_directory(
+        get_default_cache_location() if directory is None else directory
+    )
+    cache_file = _new_cache_file(directory, scene.frame_start)
+
     sim_obj = _new_simulation_object(name)
     sim_props = sim_obj.squishy_volumes
     sim_props.is_simulation = True
     sim_props.uuid = str(uuid.uuid4())
     sim_props.compute_device = get_default_compute_device()
-
-    if directory is None:
-        update_directory(sim_props, bpy.context)
-    else:
-        sim_props.directory = directory
-
+    sim_props.cache_file = cache_file
+    sim_props.directory = directory
     set_capture_range(scene, sim_obj, scene.frame_start, scene.frame_start)
-    sim_props.cache_file = _new_cache_file(sim_obj)
     return sim_obj
 
 
@@ -91,6 +96,8 @@ def clone_simulation(
     sim_obj: bpy.types.Object, *, scene: bpy.types.Scene | None = None
 ) -> bpy.types.Object:
     scene = scene_or_current(scene)
+    for input_obj in input_objects(sim_obj):
+        _require_editable_collections(input_obj)
     clone = add_simulation(sim_obj.name, scene=scene)
     copy_simple_property_group(
         sim_obj.squishy_volumes, clone.squishy_volumes, PER_SIMULATION_PROPERTIES
@@ -110,7 +117,10 @@ def remove_simulation(
     sim_obj: bpy.types.Object, *, scene: bpy.types.Scene | None = None
 ):
     scene = scene_or_current(scene)
-    for input_obj in input_objects(sim_obj):
+    inputs = input_objects(sim_obj)
+    for input_obj in inputs:
+        require_editable(input_obj)
+    for input_obj in inputs:
         input_obj.squishy_volumes.uuid = ""
     remove_capture_markers_if_enabled(scene, sim_obj)
     bpy.data.objects.remove(sim_obj)
@@ -168,9 +178,14 @@ def _new_simulation_object(name: str) -> bpy.types.Object:
     return sim_obj
 
 
-def _new_cache_file(sim_obj: bpy.types.Object) -> bpy.types.CacheFile:
-    sim_props = sim_obj.squishy_volumes
-    filepath = first_frame_file(sim_props.directory)
+def _unused_directory(directory: str) -> str:
+    directory = normalize_directory(directory)
+    taken = [sim_obj.squishy_volumes.directory for sim_obj in simulations()]
+    return make_unique(directory, taken) if directory in taken else directory
+
+
+def _new_cache_file(directory: str, capture_start_frame: int) -> bpy.types.CacheFile:
+    filepath = first_frame_file(directory)
     existing = set(bpy.data.cache_files)
     # bpy.data.cache_files has no new(), only this operator creates one
     bpy.ops.cachefile.open(filepath=bpy.path.abspath(filepath))
@@ -182,8 +197,17 @@ def _new_cache_file(sim_obj: bpy.types.Object) -> bpy.types.CacheFile:
     cache_file.is_sequence = True
     cache_file.override_frame = True
     driver = cache_file.driver_add("frame").driver
-    driver.expression = f"frame - {sim_props.capture_start_frame}"
+    driver.expression = f"frame - {capture_start_frame}"
     return cache_file
+
+
+def _require_editable_collections(input_obj: bpy.types.Object):
+    for collection in input_obj.users_collection:
+        if not collection.is_editable:
+            raise InvalidInput(
+                f"{input_obj.name} is in the linked collection {collection.name}, "
+                "its copy can't be added there"
+            )
 
 
 def _copy_input_object(input_obj: bpy.types.Object, clone: bpy.types.Object):

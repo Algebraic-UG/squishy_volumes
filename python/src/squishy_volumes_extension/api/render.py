@@ -71,6 +71,7 @@ def set_up_render(
 ):
     scene = scene_or_current(scene)
     settings = _preset(preset)
+    _check_engine(settings.engine, scene)
     _check_camera(camera, scene)
 
     scene.camera = camera
@@ -129,6 +130,11 @@ def _preset(preset: str) -> RenderPreset:
             f"Unknown render preset '{preset}', choose one of {sorted(RENDER_PRESETS)}"
         )
     return RENDER_PRESETS[preset]
+
+
+def _check_engine(engine: str, scene: bpy.types.Scene):
+    if engine == "CYCLES" and not hasattr(scene, "cycles"):
+        raise InvalidRenderSetup("Enable the Cycles add-on to render this preset")
 
 
 def _check_camera(camera: bpy.types.Object | None, scene: bpy.types.Scene):

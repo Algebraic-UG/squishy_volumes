@@ -46,6 +46,8 @@ GENERATORS = {
 def input_problem(obj: bpy.types.Object) -> str | None:
     if obj.type != "MESH":
         return f"{obj.name} is not a mesh"
+    if not obj.is_editable:
+        return f"{obj.name} is linked from a library"
     return None
 
 
@@ -113,7 +115,9 @@ def copy_alembic_attributes(
     updated = [
         target
         for target in targets
-        if target != source and target.squishy_volumes.input_type == input_type
+        if target != source
+        and target.is_editable
+        and target.squishy_volumes.input_type == input_type
     ]
     for target in updated:
         target_attributes = target.squishy_volumes.alembic_attributes

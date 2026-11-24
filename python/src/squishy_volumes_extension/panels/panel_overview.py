@@ -31,7 +31,7 @@ from ..get_preferences import (
     get_preferences,
 )
 from ..operator_base import ReportingOperator, SimulationOperator
-from ..popup import popup, show_message
+from ..popup import popup
 from ..registration import class_registration
 from ..squishy_volumes_properties import (
     frame_to_load,
@@ -84,29 +84,25 @@ The UI will be blocked for a few seconds.""",
         try:
             sim_obj = setup_example_simulation(context, self.startup_choice)
         except RuntimeError as error:
-            self.warn("", f"The example setup is incomplete:\n{error}")
-            return {"FINISHED"}
+            return self.finish_with_warning(
+                "", f"The example setup is incomplete:\n{error}"
+            )
         select_simulation(context, sim_obj)
         try:
             api.record_input(sim_obj, scene=context.scene)
         except RuntimeError as error:
-            self.warn(
+            return self.finish_with_warning(
                 sim_obj.squishy_volumes.uuid,
                 f"{sim_obj.name} is set up but not recorded:\n{error}",
             )
-            return {"FINISHED"}
         try:
             api.bake(sim_obj)
         except RuntimeError as error:
-            self.warn(
+            return self.finish_with_warning(
                 sim_obj.squishy_volumes.uuid,
                 f"{sim_obj.name} is set up but not baking:\n{error}",
             )
         return {"FINISHED"}
-
-    def warn(self, uuid: str, message: str):
-        show_message(uuid, message)
-        self.report({"WARNING"}, message.splitlines()[0])
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self, width=400)
@@ -176,7 +172,19 @@ This is useful when reloading a Blender file with multiple simulations."""
     bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
 
     def run(self, context):
-        reloaded = api.reload_all()
+        reloaded = []
+        for sim_obj in unloaded_simulations(context):
+            try:
+                api.reload(sim_obj)
+            except RuntimeError as error:
+                if not reloaded:
+                    raise
+                return self.finish_with_warning(
+                    sim_obj.squishy_volumes.uuid,
+                    f"Reloaded {len(reloaded)} simulation(s), "
+                    f"but not {sim_obj.name}:\n{error}",
+                )
+            reloaded.append(sim_obj)
         self.report({"INFO"}, f"Reloaded {len(reloaded)} simulation(s).")
         return {"FINISHED"}
 

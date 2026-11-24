@@ -146,7 +146,12 @@ Note that this also discards all computed frames in the cache."""
         recorded_frames = api.record_input(sim_obj, scene=context.scene)
         self.report({"INFO"}, f"Recorded {recorded_frames} frames of {sim_obj.name}.")
         if self.start_baking:
-            start_baking(self, sim_obj)
+            try:
+                start_baking(self, sim_obj)
+            except RuntimeError as error:
+                return self.finish_with_warning(
+                    self.uuid, f"{sim_obj.name} is recorded but not baking:\n{error}"
+                )
         return {"FINISHED"}
 
     def invoke(self, context, event):
