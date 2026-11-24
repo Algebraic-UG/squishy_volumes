@@ -298,28 +298,40 @@ fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
 
 #[cfg(test)]
 #[allow(clippy::result_large_err)]
-mod tests {
-    use std::time::Duration;
-
-    use super::*;
-
-    fn compute_thread(
+impl ComputeThread {
+    pub(crate) fn spawn_work(
         work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
-    ) -> ComputeThread {
+    ) -> Self {
         let harness = Harness::new("test".to_string(), NonZero::new(1).unwrap());
         let thread = {
             let harness = harness.clone();
             Some(spawn(move || work(harness)))
         };
-        ComputeThread { harness, thread }
+        Self { harness, thread }
     }
 
-    fn until_canceled(harness: Harness) -> Result<(), Error> {
+    pub(crate) fn until_canceled(harness: Harness) -> Result<(), Error> {
         while !harness.is_canceled() {
-            std::thread::sleep(Duration::from_millis(1));
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
         harness.check()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::result_large_err)]
+mod tests {
+    use super::*;
+
+    fn compute_thread(
+        work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
+    ) -> ComputeThread {
+        ComputeThread::spawn_work(work)
+    }
+
+    fn until_canceled(harness: Harness) -> Result<(), Error> {
+        ComputeThread::until_canceled(harness)
     }
 
     #[test]

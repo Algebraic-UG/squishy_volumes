@@ -22,7 +22,7 @@ use serde_json::Value;
 
 use crate::{
     Error, SimulationImpl,
-    guard::{Breakable, guard_breakable},
+    guard::{Breakable, guard, guard_breakable},
 };
 
 impl Breakable for SimulationImpl {
@@ -60,9 +60,7 @@ impl squishy_volumes_api::Simulation for SimulationImpl {
     }
 
     fn pause_compute(&mut self) -> anyhow::Result<()> {
-        Ok(guard_breakable(self, |simulation| {
-            simulation.pause_compute_impl()
-        })?)
+        Ok(guard(|| self.pause_compute_impl())?)
     }
 
     fn available_frames(&self) -> anyhow::Result<usize> {

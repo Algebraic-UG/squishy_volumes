@@ -40,7 +40,7 @@ pub struct SimulationImpl {
     header: Header,
 
     cache: Arc<Cache>,
-    compute_thread: Option<ComputeThread>,
+    pub(crate) compute_thread: Option<ComputeThread>,
 
     pub(crate) panic_message: OnceLock<String>,
 }

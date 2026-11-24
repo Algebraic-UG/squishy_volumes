@@ -148,7 +148,10 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
-    use crate::guard::{Breakable, guard_breakable};
+    use crate::{
+        compute_thread::ComputeThread,
+        guard::{Breakable, guard_breakable},
+    };
 
     const PANIC_MESSAGE: &str = "api test panic";
 
@@ -218,7 +221,6 @@ mod tests {
             simulation.input_header().unwrap_err(),
             simulation.baking().unwrap_err(),
             simulation.poll().unwrap_err(),
-            simulation.pause_compute().unwrap_err(),
             simulation.available_frames().unwrap_err(),
         ];
         for error in errors {
@@ -227,6 +229,21 @@ mod tests {
                 Error::BrokenSimulation(message) if message == PANIC_MESSAGE
             ));
         }
+    }
+
+    #[test]
+    fn broken_simulation_can_still_stop_its_computation() {
+        let directory = TempDir::new().unwrap();
+        let mut context = context_with_input(&directory);
+        let uuid = context.new_simulation().unwrap();
+        let simulation = context.simulations.get_mut(&uuid).unwrap();
+        simulation.compute_thread = Some(ComputeThread::spawn_work(ComputeThread::until_canceled));
+        panic_inside(simulation);
+
+        let simulation = context.get_simulation_mut(&uuid).unwrap();
+        simulation.pause_compute().unwrap();
+
+        assert!(!context.simulations[&uuid].baking_impl());
     }
 
     #[test]
