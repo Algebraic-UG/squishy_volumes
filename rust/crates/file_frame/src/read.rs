@@ -33,8 +33,9 @@ impl Frame {
     }
 
     fn read_inner(path: impl AsRef<std::path::Path>) -> Result<Self, ReadError> {
-        let (content, mut reader) =
-            alembic_rust::read_archive(std::io::BufReader::new(std::fs::File::open(&path)?))?;
+        let file = std::fs::File::open(&path).map_err(|source| ReadError::Open { source })?;
+        let (content, mut reader) = alembic_rust::read_archive(std::io::BufReader::new(file))
+            .map_err(|source| ReadError::Archive { source })?;
 
         let application_key = content.metadata.get(APPLICATION_KEY);
         if Some(SQUISHY_VOLUMES) != application_key {
@@ -47,7 +48,9 @@ impl Frame {
             return Err(ReadError::MissingBlob);
         };
 
-        let mut blob_reader = reader.user_data_reader(user_data)?;
+        let mut blob_reader = reader
+            .user_data_reader(user_data)
+            .map_err(|source| ReadError::Blob { source })?;
         squishy_volumes_file_util::read_magic_and_version(magic_bytes, &mut blob_reader)?;
         let mut frame: Self = bincode::deserialize_from(&mut blob_reader)?;
         drop(blob_reader);

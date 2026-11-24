@@ -19,3 +19,6 @@ strum.workspace = true
 squishy_volumes_mesh_util.path = "../mesh_util"
 squishy_volumes_file_util.path = "../file_util"
 squishy_volumes_util.path = "../util"
+
+[dev-dependencies]
+tempfile = "3.23.0"

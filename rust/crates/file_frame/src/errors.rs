@@ -36,16 +36,31 @@ pub enum Error {
 pub enum WriteError {
     #[error("failed to determine parent directory")]
     NoParent,
-    #[error("io error")]
-    Io(#[from] std::io::Error),
-    #[error("alembic error")]
-    Alembic(#[from] alembic_rust::Error),
+    #[error("failed to create the file")]
+    Create { source: std::io::Error },
+    #[error("failed to start the archive")]
+    Archive { source: alembic_rust::Error },
+    #[error("failed to set the application key")]
+    ApplicationKey { source: alembic_rust::Error },
+    #[error("failed to write the binary blob")]
+    Blob { source: alembic_rust::Error },
     #[error("failed to serialize")]
     Serialize(#[from] bincode::Error),
     #[error("failed to write magic bytes and version")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
+    #[error("failed to finish the archive")]
+    Finish { source: alembic_rust::Error },
     #[error("failed to flush")]
-    Flush(#[from] std::io::IntoInnerError<std::io::BufWriter<std::fs::File>>),
+    Flush {
+        source: std::io::IntoInnerError<std::io::BufWriter<std::fs::File>>,
+    },
+    #[error("failed to query the written size")]
+    Size { source: std::io::Error },
+    #[error("failed to move '{from}' into place")]
+    Rename {
+        from: std::path::PathBuf,
+        source: std::io::Error,
+    },
     #[error("failed to write points '{name}'")]
     Points {
         name: String,
@@ -55,8 +70,10 @@ pub enum WriteError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum WritePointsError {
+    #[error("failed to begin")]
+    Begin { source: alembic_rust::Error },
     #[error("failed to finish")]
-    Finish(#[from] alembic_rust::Error),
+    Finish { source: alembic_rust::Error },
     #[error("failed to write attribute '{name}'")]
     Attribute {
         name: String,
@@ -80,10 +97,12 @@ pub enum ReadError {
     ApplicationKey(Option<String>),
     #[error("the file is missing the binary blob")]
     MissingBlob,
-    #[error("io error")]
-    Io(#[from] std::io::Error),
-    #[error("alembic error")]
-    Alembic(#[from] alembic_rust::Error),
+    #[error("failed to open the file")]
+    Open { source: std::io::Error },
+    #[error("failed to read the archive")]
+    Archive { source: alembic_rust::Error },
+    #[error("failed to open the binary blob")]
+    Blob { source: alembic_rust::Error },
     #[error("failed to deserialize")]
     Deserialize(#[from] bincode::Error),
     #[error("failed to check magic bytes and version")]

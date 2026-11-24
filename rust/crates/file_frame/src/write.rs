@@ -37,7 +37,7 @@ impl Frame {
 
         std::fs::rename(&temp, &path).map_err(|source| Error::Write {
             path: path.as_ref().to_path_buf(),
-            source: source.into(),
+            source: WriteError::Rename { from: temp, source },
         })?;
 
         Ok(size)
@@ -51,42 +51,43 @@ impl Frame {
     }
 
     fn write_temp(mut self, path: impl AsRef<std::path::Path>) -> Result<u64, WriteError> {
-        let Some(dir) = path.as_ref().parent() else {
-            return Err(WriteError::NoParent);
-        };
-        let temp = dir.join("temp.bin");
-
-        let mut writer = alembic_rust::ArchiveWriter::create(std::io::BufWriter::new(
-            std::fs::File::create(&temp)?,
-        ))?;
+        let file = std::fs::File::create(path).map_err(|source| WriteError::Create { source })?;
+        let mut writer = alembic_rust::ArchiveWriter::create(std::io::BufWriter::new(file))
+            .map_err(|source| WriteError::Archive { source })?;
 
         writer
             .metadata_mut()
-            .set(APPLICATION_KEY, SQUISHY_VOLUMES)?;
+            .set(APPLICATION_KEY, SQUISHY_VOLUMES)
+            .map_err(|source| WriteError::ApplicationKey { source })?;
 
         for (name, particles) in &mut self.io_state.particle_objects {
-            write_points(
-                writer.begin_points(name, particles.num_particles)?,
-                particles,
-            )
-            .map_err(|source| WriteError::Points {
-                name: name.clone(),
-                source,
-            })?;
+            writer
+                .begin_points(name, particles.num_particles)
+                .map_err(|source| WritePointsError::Begin { source })
+                .and_then(|points_writer| write_points(points_writer, particles))
+                .map_err(|source| WriteError::Points {
+                    name: name.clone(),
+                    source,
+                })?;
         }
 
-        writer.user_data_with(SQUISHY_VOLUMES_BLOB, |w| {
-            squishy_volumes_file_util::write_magic_and_version(magic_bytes, w)?;
-            bincode::serialize_into(w, &self)?;
-            Ok::<_, WriteError>(())
-        })??;
+        writer
+            .user_data_with(SQUISHY_VOLUMES_BLOB, |w| {
+                squishy_volumes_file_util::write_magic_and_version(magic_bytes, w)?;
+                bincode::serialize_into(w, &self)?;
+                Ok::<_, WriteError>(())
+            })
+            .map_err(|source| WriteError::Blob { source })??;
 
-        let writer = writer.finish()?;
+        let writer = writer
+            .finish()
+            .map_err(|source| WriteError::Finish { source })?;
 
         let written_bytes = writer
             .into_inner()
-            .map_err(WriteError::Flush)?
-            .metadata()?
+            .map_err(|source| WriteError::Flush { source })?
+            .metadata()
+            .map_err(|source| WriteError::Size { source })?
             .len();
 
         Ok(written_bytes)
@@ -128,6 +129,7 @@ fn write_points<'a, W: Write + Seek>(
             source,
         })?;
     }
-    writer.finish()?;
-    Ok(())
+    writer
+        .finish()
+        .map_err(|source| WritePointsError::Finish { source })
 }
