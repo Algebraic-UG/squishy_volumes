@@ -75,7 +75,7 @@ impl ComputeThread {
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
 
-        let frame_store = cache.start_storing().map_err(Error::StoreError)?;
+        let frame_store = cache.start_storing();
 
         let thread = {
             let harness = harness.clone();
@@ -248,10 +248,7 @@ impl ComputeThread {
         if !thread.is_finished() {
             self.harness.cancel();
         }
-        match thread
-            .join()
-            .map_err(|e| Error::ComputePanic(panic_payload_to_string(e)))?
-        {
+        match thread.join().map_err(compute_panic)? {
             Err(error) if error.is_cancellation() => Ok(()),
             result => result,
         }
@@ -262,13 +259,11 @@ impl ComputeThread {
             return Ok(Default::default());
         };
         if thread.is_finished() {
-            thread
-                .join()
-                .map_err(|e| Error::ComputePanic(panic_payload_to_string(e)))??;
+            thread.join().map_err(compute_panic)??;
             return Ok(Default::default());
         }
         self.thread = Some(thread);
-        Ok(self.harness.get_infos()?)
+        Ok(self.harness.get_infos())
     }
 }
 
@@ -284,6 +279,13 @@ impl Drop for ComputeThread {
     }
 }
 
+fn compute_panic(payload: Box<dyn std::any::Any + Send>) -> Error {
+    Error::Panic {
+        thread: "compute",
+        message: panic_payload_to_string(payload),
+    }
+}
+
 fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
     Stats {
         grid_node_count: io_state
@@ -296,28 +298,40 @@ fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
 
 #[cfg(test)]
 #[allow(clippy::result_large_err)]
-mod tests {
-    use std::time::Duration;
-
-    use super::*;
-
-    fn compute_thread(
+impl ComputeThread {
+    pub(crate) fn spawn_work(
         work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
-    ) -> ComputeThread {
+    ) -> Self {
         let harness = Harness::new("test".to_string(), NonZero::new(1).unwrap());
         let thread = {
             let harness = harness.clone();
             Some(spawn(move || work(harness)))
         };
-        ComputeThread { harness, thread }
+        Self { harness, thread }
     }
 
-    fn until_canceled(harness: Harness) -> Result<(), Error> {
+    pub(crate) fn until_canceled(harness: Harness) -> Result<(), Error> {
         while !harness.is_canceled() {
-            std::thread::sleep(Duration::from_millis(1));
+            std::thread::sleep(std::time::Duration::from_millis(1));
         }
         harness.check()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::result_large_err)]
+mod tests {
+    use super::*;
+
+    fn compute_thread(
+        work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
+    ) -> ComputeThread {
+        ComputeThread::spawn_work(work)
+    }
+
+    fn until_canceled(harness: Harness) -> Result<(), Error> {
+        ComputeThread::until_canceled(harness)
     }
 
     #[test]
@@ -357,6 +371,28 @@ mod tests {
             std::thread::yield_now();
         }
 
-        assert!(matches!(thread.stop(), Err(Error::ComputePanic(_))));
+        assert!(matches!(
+            thread.stop(),
+            Err(Error::Panic {
+                thread: "compute",
+                message,
+            }) if message == "compute thread test panic"
+        ));
+    }
+
+    #[test]
+    fn polling_a_panicked_thread_reports_the_panic() {
+        let mut thread = compute_thread(|_| panic!("compute thread test panic"));
+        while thread.running() {
+            std::thread::yield_now();
+        }
+
+        assert!(matches!(
+            thread.poll(),
+            Err(Error::Panic {
+                thread: "compute",
+                ..
+            })
+        ));
     }
 }

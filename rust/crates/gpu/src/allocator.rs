@@ -343,7 +343,6 @@ impl GpuAllocator {
                     assert!(size > i * max_buffer_size);
                     let size = (size - i * max_buffer_size).min(max_buffer_size);
                     if let Some(harness) = harness.as_ref() {
-                        harness.check()?;
                         harness.step()?;
                     }
                     Ok(GpuBuffer::new(

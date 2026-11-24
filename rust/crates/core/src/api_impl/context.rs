@@ -16,53 +16,64 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-impl squishy_volumes_api::Context for crate::ContextImpl {
-    fn available_gpus(&self) -> Vec<String> {
-        squishy_volumes_gpu::GpuContext::available_gpus()
+use std::path::PathBuf;
+
+use serde_json::Value;
+use squishy_volumes_api::{Simulation, SimulationInput};
+
+use crate::{ContextImpl, guard::guard};
+
+#[allow(clippy::result_large_err)]
+impl squishy_volumes_api::Context for ContextImpl {
+    fn available_gpus(&self) -> anyhow::Result<Vec<String>> {
+        Ok(guard(|| {
+            Ok(squishy_volumes_gpu::GpuContext::available_gpus())
+        })?)
     }
 
     fn new_simulation_input(
         &mut self,
         uuid: String,
-        directory: std::path::PathBuf,
-        input_header: serde_json::Value,
+        directory: PathBuf,
+        input_header: Value,
         max_bytes_on_disk: u64,
     ) -> anyhow::Result<()> {
-        Ok(self.new_simulation_input_impl(uuid, directory, input_header, max_bytes_on_disk)?)
+        Ok(guard(|| {
+            self.new_simulation_input_impl(uuid, directory, input_header, max_bytes_on_disk)
+        })?)
     }
 
-    fn get_simulation_input(&mut self) -> Option<&mut dyn squishy_volumes_api::SimulationInput> {
+    fn get_simulation_input(&mut self) -> Option<&mut dyn SimulationInput> {
         self.get_simulation_input_impl()
     }
 
-    fn drop_simulation_input(&mut self) {
-        self.drop_simulation_input_impl()
+    fn drop_simulation_input(&mut self) -> anyhow::Result<()> {
+        Ok(guard(|| {
+            self.drop_simulation_input_impl();
+            Ok(())
+        })?)
     }
 
     fn new_simulation(&mut self) -> anyhow::Result<String> {
-        Ok(self.new_simulation_impl()?)
+        Ok(guard(|| self.new_simulation_impl())?)
     }
 
-    fn load_simulation(
-        &mut self,
-        uuid: String,
-        directory: std::path::PathBuf,
-    ) -> anyhow::Result<()> {
-        Ok(self.load_simulation_impl(uuid, directory)?)
+    fn load_simulation(&mut self, uuid: String, directory: PathBuf) -> anyhow::Result<()> {
+        Ok(guard(|| self.load_simulation_impl(uuid, directory))?)
     }
 
-    fn get_simulation(&self, uuid: &str) -> Option<&dyn squishy_volumes_api::Simulation> {
+    fn get_simulation(&self, uuid: &str) -> Option<&dyn Simulation> {
         self.get_simulation_impl(uuid)
     }
 
-    fn get_simulation_mut(
-        &mut self,
-        uuid: &str,
-    ) -> Option<&mut dyn squishy_volumes_api::Simulation> {
+    fn get_simulation_mut(&mut self, uuid: &str) -> Option<&mut dyn Simulation> {
         self.get_simulation_mut_impl(uuid)
     }
 
-    fn drop_simulation(&mut self, uuid: &str) {
-        self.drop_simulation_impl(uuid)
+    fn drop_simulation(&mut self, uuid: &str) -> anyhow::Result<()> {
+        Ok(guard(|| {
+            self.drop_simulation_impl(uuid);
+            Ok(())
+        })?)
     }
 }

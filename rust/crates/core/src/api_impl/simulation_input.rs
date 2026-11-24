@@ -16,16 +16,37 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-impl squishy_volumes_api::SimulationInput for crate::SimulationInputImpl {
-    fn start_frame(&mut self, frame_start: serde_json::Value) -> anyhow::Result<()> {
-        Ok(self.start_frame_impl(frame_start)?)
+use std::sync::OnceLock;
+
+use serde_json::Value;
+use squishy_volumes_api::InputBulk;
+
+use crate::{
+    Error, SimulationInputImpl,
+    guard::{Breakable, guard_breakable},
+};
+
+impl Breakable for SimulationInputImpl {
+    fn panic_message(&self) -> &OnceLock<String> {
+        &self.panic_message
     }
 
-    fn record_input(
-        &mut self,
-        meta: serde_json::Value,
-        bulk: squishy_volumes_api::InputBulk,
-    ) -> anyhow::Result<()> {
-        Ok(self.record_input_impl(meta, bulk)?)
+    fn broken(panic_message: String) -> Error {
+        Error::BrokenSimulationInput(panic_message)
+    }
+}
+
+#[allow(clippy::result_large_err)]
+impl squishy_volumes_api::SimulationInput for SimulationInputImpl {
+    fn start_frame(&mut self, frame_start: Value) -> anyhow::Result<()> {
+        Ok(guard_breakable(self, |simulation_input| {
+            simulation_input.start_frame_impl(frame_start)
+        })?)
+    }
+
+    fn record_input(&mut self, meta: Value, bulk: InputBulk) -> anyhow::Result<()> {
+        Ok(guard_breakable(self, |simulation_input| {
+            simulation_input.record_input_impl(meta, bulk)
+        })?)
     }
 }

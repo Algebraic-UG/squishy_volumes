@@ -81,8 +81,19 @@ pub enum Error {
     #[error("Failed to store frame")]
     StoreError(#[source] squishy_volumes_cache::CacheError),
 
-    #[error("Something went really wrong and the compute thread paniced: {0}")]
-    ComputePanic(String),
+    #[error("Internal error (panic) in the {thread} thread: {message}, please report this bug")]
+    Panic {
+        thread: &'static str,
+        message: String,
+    },
+    #[error(
+        "This simulation can't be used anymore after an internal error (panic: {0}).\nPlease reload it."
+    )]
+    BrokenSimulation(String),
+    #[error(
+        "This input recording can't be used anymore after an internal error (panic: {0}).\nPlease record the input again."
+    )]
+    BrokenSimulationInput(String),
 }
 
 impl Error {
@@ -129,7 +140,10 @@ mod tests {
     fn other_errors_are_not_cancellations() {
         let errors = [
             Error::StoredError("broken".to_string()),
-            Error::HarnessError(HarnessError::ReportMutexPoisoned),
+            Error::Panic {
+                thread: "compute",
+                message: "broken".to_string(),
+            },
             Error::CpuCompute(squishy_volumes_cpu::Error::ZeroTimeStep),
             Error::GpuError(squishy_volumes_gpu::GpuError::NoParticles),
         ];

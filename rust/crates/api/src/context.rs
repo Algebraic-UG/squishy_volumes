@@ -23,7 +23,7 @@ use std::path::PathBuf;
 use crate::{Simulation, SimulationInput};
 
 pub trait Context: Send + Sync {
-    fn available_gpus(&self) -> Vec<String>;
+    fn available_gpus(&self) -> Result<Vec<String>>;
 
     fn new_simulation_input(
         &mut self,
@@ -34,7 +34,7 @@ pub trait Context: Send + Sync {
     ) -> Result<()>;
 
     fn get_simulation_input(&mut self) -> Option<&mut dyn SimulationInput>;
-    fn drop_simulation_input(&mut self);
+    fn drop_simulation_input(&mut self) -> Result<()>;
 
     fn new_simulation(&mut self) -> Result<String>;
     fn load_simulation(&mut self, uuid: String, directory: PathBuf) -> Result<()>;
@@ -42,5 +42,5 @@ pub trait Context: Send + Sync {
     fn get_simulation(&self, uuid: &str) -> Option<&dyn Simulation>;
     fn get_simulation_mut(&mut self, uuid: &str) -> Option<&mut dyn Simulation>;
 
-    fn drop_simulation(&mut self, uuid: &str);
+    fn drop_simulation(&mut self, uuid: &str) -> Result<()>;
 }

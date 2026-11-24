@@ -24,8 +24,6 @@ pub enum CacheError {
     Reading(#[from] CacheReadingError),
     #[error("An error occured while clearing old frames")]
     Cleanup(#[from] CacheCleanupError),
-    #[error("Something went really wrong and the store thread mutex is poisoned")]
-    StoreThreadLockPoisoned,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -38,8 +36,8 @@ pub enum CacheWritingError {
     Sending,
     #[error("Exceeding allowed disk space")]
     ExceedingSpace,
-    #[error("Something went really wrong and the store thread paniced")]
-    StoreThreadPaniced,
+    #[error("Internal error (panic) in the store thread: {message}, please report this bug")]
+    StoreThreadPanicked { message: String },
 }
 
 #[derive(thiserror::Error, Debug)]

@@ -22,12 +22,12 @@ use serde_json::Value;
 pub trait Simulation {
     fn input_header(&self) -> Result<Value>;
 
-    fn baking(&self) -> bool;
+    fn baking(&self) -> Result<bool>;
 
     fn poll(&mut self) -> Result<Value>;
 
     fn start_compute(&mut self, settings: Value) -> Result<()>;
     fn pause_compute(&mut self) -> Result<()>;
 
-    fn available_frames(&self) -> usize;
+    fn available_frames(&self) -> Result<usize>;
 }

@@ -223,7 +223,6 @@ impl GpuState {
         tracing::info!(steps_per_frame, "first estimate");
 
         let mut gpu_context = GpuContext::new(Some(gpu))?;
-        harness.check()?;
         harness.step()?;
 
         tracing::info!("setting up GPU allocators");
@@ -234,7 +233,6 @@ impl GpuState {
             false,
         )?;
         gpu_context.setup_indirect_allocator(2048, "indirect allocator", false)?;
-        harness.check()?;
         harness.step()?;
 
         let dispatch_limit = gpu_context
@@ -268,7 +266,6 @@ impl GpuState {
                 domain_max: consts.scaled_domain_max().into(),
             },
         )?;
-        harness.check()?;
         harness.step()?;
 
         let device = gpu_context.device();
@@ -288,7 +285,6 @@ impl GpuState {
 
         let variable_particle_input_backup = VariableParticleInputBackup::new(&mut io_state)?;
 
-        harness.check()?;
         harness.step()?;
 
         tracing::info!("creating particle allocations");
@@ -336,7 +332,6 @@ impl GpuState {
             .map(ProfileDataCsvWriter::new)
             .transpose()?;
 
-        harness.check()?;
         harness.step()?;
 
         Ok(Self {

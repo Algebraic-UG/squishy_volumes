@@ -32,6 +32,8 @@ struct CacheState {
     store_thread: Mutex<StoreThread>,
 }
 
+const STORE_THREAD_POISONED: &str = "store thread mutex poisoned by an earlier panic";
+
 pub struct Cache {
     state: squishy_volumes_directory_lock::DirectoryLock<CacheState>,
 }
@@ -152,7 +154,7 @@ impl Cache {
         self.state
             .store_thread
             .lock()
-            .map_err(|_| CacheError::StoreThreadLockPoisoned)?
+            .expect(STORE_THREAD_POISONED)
             .check()?;
         Ok(())
     }
@@ -167,29 +169,30 @@ impl Cache {
         self.state.total_bytes_on_disk.load(Ordering::Relaxed)
     }
 
-    pub fn start_storing(&self) -> Result<FrameStore, CacheError> {
+    pub fn start_storing(&self) -> FrameStore {
         let sender = self
             .state
             .store_thread
             .lock()
-            .map_err(|_| CacheError::StoreThreadLockPoisoned)?
+            .expect(STORE_THREAD_POISONED)
             .start(
                 self.state.directory().to_path_buf(),
                 self.state.total_bytes_on_disk.clone(),
                 self.state.available_frames.clone(),
             );
-        Ok(FrameStore {
+        FrameStore {
             sender,
             total_bytes_on_disk: self.state.total_bytes_on_disk.clone(),
             max_bytes_on_disk: self.state.max_bytes_on_disk.clone(),
-        })
+        }
     }
 
     pub fn storing(&self) -> bool {
         self.state
             .store_thread
             .lock()
-            .is_ok_and(|store_thread| store_thread.running())
+            .expect(STORE_THREAD_POISONED)
+            .running()
     }
 
     pub fn fetch_frame(
@@ -207,11 +210,7 @@ impl Cache {
     }
 
     pub fn drop_frames(&self, from_frame: usize) -> Result<(), CacheError> {
-        let mut store_thread = self
-            .state
-            .store_thread
-            .lock()
-            .map_err(|_| CacheError::StoreThreadLockPoisoned)?;
+        let mut store_thread = self.state.store_thread.lock().expect(STORE_THREAD_POISONED);
         store_thread.stop();
         self.state
             .available_frames
@@ -322,7 +321,7 @@ mod tests {
     }
 
     fn store_empty_frames(cache: &Cache, count: usize) {
-        let frame_store = cache.start_storing().unwrap();
+        let frame_store = cache.start_storing();
         for _ in 0..count {
             frame_store
                 .store_frame(
@@ -390,7 +389,7 @@ mod tests {
     fn storing_while_frame_store_is_alive() {
         let dir = temp_dir("storing_while_alive");
         let cache = open_cache(&dir);
-        let frame_store = cache.start_storing().unwrap();
+        let frame_store = cache.start_storing();
         assert!(cache.storing());
 
         drop(frame_store);

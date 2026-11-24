@@ -19,6 +19,7 @@
 use std::{
     fs::remove_file,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
 use serde::{Deserialize, Serialize};
@@ -34,6 +35,8 @@ pub struct SimulationInputImpl {
     pub uuid: String,
     pub input_writer: DirectoryLock<InputWriter>,
     pub max_bytes_on_disk: u64,
+
+    pub(crate) panic_message: OnceLock<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -62,6 +65,7 @@ impl SimulationInputImpl {
             uuid,
             input_writer,
             max_bytes_on_disk,
+            panic_message: OnceLock::new(),
         })
     }
 

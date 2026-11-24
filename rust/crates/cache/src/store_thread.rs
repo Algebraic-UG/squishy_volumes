@@ -23,6 +23,7 @@ use std::sync::{
 };
 
 use squishy_volumes_file_frame::Frame;
+use squishy_volumes_util::panic_payload_to_string;
 
 use super::*;
 
@@ -120,7 +121,9 @@ impl StoreThread {
         self.thread.take().map_or(Ok(()), |thread| {
             thread
                 .join()
-                .map_err(|_| CacheWritingError::StoreThreadPaniced)?
+                .map_err(|payload| CacheWritingError::StoreThreadPanicked {
+                    message: panic_payload_to_string(payload),
+                })?
         })
     }
 
@@ -186,8 +189,11 @@ fn write_frame(
 
 fn join_and_log(thread: std::thread::JoinHandle<StoreResult>) {
     match thread.join() {
-        Err(e) => {
-            tracing::error!("store thread paniced: {e:?}");
+        Err(payload) => {
+            tracing::error!(
+                payload = panic_payload_to_string(payload),
+                "store thread panicked"
+            );
         }
         Ok(Err(e)) => {
             tracing::error!("store thread error: {e}");
@@ -368,7 +374,8 @@ mod tests {
 
         assert!(matches!(
             store_thread.check(),
-            Err(CacheWritingError::StoreThreadPaniced)
+            Err(CacheWritingError::StoreThreadPanicked { message })
+                if message == "store thread test panic"
         ));
     }
 }
