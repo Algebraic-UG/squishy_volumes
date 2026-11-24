@@ -38,6 +38,7 @@ def add_goals(
     obj: bpy.types.Object, *, location: mathutils.Vector | None = None
 ) -> tuple[bpy.types.Object, bpy.types.Object]:
     _require_mesh(obj)
+    require_editable(obj)
     node_group = create_geometry_nodes_generate_goal_positions()
 
     choose = bpy.data.objects.new(f"{obj.name} - Choose", _icosphere_mesh(obj.name))
@@ -60,6 +61,7 @@ def restrict_view(
 ) -> bpy.types.Object:
     if obj.type not in {"MESH", "POINTCLOUD"}:
         raise InvalidInput(f"{obj.name} is neither a mesh nor a point cloud")
+    require_editable(obj)
     index = _restrict_view_index(obj)
     fitting_box = _fitting_box(obj, index) if fit_vertices else None
     node_group = create_geometry_nodes_restrict_view()
@@ -80,6 +82,7 @@ def restrict_view(
 
 def add_drivers(obj: bpy.types.Object) -> list[bpy.types.Modifier]:
     sim_obj = _simulation_of(obj)
+    require_editable(obj)
     driven = [
         modifier
         for modifier in obj.modifiers
@@ -128,6 +131,11 @@ def _drive_socket(
     target.data_path = data_path
     target.id_type = "OBJECT"
     target.id = sim_obj
+
+
+def require_editable(obj: bpy.types.Object):
+    if not obj.is_editable:
+        raise InvalidInput(f"{obj.name} is linked from a library and can't be changed")
 
 
 def _require_mesh(obj: bpy.types.Object):
