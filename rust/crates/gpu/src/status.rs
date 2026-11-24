@@ -85,10 +85,6 @@ impl GpuStatus {
             Err(ShaderError::IndirectLimitExceeded { reporting_shader })?;
         }
 
-        if self.0 & INDIRECT_LIMIT_EXCEEDED != 0 {
-            Err(ShaderError::IndirectLimitExceeded { reporting_shader })?;
-        }
-
         if self.0 & PARTICLE_CLOSE_TO_INVERTED != 0 {
             Err(ShaderError::ParticleCloseToInverted { reporting_shader })?;
         }
