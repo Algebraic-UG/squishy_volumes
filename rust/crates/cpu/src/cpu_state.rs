@@ -19,11 +19,15 @@
 use std::{collections::BTreeMap, num::NonZero};
 
 use squishy_volumes_file_frame::{
-    IoState, IoStateError, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
+    IoState, IoStateError, ParticleObjectError, ParticlesObject, combine_matrices, two_f32_to_u32,
+    u32_to_two_f32,
 };
-use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
+use squishy_volumes_file_input::{
+    BulkAttribute, FrameBulkParticles, FrameVerifcationError, Header, Object, ObjectParticles,
+    OwnedFrameBulk,
+};
 use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, SplitParameters, attribute};
-use squishy_volumes_xpu::{FrameInput, FrameInputError};
+use squishy_volumes_xpu::FrameInput;
 
 use super::*;
 
@@ -259,12 +263,9 @@ impl CpuState {
                     ps.insert_attr::<a::GoalPosition>(
                         p.it(goal_positions).cloned().map(Into::into),
                     )?;
-                    Ok(())
+                    Ok::<_, ParticleObjectError>(())
                 })()
-                .map_err(|error| IoStateError::ParticleObject {
-                    name: name.clone(),
-                    error,
-                })?;
+                .map_err(|error| error.attach_name(name))?;
 
                 Ok::<_, IoStateError>((name.clone(), ps))
             })
@@ -374,50 +375,14 @@ impl CpuState {
         if let Some(next_input_frame) = self.frame_input.next_input_frame() {
             self.animated_globals = next_input_frame.animated_globals;
             for bulk in next_input_frame.bulk {
-                if let BulkAttribute::Particles(attr) = bulk.meta.captured_attribute {
-                    let ObjectParticles { particle_range, .. } = self
-                        .frame_input
-                        .header()
-                        .get_particle_object(&bulk.meta.object_name)
-                        .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
-                        .map_err(FrameInputError::InputError)?;
-                    match attr {
-                        FrameBulkParticles::IsSolid => todo!(),
-                        FrameBulkParticles::IsFluid => todo!(),
-                        FrameBulkParticles::UseViscosity => todo!(),
-                        FrameBulkParticles::UseSandAlpha => todo!(),
-                        FrameBulkParticles::IsActive => todo!(),
-
-                        FrameBulkParticles::HasGoal => {
-                            let bits: &[bool] = bulk
-                                .assume_bools()
-                                .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
-                                .map_err(FrameInputError::InputError)?;
-                            for (i, bit) in particle_range.clone().into_iter().zip(bits) {
-                                let index = self.particles.reverse_sort_map[i];
-                                self.particles.flags[index as usize]
-                                    .set(ParticleFlags::HAS_GOAL, *bit);
-                            }
-                        }
-
-                        FrameBulkParticles::ColliderBits => todo!(),
-                        FrameBulkParticles::Transform => todo!(),
-                        FrameBulkParticles::Size => todo!(),
-                        FrameBulkParticles::Density => todo!(),
-                        FrameBulkParticles::YoungsModulus => todo!(),
-                        FrameBulkParticles::PoissonsRatio => todo!(),
-                        FrameBulkParticles::InitialPosition => todo!(),
-                        FrameBulkParticles::Velocity => todo!(),
-                        FrameBulkParticles::ViscosityDynamic => todo!(),
-                        FrameBulkParticles::ViscosityBulk => todo!(),
-                        FrameBulkParticles::Exponent => todo!(),
-                        FrameBulkParticles::BulkModulus => todo!(),
-                        FrameBulkParticles::SandAlpha => todo!(),
-
-                        FrameBulkParticles::GoalPosition => {
-                            todo!()
-                        }
-                    }
+                if let BulkAttribute::Particles(attribute) = bulk.meta.captured_attribute {
+                    apply_particle_bulk(
+                        &mut self.particles,
+                        self.frame_input.header(),
+                        attribute,
+                        &bulk,
+                    )
+                    .map_err(|error| self.frame_input.next_frame_error(error))?;
                 }
             }
         }
@@ -430,4 +395,48 @@ impl CpuState {
     pub fn last_frame_substeps(&self) -> u32 {
         self.last_frame_substeps
     }
+}
+
+fn apply_particle_bulk(
+    particles: &mut Particles,
+    header: &Header,
+    attribute: FrameBulkParticles,
+    bulk: &OwnedFrameBulk,
+) -> Result<(), FrameVerifcationError> {
+    let ObjectParticles { particle_range, .. } =
+        header.get_particle_object(&bulk.meta.object_name)?;
+    match attribute {
+        FrameBulkParticles::IsSolid => todo!(),
+        FrameBulkParticles::IsFluid => todo!(),
+        FrameBulkParticles::UseViscosity => todo!(),
+        FrameBulkParticles::UseSandAlpha => todo!(),
+        FrameBulkParticles::IsActive => todo!(),
+
+        FrameBulkParticles::HasGoal => {
+            let bits: &[bool] = bulk.assume_bools()?;
+            for (i, bit) in particle_range.clone().into_iter().zip(bits) {
+                let index = particles.reverse_sort_map[i];
+                particles.flags[index as usize].set(ParticleFlags::HAS_GOAL, *bit);
+            }
+        }
+
+        FrameBulkParticles::ColliderBits => todo!(),
+        FrameBulkParticles::Transform => todo!(),
+        FrameBulkParticles::Size => todo!(),
+        FrameBulkParticles::Density => todo!(),
+        FrameBulkParticles::YoungsModulus => todo!(),
+        FrameBulkParticles::PoissonsRatio => todo!(),
+        FrameBulkParticles::InitialPosition => todo!(),
+        FrameBulkParticles::Velocity => todo!(),
+        FrameBulkParticles::ViscosityDynamic => todo!(),
+        FrameBulkParticles::ViscosityBulk => todo!(),
+        FrameBulkParticles::Exponent => todo!(),
+        FrameBulkParticles::BulkModulus => todo!(),
+        FrameBulkParticles::SandAlpha => todo!(),
+
+        FrameBulkParticles::GoalPosition => {
+            todo!()
+        }
+    }
+    Ok(())
 }

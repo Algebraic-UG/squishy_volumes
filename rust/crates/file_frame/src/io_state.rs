@@ -138,10 +138,7 @@ impl IoState {
             .map(|(name, particle_object)| {
                 particle_object
                     .remove_attr::<A>()
-                    .map_err(|error| IoStateError::ParticleObject {
-                        name: name.clone(),
-                        error,
-                    })
+                    .map_err(|error| error.attach_name(name))
             })
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()

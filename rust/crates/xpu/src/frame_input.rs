@@ -17,8 +17,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkCollider, Header, InputConsts, InputFrame, InputReader, ObjectCollider,
-    OwnedFrameBulk,
+    BulkAttribute, FrameBulkCollider, FrameVerifcationError, Header, InputConsts, InputFrame,
+    InputReader, ObjectCollider, OwnedFrameBulk,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
 
@@ -192,6 +192,10 @@ impl FrameInput {
         );
 
         Ok(())
+    }
+
+    pub fn next_frame_error(&self, error: FrameVerifcationError) -> FrameInputError {
+        error.attach_frame(self.frame + 1).into()
     }
 
     pub fn header(&self) -> &Header {

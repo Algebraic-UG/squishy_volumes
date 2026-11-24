@@ -263,6 +263,12 @@ const FLOAT: &str = "float";
 const INT: &str = "int";
 
 impl OwnedFrameBulk {
+    fn verification_error(&self, error: AttributeError) -> FrameVerifcationError {
+        error
+            .attach_attr(self.meta.captured_attribute)
+            .attach_name(self.meta.object_name.clone())
+    }
+
     #[inline]
     pub fn assume_bools(&self) -> Result<&[bool], FrameVerifcationError> {
         let expected = BOOL;
@@ -271,9 +277,7 @@ impl OwnedFrameBulk {
             OwnedInputBulk::Floats(_) => FLOAT,
             OwnedInputBulk::Ints(_) => INT,
         };
-        Err(AttributeError::TypeMismatch { expected, found }
-            .attach_attr(self.meta.captured_attribute)
-            .attach_name(self.meta.object_name.clone()))
+        Err(self.verification_error(AttributeError::TypeMismatch { expected, found }))
     }
 
     #[inline]
@@ -289,11 +293,7 @@ impl OwnedFrameBulk {
             };
             Err(AttributeError::TypeMismatch { expected, found })
         })()
-        .map_err(|error| {
-            error
-                .attach_attr(self.meta.captured_attribute)
-                .attach_name(self.meta.object_name.clone())
-        })
+        .map_err(|error| self.verification_error(error))
     }
 
     #[inline]
@@ -307,11 +307,7 @@ impl OwnedFrameBulk {
             };
             Err(AttributeError::TypeMismatch { expected, found })
         })()
-        .map_err(|error| {
-            error
-                .attach_attr(self.meta.captured_attribute)
-                .attach_name(self.meta.object_name.clone())
-        })
+        .map_err(|error| self.verification_error(error))
     }
 }
 

@@ -27,14 +27,18 @@ use std::{
 
 use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::{
-    IoState, IoStateError, ParticlesObject, combine_matrices, two_f32_to_u32, u32_to_two_f32,
+    IoState, IoStateError, ParticleObjectError, ParticlesObject, combine_matrices, two_f32_to_u32,
+    u32_to_two_f32,
 };
-use squishy_volumes_file_input::{BulkAttribute, FrameBulkParticles, Object, ObjectParticles};
+use squishy_volumes_file_input::{
+    BulkAttribute, FrameBulkParticles, FrameVerifcationError, Header, Object, ObjectParticles,
+    OwnedFrameBulk,
+};
 use squishy_volumes_util::{
     AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, TIME_STEP_HISTORY_LENGTH,
     attribute, latest_time_step_limits, limit_time_step_by_collider_velocities,
 };
-use squishy_volumes_xpu::{FrameInput, FrameInputError, Harness};
+use squishy_volumes_xpu::{FrameInput, Harness};
 
 use crate::{
     step::{VariableParticleInput, VariableParticleInputData},
@@ -796,12 +800,9 @@ impl GpuState {
                             .map(|p| p.column(2).xyz().into()),
                     )?;
 
-                    Ok(())
+                    Ok::<_, ParticleObjectError>(())
                 })()
-                .map_err(|error| IoStateError::ParticleObject {
-                    name: name.clone(),
-                    error,
-                })?;
+                .map_err(|error| error.attach_name(name))?;
 
                 Ok::<_, IoStateError>((name.clone(), pt))
             })
@@ -885,64 +886,14 @@ impl GpuState {
         let mut particle_updates = Vec::new();
         for bulk in next_input_frame.bulk {
             if let BulkAttribute::Particles(attribute) = bulk.meta.captured_attribute {
-                let offset = self
-                    .frame_input
-                    .header()
-                    .get_particle_object(&bulk.meta.object_name)
-                    .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
-                    .map_err(FrameInputError::InputError)?
-                    .particle_range
-                    .start as u32;
-
-                let allocation = match attribute {
-                    FrameBulkParticles::IsSolid => todo!(),
-                    FrameBulkParticles::IsFluid => todo!(),
-                    FrameBulkParticles::UseViscosity => todo!(),
-                    FrameBulkParticles::UseSandAlpha => todo!(),
-                    FrameBulkParticles::IsActive => todo!(),
-
-                    // TODO: The GPU should handle bool data as well
-                    FrameBulkParticles::HasGoal => {
-                        let flags: Vec<ParticleFlags> = bulk
-                            .assume_bools()
-                            .map_err(|error| error.attach_frame(self.frame_input.frame() + 1))
-                            .map_err(FrameInputError::InputError)?
-                            .iter()
-                            .map(|bit| {
-                                if *bit {
-                                    ParticleFlags::HAS_GOAL
-                                } else {
-                                    ParticleFlags::default()
-                                }
-                            })
-                            .collect();
-
-                        Allocation::new(self.gpu_context.device(), "new_flags", &flags)?
-                    }
-                    FrameBulkParticles::ColliderBits => todo!(),
-                    FrameBulkParticles::Transform => todo!(),
-                    FrameBulkParticles::Size => todo!(),
-                    FrameBulkParticles::Density => todo!(),
-                    FrameBulkParticles::YoungsModulus => todo!(),
-                    FrameBulkParticles::PoissonsRatio => todo!(),
-                    FrameBulkParticles::InitialPosition => todo!(),
-                    FrameBulkParticles::Velocity => todo!(),
-                    FrameBulkParticles::ViscosityDynamic => todo!(),
-                    FrameBulkParticles::ViscosityBulk => todo!(),
-                    FrameBulkParticles::Exponent => todo!(),
-                    FrameBulkParticles::BulkModulus => todo!(),
-                    FrameBulkParticles::SandAlpha => todo!(),
-
-                    // already handled
-                    FrameBulkParticles::GoalPosition => {
-                        continue;
-                    }
-                };
-                particle_updates.push(PendingParticleUpdate {
+                let update = pending_particle_update(
+                    self.gpu_context.device(),
+                    self.frame_input.header(),
                     attribute,
-                    allocation,
-                    offset,
-                });
+                    &bulk,
+                )
+                .map_err(|error| error.into_gpu_error(&self.frame_input))?;
+                particle_updates.extend(update);
             }
         }
 
@@ -1231,4 +1182,90 @@ fn limits_over_time_starting_with(
         "limits_over_time",
         &limits_over_time,
     )?)
+}
+
+enum PendingUpdateError {
+    Input(FrameVerifcationError),
+    Gpu(GpuError),
+}
+
+impl From<FrameVerifcationError> for PendingUpdateError {
+    fn from(error: FrameVerifcationError) -> Self {
+        Self::Input(error)
+    }
+}
+
+impl From<GpuAllocatorError> for PendingUpdateError {
+    fn from(error: GpuAllocatorError) -> Self {
+        Self::Gpu(error.into())
+    }
+}
+
+impl PendingUpdateError {
+    fn into_gpu_error(self, frame_input: &FrameInput) -> GpuError {
+        match self {
+            Self::Input(error) => frame_input.next_frame_error(error).into(),
+            Self::Gpu(error) => error,
+        }
+    }
+}
+
+fn pending_particle_update(
+    device: &wgpu::Device,
+    header: &Header,
+    attribute: FrameBulkParticles,
+    bulk: &OwnedFrameBulk,
+) -> Result<Option<PendingParticleUpdate>, PendingUpdateError> {
+    let offset = header
+        .get_particle_object(&bulk.meta.object_name)?
+        .particle_range
+        .start as u32;
+
+    let allocation = match attribute {
+        FrameBulkParticles::IsSolid => todo!(),
+        FrameBulkParticles::IsFluid => todo!(),
+        FrameBulkParticles::UseViscosity => todo!(),
+        FrameBulkParticles::UseSandAlpha => todo!(),
+        FrameBulkParticles::IsActive => todo!(),
+
+        // TODO: The GPU should handle bool data as well
+        FrameBulkParticles::HasGoal => {
+            let flags: Vec<ParticleFlags> = bulk
+                .assume_bools()?
+                .iter()
+                .map(|bit| {
+                    if *bit {
+                        ParticleFlags::HAS_GOAL
+                    } else {
+                        ParticleFlags::default()
+                    }
+                })
+                .collect();
+
+            Allocation::new(device, "new_flags", &flags)?
+        }
+        FrameBulkParticles::ColliderBits => todo!(),
+        FrameBulkParticles::Transform => todo!(),
+        FrameBulkParticles::Size => todo!(),
+        FrameBulkParticles::Density => todo!(),
+        FrameBulkParticles::YoungsModulus => todo!(),
+        FrameBulkParticles::PoissonsRatio => todo!(),
+        FrameBulkParticles::InitialPosition => todo!(),
+        FrameBulkParticles::Velocity => todo!(),
+        FrameBulkParticles::ViscosityDynamic => todo!(),
+        FrameBulkParticles::ViscosityBulk => todo!(),
+        FrameBulkParticles::Exponent => todo!(),
+        FrameBulkParticles::BulkModulus => todo!(),
+        FrameBulkParticles::SandAlpha => todo!(),
+
+        // already handled
+        FrameBulkParticles::GoalPosition => {
+            return Ok(None);
+        }
+    };
+    Ok(Some(PendingParticleUpdate {
+        attribute,
+        allocation,
+        offset,
+    }))
 }

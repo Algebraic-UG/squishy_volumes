@@ -25,7 +25,7 @@ use squishy_volumes_file_frame::{
 };
 use squishy_volumes_file_input::{
     BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError, InputReader,
-    Object, ObjectCollider,
+    Object, ObjectCollider, OwnedFrameBulk,
 };
 use squishy_volumes_util::{ParticleFlags, attribute};
 use squishy_volumes_xpu::Harness;
@@ -128,10 +128,7 @@ pub fn initialize_io_state(
             let mut visitor = Visitor(&mut particle_object);
             for key in attribute::Key::iter() {
                 key.visit(&mut visitor)
-                    .map_err(|error| IoStateError::ParticleObject {
-                        name: name.clone(),
-                        error,
-                    })?;
+                    .map_err(|error| error.attach_name(name))?;
             }
 
             Ok::<_, IoStateError>((name.clone(), particle_object))
@@ -168,185 +165,8 @@ pub fn initialize_io_state(
         match bulk.meta.captured_attribute {
             BulkAttribute::Particles(attribute) => {
                 let particles = io_state.get_particle_object_mut(&bulk.meta.object_name)?;
-
-                match attribute {
-                    FrameBulkParticles::IsSolid
-                    | FrameBulkParticles::IsFluid
-                    | FrameBulkParticles::UseViscosity
-                    | FrameBulkParticles::UseSandAlpha
-                    | FrameBulkParticles::HasGoal
-                    | FrameBulkParticles::IsActive => {
-                        let flag = match attribute {
-                            FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
-                            FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
-                            FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
-                            FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
-                            FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
-                            FrameBulkParticles::IsActive => todo!(),
-                            _ => unreachable!(),
-                        };
-                        (
-                            particles
-                                .view_attr_mut::<attribute::Flags>()
-                                .map_err(|e| e.attach_name(&bulk.meta.object_name))?,
-                            bulk.assume_bools()?,
-                        )
-                            .into_par_iter()
-                            .for_each(|(fs, bit)| {
-                                let mut tmp = ParticleFlags(two_f32_to_u32(*fs));
-                                tmp.set(flag, *bit);
-                                *fs = u32_to_two_f32(tmp.0);
-                            });
-                    }
-                    FrameBulkParticles::ColliderBits => {
-                        (
-                            particles
-                                .view_attr_mut::<attribute::ColliderBits>()
-                                .map_err(|e| e.attach_name(&bulk.meta.object_name))?,
-                            bulk.assume_ints::<u32>()?,
-                        )
-                            .into_par_iter()
-                            .for_each(|(fs, bits)| *fs = u32_to_two_f32(*bits));
-                    }
-                    FrameBulkParticles::Transform => {
-                        let transforms: &[[[f32; 4]; 4]] = bulk.assume_floats()?;
-                        (|| {
-                            let mut positions = particles.remove_attr::<attribute::Position>()?;
-                            let mut position_gradients_x =
-                                particles.remove_attr::<attribute::PositionGradientX>()?;
-                            let mut position_gradients_y =
-                                particles.remove_attr::<attribute::PositionGradientY>()?;
-                            let mut position_gradients_z =
-                                particles.remove_attr::<attribute::PositionGradientZ>()?;
-
-                            (
-                                &mut positions,
-                                &mut position_gradients_x,
-                                &mut position_gradients_y,
-                                &mut position_gradients_z,
-                                transforms,
-                            )
-                                .into_par_iter()
-                                .for_each(
-                                    |(
-                                        position,
-                                        position_gradient_x,
-                                        position_gradient_y,
-                                        position_gradient_z,
-                                        [
-                                            [mxx, myx, mzx, _],
-                                            [mxy, myy, mzy, _],
-                                            [mxz, myz, mzz, _],
-                                            [px, py, pz, _],
-                                        ],
-                                    )| {
-                                        *position = [*px, *py, *pz];
-                                        *position_gradient_x = [*mxx, *myx, *mzx];
-                                        *position_gradient_y = [*mxy, *myy, *mzy];
-                                        *position_gradient_z = [*mxz, *myz, *mzz];
-                                    },
-                                );
-
-                            particles.insert_attr::<attribute::Position>(positions.into_iter())?;
-                            particles.insert_attr::<attribute::PositionGradientX>(
-                                position_gradients_x.into_iter(),
-                            )?;
-                            particles.insert_attr::<attribute::PositionGradientY>(
-                                position_gradients_y.into_iter(),
-                            )?;
-                            particles.insert_attr::<attribute::PositionGradientZ>(
-                                position_gradients_z.into_iter(),
-                            )?;
-
-                            Ok::<_, ParticleObjectError>(())
-                        })()
-                        .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::Size => {
-                        particles
-                            .replace_attr::<attribute::InitialSize>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::Density => {
-                        particles
-                            .replace_attr::<attribute::Density>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::YoungsModulus => {
-                        particles
-                            .replace_attr::<attribute::YoungsModulus>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::PoissonsRatio => {
-                        particles
-                            .replace_attr::<attribute::PoissonsRatio>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::InitialPosition => {
-                        particles
-                            .replace_attr::<attribute::InitialPosition>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::Velocity => {
-                        particles
-                            .replace_attr::<attribute::Velocity>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::ViscosityDynamic => {
-                        particles
-                            .replace_attr::<attribute::ViscosityDynamic>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::ViscosityBulk => {
-                        particles
-                            .replace_attr::<attribute::ViscosityBulk>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::Exponent => {
-                        particles
-                            .replace_attr::<attribute::Exponent>(
-                                bulk.assume_ints::<i32>()?.iter().map(|i| *i as f32),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::BulkModulus => {
-                        particles
-                            .replace_attr::<attribute::BulkModulus>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::SandAlpha => {
-                        particles
-                            .replace_attr::<attribute::SandAlpha>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                    FrameBulkParticles::GoalPosition => {
-                        particles
-                            .replace_attr::<attribute::GoalPosition>(
-                                bulk.assume_floats()?.iter().cloned(),
-                            )
-                            .map_err(|e| e.attach_name(&bulk.meta.object_name))?;
-                    }
-                }
+                apply_particle_bulk(particles, attribute, &bulk)
+                    .map_err(|error| error.attach_name(&bulk.meta.object_name))?;
             }
             BulkAttribute::Collider(attribute) => {
                 let ObjectCollider {
@@ -434,4 +254,196 @@ pub fn initialize_io_state(
     */
 
     Ok(io_state)
+}
+
+#[derive(Error, Debug)]
+enum ApplyBulkError {
+    #[error(transparent)]
+    ParticleObject(#[from] ParticleObjectError),
+    #[error(transparent)]
+    FrameVerification(#[from] FrameVerifcationError),
+}
+
+impl ApplyBulkError {
+    fn attach_name(self, name: &str) -> StateInitializationError {
+        match self {
+            Self::ParticleObject(error) => error.attach_name(name).into(),
+            Self::FrameVerification(error) => error.into(),
+        }
+    }
+}
+
+fn apply_particle_bulk(
+    particles: &mut ParticlesObject,
+    attribute: FrameBulkParticles,
+    bulk: &OwnedFrameBulk,
+) -> Result<(), ApplyBulkError> {
+    match attribute {
+        FrameBulkParticles::IsSolid
+        | FrameBulkParticles::IsFluid
+        | FrameBulkParticles::UseViscosity
+        | FrameBulkParticles::UseSandAlpha
+        | FrameBulkParticles::HasGoal
+        | FrameBulkParticles::IsActive => {
+            let flag = match attribute {
+                FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
+                FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
+                FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
+                FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
+                FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
+                FrameBulkParticles::IsActive => todo!(),
+                _ => unreachable!(),
+            };
+            (
+                particles.view_attr_mut::<attribute::Flags>()?,
+                bulk.assume_bools()?,
+            )
+                .into_par_iter()
+                .for_each(|(fs, bit)| {
+                    let mut tmp = ParticleFlags(two_f32_to_u32(*fs));
+                    tmp.set(flag, *bit);
+                    *fs = u32_to_two_f32(tmp.0);
+                });
+        }
+        FrameBulkParticles::ColliderBits => {
+            (
+                particles.view_attr_mut::<attribute::ColliderBits>()?,
+                bulk.assume_ints::<u32>()?,
+            )
+                .into_par_iter()
+                .for_each(|(fs, bits)| *fs = u32_to_two_f32(*bits));
+        }
+        FrameBulkParticles::Transform => {
+            let transforms: &[[[f32; 4]; 4]] = bulk.assume_floats()?;
+            let mut positions = particles.remove_attr::<attribute::Position>()?;
+            let mut position_gradients_x =
+                particles.remove_attr::<attribute::PositionGradientX>()?;
+            let mut position_gradients_y =
+                particles.remove_attr::<attribute::PositionGradientY>()?;
+            let mut position_gradients_z =
+                particles.remove_attr::<attribute::PositionGradientZ>()?;
+
+            (
+                &mut positions,
+                &mut position_gradients_x,
+                &mut position_gradients_y,
+                &mut position_gradients_z,
+                transforms,
+            )
+                .into_par_iter()
+                .for_each(
+                    |(
+                        position,
+                        position_gradient_x,
+                        position_gradient_y,
+                        position_gradient_z,
+                        [
+                            [mxx, myx, mzx, _],
+                            [mxy, myy, mzy, _],
+                            [mxz, myz, mzz, _],
+                            [px, py, pz, _],
+                        ],
+                    )| {
+                        *position = [*px, *py, *pz];
+                        *position_gradient_x = [*mxx, *myx, *mzx];
+                        *position_gradient_y = [*mxy, *myy, *mzy];
+                        *position_gradient_z = [*mxz, *myz, *mzz];
+                    },
+                );
+
+            particles.insert_attr::<attribute::Position>(positions.into_iter())?;
+            particles
+                .insert_attr::<attribute::PositionGradientX>(position_gradients_x.into_iter())?;
+            particles
+                .insert_attr::<attribute::PositionGradientY>(position_gradients_y.into_iter())?;
+            particles
+                .insert_attr::<attribute::PositionGradientZ>(position_gradients_z.into_iter())?;
+        }
+        FrameBulkParticles::Size => {
+            particles
+                .replace_attr::<attribute::InitialSize>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::Density => {
+            particles.replace_attr::<attribute::Density>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::YoungsModulus => {
+            particles
+                .replace_attr::<attribute::YoungsModulus>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::PoissonsRatio => {
+            particles
+                .replace_attr::<attribute::PoissonsRatio>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::InitialPosition => {
+            particles.replace_attr::<attribute::InitialPosition>(
+                bulk.assume_floats()?.iter().cloned(),
+            )?;
+        }
+        FrameBulkParticles::Velocity => {
+            particles.replace_attr::<attribute::Velocity>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::ViscosityDynamic => {
+            particles.replace_attr::<attribute::ViscosityDynamic>(
+                bulk.assume_floats()?.iter().cloned(),
+            )?;
+        }
+        FrameBulkParticles::ViscosityBulk => {
+            particles
+                .replace_attr::<attribute::ViscosityBulk>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::Exponent => {
+            particles.replace_attr::<attribute::Exponent>(
+                bulk.assume_ints::<i32>()?.iter().map(|i| *i as f32),
+            )?;
+        }
+        FrameBulkParticles::BulkModulus => {
+            particles
+                .replace_attr::<attribute::BulkModulus>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::SandAlpha => {
+            particles
+                .replace_attr::<attribute::SandAlpha>(bulk.assume_floats()?.iter().cloned())?;
+        }
+        FrameBulkParticles::GoalPosition => {
+            particles
+                .replace_attr::<attribute::GoalPosition>(bulk.assume_floats()?.iter().cloned())?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::borrow::Cow;
+
+    use squishy_volumes_api::InputBulk;
+    use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta};
+
+    use super::*;
+
+    #[test]
+    fn particle_bulk_error_names_the_object() {
+        let bulk: OwnedFrameBulk = FrameBulk {
+            meta: FrameBulkMeta {
+                object_name: "named_object".to_string(),
+                captured_attribute: BulkAttribute::Particles(FrameBulkParticles::Size),
+            },
+            data: InputBulk::Floats(Cow::Owned(vec![1.; 3])),
+        }
+        .into();
+
+        let error = apply_particle_bulk(
+            &mut ParticlesObject::default(),
+            FrameBulkParticles::Size,
+            &bulk,
+        )
+        .unwrap_err()
+        .attach_name("named_object");
+
+        assert!(matches!(
+            error,
+            StateInitializationError::IoState(IoStateError::ParticleObject { name, .. })
+                if name == "named_object"
+        ));
+    }
 }
