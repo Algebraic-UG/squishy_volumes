@@ -75,7 +75,7 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
         check_length!(particle_flags, particle_position_gradients)?;
@@ -133,7 +133,7 @@ impl PipelinePart for PrepareTmp {
             dispatch_limit,
             grid_node_size,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             prepare_tmp,
             CompiledModuleSettings {
@@ -175,7 +175,7 @@ impl PipelinePart for PrepareTmp {
             particle_velocity_gradients,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_particles = particle_flags.len::<ParticleFlags>();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,

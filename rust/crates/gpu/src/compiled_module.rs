@@ -21,7 +21,7 @@ use std::{
     num::{NonZeroU32, NonZeroU64},
 };
 
-use crate::{AllowedInBinding, GpuContext, GpuPipelineCreationError, GpuStatus};
+use crate::{AllowedInBinding, GpuContext, GpuStatus, PipelineError};
 
 pub struct CompiledModule {
     pub label: Option<&'static str>,
@@ -49,7 +49,7 @@ impl CompiledModule {
             immediate_size,
             constants,
         }: CompiledModuleSettings<BindGroupEntries, Constants>,
-    ) -> Result<Self, GpuPipelineCreationError>
+    ) -> Result<Self, PipelineError>
     where
         BindGroupEntries: IntoIterator<Item = (NonZeroU64, bool)>,
         Constants: IntoIterator<Item = (&'static str, f64)>,
@@ -64,7 +64,7 @@ impl CompiledModule {
             let mut constant_names = std::collections::BTreeSet::default();
             for (name, _) in constants.clone() {
                 if !constant_names.insert(name) {
-                    return Err(GpuPipelineCreationError::PipelineDuplicateConstant(name));
+                    return Err(PipelineError::DuplicateConstant(name));
                 }
             }
         }
@@ -145,9 +145,7 @@ impl CompiledModule {
                         .get_sub_group_size()
                         .and_then(|subgroup_size| (subgroup_size as u32).try_into().ok())
                 })
-                .ok_or(GpuPipelineCreationError::FailedToDetermineSubgroupSize {
-                    label: label_raw,
-                })?;
+                .ok_or(PipelineError::FailedToDetermineSubgroupSize { label: label_raw })?;
         };
 
         Ok(CompiledModule {
@@ -158,9 +156,9 @@ impl CompiledModule {
         })
     }
 
-    pub fn check_same_sugroup_size(&self, other: &Self) -> Result<(), GpuPipelineCreationError> {
+    pub fn check_same_subgroup_size(&self, other: &Self) -> Result<(), PipelineError> {
         if self.subgroup_size != other.subgroup_size {
-            Err(GpuPipelineCreationError::SubgroupSizeMismatch {
+            Err(PipelineError::SubgroupSizeMismatch {
                 a_label: self.label.unwrap_or("unlabeled"),
                 a_size: self.subgroup_size.get(),
                 b_label: other.label.unwrap_or("unlabeled"),
@@ -174,26 +172,21 @@ impl CompiledModule {
     pub fn check_workgroup_size_multiple_of_subgroup_size(
         &self,
         workgroup_size: u32,
-    ) -> Result<(), GpuPipelineCreationError> {
+    ) -> Result<(), PipelineError> {
         if !workgroup_size.is_multiple_of(self.subgroup_size.get()) {
-            Err(
-                GpuPipelineCreationError::WorkgroupSizeNotMultipleOfSubgroupSize {
-                    label: self.label.unwrap_or("unlabeled"),
-                    workgroup_size,
-                    subgroup_size: self.subgroup_size.get(),
-                },
-            )
+            Err(PipelineError::WorkgroupSizeNotMultipleOfSubgroupSize {
+                label: self.label.unwrap_or("unlabeled"),
+                workgroup_size,
+                subgroup_size: self.subgroup_size.get(),
+            })
         } else {
             Ok(())
         }
     }
 
-    pub fn check_subgroup_size_at_least(
-        &self,
-        needed: u32,
-    ) -> Result<(), GpuPipelineCreationError> {
+    pub fn check_subgroup_size_at_least(&self, needed: u32) -> Result<(), PipelineError> {
         if self.subgroup_size.get() < needed {
-            Err(GpuPipelineCreationError::SubgroupSizeTooSmall {
+            Err(PipelineError::SubgroupSizeTooSmall {
                 label: self.label.unwrap_or("unlabeled"),
                 subgroup_size: self.subgroup_size.get(),
                 needed,
@@ -223,7 +216,7 @@ fn compute_pipeline_with_fixed_subgroup_size(
     _workgroup_size: NonZeroU32,
     _subgroup_size: NonZeroU32,
     _constants: impl Iterator<Item = (&'static str, f64)>,
-) -> Result<wgpu::ComputePipeline, GpuPipelineCreationError> {
+) -> Result<wgpu::ComputePipeline, PipelineError> {
     panic!();
 }
 
@@ -236,7 +229,7 @@ fn compute_pipeline_with_fixed_subgroup_size(
     workgroup_size: NonZeroU32,
     subgroup_size: NonZeroU32,
     constants: impl Iterator<Item = (&'static str, f64)>,
-) -> Result<wgpu::ComputePipeline, GpuPipelineCreationError> {
+) -> Result<wgpu::ComputePipeline, PipelineError> {
     // with the current state of wgpu the only way to fix the subgroup size is to go via passthrough shaders.
     // So we do the transpiling to spir-v now
 

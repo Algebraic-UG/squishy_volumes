@@ -21,7 +21,7 @@ use std::{iter::once, num::NonZeroU64};
 
 use squishy_volumes_mesh_util::{BoundingVolumeHierarchy, Node};
 
-use crate::{Allocation, AllowedInBinding, GpuAllocatorError, prefix_sum_on_cpu};
+use crate::{Allocation, AllocatorError, AllowedInBinding, prefix_sum_on_cpu};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
@@ -49,7 +49,7 @@ impl BoundingVolumeHierarchyAllocations {
         device: &wgpu::Device,
         leaf_size: f32,
         bvh: &BoundingVolumeHierarchy,
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let offset = bvh.aabb().min;
         let meta = Allocation::new(
             device,

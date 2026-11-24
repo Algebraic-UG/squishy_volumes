@@ -345,7 +345,7 @@ mod tests {
     fn stopping_a_thread_canceled_deep_inside_is_not_an_error() {
         let thread = compute_thread(|harness| {
             until_canceled(harness).map_err(|_| {
-                Error::CpuCompute(squishy_volumes_cpu::Error::HarnessError(
+                Error::CpuCompute(squishy_volumes_cpu::Error::Harness(
                     squishy_volumes_xpu::HarnessError::Canceled,
                 ))
             })

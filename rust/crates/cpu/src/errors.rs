@@ -20,17 +20,17 @@ use squishy_volumes_file_frame::IoStateError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Io state error")]
+    #[error("io state error")]
     IoState(#[from] IoStateError),
 
-    #[error("Something went wrong accessing frame input")]
+    #[error("failed to access the frame input")]
     FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
 
-    #[error("The time step ended up being 0")]
+    #[error("the time step ended up being 0")]
     ZeroTimeStep,
 
     #[error(
-        "Triangle {triangle} of collider '{object}' is degenerate (zero area) \
+        "triangle {triangle} of collider '{object}' is degenerate (zero area) \
          between input frames {frame} and {}",
         frame + 1
     )]
@@ -40,9 +40,9 @@ pub enum Error {
         frame: usize,
     },
 
-    #[error("Something went wrong with the harness")]
-    HarnessError(#[from] squishy_volumes_xpu::HarnessError),
+    #[error("harness error")]
+    Harness(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("Failed to compute the elastic energy of a particle")]
-    EnergyError(#[from] squishy_volumes_util::EnergyError),
+    #[error("failed to compute the elastic energy of a particle")]
+    Energy(#[from] squishy_volumes_util::EnergyError),
 }

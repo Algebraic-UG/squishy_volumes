@@ -31,12 +31,10 @@ use super::*;
 use num::integer::lcm;
 use wgpu::util::DeviceExt as _;
 
-use thiserror::Error;
-
-#[derive(Error, Debug, Clone)]
-pub enum GpuAllocatorError {
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum AllocatorError {
     #[error(
-        "Failed to allocate buffer binding for {label}, requested {requested}, but max is {max}"
+        "failed to allocate buffer binding for {label}, requested {requested}, but max is {max}"
     )]
     ExceedingMaxBufferBindingSize {
         label: &'static str,
@@ -44,9 +42,7 @@ pub enum GpuAllocatorError {
         max: u64,
     },
     #[error(
-        "Failed to allocate binding for {label}, requested {requested},
-but the largest continous free space is {continuous_free}.
-In total free: {total_free}"
+        "failed to allocate binding for {label}, requested {requested}, but the largest continuous free space is {continuous_free} (in total free: {total_free})"
     )]
     FailedToFindSpace {
         label: &'static str,
@@ -54,10 +50,10 @@ In total free: {total_free}"
         continuous_free: u64,
         total_free: u64,
     },
-    #[error("Expected non-zero allocation for {label}")]
+    #[error("expected non-zero allocation for {label}")]
     AllocationEmpty { label: &'static str },
 
-    #[error("Trying to resize while in use {label:?}")]
+    #[error("trying to resize while in use {label:?}")]
     ResizingWhileInUse { label: Option<&'static str> },
 }
 
@@ -88,9 +84,9 @@ impl Allocation {
         device: &wgpu::Device,
         label: &'static str,
         contents: &[T],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         if contents.is_empty() {
-            return Err(GpuAllocatorError::AllocationEmpty { label });
+            return Err(AllocatorError::AllocationEmpty { label });
         }
 
         let buffer = Arc::new(
@@ -154,7 +150,7 @@ impl GpuBuffer {
         size: u64,
         label: &str,
         scram: bool,
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         tracing::info!(label, size, "creating new gpu buffer");
 
         let buffer = Arc::new(if scram {
@@ -317,7 +313,7 @@ impl GpuAllocator {
         size: u64,
         label: &'static str,
         scram: bool,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         let max_buffer_size = context.adapter().limits().max_buffer_size;
         let num_buffer = size.div_ceil(max_buffer_size);
         tracing::info!(label, size, num_buffer, "creating new gpu allocator");
@@ -339,7 +335,7 @@ impl GpuAllocator {
             max_buffer_size,
             max_storage_buffer_binding_size,
             buffers: (0..num_buffer)
-                .map(|i| -> Result<GpuBuffer, GpuError> {
+                .map(|i| -> Result<GpuBuffer, Error> {
                     assert!(size > i * max_buffer_size);
                     let size = (size - i * max_buffer_size).min(max_buffer_size);
                     if let Some(harness) = harness.as_ref() {
@@ -361,7 +357,7 @@ impl GpuAllocator {
         device: &wgpu::Device,
         size: u64,
         scram: bool,
-    ) -> Result<(), GpuAllocatorError> {
+    ) -> Result<(), AllocatorError> {
         if size <= self.size {
             tracing::info!("Ignore downsizing");
             return Ok(());
@@ -383,7 +379,7 @@ impl GpuAllocator {
             .last()
             .and_then(|buffer| buffer.partitions.iter().find(|p| p.in_use()))
         {
-            return Err(GpuAllocatorError::ResizingWhileInUse {
+            return Err(AllocatorError::ResizingWhileInUse {
                 label: used_partition.label,
             });
         }
@@ -407,7 +403,7 @@ impl GpuAllocator {
         &mut self,
         label: &'static str,
         len: NonZeroU64,
-    ) -> Result<Allocation, GpuAllocatorError> {
+    ) -> Result<Allocation, AllocatorError> {
         self.allocate_raw(
             label,
             NonZeroU64::new(T::MIN_BINDING_SIZE.get() * len.get()).unwrap(),
@@ -420,10 +416,10 @@ impl GpuAllocator {
         label: &'static str,
         size: NonZeroU64,
         align: NonZeroU64,
-    ) -> Result<Allocation, GpuAllocatorError> {
+    ) -> Result<Allocation, AllocatorError> {
         // sanity check
         if self.max_storage_buffer_binding_size < size.get() {
-            return Err(GpuAllocatorError::ExceedingMaxBufferBindingSize {
+            return Err(AllocatorError::ExceedingMaxBufferBindingSize {
                 label,
                 requested: size.get(),
                 max: self.max_storage_buffer_binding_size,
@@ -436,7 +432,7 @@ impl GpuAllocator {
             }
         }
 
-        Err(GpuAllocatorError::FailedToFindSpace {
+        Err(AllocatorError::FailedToFindSpace {
             label,
             requested: size.get(),
             continuous_free: self.biggest_free(),
@@ -569,7 +565,7 @@ mod tests {
                 NonZeroU64::new(u64::MAX).unwrap(),
                 NonZeroU64::new(4).unwrap(),
             ),
-            Err(GpuAllocatorError::ExceedingMaxBufferBindingSize { .. })
+            Err(AllocatorError::ExceedingMaxBufferBindingSize { .. })
         ));
     }
 
@@ -591,7 +587,7 @@ mod tests {
 
         assert!(matches!(
             allocator.allocate::<u32>("no space", double_aligned),
-            Err(GpuAllocatorError::FailedToFindSpace { .. }),
+            Err(AllocatorError::FailedToFindSpace { .. }),
         ));
     }
 }

@@ -58,7 +58,7 @@ impl Input {
             particle_flags,
             particle_positions_and_collider_bits,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
 
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
@@ -91,7 +91,7 @@ impl PipelinePart for CullParticles {
             domain_min,
             domain_max,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             cull_particles,
             CompiledModuleSettings {
@@ -129,7 +129,7 @@ impl PipelinePart for CullParticles {
             particle_positions_and_collider_bits,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,

@@ -27,9 +27,8 @@ use std::{
 use super::GpuContext;
 
 use iter_enumeration::IntoIterEnum2;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ProfilerError {
     #[error("process_finished_frame returned None")]
     NoFinishedFrame,
@@ -37,17 +36,17 @@ pub enum ProfilerError {
     #[error("results vector is empty")]
     ResultsEmpty,
 
-    #[error("Layout changed from {old_labels:?} to {labels:?}")]
+    #[error("layout changed from {old_labels:?} to {labels:?}")]
     LayoutChanged {
         old_labels: Vec<String>,
         labels: Vec<String>,
     },
 
-    #[error("Recorded {steps} steps, but the labels aren't a multiple of that {labels:?}")]
+    #[error("recorded {steps} steps, but the labels aren't a multiple of that {labels:?}")]
     NotMultipleOfRecordedSteps { steps: usize, labels: Vec<String> },
 
-    #[error("IoError")]
-    IoError(#[from] io::Error),
+    #[error("failed to write the profiler output")]
+    Io(#[from] io::Error),
 }
 
 fn get_profiling_data(

@@ -97,7 +97,7 @@ struct VariableParticleInputBackup {
     velocity_gradients: Vec<Matrix4x3<f32>>,
 }
 impl VariableParticleInputBackup {
-    fn new(io_state: &mut IoState) -> Result<VariableParticleInputBackup, GpuError> {
+    fn new(io_state: &mut IoState) -> Result<VariableParticleInputBackup, Error> {
         tracing::info!("preparing variable particle data for transfer");
         let positions_and_collider_bits: Vec<PositionAndColliderBits> = io_state
             .collect::<attribute::Position>()?
@@ -174,7 +174,7 @@ impl VariableParticleInputBackup {
         })
     }
 
-    fn to_data(&self, device: &wgpu::Device) -> Result<VariableParticleInput, GpuError> {
+    fn to_data(&self, device: &wgpu::Device) -> Result<VariableParticleInput, Error> {
         VariableParticleInput::new(
             device,
             VariableParticleInputData {
@@ -200,7 +200,7 @@ impl GpuState {
         harness: &Harness,
         max_time_step: f32,
         profiling_output_file: Option<PathBuf>,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         tracing::info!("setting up GPU state");
 
         let harness = harness.scope("Setting up GPU State".to_string(), 5.try_into().unwrap())?;
@@ -357,7 +357,7 @@ impl GpuState {
 fn get_collider_input(
     device: &wgpu::Device,
     frame_input: &FrameInput,
-) -> Result<Option<step::ColliderInput>, GpuError> {
+) -> Result<Option<step::ColliderInput>, Error> {
     if frame_input.topology().is_empty() {
         return Ok(None);
     }
@@ -469,7 +469,7 @@ impl GpuState {
         &mut self,
         harness: &squishy_volumes_xpu::Harness,
         gpu_run_parameters: GpuRunParameters,
-    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
+    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), Error>), Error> {
         squishy_volumes_util::profile!("produce_next_state");
 
         let start_time = self.frame_input.seconds_into_frame() as f32;
@@ -493,7 +493,7 @@ impl GpuState {
             store_grid,
         }: GpuRunParameters,
         start_time: f32,
-    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), GpuError>), GpuError> {
+    ) -> Result<(squishy_volumes_file_frame::IoState, Result<(), Error>), Error> {
         self.step_input.time = Allocation::new(self.gpu_context.device(), "time", &[start_time])?;
         self.step_input.step = Allocation::new(self.gpu_context.device(), "step", &[0])?;
         self.step_input.limits_over_time = limits_over_time_starting_with(
@@ -589,26 +589,24 @@ impl GpuState {
                     self.pending_input = Some(pending_input);
                     continue;
                 }
-                Err(GpuError::Shader(GpuShaderError::IndirectLimitExceeded {
-                    reporting_shader,
-                })) => {
+                Err(Error::Shader(ShaderError::IndirectLimitExceeded { reporting_shader })) => {
                     tracing::warn!(
                         reporting_shader,
                         "The number of grid nodes is larger than expected."
                     );
                     redo_frame = true;
                 }
-                Err(GpuError::Shader(GpuShaderError::TableTriesExceeded { reporting_shader })) => {
+                Err(Error::Shader(ShaderError::TableTriesExceeded { reporting_shader })) => {
                     tracing::warn!(reporting_shader, "The hash table appears to be too small.");
                     redo_frame = true;
                 }
-                error @ Err(GpuError::Shader(GpuShaderError::ParticleCloseToInverted {
+                error @ Err(Error::Shader(ShaderError::ParticleCloseToInverted {
                     reporting_shader,
                 })) => {
                     tracing::warn!(reporting_shader, "A particle is too close to inversion.");
                     buffered_error = error;
                 }
-                Err(GpuError::Shader(GpuShaderError::FrameTimeReached)) => {}
+                Err(Error::Shader(ShaderError::FrameTimeReached)) => {}
                 x => x?,
             };
             break pending_input;
@@ -618,7 +616,7 @@ impl GpuState {
             if self.max_num_grid_nodes.get() as usize
                 >= self.frame_input.header().total_particles * 27
             {
-                return Err(GpuError::MaxGridNodesExceeded);
+                return Err(Error::MaxGridNodesExceeded);
             }
 
             self.max_num_grid_nodes = (self.max_num_grid_nodes.get() * 2).try_into().unwrap();
@@ -861,7 +859,7 @@ impl GpuState {
         Ok((io_state, buffered_error))
     }
 
-    fn prepare_pending_input(&mut self) -> Result<PendingInput, GpuError> {
+    fn prepare_pending_input(&mut self) -> Result<PendingInput, Error> {
         let Some(next_input_frame) = self.frame_input.next_input_frame() else {
             self.frame_input.load_next()?;
             return Ok(PendingInput {
@@ -907,7 +905,7 @@ impl GpuState {
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         pending_input: &PendingInput,
-    ) -> Result<(), GpuError> {
+    ) -> Result<(), Error> {
         for PendingParticleUpdate {
             attribute,
             allocation,
@@ -963,7 +961,7 @@ impl GpuState {
         adaptive_time_steps: bool,
         encoder: &mut wgpu::CommandEncoder,
         profiler: &wgpu_profiler::GpuProfiler,
-    ) -> Result<(step::Output, usize), GpuError> {
+    ) -> Result<(step::Output, usize), Error> {
         tracing::info!(assumed_steps = self.steps_per_frame, "Recording steps");
         let mut new_recorded_steps = 0;
         loop {
@@ -999,7 +997,7 @@ impl GpuState {
         }
     }
 
-    fn wait_for_gpu(&self, harness: &Harness) -> Result<(), GpuError> {
+    fn wait_for_gpu(&self, harness: &Harness) -> Result<(), Error> {
         tracing::info!("waiting on GPU");
         loop {
             match self.gpu_context.device().poll(wgpu::PollType::Wait {
@@ -1094,7 +1092,7 @@ struct DownloadsReady<'a> {
 }
 
 impl DownloadsReady<'_> {
-    fn into_mapped(self) -> Result<MappedDownloads, GpuError> {
+    fn into_mapped(self) -> Result<MappedDownloads, Error> {
         let [
             status,
             time,
@@ -1113,7 +1111,7 @@ impl DownloadsReady<'_> {
             .grid
             .map(|grid| {
                 let [node_ids_and_collider_bits, node_momentums] = grid.try_into().unwrap();
-                Ok::<_, GpuError>(MappedDownloadsGrid {
+                Ok::<_, Error>(MappedDownloadsGrid {
                     node_ids_and_collider_bits: node_ids_and_collider_bits.to_vec()?,
                     node_momentums: node_momentums.to_vec()?,
                 })
@@ -1166,7 +1164,7 @@ fn limits_over_time_starting_with(
     device: &wgpu::Device,
     time_step_history: &[f32],
     steps_per_frame: u32,
-) -> Result<Allocation, GpuError> {
+) -> Result<Allocation, Error> {
     let mut limits_over_time =
         vec![TimeStepLimits::default(); limits_over_time_len(steps_per_frame)];
     for (limits, &time_step) in limits_over_time.iter_mut().zip(time_step_history) {
@@ -1181,7 +1179,7 @@ fn limits_over_time_starting_with(
 
 enum PendingUpdateError {
     Input(FrameVerificationError),
-    Gpu(GpuError),
+    Gpu(Error),
 }
 
 impl From<FrameVerificationError> for PendingUpdateError {
@@ -1190,14 +1188,14 @@ impl From<FrameVerificationError> for PendingUpdateError {
     }
 }
 
-impl From<GpuAllocatorError> for PendingUpdateError {
-    fn from(error: GpuAllocatorError) -> Self {
+impl From<AllocatorError> for PendingUpdateError {
+    fn from(error: AllocatorError) -> Self {
         Self::Gpu(error.into())
     }
 }
 
 impl PendingUpdateError {
-    fn into_gpu_error(self, frame_input: &FrameInput) -> GpuError {
+    fn into_gpu_error(self, frame_input: &FrameInput) -> Error {
         match self {
             Self::Input(error) => frame_input.next_frame_error(error).into(),
             Self::Gpu(error) => error,

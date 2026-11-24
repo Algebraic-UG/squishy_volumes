@@ -50,7 +50,7 @@ impl Input {
         device: &wgpu::Device,
         particle_parameters: &[ParticleParameters],
         particle_position_gradients: &[Matrix4x3<f32>],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_parameters, particle_position_gradients)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", particle_parameters)?;
@@ -81,7 +81,7 @@ impl PipelinePart for Sand {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             sand,
             CompiledModuleSettings {
@@ -112,7 +112,7 @@ impl PipelinePart for Sand {
             particle_position_gradients,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         assert_eq!(
             particle_parameters.len::<ParticleParameters>(),
             particle_position_gradients.len::<Matrix4x3<f32>>()

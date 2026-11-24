@@ -65,7 +65,7 @@ impl Input {
         }: Settings,
         indices: Option<&[u32]>,
         keys: &[u32],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         if let Some(indices) = indices.as_ref() {
             check_length!(indices, keys)?;
         }
@@ -107,7 +107,7 @@ impl PipelinePart for CountSubkeys {
             dispatch_limit,
             bit_count,
         }: Self::Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let dispatch_limit = dispatch_limit.get();
         let bit_count = bit_count.get();
 
@@ -144,7 +144,7 @@ impl PipelinePart for CountSubkeys {
 
         let workgroup_size = workgroup_size.get();
 
-        count_subkeys.check_same_sugroup_size(&count_subkeys_with_indices)?;
+        count_subkeys.check_same_subgroup_size(&count_subkeys_with_indices)?;
         count_subkeys.check_workgroup_size_multiple_of_subgroup_size(workgroup_size)?;
         count_subkeys.check_subgroup_size_at_least(2u32.pow(bit_count))?;
 
@@ -170,7 +170,7 @@ impl PipelinePart for CountSubkeys {
             keys,
         }: Input,
         Parameters { bit_offset }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         if let Some(indices) = indices.as_ref() {
             assert_eq!(indices.len::<u32>(), keys.len::<u32>());
         }

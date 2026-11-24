@@ -47,7 +47,7 @@ impl Input {
         time_step: f32,
         time: f32,
         step: u32,
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let time = Allocation::new(device, "time", &[time])?;
         let step = Allocation::new(device, "step", &[step])?;
@@ -73,7 +73,7 @@ impl PipelinePart for AdvanceTime {
             workgroup_size,
             frames_per_second,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             advance_time,
             CompiledModuleSettings {
@@ -102,7 +102,7 @@ impl PipelinePart for AdvanceTime {
             step,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         context
             .enter_module(
                 encoder,

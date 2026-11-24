@@ -101,7 +101,7 @@ impl Input {
             triangle_opposites,
             triangle_frictions,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
         check_length!(particle_flags, particle_velocities)?;
         check_length!(vertex_positions, vertex_normals)?;
@@ -185,7 +185,7 @@ impl PipelinePart for Collide {
             forget_distance,
             accept_distance,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             collide,
             CompiledModuleSettings {
@@ -243,7 +243,7 @@ impl PipelinePart for Collide {
             bvh,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,

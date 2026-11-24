@@ -40,7 +40,7 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new(device: &wgpu::Device, values: &[f32]) -> Result<Self, GpuAllocatorError> {
+    pub fn new(device: &wgpu::Device, values: &[f32]) -> Result<Self, AllocatorError> {
         let values = Allocation::new(device, "values", values)?;
 
         Ok(Self { values })
@@ -62,7 +62,7 @@ impl PipelinePart for Kernels {
     fn new(
         context: &mut GpuContext,
         Settings { workgroup_size }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             kernels,
             CompiledModuleSettings {
@@ -91,7 +91,7 @@ impl PipelinePart for Kernels {
         encoder: &mut CommandEncoder,
         Input { values }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let linear = context
             .allocator()?
             .allocate::<f32>("linear", values.len::<f32>())?;

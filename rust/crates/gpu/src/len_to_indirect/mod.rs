@@ -43,7 +43,7 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new(device: &wgpu::Device, len: u32) -> Result<Self, GpuAllocatorError> {
+    pub fn new(device: &wgpu::Device, len: u32) -> Result<Self, AllocatorError> {
         let len = Allocation::new(device, "len", &[len])?;
         let indirect = Allocation::new(device, "indirect", &[Indirect::default()])?;
         Ok(Self { len, indirect })
@@ -64,7 +64,7 @@ impl PipelinePart for LenToIndirect {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             len_to_indirect,
             CompiledModuleSettings {
@@ -91,7 +91,7 @@ impl PipelinePart for LenToIndirect {
         encoder: &mut CommandEncoder,
         Input { len, indirect }: Input,
         Parameters { limit }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let mut compute_pass = context.enter_module(
             encoder,
             &self.len_to_indirect,

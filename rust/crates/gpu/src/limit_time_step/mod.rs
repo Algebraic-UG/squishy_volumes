@@ -84,7 +84,7 @@ impl Input {
             particle_velocity_gradients,
             limits_over_time,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_position_gradients)?;
         check_length!(particle_flags, particle_velocities)?;
@@ -146,7 +146,7 @@ impl PipelinePart for LimitTimeStep {
             max_time_step,
             time_step_history_length,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let limit_time_step_per_particle = LimitTimeStepPerParticle::new(
             context,
             limit_time_step_per_particle::Settings {
@@ -182,7 +182,7 @@ impl PipelinePart for LimitTimeStep {
         );
 
         if combine_time_step_limits.subgroup_size.get() < time_step_history_length {
-            return Err(GpuPipelineCreationError::SubgroupSizeTooSmall {
+            return Err(PipelineError::SubgroupSizeTooSmall {
                 label: combine_time_step_limits.label.unwrap(),
                 subgroup_size: combine_time_step_limits.subgroup_size.get(),
                 needed: time_step_history_length,
@@ -213,7 +213,7 @@ impl PipelinePart for LimitTimeStep {
             current_step,
             time_step_by_collider,
         }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         assert!((current_step as u64) < limits_over_time.len::<TimeStepLimits>().get());
 
         let limit_time_step_per_particle::Output { time_step_limits } =

@@ -47,7 +47,7 @@ impl Input {
     pub fn new(
         device: &wgpu::Device,
         particle_position_gradients: &[Matrix4x3<f32>],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         let particle_position_gradients = Allocation::new(
             device,
             "particle_position_gradients",
@@ -74,7 +74,7 @@ impl PipelinePart for Fluid {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             fluid,
             CompiledModuleSettings {
@@ -101,7 +101,7 @@ impl PipelinePart for Fluid {
             particle_position_gradients,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,

@@ -70,7 +70,7 @@ impl Input {
             vertex_positions_end,
             triangle_indices,
         }: InputData,
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         assert_eq!(vertex_positions_start.len(), vertex_positions_end.len());
         assert!(triangle_indices.iter().all(|indices| {
             indices
@@ -135,7 +135,7 @@ impl PipelinePart for AnimateMesh {
             dispatch_limit,
             frames_per_second,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             move_vertices,
             CompiledModuleSettings {
@@ -207,7 +207,7 @@ impl PipelinePart for AnimateMesh {
             triangle_indices,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_vertices = vertex_positions_start.len::<Vector4<f32>>();
         let num_triangles = triangle_indices.len::<Triangle>();
         let vertex_positions = context

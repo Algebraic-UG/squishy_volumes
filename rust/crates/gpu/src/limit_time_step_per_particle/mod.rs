@@ -70,7 +70,7 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_position_gradients)?;
         check_length!(particle_flags, particle_velocities)?;
@@ -119,7 +119,7 @@ impl PipelinePart for LimitTimeStepPerParticle {
             dispatch_limit,
             grid_node_size,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             limit_time_step_per_particle,
             CompiledModuleSettings {
@@ -157,7 +157,7 @@ impl PipelinePart for LimitTimeStepPerParticle {
             particle_velocity_gradients,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_particles = particle_flags.len::<ParticleFlags>();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,

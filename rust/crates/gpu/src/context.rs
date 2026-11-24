@@ -21,8 +21,8 @@ use std::{collections::BTreeMap, iter::once, num::NonZeroU32};
 use squishy_volumes_xpu::Harness;
 
 use crate::{
-    Allocation, CommandEncoder, CompiledModule, ComputePass, ExceedingLimit, GpuAllocator,
-    GpuAllocatorError, GpuError, GpuStatus,
+    Allocation, AllocatorError, CommandEncoder, CompiledModule, ComputePass, Error, ExceedingLimit,
+    GpuAllocator, GpuStatus,
 };
 
 pub struct GpuContext {
@@ -73,14 +73,14 @@ impl GpuContext {
             .collect()
     }
 
-    pub fn new(gpu: Option<String>) -> Result<Self, GpuError> {
+    pub fn new(gpu: Option<String>) -> Result<Self, Error> {
         let instance = Self::new_instance();
         let adapter = if let Some(requested) = gpu {
             tracing::info!(requested, "Requested specific GPU");
             Self::available_adapters()
                 .into_iter()
                 .find(|adapter| adapter.get_info().name == requested)
-                .ok_or(GpuError::AdapterNotFound {
+                .ok_or(Error::AdapterNotFound {
                     requested,
                     available: Self::available_gpus(),
                 })?
@@ -97,7 +97,7 @@ impl GpuContext {
         } = adapter.limits();
 
         if max_compute_workgroups_per_dimension < u16::MAX as u32 {
-            return Err(GpuError::SmallMaxWorkGroupPerDimension);
+            return Err(Error::SmallMaxWorkGroupPerDimension);
         }
 
         let downlevel_capabilities = adapter.get_downlevel_capabilities();
@@ -105,7 +105,7 @@ impl GpuContext {
             .flags
             .contains(wgpu::DownlevelFlags::COMPUTE_SHADERS)
             .then_some(())
-            .ok_or(GpuError::ComputeNotSupported)?;
+            .ok_or(Error::ComputeNotSupported)?;
 
         let enable_scope_profiling = adapter
             .features()
@@ -129,7 +129,7 @@ impl GpuContext {
         missing_features
             .is_empty()
             .then_some(())
-            .ok_or(GpuError::MissingRequiredFeatures(missing_features))?;
+            .ok_or(Error::MissingRequiredFeatures(missing_features))?;
 
         let mut exceeding_limits: Vec<ExceedingLimit> = Default::default();
         required_limits.check_limits_with_fail_fn(
@@ -147,7 +147,7 @@ impl GpuContext {
         exceeding_limits
             .is_empty()
             .then_some(())
-            .ok_or(GpuError::ExceedingRequiredLimits(exceeding_limits))?;
+            .ok_or(Error::ExceedingRequiredLimits(exceeding_limits))?;
 
         let wgpu::AdapterInfo {
             subgroup_min_size,
@@ -160,7 +160,7 @@ impl GpuContext {
                     .get_info()
                     .subgroup_min_size
                     .try_into()
-                    .map_err(|_| GpuError::SubgroupSizeZero)?,
+                    .map_err(|_| Error::SubgroupSizeZero)?,
             )
         } else {
             tracing::warn!(
@@ -227,21 +227,21 @@ impl GpuContext {
         size: u64,
         label: &'static str,
         scram: bool,
-    ) -> Result<(), GpuError> {
+    ) -> Result<(), Error> {
         self.allocator = Some(GpuAllocator::new(self, harness, size, label, scram)?);
         Ok(())
     }
 
-    pub fn resize_allocator(&mut self, size: u64, scram: bool) -> Result<(), GpuError> {
+    pub fn resize_allocator(&mut self, size: u64, scram: bool) -> Result<(), Error> {
         self.allocator
             .as_mut()
-            .ok_or(GpuError::AllocatorMissing)?
+            .ok_or(Error::AllocatorMissing)?
             .resize_to(&self.device, size, scram)?;
         Ok(())
     }
 
-    pub fn allocator(&mut self) -> Result<&mut GpuAllocator, GpuError> {
-        self.allocator.as_mut().ok_or(GpuError::AllocatorMissing)
+    pub fn allocator(&mut self) -> Result<&mut GpuAllocator, Error> {
+        self.allocator.as_mut().ok_or(Error::AllocatorMissing)
     }
 
     pub fn setup_indirect_allocator(
@@ -249,15 +249,15 @@ impl GpuContext {
         size: u64,
         label: &'static str,
         scram: bool,
-    ) -> Result<(), GpuError> {
+    ) -> Result<(), Error> {
         self.indirect_allocator = Some(GpuAllocator::new(self, None, size, label, scram)?);
         Ok(())
     }
 
-    pub fn indirect_allocator(&mut self) -> Result<&mut GpuAllocator, GpuError> {
+    pub fn indirect_allocator(&mut self) -> Result<&mut GpuAllocator, Error> {
         self.indirect_allocator
             .as_mut()
-            .ok_or(GpuError::IndirectAllocatorMissing)
+            .ok_or(Error::IndirectAllocatorMissing)
     }
 
     pub fn enter_module<'a>(
@@ -292,11 +292,11 @@ impl GpuContext {
         self.status.clone()
     }
 
-    pub fn reset_status(&mut self) -> Result<(), GpuAllocatorError> {
+    pub fn reset_status(&mut self) -> Result<(), AllocatorError> {
         self.set_status(GpuStatus::default())
     }
 
-    pub fn set_status(&mut self, status: GpuStatus) -> Result<(), GpuAllocatorError> {
+    pub fn set_status(&mut self, status: GpuStatus) -> Result<(), AllocatorError> {
         self.status = Allocation::new(&self.device, "status", &[status])?;
         Ok(())
     }

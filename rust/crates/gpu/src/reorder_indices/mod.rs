@@ -68,7 +68,7 @@ impl Input {
         indices: Option<&[u32]>,
         keys: &[u32],
         prefix_sums: &[u32],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         if let Some(indices) = indices.as_ref() {
             check_length!(indices, keys)?;
         }
@@ -112,7 +112,7 @@ impl PipelinePart for ReorderIndices {
             dispatch_limit,
             bit_count,
         }: Self::Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             reorder_indices,
             CompiledModuleSettings {
@@ -147,7 +147,7 @@ impl PipelinePart for ReorderIndices {
         );
 
         if reorder_indices.subgroup_size != reorder_indices_with_indices.subgroup_size {
-            return Err(GpuPipelineCreationError::SubgroupSizeMismatch {
+            return Err(PipelineError::SubgroupSizeMismatch {
                 a_label: reorder_indices.label.unwrap_or("unlabeled"),
                 a_size: reorder_indices.subgroup_size.get(),
                 b_label: reorder_indices_with_indices.label.unwrap_or("unlabeled"),
@@ -157,17 +157,15 @@ impl PipelinePart for ReorderIndices {
         let subgroup_size = reorder_indices.subgroup_size.get();
 
         if !workgroup_size.get().is_multiple_of(subgroup_size) {
-            return Err(
-                GpuPipelineCreationError::WorkgroupSizeNotMultipleOfSubgroupSize {
-                    label: "Reorder Indices",
-                    workgroup_size: workgroup_size.get(),
-                    subgroup_size,
-                },
-            );
+            return Err(PipelineError::WorkgroupSizeNotMultipleOfSubgroupSize {
+                label: "Reorder Indices",
+                workgroup_size: workgroup_size.get(),
+                subgroup_size,
+            });
         }
 
         if subgroup_size < 2u32.pow(bit_count.get()) {
-            return Err(GpuPipelineCreationError::SubgroupSizeTooSmall {
+            return Err(PipelineError::SubgroupSizeTooSmall {
                 label: "Reorder Indices",
                 subgroup_size,
                 needed: 2u32.pow(bit_count.get()),
@@ -195,7 +193,7 @@ impl PipelinePart for ReorderIndices {
             prefix_sums,
         }: Input,
         Parameters { bit_offset }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         if let Some(indices_in) = indices_in.as_ref() {
             assert_eq!(indices_in.len::<u32>(), keys.len::<u32>());
         }

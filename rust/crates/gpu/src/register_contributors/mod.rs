@@ -71,7 +71,7 @@ impl Input {
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
         particle_flags: &[ParticleFlags],
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
 
         let hash_table = hash_table_on_cpu(
@@ -123,7 +123,7 @@ impl PipelinePart for RegisterContributors {
             grid_node_size,
             table_tries,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             count_contributors,
             CompiledModuleSettings {
@@ -195,7 +195,7 @@ impl PipelinePart for RegisterContributors {
             node_ids_and_collider_bits,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_particles = particle_positions_and_collider_bits.len::<PositionAndColliderBits>();
         let num_grid_nodes = node_ids_and_collider_bits.len::<NodeIdAndColliderBits>();
         let [x, y, z] = Indirect::new(DispatchSettings {

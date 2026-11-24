@@ -40,7 +40,7 @@ fn check(
     if reached {
         assert!(matches!(
             result,
-            Err(GpuError::Shader(GpuShaderError::FrameTimeReached))
+            Err(Error::Shader(ShaderError::FrameTimeReached))
         ));
     } else {
         result.unwrap();

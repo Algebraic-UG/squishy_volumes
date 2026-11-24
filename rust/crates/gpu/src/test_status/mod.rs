@@ -46,7 +46,7 @@ impl PipelinePart for TestStatus {
     fn new(
         context: &mut GpuContext,
         Settings { workgroup_size }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             test_status,
             CompiledModuleSettings {
@@ -67,7 +67,7 @@ impl PipelinePart for TestStatus {
         encoder: &mut CommandEncoder,
         _: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         context
             .enter_module(encoder, &self.test_status, [])
             .dispatch_workgroups(1, 1, 1);

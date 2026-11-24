@@ -50,7 +50,7 @@ impl Input {
         device: &wgpu::Device,
         particle_parameters: &[ParticleParameters],
         particle_velocity_gradients: &[Matrix4x3<f32>],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_parameters, particle_velocity_gradients)?;
         let particle_parameters =
             Allocation::new(device, "particle_parameters", particle_parameters)?;
@@ -83,7 +83,7 @@ impl PipelinePart for Viscosity {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             viscosity,
             CompiledModuleSettings {
@@ -115,7 +115,7 @@ impl PipelinePart for Viscosity {
             particle_velocity_gradients,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         assert_eq!(
             particle_parameters.len::<ParticleParameters>(),
             particle_velocity_gradients.len::<Matrix4x3<f32>>()

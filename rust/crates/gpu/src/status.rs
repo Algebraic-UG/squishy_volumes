@@ -16,9 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use thiserror::Error;
-
-use crate::{AllowedInBinding, GpuContext, GpuError};
+use crate::{AllowedInBinding, Error, GpuContext};
 
 #[repr(C)]
 #[derive(Clone, Copy, bytemuck::Zeroable, bytemuck::Pod, Debug, PartialEq, Default)]
@@ -31,24 +29,24 @@ impl GpuStatus {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum GpuShaderError {
+#[derive(thiserror::Error, Debug)]
+pub enum ShaderError {
     #[error("{reporting_shader} exceeded table tries")]
     TableTriesExceeded { reporting_shader: &'static str },
     #[error("{reporting_shader} failed to find entry")]
     TableEntryMissing { reporting_shader: &'static str },
     #[error("{reporting_shader} exceeded indirect limit")]
     IndirectLimitExceeded { reporting_shader: &'static str },
-    #[error("{reporting_shader} found a particle too close to inversion.")]
+    #[error("{reporting_shader} found a particle too close to inversion")]
     ParticleCloseToInverted { reporting_shader: &'static str },
-    #[error("{reporting_shader} ended up with a zero timestep.")]
+    #[error("{reporting_shader} ended up with a zero time step")]
     TimeStepZero { reporting_shader: &'static str },
-    #[error("Next frame is ready.")]
+    #[error("next frame is ready")]
     FrameTimeReached,
-    #[error("{reporting_shader} found a degenerate (zero area) collider triangle.")]
+    #[error("{reporting_shader} found a degenerate (zero area) collider triangle")]
     DegenerateTriangle { reporting_shader: &'static str },
-    #[error("{reporting_shader} unknown error: {error}")]
-    UnknownError {
+    #[error("{reporting_shader} reported unknown status bits {error}")]
+    Unknown {
         reporting_shader: &'static str,
         error: u32,
     },
@@ -63,7 +61,7 @@ const REACHED_FRAME_TIME: u32 = 32;
 const DEGENERATE_TRIANGLE: u32 = 64;
 
 impl GpuStatus {
-    pub fn to_result(&self, context: &GpuContext) -> Result<(), GpuError> {
+    pub fn to_result(&self, context: &GpuContext) -> Result<(), Error> {
         let error = self.0 & 0xFFFF;
         if error == 0 {
             return Ok(());
@@ -72,42 +70,42 @@ impl GpuStatus {
         let shader_id = self.0 >> 16;
 
         let Some(reporting_shader) = context.get_shader_label(shader_id) else {
-            return Err(GpuError::ShaderIdMissing(shader_id));
+            return Err(Error::ShaderIdMissing(shader_id));
         };
 
         if self.0 & TABLE_ENTRY_MISSING != 0 {
-            Err(GpuShaderError::TableEntryMissing { reporting_shader })?;
+            Err(ShaderError::TableEntryMissing { reporting_shader })?;
         }
 
         if self.0 & TABLE_TRIES_EXCEEDED != 0 {
-            Err(GpuShaderError::TableTriesExceeded { reporting_shader })?;
+            Err(ShaderError::TableTriesExceeded { reporting_shader })?;
         }
 
         if self.0 & INDIRECT_LIMIT_EXCEEDED != 0 {
-            Err(GpuShaderError::IndirectLimitExceeded { reporting_shader })?;
+            Err(ShaderError::IndirectLimitExceeded { reporting_shader })?;
         }
 
         if self.0 & INDIRECT_LIMIT_EXCEEDED != 0 {
-            Err(GpuShaderError::IndirectLimitExceeded { reporting_shader })?;
+            Err(ShaderError::IndirectLimitExceeded { reporting_shader })?;
         }
 
         if self.0 & PARTICLE_CLOSE_TO_INVERTED != 0 {
-            Err(GpuShaderError::ParticleCloseToInverted { reporting_shader })?;
+            Err(ShaderError::ParticleCloseToInverted { reporting_shader })?;
         }
 
         if self.0 & TIME_STEP_ZERO != 0 {
-            Err(GpuShaderError::TimeStepZero { reporting_shader })?;
+            Err(ShaderError::TimeStepZero { reporting_shader })?;
         }
 
         if self.0 & DEGENERATE_TRIANGLE != 0 {
-            Err(GpuShaderError::DegenerateTriangle { reporting_shader })?;
+            Err(ShaderError::DegenerateTriangle { reporting_shader })?;
         }
 
         if self.0 & REACHED_FRAME_TIME != 0 {
-            Err(GpuShaderError::FrameTimeReached)?;
+            Err(ShaderError::FrameTimeReached)?;
         }
 
-        Err(GpuShaderError::UnknownError {
+        Err(ShaderError::Unknown {
             reporting_shader,
             error,
         })?

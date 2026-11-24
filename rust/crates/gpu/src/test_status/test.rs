@@ -50,7 +50,7 @@ fn read_back_status() {
 
     assert!(matches!(
         status.to_result(&context),
-        Err(GpuError::Shader(GpuShaderError::TableTriesExceeded {
+        Err(Error::Shader(ShaderError::TableTriesExceeded {
             reporting_shader: "test_status"
         })),
     ));

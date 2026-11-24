@@ -26,9 +26,9 @@ use std::{
 
 #[derive(thiserror::Error, Debug)]
 pub enum HarnessError {
-    #[error("The operation has been canceled.")]
+    #[error("the operation has been canceled")]
     Canceled,
-    #[error("Can't create new report scope for '{new}', already reporting on '{old}'")]
+    #[error("can't create new report scope for '{new}', already reporting on '{old}'")]
     AlreadyHasSubReport { old: String, new: String },
 }
 
