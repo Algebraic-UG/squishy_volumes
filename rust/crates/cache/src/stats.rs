@@ -56,11 +56,20 @@ pub fn append_stats(
     cache_dir: impl AsRef<std::path::Path>,
     frame_index: usize,
     stats: &Stats,
+) -> Result<(), WriteError> {
+    let path = stats_path(cache_dir);
+    append_stats_row(&path, frame_index, stats).map_err(|source| WriteError::Stats { path, source })
+}
+
+fn append_stats_row(
+    path: &std::path::Path,
+    frame_index: usize,
+    stats: &Stats,
 ) -> Result<(), std::io::Error> {
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(stats_path(cache_dir))?;
+        .open(path)?;
 
     let mut content = String::new();
     if file.metadata()?.len() == 0 {
@@ -72,16 +81,15 @@ pub fn append_stats(
     file.write_all(content.as_bytes())
 }
 
-// rows are appended in frame order, so dropping frames is cutting off a suffix
 pub fn truncate_stats(
     cache_dir: impl AsRef<std::path::Path>,
     from_frame: usize,
-) -> Result<(), std::io::Error> {
+) -> Result<(), CleanupError> {
     let path = stats_path(cache_dir);
     let content = match std::fs::read_to_string(&path) {
         Ok(content) => content,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(e),
+        Err(source) => return Err(CleanupError::ReadStats { path, source }),
     };
 
     let mut keep = 0;
@@ -104,8 +112,9 @@ pub fn truncate_stats(
     if keep < content.len() {
         std::fs::OpenOptions::new()
             .write(true)
-            .open(&path)?
-            .set_len(keep as u64)?;
+            .open(&path)
+            .and_then(|file| file.set_len(keep as u64))
+            .map_err(|source| CleanupError::TruncateStats { path, source })?;
     }
     Ok(())
 }
@@ -193,6 +202,53 @@ mod tests {
         let dir = temp_dir("missing");
         truncate_stats(&dir, 0).unwrap();
         assert!(!stats_path(&dir).exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn appending_to_a_stats_directory_names_it() {
+        let dir = temp_dir("append_directory");
+        std::fs::create_dir(stats_path(&dir)).unwrap();
+
+        assert!(matches!(
+            append_stats(&dir, 0, &Stats::default()),
+            Err(WriteError::Stats { path, .. }) if path == stats_path(&dir)
+        ));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn truncating_a_stats_directory_names_it() {
+        let dir = temp_dir("truncate_directory");
+        std::fs::create_dir(stats_path(&dir)).unwrap();
+
+        assert!(matches!(
+            truncate_stats(&dir, 0),
+            Err(CleanupError::ReadStats { path, .. }) if path == stats_path(&dir)
+        ));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn truncating_read_only_stats_names_them() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = temp_dir("truncate_read_only");
+        for frame in 0..3 {
+            append_stats(&dir, frame, &stats(0)).unwrap();
+        }
+        let path = stats_path(&dir);
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o444)).unwrap();
+        let permissions_enforced = std::fs::OpenOptions::new().write(true).open(&path).is_err();
+
+        if permissions_enforced {
+            assert!(matches!(
+                truncate_stats(&dir, 1),
+                Err(CleanupError::TruncateStats { path: failed, .. }) if failed == path
+            ));
+            assert_eq!(rows(&dir).len(), 1 + 3);
+        }
         std::fs::remove_dir_all(dir).unwrap();
     }
 }
