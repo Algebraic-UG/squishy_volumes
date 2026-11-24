@@ -26,6 +26,7 @@ RegisterFunctions = tuple[Callable[[], None], Callable[[], None]]
 def class_registration(
     classes: Sequence[type],
     object_menu_entries: Sequence[Callable] = (),
+    render_menu_entries: Sequence[Callable] = (),
 ) -> RegisterFunctions:
     register_classes, unregister_classes = bpy.utils.register_classes_factory(classes)
 
@@ -33,10 +34,14 @@ def class_registration(
         register_classes()
         for menu_entry in object_menu_entries:
             bpy.types.VIEW3D_MT_object.append(menu_entry)
+        for menu_entry in render_menu_entries:
+            bpy.types.TOPBAR_MT_render.append(menu_entry)
 
     def unregister():
         for menu_entry in object_menu_entries:
             bpy.types.VIEW3D_MT_object.remove(menu_entry)
+        for menu_entry in render_menu_entries:
+            bpy.types.TOPBAR_MT_render.remove(menu_entry)
         unregister_classes()
 
     return register, unregister
