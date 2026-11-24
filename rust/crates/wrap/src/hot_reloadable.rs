@@ -32,14 +32,16 @@ pub use squishy_volumes_hot as squishy_volumes_hot_reload;
     debug_assertions,
     hot_lib_reloader::hot_module(
         dylib = "squishy_volumes_hot",
-        lib_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/debug")
+        lib_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/debug"),
+        loaded_lib_name_template = "{lib_name}-hot-{pid}-{load_counter}"
     )
 )]
 #[cfg_attr(
     not(debug_assertions),
     hot_lib_reloader::hot_module(
         dylib = "squishy_volumes_hot",
-        lib_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/release")
+        lib_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../target/release"),
+        loaded_lib_name_template = "{lib_name}-hot-{pid}-{load_counter}"
     )
 )]
 pub mod squishy_volumes_hot_reload {
