@@ -20,7 +20,7 @@ use squishy_volumes_api::InputBulk;
 #[cfg(test)]
 use squishy_volumes_util::AnimatedGlobals;
 
-use crate::{AttributeError, FrameVerifcationError};
+use crate::{BulkAttributeError, FrameVerificationError};
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub struct FrameBulk<'a> {
@@ -197,7 +197,7 @@ pub struct InputFrame {
 
 impl FrameBulk<'_> {
     // TODO: also verify the type
-    pub fn verify(&self, header: &crate::Header) -> Result<(), crate::FrameVerifcationError> {
+    pub fn verify(&self, header: &crate::Header) -> Result<(), crate::FrameVerificationError> {
         let num = match &self.meta.captured_attribute {
             BulkAttribute::Particles(_) => header
                 .get_particle_object(&self.meta.object_name)?
@@ -217,9 +217,11 @@ impl FrameBulk<'_> {
         let found = self.data.len();
         let expected = num * self.meta.captured_attribute.elem_count();
         if expected != found {
-            Err(crate::AttributeError::LengthMismatch { found, expected }
-                .attach_attr(self.meta.captured_attribute)
-                .attach_name(self.meta.object_name.clone()))?;
+            Err(
+                crate::BulkAttributeError::LengthMismatch { found, expected }
+                    .attach_attr(self.meta.captured_attribute)
+                    .attach_name(self.meta.object_name.clone()),
+            )?;
         }
 
         Ok(())
@@ -263,25 +265,25 @@ const FLOAT: &str = "float";
 const INT: &str = "int";
 
 impl OwnedFrameBulk {
-    fn verification_error(&self, error: AttributeError) -> FrameVerifcationError {
+    fn verification_error(&self, error: BulkAttributeError) -> FrameVerificationError {
         error
             .attach_attr(self.meta.captured_attribute)
             .attach_name(self.meta.object_name.clone())
     }
 
     #[inline]
-    pub fn assume_bools(&self) -> Result<&[bool], FrameVerifcationError> {
+    pub fn assume_bools(&self) -> Result<&[bool], FrameVerificationError> {
         let expected = BOOL;
         let found = match &self.data {
             OwnedInputBulk::Bool(vec) => return Ok(vec.as_slice()),
             OwnedInputBulk::Floats(_) => FLOAT,
             OwnedInputBulk::Ints(_) => INT,
         };
-        Err(self.verification_error(AttributeError::TypeMismatch { expected, found }))
+        Err(self.verification_error(BulkAttributeError::TypeMismatch { expected, found }))
     }
 
     #[inline]
-    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerifcationError> {
+    pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerificationError> {
         let expected = FLOAT;
         (|| {
             let found = match &self.data {
@@ -291,13 +293,13 @@ impl OwnedFrameBulk {
                 }
                 OwnedInputBulk::Ints(_) => INT,
             };
-            Err(AttributeError::TypeMismatch { expected, found })
+            Err(BulkAttributeError::TypeMismatch { expected, found })
         })()
         .map_err(|error| self.verification_error(error))
     }
 
     #[inline]
-    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerifcationError> {
+    pub fn assume_ints<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerificationError> {
         let expected = INT;
         (|| {
             let found = match &self.data {
@@ -305,7 +307,7 @@ impl OwnedFrameBulk {
                 OwnedInputBulk::Floats(_) => FLOAT,
                 OwnedInputBulk::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
             };
-            Err(AttributeError::TypeMismatch { expected, found })
+            Err(BulkAttributeError::TypeMismatch { expected, found })
         })()
         .map_err(|error| self.verification_error(error))
     }

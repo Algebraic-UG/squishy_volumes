@@ -19,29 +19,26 @@
 use std::collections::BTreeMap;
 
 use squishy_volumes_util::{AnimatedGlobals, attribute};
-use thiserror::Error;
 
 use super::*;
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum IoStateError {
-    #[error("Particle object error '{name}'")]
+    #[error("failed to access particle object '{name}'")]
     ParticleObject {
         name: String,
-        #[source]
-        error: ParticleObjectError,
+        source: ParticleObjectError,
     },
 }
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ParticleObjectError {
-    #[error("The IoState doesn't contain this object.")]
+    #[error("the io state doesn't contain this object")]
     Missing,
-    #[error("An attribute error occurred '{key:?}'")]
-    AttributeError {
+    #[error("failed to access attribute '{key:?}'")]
+    Attribute {
         key: attribute::Key,
-        #[source]
-        error: AttributeError,
+        source: AttributeAccessError,
     },
 }
 
@@ -49,18 +46,18 @@ impl ParticleObjectError {
     pub fn attach_name(self, name: &str) -> IoStateError {
         IoStateError::ParticleObject {
             name: name.to_string(),
-            error: self,
+            source: self,
         }
     }
 }
 
-#[derive(Error, Debug)]
-pub enum AttributeError {
-    #[error("Attribute missing")]
+#[derive(thiserror::Error, Debug)]
+pub enum AttributeAccessError {
+    #[error("attribute is missing")]
     Missing,
-    #[error("Attribute duplication")]
+    #[error("attribute is duplicate")]
     Duplicate,
-    #[error("Attribute type mismatch")]
+    #[error("attribute type mismatch")]
     TypeMismatch,
 }
 
@@ -111,7 +108,7 @@ impl IoState {
             .get(name)
             .ok_or(IoStateError::ParticleObject {
                 name: name.to_string(),
-                error: ParticleObjectError::Missing,
+                source: ParticleObjectError::Missing,
             })
     }
     pub fn get_particle_object_mut(
@@ -122,7 +119,7 @@ impl IoState {
             .get_mut(name)
             .ok_or(IoStateError::ParticleObject {
                 name: name.to_string(),
-                error: ParticleObjectError::Missing,
+                source: ParticleObjectError::Missing,
             })
     }
 

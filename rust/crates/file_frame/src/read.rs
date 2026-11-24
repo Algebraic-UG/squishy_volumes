@@ -26,9 +26,9 @@ use crate::*;
 
 impl Frame {
     pub fn read(path: impl AsRef<std::path::Path>) -> Result<Self, Error> {
-        Self::read_inner(&path).map_err(|error| Error::Read {
+        Self::read_inner(&path).map_err(|source| Error::Read {
             path: path.as_ref().to_path_buf(),
-            error,
+            source,
         })
     }
 
@@ -61,9 +61,9 @@ impl Frame {
                 &mut reader,
                 particles,
             )
-            .map_err(|error| ReadError::Points {
+            .map_err(|source| ReadError::Points {
                 name: name.clone(),
-                error,
+                source,
             })?;
         }
 
@@ -75,13 +75,13 @@ fn read_points<R: Read + Seek>(
     points: &Points,
     reader: &mut ArchiveReader<R>,
     particles: &mut ParticlesObject,
-) -> Result<(), ReadErrorPoints> {
+) -> Result<(), ReadPointsError> {
     for key in &particles.alembic_attributes {
-        (|| -> Result<(), ReadErrorPointsAttribute> {
+        (|| -> Result<(), ReadAttributeError> {
             let handle = points
                 .attributes
                 .get(key.alembic_name())
-                .ok_or(ReadErrorPointsAttribute::Missing)?;
+                .ok_or(ReadAttributeError::Missing)?;
 
             let value = match key.alembic_type() {
                 AttributeType::Float1 => {
@@ -102,14 +102,14 @@ fn read_points<R: Read + Seek>(
             };
 
             if particles.attributes.insert(*key, value).is_some() {
-                return Err(ReadErrorPointsAttribute::Duplicate);
+                return Err(ReadAttributeError::Duplicate);
             }
 
             Ok(())
         })()
-        .map_err(|error| ReadErrorPoints::Attribute {
+        .map_err(|source| ReadPointsError::Attribute {
             name: key.alembic_name().to_string(),
-            error,
+            source,
         })?;
     }
 
@@ -119,6 +119,6 @@ fn read_points<R: Read + Seek>(
     if missing.is_empty() {
         Ok(())
     } else {
-        Err(ReadErrorPoints::Incomplete(missing))
+        Err(ReadPointsError::Incomplete(missing))
     }
 }

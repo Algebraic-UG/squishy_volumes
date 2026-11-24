@@ -20,106 +20,100 @@ use std::collections::BTreeSet;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Error writing '{path}'")]
+    #[error("failed to write '{path}'")]
     Write {
         path: std::path::PathBuf,
-        #[source]
-        error: WriteError,
+        source: WriteError,
     },
-    #[error("Error reading '{path}'")]
+    #[error("failed to read '{path}'")]
     Read {
         path: std::path::PathBuf,
-        #[source]
-        error: ReadError,
+        source: ReadError,
     },
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum WriteError {
-    #[error("Failed to determine parent directory")]
+    #[error("failed to determine parent directory")]
     NoParent,
-    #[error("Io error")]
-    IoError(#[from] std::io::Error),
-    #[error("An Alembic error occurred")]
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+    #[error("alembic error")]
     Alembic(#[from] alembic_rust::Error),
-    #[error("Failed to serialize")]
+    #[error("failed to serialize")]
     Serialize(#[from] bincode::Error),
-    #[error("File utility error")]
+    #[error("failed to write magic bytes and version")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
-    #[error("Failed to flush")]
+    #[error("failed to flush")]
     Flush(#[from] std::io::IntoInnerError<std::io::BufWriter<std::fs::File>>),
-    #[error("Points error for '{name}'")]
+    #[error("failed to write points '{name}'")]
     Points {
         name: String,
-        #[source]
-        error: WriteErrorPoints,
+        source: WritePointsError,
     },
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum WriteErrorPoints {
-    #[error("Failed to finish")]
+pub enum WritePointsError {
+    #[error("failed to finish")]
     Finish(#[from] alembic_rust::Error),
-    #[error("An attribute error occurred")]
+    #[error("failed to write attribute '{name}'")]
     Attribute {
         name: String,
-        #[source]
-        error: WriteErrorPointsAttribute,
+        source: WriteAttributeError,
     },
-    #[error("Attribute map incomplete, missing {0:?}'")]
+    #[error("attribute map incomplete, missing {0:?}")]
     Incomplete(BTreeSet<squishy_volumes_util::attribute::Key>),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum WriteErrorPointsAttribute {
-    #[error("Attribute is missing map")]
+pub enum WriteAttributeError {
+    #[error("attribute is missing in the map")]
     Missing,
-    #[error("An Alembic error occurred")]
+    #[error("alembic error")]
     Alembic(#[from] alembic_rust::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum ReadError {
-    #[error("Application key doesn't indicate Squishy Volumes: {0:?}")]
+    #[error("application key doesn't indicate Squishy Volumes: {0:?}")]
     ApplicationKey(Option<String>),
-    #[error("The file is missing the binary blob")]
+    #[error("the file is missing the binary blob")]
     MissingBlob,
-    #[error("Io error")]
-    IoError(#[from] std::io::Error),
-    #[error("An Alembic error occurred")]
+    #[error("io error")]
+    Io(#[from] std::io::Error),
+    #[error("alembic error")]
     Alembic(#[from] alembic_rust::Error),
-    #[error("Failed to deserialize")]
+    #[error("failed to deserialize")]
     Deserialize(#[from] bincode::Error),
-    #[error("File utility error")]
+    #[error("failed to check magic bytes and version")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
-    #[error("Points are missing '{0}'")]
+    #[error("points '{0}' are missing")]
     MissingPoints(String),
-    #[error("Points error for '{name}'")]
+    #[error("failed to read points '{name}'")]
     Points {
         name: String,
-        #[source]
-        error: ReadErrorPoints,
+        source: ReadPointsError,
     },
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ReadErrorPoints {
-    #[error("Attribute error '{name}'")]
+pub enum ReadPointsError {
+    #[error("failed to read attribute '{name}'")]
     Attribute {
         name: String,
-        #[source]
-        error: ReadErrorPointsAttribute,
+        source: ReadAttributeError,
     },
-    #[error("Attribute map incomplete, missing {0:?}'")]
+    #[error("attribute map incomplete, missing {0:?}")]
     Incomplete(BTreeSet<squishy_volumes_util::attribute::Key>),
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ReadErrorPointsAttribute {
-    #[error("Attribute is missing in Alembic")]
+pub enum ReadAttributeError {
+    #[error("attribute is missing in the alembic file")]
     Missing,
-    #[error("Attribute is duplicate")]
+    #[error("attribute is duplicate")]
     Duplicate,
-    #[error("An Alembic error occurred")]
+    #[error("alembic error")]
     Alembic(#[from] alembic_rust::Error),
 }

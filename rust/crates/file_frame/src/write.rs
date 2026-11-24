@@ -25,19 +25,19 @@ use crate::*;
 
 impl Frame {
     pub fn write(self, path: impl AsRef<std::path::Path>) -> Result<u64, Error> {
-        let temp = Self::get_temp(&path).map_err(|error| Error::Write {
+        let temp = Self::get_temp(&path).map_err(|source| Error::Write {
             path: path.as_ref().to_path_buf(),
-            error,
+            source,
         })?;
 
-        let size = self.write_temp(&temp).map_err(|error| Error::Write {
+        let size = self.write_temp(&temp).map_err(|source| Error::Write {
             path: temp.clone(),
-            error,
+            source,
         })?;
 
-        std::fs::rename(&temp, &path).map_err(|error| Error::Write {
+        std::fs::rename(&temp, &path).map_err(|source| Error::Write {
             path: path.as_ref().to_path_buf(),
-            error: error.into(),
+            source: source.into(),
         })?;
 
         Ok(size)
@@ -69,9 +69,9 @@ impl Frame {
                 writer.begin_points(name, particles.num_particles)?,
                 particles,
             )
-            .map_err(|error| WriteError::Points {
+            .map_err(|source| WriteError::Points {
                 name: name.clone(),
-                error,
+                source,
             })?;
         }
 
@@ -96,12 +96,12 @@ impl Frame {
 fn write_points<'a, W: Write + Seek>(
     mut writer: alembic_rust::PointsWriter<'a, W>,
     particles: &mut ParticlesObject,
-) -> Result<(), WriteErrorPoints> {
+) -> Result<(), WritePointsError> {
     let missing = attribute::Key::iter()
         .filter(|key| !particles.attributes.contains_key(key))
         .collect::<BTreeSet<_>>();
     if !missing.is_empty() {
-        return Err(WriteErrorPoints::Incomplete(missing));
+        return Err(WritePointsError::Incomplete(missing));
     }
 
     for key in &particles.alembic_attributes {
@@ -109,7 +109,7 @@ fn write_points<'a, W: Write + Seek>(
             let value = particles
                 .attributes
                 .remove(key)
-                .ok_or(WriteErrorPointsAttribute::Missing)?;
+                .ok_or(WriteAttributeError::Missing)?;
             match value {
                 AttributeValue::Float1(items) => {
                     writer.attribute(key.alembic_name(), &items)?;
@@ -123,9 +123,9 @@ fn write_points<'a, W: Write + Seek>(
             }
             Ok(())
         })()
-        .map_err(|error| WriteErrorPoints::Attribute {
+        .map_err(|source| WritePointsError::Attribute {
             name: key.alembic_name().to_string(),
-            error,
+            source,
         })?;
     }
     writer.finish()?;

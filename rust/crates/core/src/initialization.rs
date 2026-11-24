@@ -24,7 +24,7 @@ use squishy_volumes_file_frame::{
     u32_to_two_f32,
 };
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerifcationError, InputReader,
+    BulkAttribute, FrameBulkCollider, FrameBulkParticles, FrameVerificationError, InputReader,
     Object, ObjectCollider, OwnedFrameBulk,
 };
 use squishy_volumes_util::{ParticleFlags, attribute};
@@ -55,11 +55,11 @@ pub enum StateInitializationError {
     },
 
     #[error("Failed to read frame for state initialization")]
-    InputErrorFrame(#[from] squishy_volumes_file_input::InputError),
+    InputErrorFrame(#[from] squishy_volumes_file_input::Error),
 }
 
-impl From<FrameVerifcationError> for StateInitializationError {
-    fn from(error: FrameVerifcationError) -> Self {
+impl From<FrameVerificationError> for StateInitializationError {
+    fn from(error: FrameVerificationError) -> Self {
         error.attach_frame(0).into()
     }
 }
@@ -261,7 +261,7 @@ enum ApplyBulkError {
     #[error(transparent)]
     ParticleObject(#[from] ParticleObjectError),
     #[error(transparent)]
-    FrameVerification(#[from] FrameVerifcationError),
+    FrameVerification(#[from] FrameVerificationError),
 }
 
 impl ApplyBulkError {

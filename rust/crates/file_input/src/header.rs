@@ -198,30 +198,30 @@ impl Header {
     pub fn get_particle_object(
         &self,
         name: &str,
-    ) -> Result<&ObjectParticles, crate::FrameVerifcationError> {
+    ) -> Result<&ObjectParticles, crate::FrameVerificationError> {
         if let Object::Particles(object) = self
             .objects
             .get(name)
-            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
+            .ok_or(crate::ObjectError::NotInHeader.attach_name(name.to_string()))?
         {
             Ok(object)
         } else {
-            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
+            Err(crate::ObjectError::ChangedType.attach_name(name.to_string()))
         }
     }
 
     pub fn get_collider_object(
         &self,
         name: &str,
-    ) -> Result<&ObjectCollider, crate::FrameVerifcationError> {
+    ) -> Result<&ObjectCollider, crate::FrameVerificationError> {
         if let Object::Collider(object) = self
             .objects
             .get(name)
-            .ok_or(crate::ObjectError::ObjectNotInHeader.attach_name(name.to_string()))?
+            .ok_or(crate::ObjectError::NotInHeader.attach_name(name.to_string()))?
         {
             Ok(object)
         } else {
-            Err(crate::ObjectError::ObjectChangedType.attach_name(name.to_string()))
+            Err(crate::ObjectError::ChangedType.attach_name(name.to_string()))
         }
     }
 }

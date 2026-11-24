@@ -29,8 +29,8 @@ use squishy_volumes_util::AnimatedGlobals;
 use tempfile::{Builder, TempDir};
 
 use crate::{
-    FrameBulk, Header, InputConsts, InputError, InputObject, InputObjectCollider,
-    InputObjectParticles, InputOffsetReadingError, OwnedFrameBulk,
+    Error, FrameBulk, Header, InputConsts, InputObject, InputObjectCollider, InputObjectParticles,
+    InputOffsetReadingError, OwnedFrameBulk,
 };
 
 use super::{InputFrame, InputHeader, InputReader, InputWriter};
@@ -179,7 +179,7 @@ fn test_wrong_magic_number() {
     }
     assert!(matches!(
         InputReader::new(path),
-        Err(InputError::FileUtil(
+        Err(Error::FileUtil(
             squishy_volumes_file_util::Error::MagicMismatch { .. }
         ))
     ));
@@ -201,7 +201,7 @@ fn test_wrong_version() {
     }
     assert!(matches!(
         InputReader::new(path),
-        Err(InputError::FileUtil(
+        Err(Error::FileUtil(
             squishy_volumes_file_util::Error::VersionMismatch { .. }
         ))
     ));
@@ -214,7 +214,7 @@ fn test_frame_not_available() {
     let mut reader = InputReader::new(path).unwrap();
     assert!(matches!(
         reader.read_frame(test_frames(10, 9, 3).len()),
-        Err(InputError::FrameNotAvailable { .. },)
+        Err(Error::FrameNotAvailable { .. },)
     ));
 }
 
@@ -229,9 +229,7 @@ fn test_index_offset_mishap_io() {
     }
     assert!(matches!(
         InputReader::new(path),
-        Err(InputError::OffsetReading(InputOffsetReadingError::IoError(
-            _
-        )))
+        Err(Error::OffsetReading(InputOffsetReadingError::IoError(_)))
     ));
 }
 
@@ -246,9 +244,9 @@ fn test_index_offset_mishap_bincode() {
     }
     assert!(matches!(
         InputReader::new(path),
-        Err(InputError::OffsetReading(
-            InputOffsetReadingError::BincodeError(_)
-        ))
+        Err(Error::OffsetReading(InputOffsetReadingError::BincodeError(
+            _
+        )))
     ));
 }
 
@@ -261,10 +259,10 @@ fn test_length_mismatch() {
     writer.start_frame(&animated_globals).unwrap();
     assert!(matches!(
         writer.record_bulk(&bulk[0]),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectError {
-                error: crate::ObjectError::AttributeError {
-                    error: crate::AttributeError::LengthMismatch { .. },
+        Err(Error::FrameVerification {
+            source: crate::FrameVerificationError::Object {
+                source: crate::ObjectError::Attribute {
+                    source: crate::BulkAttributeError::LengthMismatch { .. },
                     ..
                 },
                 ..
@@ -289,9 +287,9 @@ fn test_object_changed_type() {
     writer.start_frame(&animated_globals).unwrap();
     assert!(matches!(
         writer.record_bulk(&bulk),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectError {
-                error: crate::ObjectError::ObjectChangedType,
+        Err(Error::FrameVerification {
+            source: crate::FrameVerificationError::Object {
+                source: crate::ObjectError::ChangedType,
                 ..
             },
             ..
@@ -314,9 +312,9 @@ fn test_object_not_in_header() {
     writer.start_frame(&animated_globals).unwrap();
     assert!(matches!(
         writer.record_bulk(&bulk),
-        Err(InputError::FrameVerifcationError {
-            error: crate::FrameVerifcationError::ObjectError {
-                error: crate::ObjectError::ObjectNotInHeader,
+        Err(Error::FrameVerification {
+            source: crate::FrameVerificationError::Object {
+                source: crate::ObjectError::NotInHeader,
                 ..
             },
             ..

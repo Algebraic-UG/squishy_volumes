@@ -16,35 +16,32 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use thiserror::Error;
-
 use crate::BulkAttribute;
 
-#[derive(Error, Debug)]
-pub enum InputError {
-    #[error("Can't record input bulk if no frame is started")]
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("can't record input bulk if no frame is started")]
     NoFrameStarted,
-    #[error("Expected frame to go to {end} but read to {pos}")]
+    #[error("expected frame to go to {end} but read to {pos}")]
     FrameMisalign { end: u64, pos: u64 },
-    #[error("Requested frame {requested} but there are only {available}")]
+    #[error("requested frame {requested} but there are only {available}")]
     FrameNotAvailable { requested: usize, available: usize },
-    #[error("Index offset mishap")]
+    #[error("failed to read the frame offsets")]
     OffsetReading(#[from] InputOffsetReadingError),
-    #[error("Unknown read/write error")]
-    IoError(#[from] std::io::Error),
-    #[error("Unknown bincode error")]
-    BincodeError(#[from] bincode::Error),
-    #[error("A simple check failed")]
+    #[error("unknown read/write error")]
+    Io(#[from] std::io::Error),
+    #[error("unknown bincode error")]
+    Bincode(#[from] bincode::Error),
+    #[error("failed to check magic bytes and version")]
     FileUtil(#[from] squishy_volumes_file_util::Error),
-    #[error("Frame #{frame} verifcation failed")]
-    FrameVerifcationError {
+    #[error("frame #{frame} verification failed")]
+    FrameVerification {
         frame: usize,
-        #[source]
-        error: FrameVerifcationError,
+        source: FrameVerificationError,
     },
 }
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum InputOffsetReadingError {
     #[error("Unknown read/write error")]
     IoError(#[from] std::io::Error),
@@ -52,57 +49,55 @@ pub enum InputOffsetReadingError {
     BincodeError(#[from] bincode::Error),
 }
 
-#[derive(Error, Debug)]
-pub enum FrameVerifcationError {
-    #[error("Object '{name}' error")]
-    ObjectError {
-        name: String,
-        #[source]
-        error: ObjectError,
-    },
+#[derive(thiserror::Error, Debug)]
+pub enum FrameVerificationError {
+    #[error("failed to verify object '{name}'")]
+    Object { name: String, source: ObjectError },
 }
 
-impl FrameVerifcationError {
-    pub fn attach_frame(self, frame: usize) -> InputError {
-        InputError::FrameVerifcationError { frame, error: self }
+impl FrameVerificationError {
+    pub fn attach_frame(self, frame: usize) -> Error {
+        Error::FrameVerification {
+            frame,
+            source: self,
+        }
     }
 }
 
-#[derive(Error, Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum ObjectError {
-    #[error("This object changed type to/from Particles/Collider")]
-    ObjectChangedType,
-    #[error("This object was not declared in input header")]
-    ObjectNotInHeader,
-    #[error("Attribute '{attr:?}' error")]
-    AttributeError {
+    #[error("object changed type to/from particles/collider")]
+    ChangedType,
+    #[error("object was not declared in the input header")]
+    NotInHeader,
+    #[error("failed to verify attribute '{attr:?}'")]
+    Attribute {
         attr: BulkAttribute,
-        #[source]
-        error: AttributeError,
+        source: BulkAttributeError,
     },
 }
 
 impl ObjectError {
-    pub fn attach_name(self, name: String) -> FrameVerifcationError {
-        FrameVerifcationError::ObjectError { name, error: self }
+    pub fn attach_name(self, name: String) -> FrameVerificationError {
+        FrameVerificationError::Object { name, source: self }
     }
 }
 
-#[derive(Error, Debug)]
-pub enum AttributeError {
-    #[error("Atttribute data type mismatch: expected {expected} but found {found}")]
+#[derive(thiserror::Error, Debug)]
+pub enum BulkAttributeError {
+    #[error("attribute data type mismatch: expected {expected} but found {found}")]
     TypeMismatch {
         expected: &'static str,
         found: &'static str,
     },
-    #[error("Attribute data cast failed")]
-    CastFailed(#[from] bytemuck::PodCastError),
-    #[error("Attribute Lengh mismatch, expected {expected} but found {found}")]
+    #[error("failed to cast attribute data")]
+    Cast(#[from] bytemuck::PodCastError),
+    #[error("attribute length mismatch: expected {expected} but found {found}")]
     LengthMismatch { found: usize, expected: usize },
 }
 
-impl AttributeError {
+impl BulkAttributeError {
     pub fn attach_attr(self, attr: BulkAttribute) -> ObjectError {
-        ObjectError::AttributeError { attr, error: self }
+        ObjectError::Attribute { attr, source: self }
     }
 }

@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use squishy_volumes_file_input::{
-    BulkAttribute, FrameBulkCollider, FrameVerifcationError, Header, InputConsts, InputFrame,
+    BulkAttribute, FrameBulkCollider, FrameVerificationError, Header, InputConsts, InputFrame,
     InputReader, ObjectCollider, OwnedFrameBulk,
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
@@ -30,7 +30,7 @@ pub enum FrameInputError {
     TimeBeforeFrame { time: f64, frame: usize },
 
     #[error("Failed to input from file")]
-    InputError(#[from] squishy_volumes_file_input::InputError),
+    InputError(#[from] squishy_volumes_file_input::Error),
 
     #[error("Something is wrong with the mesh inputs")]
     MeshError(#[from] squishy_volumes_mesh_util::Error),
@@ -194,7 +194,7 @@ impl FrameInput {
         Ok(())
     }
 
-    pub fn next_frame_error(&self, error: FrameVerifcationError) -> FrameInputError {
+    pub fn next_frame_error(&self, error: FrameVerificationError) -> FrameInputError {
         error.attach_frame(self.frame + 1).into()
     }
 
@@ -290,7 +290,7 @@ fn update_bvh(
 fn create_topology(input_reader: &mut InputReader) -> Result<Topology, FrameInputError> {
     let bulk = input_reader.read_frame(0)?.bulk;
     let mut topology_inputs = Vec::new();
-    (|| -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
+    (|| -> Result<(), squishy_volumes_file_input::FrameVerificationError> {
         for bulk in &bulk {
             if bulk.meta.captured_attribute != BulkAttribute::Collider(FrameBulkCollider::Triangles)
             {
@@ -322,7 +322,7 @@ fn update_collider(
     header: &Header,
     collider: &mut Collider,
     bulk: &[OwnedFrameBulk],
-) -> Result<(), squishy_volumes_file_input::FrameVerifcationError> {
+) -> Result<(), squishy_volumes_file_input::FrameVerificationError> {
     for bulk in bulk {
         if let BulkAttribute::Collider(ref attr) = bulk.meta.captured_attribute {
             let ObjectCollider {
