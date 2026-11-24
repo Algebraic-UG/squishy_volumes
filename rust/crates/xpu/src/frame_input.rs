@@ -26,14 +26,14 @@ use crate::Collider;
 
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
-    #[error("The time {time} is before the start of frame {frame}")]
+    #[error("the time {time} is before the start of frame {frame}")]
     TimeBeforeFrame { time: f64, frame: usize },
 
-    #[error("Failed to input from file")]
-    InputError(#[from] squishy_volumes_file_input::Error),
+    #[error("failed to read the input file")]
+    Input(#[from] squishy_volumes_file_input::Error),
 
-    #[error("Something is wrong with the mesh inputs")]
-    MeshError(#[from] squishy_volumes_mesh_util::Error),
+    #[error("something is wrong with the mesh inputs")]
+    Mesh(#[from] squishy_volumes_mesh_util::Error),
 }
 
 const TOLERATED_FRAMES_BEFORE_FRAME_START: f64 = 1e-4;

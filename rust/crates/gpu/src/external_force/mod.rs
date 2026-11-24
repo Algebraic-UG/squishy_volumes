@@ -69,7 +69,7 @@ impl Input {
             particle_velocities,
             particle_goals,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         let time_step = Allocation::new(device, "time_step", &[time_step])?;
         let globals = Allocation::new(device, "globals", &[globals])?;
         let particle_flags = Allocation::new(device, "particle_flags", particle_flags)?;
@@ -107,7 +107,7 @@ impl PipelinePart for ExternalForce {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             external_force,
             CompiledModuleSettings {
@@ -146,7 +146,7 @@ impl PipelinePart for ExternalForce {
             particle_goals,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,

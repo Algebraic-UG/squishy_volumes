@@ -60,7 +60,7 @@ impl Input {
         }: Settings,
         indices: Option<&[u32]>,
         keys: &[u32],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         if let Some(indices) = indices.as_ref() {
             check_length!(indices, keys)?;
         }
@@ -102,7 +102,7 @@ impl PipelinePart for RadixSort {
             dispatch_limit,
             bit_count,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let count_subkeys = CountSubkeys::new(
             context,
             count_subkeys::Settings {
@@ -137,13 +137,13 @@ impl PipelinePart for RadixSort {
 
         count_subkeys
             .representative_module()
-            .check_same_sugroup_size(counts_indirect.representative_module())?;
+            .check_same_subgroup_size(counts_indirect.representative_module())?;
         count_subkeys
             .representative_module()
-            .check_same_sugroup_size(prefix_sum.representative_module())?;
+            .check_same_subgroup_size(prefix_sum.representative_module())?;
         count_subkeys
             .representative_module()
-            .check_same_sugroup_size(reorder_indices.representative_module())?;
+            .check_same_subgroup_size(reorder_indices.representative_module())?;
 
         Ok(Self {
             bit_count: bit_count.get(),
@@ -164,7 +164,7 @@ impl PipelinePart for RadixSort {
             indices_in,
         }: Input,
         Parameters { bit_offset }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let count_subkeys::Output { counts } = self.count_subkeys.record(
             context,
             encoder,
@@ -225,7 +225,7 @@ impl RadixSort {
             indices_in,
             keys,
         }: Input,
-    ) -> Result<Allocation, GpuError> {
+    ) -> Result<Allocation, Error> {
         let mut indices_out = indices_in;
         for round in 0..32u32.div_ceil(self.bit_count) {
             let output = self.record(

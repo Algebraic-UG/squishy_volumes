@@ -169,7 +169,7 @@ impl ColliderInput {
             triangle_opposites,
             triangle_frictions,
         }: ColliderInputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(vertex_positions_start, vertex_positions_end)?;
         check_length!(triangle_indices, triangle_collider)?;
         check_length!(triangle_indices, triangle_opposites)?;
@@ -273,7 +273,7 @@ impl VariableParticleInput {
             particle_velocities,
             particle_velocity_gradients,
         }: VariableParticleInputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(particle_flags, particle_parameters)?;
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
         check_length!(particle_flags, particle_position_gradients)?;
@@ -329,7 +329,7 @@ impl Input {
             variable_particle_input,
             collider_input,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(variable_particle_input.particle_flags, particle_goals)?;
 
         let indirect_particles = Indirect::new(DispatchSettings {
@@ -422,7 +422,7 @@ impl PipelinePart for Step {
             domain_min,
             domain_max,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let animate_mesh = AnimateMesh::new(
             context,
             animate_mesh::Settings {
@@ -570,7 +570,7 @@ impl PipelinePart for Step {
             current_step,
             adaptive_time_steps,
         }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let time_step = if adaptive_time_steps {
             let time_step_by_collider =
                 collider_input.as_ref().map_or(f32::MAX, |collider_input| {

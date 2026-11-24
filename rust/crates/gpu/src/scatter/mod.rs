@@ -67,7 +67,7 @@ impl Input {
             node_ids_and_collider_bits,
             particle_tmp,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(contributor_offsets, node_ids_and_collider_bits)?;
         check_length_multiple!(contributors, particle_tmp, 27)?;
         check_indices_valid!(contributor_offsets, contributors)?;
@@ -119,7 +119,7 @@ impl PipelinePart for Scatter {
             workgroup_size,
             grid_node_size,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             scatter,
             CompiledModuleSettings {
@@ -155,7 +155,7 @@ impl PipelinePart for Scatter {
             particle_tmp,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         assert_eq!(indirect_nodes.len::<Indirect>().get(), 1);
         assert_eq!(
             contributors.len::<u32>().get(),

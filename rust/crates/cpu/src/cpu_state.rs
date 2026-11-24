@@ -356,7 +356,7 @@ impl CpuState {
             }
 
             match self.run_phase() {
-                error @ Err(Error::EnergyError(energy_error)) => {
+                error @ Err(Error::Energy(energy_error)) => {
                     tracing::warn!(?energy_error, "Encountered an energy error.");
                     return Ok((self.to_io_state(store_bvh, store_grid)?, error));
                 }

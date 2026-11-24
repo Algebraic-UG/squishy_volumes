@@ -84,7 +84,7 @@ impl Input {
             particle_velocities,
             particle_velocity_gradients,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(node_ids_and_collider_bits, node_momentums)?;
         check_length!(particle_flags, particle_positions_and_collider_bits)?;
         check_length!(particle_flags, particle_position_gradients)?;
@@ -158,7 +158,7 @@ impl PipelinePart for Collect {
             grid_node_size,
             table_tries,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             collect,
             CompiledModuleSettings {
@@ -206,7 +206,7 @@ impl PipelinePart for Collect {
             particle_velocity_gradients,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,
             dispatch_limit: self.dispatch_limit,

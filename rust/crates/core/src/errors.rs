@@ -26,7 +26,7 @@ pub enum Error {
     StoredError(String),
 
     #[error("Gpu error")]
-    GpuError(#[from] squishy_volumes_gpu::GpuError),
+    GpuError(#[from] squishy_volumes_gpu::Error),
 
     #[error("Harness error")]
     HarnessError(#[from] squishy_volumes_xpu::HarnessError),
@@ -121,12 +121,8 @@ mod tests {
     fn recognizes_wrapped_cancellations() {
         let cancellations = [
             Error::HarnessError(HarnessError::Canceled),
-            Error::CpuCompute(squishy_volumes_cpu::Error::HarnessError(
-                HarnessError::Canceled,
-            )),
-            Error::GpuError(squishy_volumes_gpu::GpuError::HarnessError(
-                HarnessError::Canceled,
-            )),
+            Error::CpuCompute(squishy_volumes_cpu::Error::Harness(HarnessError::Canceled)),
+            Error::GpuError(squishy_volumes_gpu::Error::Harness(HarnessError::Canceled)),
             Error::InitializationError(StateInitializationError::HarnessError(
                 HarnessError::Canceled,
             )),
@@ -145,7 +141,7 @@ mod tests {
                 message: "broken".to_string(),
             },
             Error::CpuCompute(squishy_volumes_cpu::Error::ZeroTimeStep),
-            Error::GpuError(squishy_volumes_gpu::GpuError::NoParticles),
+            Error::GpuError(squishy_volumes_gpu::Error::NoParticles),
         ];
         for error in errors {
             assert!(!error.is_cancellation(), "{error:?}");

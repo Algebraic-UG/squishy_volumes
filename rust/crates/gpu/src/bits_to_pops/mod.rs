@@ -45,7 +45,7 @@ impl Input {
         Settings { workgroup_size }: Settings,
         dispatch_limit: NonZeroU32,
         bits: &[u32],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -72,7 +72,7 @@ impl PipelinePart for BitsToPops {
     fn new(
         context: &mut GpuContext,
         Settings { workgroup_size }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             bits_to_pops,
             CompiledModuleSettings {
@@ -97,7 +97,7 @@ impl PipelinePart for BitsToPops {
         encoder: &mut CommandEncoder,
         Input { indirect, bits }: Input,
         _: Self::Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let pops = context
             .allocator()?
             .allocate::<u32>("pops", bits.len::<u32>())?;

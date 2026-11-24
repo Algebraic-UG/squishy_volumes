@@ -44,10 +44,7 @@ pub struct Input {
 }
 
 impl Input {
-    pub fn new(
-        device: &wgpu::Device,
-        matrices: &[Matrix4x3<f32>],
-    ) -> Result<Self, GpuAllocatorError> {
+    pub fn new(device: &wgpu::Device, matrices: &[Matrix4x3<f32>]) -> Result<Self, AllocatorError> {
         let matrices = Allocation::new(device, "matrices", matrices)?;
 
         Ok(Self { matrices })
@@ -70,7 +67,7 @@ impl PipelinePart for TestSvd {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             test_svd,
             CompiledModuleSettings {
@@ -98,7 +95,7 @@ impl PipelinePart for TestSvd {
         encoder: &mut CommandEncoder,
         Input { matrices }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_matrices = matrices.len::<Matrix4x3<f32>>();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,

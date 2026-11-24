@@ -63,7 +63,7 @@ impl Input {
             node_ids_and_collider_bits,
             node_momentums_in,
         }: InputData,
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(node_ids_and_collider_bits, node_momentums_in)?;
 
         let indirect_nodes = Indirect::new(DispatchSettings {
@@ -138,7 +138,7 @@ impl PipelinePart for MeldGrid {
             workgroup_size,
             table_tries,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             meld_grid,
             CompiledModuleSettings {
@@ -173,7 +173,7 @@ impl PipelinePart for MeldGrid {
             node_momentums_in,
         }: Input,
         Parameters {}: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         assert_eq!(
             node_ids_and_collider_bits.len::<NodeIdAndColliderBits>(),
             node_momentums_in.len::<Vector4<f32>>()

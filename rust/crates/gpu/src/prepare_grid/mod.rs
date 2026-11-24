@@ -80,7 +80,7 @@ impl Input {
             ..
         }: Settings,
         particle_positions_and_collider_bits: &[PositionAndColliderBits],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let indirect_particles = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -118,7 +118,7 @@ impl PipelinePart for PrepareGrid {
             grid_node_size,
             table_tries,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let partition_nodes = PartitionNodes::new(
             context,
             partition_nodes::Settings {
@@ -210,7 +210,7 @@ impl PipelinePart for PrepareGrid {
             particle_positions_and_collider_bits,
         }: Input,
         Parameters { max_num_grid_nodes }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_particles = particle_positions_and_collider_bits.len::<PositionAndColliderBits>();
         let [x, y, z] = Indirect::new(DispatchSettings {
             workgroup_size: self.workgroup_size,

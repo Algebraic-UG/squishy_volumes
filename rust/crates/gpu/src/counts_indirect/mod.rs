@@ -55,7 +55,7 @@ impl Input {
             ..
         }: Settings,
         len: u32,
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -83,7 +83,7 @@ impl PipelinePart for CountsIndirect {
             dispatch_limit,
             bit_count,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             counts_indirect,
             CompiledModuleSettings {
@@ -111,7 +111,7 @@ impl PipelinePart for CountsIndirect {
         encoder: &mut CommandEncoder,
         Input { indirect }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let indirect_counts = context
             .indirect_allocator()?
             .allocate::<Indirect>("counts_indirect", 1.try_into().unwrap())?;

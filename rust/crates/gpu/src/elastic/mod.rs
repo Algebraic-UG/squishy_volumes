@@ -51,7 +51,7 @@ impl Input {
         position_gradients: &[Matrix4x3<f32>],
         particle_flags: &[ParticleFlags],
         particle_parameters: &[ParticleParameters],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_length!(position_gradients, particle_parameters)?;
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
@@ -88,7 +88,7 @@ impl PipelinePart for Elastic {
     fn new(
         context: &mut GpuContext,
         Settings { workgroup_size }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             stress_and_energy,
             CompiledModuleSettings {
@@ -121,7 +121,7 @@ impl PipelinePart for Elastic {
             particle_parameters,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let stresses = context
             .allocator()?
             .allocate::<Matrix4x3<f32>>("stresses", position_gradients.len::<Matrix4x3<f32>>())?;

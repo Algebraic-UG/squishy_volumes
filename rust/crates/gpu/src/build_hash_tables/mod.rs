@@ -63,7 +63,7 @@ impl Input {
         dispatch_limit: NonZeroU32,
         Settings { workgroup_size, .. }: Settings,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let indirect_nodes = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -97,7 +97,7 @@ impl PipelinePart for BuildHashTables {
             workgroup_size,
             table_tries,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             build_hash_tables,
             CompiledModuleSettings {
@@ -127,7 +127,7 @@ impl PipelinePart for BuildHashTables {
             node_ids_and_collider_bits,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let max_num_nodes: NonZeroU64 = node_ids_and_collider_bits.len::<NodeIdAndColliderBits>();
         let hash_tables_size = (max_num_nodes.get() * 2)
             .next_power_of_two()

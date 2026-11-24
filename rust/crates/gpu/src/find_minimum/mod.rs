@@ -50,7 +50,7 @@ impl Input {
             dispatch_limit,
         }: Settings,
         numbers: &[f32],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -80,7 +80,7 @@ impl PipelinePart for FindMinimum {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             prepare_indirect,
             CompiledModuleSettings {
@@ -112,7 +112,7 @@ impl PipelinePart for FindMinimum {
 
         let subgroup_size = prepare_indirect.subgroup_size.get();
 
-        prepare_indirect.check_same_sugroup_size(&build_levels_minimum)?;
+        prepare_indirect.check_same_subgroup_size(&build_levels_minimum)?;
         prepare_indirect.check_workgroup_size_multiple_of_subgroup_size(workgroup_size.get())?;
 
         Ok(Self {
@@ -128,7 +128,7 @@ impl PipelinePart for FindMinimum {
         encoder: &mut CommandEncoder,
         input: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let len = input.numbers.len::<f32>();
 
         let max_level = (len.get() as u32 * self.subgroup_size - 1)

@@ -91,16 +91,16 @@ impl DownloadToHost {
 }
 
 impl DownloadToHostReady<'_> {
-    pub fn map<T, U, F>(&self, f: F) -> Result<Vec<U>, GpuError>
+    pub fn map<T, U, F>(&self, f: F) -> Result<Vec<U>, Error>
     where
         T: bytemuck::Pod,
         F: FnMut(&T) -> U,
     {
         Ok(
             bytemuck::cast_slice::<u8, T>(&self.data_slice.get_mapped_range().map_err(
-                |error| GpuError::MapRangeError {
+                |source| Error::MapRange {
                     label: self.label,
-                    error,
+                    source,
                 },
             )?)
             .iter()
@@ -109,12 +109,12 @@ impl DownloadToHostReady<'_> {
         )
     }
 
-    pub fn to_vec<T: bytemuck::Pod>(&self) -> Result<Vec<T>, GpuError> {
+    pub fn to_vec<T: bytemuck::Pod>(&self) -> Result<Vec<T>, Error> {
         Ok(
-            bytemuck::cast_slice(&self.data_slice.get_mapped_range().map_err(|error| {
-                GpuError::MapRangeError {
+            bytemuck::cast_slice(&self.data_slice.get_mapped_range().map_err(|source| {
+                Error::MapRange {
                     label: self.label,
-                    error,
+                    source,
                 }
             })?)
             .to_vec(),

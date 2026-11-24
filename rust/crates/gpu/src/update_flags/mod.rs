@@ -51,7 +51,7 @@ impl Input {
         device: &wgpu::Device,
         new_flags: &[ParticleFlags],
         flags: &[ParticleFlags],
-    ) -> Result<Self, GpuError> {
+    ) -> Result<Self, Error> {
         check_range!(new_flags, flags, 0)?;
 
         let new_flags = Allocation::new(device, "new_flags", new_flags)?;
@@ -75,7 +75,7 @@ impl PipelinePart for UpdateFlags {
             workgroup_size,
             dispatch_limit,
         }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             update_flags,
             CompiledModuleSettings {
@@ -103,11 +103,11 @@ impl PipelinePart for UpdateFlags {
         encoder: &mut CommandEncoder,
         Input { new_flags, flags }: Input,
         Parameters { offset }: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let num_flags = flags.len::<ParticleFlags>();
         let num_new_flags = new_flags.len::<ParticleFlags>();
         if num_new_flags.get() + offset as u64 > num_flags.get() {
-            Err(GpuInputError::RangesDoesNotFit {
+            Err(InputError::RangeDoesNotFit {
                 a: "new_flags",
                 a_len: num_new_flags.get() as usize,
                 b: "flags",

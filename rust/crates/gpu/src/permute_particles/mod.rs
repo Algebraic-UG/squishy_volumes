@@ -200,7 +200,7 @@ impl PipelinePart for PermuteParticles {
             velocity_gradients_in,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let indices_out = context
             .allocator()?
             .allocate::<u32>("indices_out", indices_in.len::<u32>())?;

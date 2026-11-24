@@ -46,7 +46,7 @@ impl Input {
         workgroup_size: NonZeroU32,
         dispatch_limit: NonZeroU32,
         node_ids_and_collider_bits: &[NodeIdAndColliderBits],
-    ) -> Result<Self, GpuAllocatorError> {
+    ) -> Result<Self, AllocatorError> {
         let indirect = Indirect::new(DispatchSettings {
             workgroup_size,
             dispatch_limit,
@@ -81,7 +81,7 @@ impl PipelinePart for NodeIdsToMurmur {
     fn new(
         context: &mut GpuContext,
         Settings { workgroup_size }: Settings,
-    ) -> Result<Self, GpuPipelineCreationError> {
+    ) -> Result<Self, PipelineError> {
         let_compiled_module!(
             node_ids_to_murmur,
             CompiledModuleSettings {
@@ -110,7 +110,7 @@ impl PipelinePart for NodeIdsToMurmur {
             node_ids_and_collider_bits,
         }: Input,
         _: Parameters,
-    ) -> Result<Output, GpuError> {
+    ) -> Result<Output, Error> {
         let hashes_node_ids = context.allocator()?.allocate::<u32>(
             "hashes_node_ids",
             node_ids_and_collider_bits.len::<NodeIdAndColliderBits>(),

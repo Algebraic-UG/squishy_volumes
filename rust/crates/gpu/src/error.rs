@@ -17,9 +17,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use squishy_volumes_file_frame::IoStateError;
-use thiserror::Error;
 
-use crate::{GpuAllocatorError, GpuShaderError, ProfilerError};
+use crate::{AllocatorError, ProfilerError, ShaderError};
 
 #[allow(dead_code)] // fields are read in the error below
 #[derive(Debug, Clone)]
@@ -29,91 +28,90 @@ pub struct ExceedingLimit {
     pub allowed: u64,
 }
 
-#[derive(Error, Debug)]
-pub enum GpuError {
-    #[error("Io state error")]
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("io state error")]
     IoState(#[from] IoStateError),
 
-    #[error("Failed to find adapter '{requested}' (available are: {available:?})")]
+    #[error("failed to find adapter '{requested}' (available are: {available:?})")]
     AdapterNotFound {
         requested: String,
         available: Vec<String>,
     },
 
-    #[error("Failed to map {label}")]
-    MapRangeError {
+    #[error("failed to map {label}")]
+    MapRange {
         label: &'static str,
-        #[source]
-        error: wgpu::MapRangeError,
+        source: wgpu::MapRangeError,
     },
 
-    #[error("Exceeding the theorical maximum of grid nodes, most likely encountered a bug.")]
+    #[error("exceeding the theoretical maximum of grid nodes, most likely encountered a bug")]
     MaxGridNodesExceeded,
 
-    #[error("Failed to create GPU pipeline")]
-    PipelineCreation(#[from] GpuPipelineCreationError),
+    #[error("failed to create GPU pipeline")]
+    PipelineCreation(#[from] PipelineError),
 
-    #[error("Csv profiling failed")]
-    CsvProfilerError(#[from] ProfilerError),
+    #[error("csv profiling failed")]
+    CsvProfiler(#[from] ProfilerError),
 
-    #[error("Poll error")]
-    PollError(#[from] wgpu::PollError),
+    #[error("failed to poll the device")]
+    Poll(#[from] wgpu::PollError),
 
-    #[error("Harness error")]
-    HarnessError(#[from] squishy_volumes_xpu::HarnessError),
+    #[error("harness error")]
+    Harness(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("Frame input error")]
-    FrameInputError(#[from] squishy_volumes_xpu::FrameInputError),
+    #[error("frame input error")]
+    FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
 
-    #[error("No particle input")]
+    #[error("no particle input")]
     NoParticles,
 
-    #[error("Failed to request the adapter")]
-    RequestAdapterError(#[from] wgpu::RequestAdapterError),
+    #[error("failed to request the adapter")]
+    RequestAdapter(#[from] wgpu::RequestAdapterError),
 
-    #[error("We can not deal with a small max workgroup dispatch yet.")]
+    #[error("we can not deal with a small max workgroup dispatch yet")]
     SmallMaxWorkGroupPerDimension,
 
-    #[error("Subgroup size is zero.")]
+    #[error("subgroup size is zero")]
     SubgroupSizeZero,
 
-    #[error("Adapter does not support compute shaders.")]
+    #[error("adapter does not support compute shaders")]
     ComputeNotSupported,
 
-    #[error("Adapter is missing required features: {0}")]
+    #[error("adapter is missing required features: {0}")]
     MissingRequiredFeatures(wgpu::Features),
 
-    #[error("Exceeding adapter's limits: {0:?}")]
+    #[error("exceeding adapter's limits: {0:?}")]
     ExceedingRequiredLimits(Vec<ExceedingLimit>),
 
-    #[error("Failed to request the device")]
-    RequestDeviceError(#[from] wgpu::RequestDeviceError),
+    #[error("failed to request the device")]
+    RequestDevice(#[from] wgpu::RequestDeviceError),
 
-    #[error("Failed to allocate a binding")]
-    AllocationError(#[from] GpuAllocatorError),
+    #[error("failed to allocate a binding")]
+    Allocation(#[from] AllocatorError),
 
-    #[error("Allocator is missing")]
+    #[error("allocator is missing")]
     AllocatorMissing,
 
-    #[error("Indirect allocator is missing")]
+    #[error("indirect allocator is missing")]
     IndirectAllocatorMissing,
 
-    #[error("There's no shader registered to {0}")]
+    #[error("there's no shader registered to {0}")]
     ShaderIdMissing(u32),
 
-    #[error("A shader reported errors")]
-    Shader(#[from] GpuShaderError),
+    #[error("a shader reported errors")]
+    Shader(#[from] ShaderError),
 
-    #[error("Input to the GPU wasn't valid")]
-    Input(#[from] GpuInputError),
+    #[error("input to the GPU wasn't valid")]
+    Input(#[from] InputError),
 }
 
-#[derive(Error, Debug)]
-pub enum GpuPipelineCreationError {
-    #[error("Could not determine subgroup size for {label}")]
+#[derive(thiserror::Error, Debug)]
+pub enum PipelineError {
+    #[error("could not determine subgroup size for {label}")]
     FailedToDetermineSubgroupSize { label: &'static str },
 
-    #[error("Subgroup size mismatch, '{a_label}' has {a_size}, but '{b_label}' has {b_size}")]
+    #[error("subgroup size mismatch, '{a_label}' has {a_size}, but '{b_label}' has {b_size}")]
     SubgroupSizeMismatch {
         a_label: &'static str,
         a_size: u32,
@@ -122,7 +120,7 @@ pub enum GpuPipelineCreationError {
     },
 
     #[error(
-        "{label}: The workgroup size {workgroup_size} isn't a multiple of the subgroup size {subgroup_size}"
+        "{label}: the workgroup size {workgroup_size} isn't a multiple of the subgroup size {subgroup_size}"
     )]
     WorkgroupSizeNotMultipleOfSubgroupSize {
         label: &'static str,
@@ -130,33 +128,33 @@ pub enum GpuPipelineCreationError {
         subgroup_size: u32,
     },
 
-    #[error("{label}: The subgroup size {subgroup_size} is too small, needed at least {needed}.")]
+    #[error("{label}: the subgroup size {subgroup_size} is too small, needed at least {needed}")]
     SubgroupSizeTooSmall {
         label: &'static str,
         subgroup_size: u32,
         needed: u32,
     },
 
-    #[error("Failed to set pipeline constants")]
-    PipelineConstantError(#[from] wgpu::naga::back::pipeline_constants::PipelineConstantError),
+    #[error("failed to set pipeline constants")]
+    PipelineConstant(#[from] wgpu::naga::back::pipeline_constants::PipelineConstantError),
 
-    #[error("Duplicate constant: {0}")]
-    PipelineDuplicateConstant(&'static str),
+    #[error("duplicate constant: {0}")]
+    DuplicateConstant(&'static str),
 }
 
-#[derive(Error, Debug)]
-pub enum GpuInputError {
+#[derive(thiserror::Error, Debug)]
+pub enum InputError {
     #[error(
-        "Range does not fit: '{a}' has length {a_len} and won't fit with offset {offset} into '{b}' (length {b_len})"
+        "range does not fit: '{a}' has length {a_len} and won't fit with offset {offset} into '{b}' (length {b_len})"
     )]
-    RangesDoesNotFit {
+    RangeDoesNotFit {
         a: &'static str,
         a_len: usize,
         b: &'static str,
         b_len: usize,
         offset: usize,
     },
-    #[error("Length mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}")]
+    #[error("length mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}")]
     LengthMismatch {
         a: &'static str,
         a_len: usize,
@@ -165,7 +163,7 @@ pub enum GpuInputError {
     },
 
     #[error(
-        "Length multiple mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}, multiple {multiple}"
+        "length multiple mismatch: '{a}' has length {a_len} but '{b}' has length {b_len}, multiple {multiple}"
     )]
     LengthMultipleMismatch {
         a: &'static str,
@@ -175,7 +173,7 @@ pub enum GpuInputError {
         multiple: usize,
     },
     #[error(
-        "Index out of bounds: '{indices}' contains {index} but length of {indexed} is {indexed_len}"
+        "index out of bounds: '{indices}' contains {index} but length of {indexed} is {indexed_len}"
     )]
     IndexOutOfBounds {
         indices: &'static str,
@@ -189,7 +187,7 @@ pub enum GpuInputError {
 macro_rules! check_length {
     ($a:expr, $b:expr) => {
         if $a.len() != $b.len() {
-            Err(GpuInputError::LengthMismatch {
+            Err($crate::InputError::LengthMismatch {
                 a: stringify!($a),
                 a_len: $a.len(),
                 b: stringify!($b),
@@ -205,7 +203,7 @@ macro_rules! check_length {
 macro_rules! check_range {
     ($a:expr, $b:expr, $offset:expr) => {
         if $a.len() > $b.len() {
-            Err(GpuInputError::RangesDoesNotFit {
+            Err($crate::InputError::RangeDoesNotFit {
                 a: stringify!($a),
                 a_len: $a.len(),
                 b: stringify!($b),
@@ -222,7 +220,7 @@ macro_rules! check_range {
 macro_rules! check_length_multiple {
     ($a:expr, $b:expr, $multiple:expr) => {
         if $a.len() != $b.len() * $multiple {
-            Err(GpuInputError::LengthMultipleMismatch {
+            Err($crate::InputError::LengthMultipleMismatch {
                 a: stringify!($a),
                 a_len: $a.len(),
                 b: stringify!($b),
@@ -242,7 +240,7 @@ macro_rules! check_indices_valid {
             .into_iter()
             .find(|&&index| (index as usize) >= $indexed.len())
         {
-            Err(GpuInputError::IndexOutOfBounds {
+            Err($crate::InputError::IndexOutOfBounds {
                 indices: stringify!($indices),
                 index: index as usize,
                 indexed: stringify!($indexed),
