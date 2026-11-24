@@ -37,14 +37,12 @@ fn check(
 
     println!("time: {time}, reached: {reached}");
     println!("gpu_time: {gpu_time}, result: {result:?}");
-    if reached {
-        assert!(matches!(
-            result,
-            Err(Error::Shader(ShaderError::FrameTimeReached))
-        ));
+    let expected = if reached {
+        StepOutcome::FrameTimeReached
     } else {
-        result.unwrap();
-    }
+        StepOutcome::Continue
+    };
+    assert_eq!(result.unwrap(), expected);
     assert_eq!(time, gpu_time);
     assert_eq!(step, gpu_step);
 }

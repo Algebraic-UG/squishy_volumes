@@ -567,7 +567,8 @@ impl GpuState {
             let result = mapped_downloads.status.to_result(&self.gpu_context);
             self.gpu_context.reset_status()?;
             match result {
-                Ok(_) => {
+                Ok(StepOutcome::FrameTimeReached) => {}
+                Ok(StepOutcome::Continue) => {
                     tracing::info!("Frame wasn't finished");
                     self.steps_per_frame *= 2;
                     let limits_over_time = Allocation::new(
@@ -589,25 +590,33 @@ impl GpuState {
                     self.pending_input = Some(pending_input);
                     continue;
                 }
-                Err(Error::Shader(ShaderError::IndirectLimitExceeded { reporting_shader })) => {
+                Err(Error::Shader {
+                    reporting_shader,
+                    source: ShaderError::IndirectLimitExceeded,
+                }) => {
                     tracing::warn!(
                         reporting_shader,
                         "The number of grid nodes is larger than expected."
                     );
                     redo_frame = true;
                 }
-                Err(Error::Shader(ShaderError::TableTriesExceeded { reporting_shader })) => {
+                Err(Error::Shader {
+                    reporting_shader,
+                    source: ShaderError::TableTriesExceeded,
+                }) => {
                     tracing::warn!(reporting_shader, "The hash table appears to be too small.");
                     redo_frame = true;
                 }
-                error @ Err(Error::Shader(ShaderError::ParticleCloseToInverted {
-                    reporting_shader,
-                })) => {
+                Err(
+                    error @ Error::Shader {
+                        reporting_shader,
+                        source: ShaderError::ParticleCloseToInverted,
+                    },
+                ) => {
                     tracing::warn!(reporting_shader, "A particle is too close to inversion.");
-                    buffered_error = error;
+                    buffered_error = Err(error);
                 }
-                Err(Error::Shader(ShaderError::FrameTimeReached)) => {}
-                x => x?,
+                Err(error) => return Err(error),
             };
             break pending_input;
         };

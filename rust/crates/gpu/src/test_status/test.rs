@@ -50,8 +50,9 @@ fn read_back_status() {
 
     assert!(matches!(
         status.to_result(&context),
-        Err(Error::Shader(ShaderError::TableTriesExceeded {
-            reporting_shader: "test_status"
-        })),
+        Err(Error::Shader {
+            reporting_shader: "test_status",
+            source: ShaderError::TableTriesExceeded,
+        }),
     ));
 }
