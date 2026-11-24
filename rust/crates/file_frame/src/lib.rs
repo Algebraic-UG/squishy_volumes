@@ -25,6 +25,9 @@ mod read;
 mod util;
 mod write;
 
+#[cfg(test)]
+mod tests;
+
 use std::io::{Read, Seek, Write};
 
 pub use util::*;

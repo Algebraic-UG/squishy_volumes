@@ -3859,6 +3859,7 @@ dependencies = [
  "squishy_volumes_mesh_util",
  "squishy_volumes_util",
  "strum",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

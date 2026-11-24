@@ -31,8 +31,16 @@ pub enum Error {
     },
     #[error("another simulation is currently using this cache: {0}")]
     AlreadyLocked(PathBuf),
-    #[error("unknown io error")]
-    Io(#[from] std::io::Error),
+    #[error("failed to open the lock file '{path}'")]
+    LockFile {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error("failed to lock '{path}'")]
+    Lock {
+        path: PathBuf,
+        source: std::io::Error,
+    },
 }
 
 fn lock_path(directory: impl AsRef<Path>) -> PathBuf {
@@ -59,12 +67,17 @@ impl LockedFile {
             }
         })?;
 
-        let file = File::options()
+        let path = lock_path(&directory);
+        let file = match File::options()
             .read(true)
             .write(true)
             .create(true)
             .truncate(false)
-            .open(lock_path(&directory))?;
+            .open(&path)
+        {
+            Ok(file) => file,
+            Err(source) => return Err(Error::LockFile { path, source }),
+        };
         match file.try_lock() {
             Ok(()) => Ok(Self {
                 directory,
@@ -74,7 +87,7 @@ impl LockedFile {
                 tracing::error!(?directory, "Already locked");
                 Err(Error::AlreadyLocked(directory))
             }
-            Err(TryLockError::Error(error)) => Err(error.into()),
+            Err(TryLockError::Error(source)) => Err(Error::Lock { path, source }),
         }
     }
 }
@@ -229,13 +242,39 @@ mod tests {
     }
 
     #[test]
+    fn file_in_place_of_directory_names_the_directory() {
+        let dir = temp_dir("file_in_place");
+        std::fs::write(&dir, "not a directory").unwrap();
+
+        let result = DirectoryLock::new(dir.clone());
+        assert!(matches!(
+            result,
+            Err(Error::CreateDirectory { ref directory, .. }) if *directory == dir
+        ));
+        std::fs::remove_file(dir).unwrap();
+    }
+
+    #[test]
+    fn directory_in_place_of_lock_file_names_the_lock_file() {
+        let dir = temp_dir("directory_in_place");
+        std::fs::create_dir_all(lock_path(&dir)).unwrap();
+
+        let result = DirectoryLock::new(dir.clone());
+        assert!(matches!(
+            result,
+            Err(Error::LockFile { ref path, .. }) if *path == lock_path(&dir)
+        ));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn failed_map_releases_lock() {
         let dir = temp_dir("failed_map");
         let result = DirectoryLock::new(dir.clone())
             .unwrap()
             .try_map(|_, ()| Err::<(), _>("nope"));
 
-        assert!(result.is_err());
+        assert!(matches!(result, Err("nope")));
         drop(DirectoryLock::new(dir.clone()).unwrap());
         std::fs::remove_dir_all(dir).unwrap();
     }
