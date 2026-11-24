@@ -87,6 +87,7 @@ impl Harness {
     }
 
     pub fn step_to(&self, completed_steps: usize) -> Result<(), HarnessError> {
+        self.check()?;
         self.report
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -96,6 +97,7 @@ impl Harness {
     }
 
     pub fn step(&self) -> Result<(), HarnessError> {
+        self.check()?;
         self.report
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -128,7 +130,7 @@ impl Harness {
         Ok(Self { run, report })
     }
 
-    pub fn get_infos(&self) -> Result<Vec<ReportInfo>, HarnessError> {
+    pub fn get_infos(&self) -> Vec<ReportInfo> {
         let mut infos: Vec<ReportInfo> = Default::default();
 
         let mut report = self.report.clone();
@@ -142,7 +144,7 @@ impl Harness {
             report = sub_report;
         }
 
-        Ok(infos)
+        infos
     }
 }
 
@@ -172,7 +174,7 @@ mod tests {
         assert!(sub_harness.report.is_poisoned());
 
         harness.step().unwrap();
-        let infos = harness.get_infos().unwrap();
+        let infos = harness.get_infos();
 
         let progress = infos
             .iter()

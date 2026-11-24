@@ -263,7 +263,7 @@ impl ComputeThread {
             return Ok(Default::default());
         }
         self.thread = Some(thread);
-        Ok(self.harness.get_infos()?)
+        Ok(self.harness.get_infos())
     }
 }
 
