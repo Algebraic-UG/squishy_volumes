@@ -32,7 +32,7 @@ pub struct InputConsts {
     pub capture_start_frame: i32,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl InputConsts {
     pub fn test_input() -> Self {
         Self {

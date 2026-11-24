@@ -36,3 +36,4 @@ squishy_volumes_util.path = "../util"
 
 [dev-dependencies]
 tempfile = "3.23.0"
+squishy_volumes_file_input = { path = "../file_input", features = ["test-utils"] }

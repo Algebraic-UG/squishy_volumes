@@ -18,9 +18,10 @@
 
 use std::num::NonZero;
 
-use serde_json::json;
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
-use squishy_volumes_file_input::{Header, InputReader, InputWriter};
+use squishy_volumes_file_input::{
+    InputHeader, InputObject, InputObjectParticles, InputReader, write_test_input,
+};
 use squishy_volumes_gpu::{GpuContext, GpuRunParameters, GpuState};
 use squishy_volumes_xpu::Harness;
 use tempfile::TempDir;
@@ -28,29 +29,15 @@ use tempfile::TempDir;
 use crate::initialization::{StateInitializationError, initialize_io_state};
 
 fn recorded_input(directory: &TempDir) -> InputReader {
-    let path = directory.path().join("input.bin");
-    let header = serde_json::from_value(json!({
-        "consts": {
-            "grid_node_size": 0.5,
-            "leaf_size": 1.0,
-            "leaf_threshold": 16,
-            "simulation_scale": 1.0,
-            "frames_per_second": 24,
-            "domain_min": [-1.0, -1.0, -1.0],
-            "domain_max": [1.0, 1.0, 1.0],
-            "capture_start_frame": 1
-        },
-        "objects": {
-            "particles": { "Particles": { "num_particles": 1, "alembic_attributes": [] } }
-        }
-    }))
-    .unwrap();
-    let mut writer = InputWriter::new(&path, Header::new(header)).unwrap();
-    for _ in 0..2 {
-        writer.start_frame(&bytemuck::Zeroable::zeroed()).unwrap();
-    }
-    writer.flush().unwrap();
-    InputReader::new(path).unwrap()
+    let particles = InputObject::Particles(InputObjectParticles {
+        num_particles: 1,
+        alembic_attributes: Default::default(),
+    });
+    write_test_input(
+        directory.path().join("input.bin"),
+        InputHeader::test_input([("particles".to_string(), particles)]),
+        2,
+    )
 }
 
 fn harness() -> Harness {
