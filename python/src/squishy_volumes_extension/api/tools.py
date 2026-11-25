@@ -25,7 +25,7 @@ from ..assets import (
     create_geometry_nodes_restrict_view,
 )
 from ..errors import InvalidInput
-from ..squishy_volumes_properties import get_simulation_objects
+from ..properties import get_simulation_objects
 
 DRIVEN_SOCKETS = {
     "Grid Node Size": ("grid_node_size", "squishy_volumes.grid_node_size"),

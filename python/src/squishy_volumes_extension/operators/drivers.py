@@ -18,9 +18,9 @@
 
 import bpy
 
-from . import api
+from .. import api
+from ..registration import class_registration
 from .operator_base import ReportingOperator
-from .registration import class_registration
 
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Drivers(

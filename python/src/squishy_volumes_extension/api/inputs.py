@@ -26,7 +26,7 @@ from ..assets import (
     create_geometry_nodes_visualize_particles,
 )
 from ..errors import InvalidInput
-from ..squishy_volumes_properties import (
+from ..properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
     PARTICLE_ATTRIBUTE_MAPPING,

@@ -24,7 +24,7 @@ from . import input_attributes
 from .bridge import SimulationInputHandle
 from .errors import InvalidInput, ScaledInputError
 from .get_preferences import get_allow_scaled_input, get_domain_max, get_domain_min
-from .squishy_volumes_properties import (
+from .properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
     PARTICLE_ATTRIBUTE_MAPPING,

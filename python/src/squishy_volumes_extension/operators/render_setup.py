@@ -18,13 +18,13 @@
 
 import bpy
 
-from . import api
-from .operator_base import ReportingOperator
-from .registration import class_registration
-from .squishy_volumes_properties import (
+from .. import api
+from ..properties import (
     get_selected_simulation_object,
     get_simulation_objects,
 )
+from ..registration import class_registration
+from .operator_base import ReportingOperator
 
 _simulation_items: list[tuple[str, str, str]] = []
 _camera_items: list[tuple[str, str, str]] = []

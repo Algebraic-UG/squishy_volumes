@@ -16,350 +16,31 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from collections.abc import Generator
-
 import bpy
 
-from .. import api
 from ..bridge import SimulationHandle
-from ..cache_paths import simulation_input_exists
-from ..capture_markers import (
-    capture_markers,
-    capture_markers_error,
-    place_capture_markers,
-    range_to_record,
-    remove_superfluous_capture_markers,
-    superfluous_capture_markers,
-)
+from ..capture_markers import capture_markers, capture_markers_error
 from ..get_preferences import (
     first_run_setup_pending,
-    get_confirm_bake_overwrite,
     get_enable_timeline_markers,
     get_preferences,
 )
-from ..operator_base import SimulationOperator, report_error
-from ..registration import class_registration
-from ..squishy_volumes_properties import (
+from ..operators.simulate import (
+    SCENE_OT_Squishy_Volumes_Bake_Pause,
+    SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest,
+    SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded,
+    SCENE_OT_Squishy_Volumes_Fix_Capture_Markers,
+    SCENE_OT_Squishy_Volumes_Record_Input_To_Cache,
+    rebake_frame,
+)
+from ..properties import (
     Squishy_Volumes_Properties_Simulation,
     capture_frame_count,
-    frame_to_load,
     get_input_objects_with_uuid,
     get_selected_simulation_object,
     get_selected_simulation_uuid,
-    get_simulation_object_with_uuid,
-    stored_range,
 )
-
-
-def rebake_frame(
-    sim_handle: SimulationHandle,
-    sim_props: Squishy_Volumes_Properties_Simulation,
-    scene: bpy.types.Scene,
-) -> int | None:
-    """The displayed frame, if a rebake from it would replace baked frames."""
-    loaded_frame = frame_to_load(sim_props, scene.frame_current)
-    if loaded_frame is None or loaded_frame + 1 >= sim_handle.available_frames():
-        return None
-    return loaded_frame
-
-
-class SCENE_OT_Squishy_Volumes_Fix_Capture_Markers(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_fix_capture_markers"
-    bl_label = "Fix Timeline Markers"
-    bl_description = """Each simulation needs exactly two timeline markers
-named like the simulation, marking the first and last frame to record.
-
-With fewer, both are restored at the previously recorded range.
-With more, only the earliest and the latest are kept."""
-    bl_options = {"REGISTER", "UNDO"}  # noqa: RUF012
-
-    uuid: bpy.props.StringProperty()
-
-    @classmethod
-    def poll(cls, context):
-        return get_enable_timeline_markers()
-
-    def execute(self, context):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        if len(capture_markers(context.scene, sim_obj)) < 2:
-            start, end = stored_range(sim_obj.squishy_volumes)
-            place_capture_markers(context.scene, sim_obj, start, end)
-        else:
-            remove_superfluous_capture_markers(context.scene, sim_obj)
-        self.report({"INFO"}, f"Fixed timeline markers of {sim_obj.name}.")
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        restoring = len(capture_markers(context.scene, sim_obj)) < 2
-        return context.window_manager.invoke_props_dialog(
-            self,
-            title=f"Squishy Volumes: {sim_obj.name}",
-            confirm_text="Restore Markers" if restoring else "Delete Superfluous",
-            width=400,
-        )
-
-    def draw(self, context):
-        assert self.layout is not None
-        sim_obj = get_simulation_object_with_uuid(self.uuid)
-        markers = capture_markers(context.scene, sim_obj)
-        self.layout.label(text=capture_markers_error(context.scene, sim_obj) + ".")
-        if len(markers) < 2:
-            start, end = stored_range(sim_obj.squishy_volumes)
-            self.layout.label(text=f"Restore them at frames {start} and {end}?")
-        else:
-            superfluous = superfluous_capture_markers(context.scene, sim_obj)
-            frames = ", ".join(str(marker.frame) for marker in superfluous)
-            self.layout.label(
-                text=f"Keep frames {markers[0].frame} and {markers[-1].frame}?"
-            )
-            self.layout.label(text=f"Deletes the markers at frames {frames}.")
-
-
-class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache(
-    SimulationOperator, bpy.types.Operator
-):
-    bl_idname = "scene.squishy_volumes_record_input_to_cache"
-    bl_label = "Record Input"
-    bl_description = """(Over)Write the cache with the new input.
-
-The input objects are evaluated from the capture start to the capture end frame.
-With timeline markers enabled in the preferences,
-these are set by the two markers named like the simulation.
-
-This writes global settings as well as object specific settings
-to the simulation cache.
-
-Note that this also discards all computed frames in the cache."""
-    bl_options = {"REGISTER"}  # noqa: RUF012
-
-    start_baking: bpy.props.BoolProperty(default=False)
-
-    def run(self, context):
-        sim_obj = self.sim_obj
-        api.capture_range(sim_obj, scene=context.scene)
-        if not bpy.app.background:
-            bpy.ops.scene.squishy_volumes_record_input_to_cache_modal(
-                "INVOKE_DEFAULT", uuid=self.uuid, start_baking=self.start_baking
-            )
-            return {"FINISHED"}
-        recorded_frames = api.record_input(sim_obj, scene=context.scene)
-        self.report({"INFO"}, f"Recorded {recorded_frames} frames of {sim_obj.name}.")
-        if self.start_baking:
-            try:
-                start_baking(self, sim_obj)
-            except RuntimeError as error:
-                return self.finish_with_warning(
-                    self.uuid, f"{sim_obj.name} is recorded but not baking:\n{error}"
-                )
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        sim_obj = self.sim_obj
-        if range_to_record(context.scene, sim_obj) is None:
-            bpy.ops.scene.squishy_volumes_fix_capture_markers(
-                "INVOKE_DEFAULT", uuid=self.uuid
-            )
-            return {"CANCELLED"}
-        if (
-            simulation_input_exists(sim_obj.squishy_volumes.directory)
-            and get_confirm_bake_overwrite()
-        ):
-            return context.window_manager.invoke_props_dialog(self)
-        return self.execute(context)
-
-    def draw(self, context):
-        assert isinstance(self.layout, bpy.types.UILayout)
-        sim_handle = SimulationHandle.get(uuid=self.uuid)
-        if sim_handle is None:
-            prior_frames = 0
-        else:
-            prior_frames = sim_handle.available_frames()
-        self.layout.label(text="WARNING: This is a destructive operation!")
-        self.layout.label(
-            text=f"The previously record will be overwritten, including: {prior_frames} frames"
-        )
-
-
-class SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal(bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_record_input_to_cache_modal"
-    bl_label = "Record Input Modal"
-    bl_options = set()  # noqa: RUF012
-
-    uuid: bpy.props.StringProperty()
-    start_baking: bpy.props.BoolProperty(default=False)
-
-    _timer = None
-    _recording = None
-    _animation_was_playing = False
-
-    def invoke(self, context, event):
-        sim_obj = api.find_simulation(self.uuid)
-        start, end = api.capture_range(sim_obj, scene=context.scene)
-        self._animation_was_playing = bool(
-            context.screen and context.screen.is_animation_playing
-        )
-        bpy.ops.screen.animation_cancel(restore_frame=False)
-        self._recording = api.iter_record_input(sim_obj, scene=context.scene)
-        self._timer = context.window_manager.event_timer_add(
-            time_step=0, window=context.window
-        )
-        context.window_manager.progress_begin(0, end - start + 1)
-        context.window_manager.modal_handler_add(self)
-        return {"RUNNING_MODAL"}
-
-    @property
-    def recording(self) -> Generator[int]:
-        assert self._recording is not None
-        return self._recording
-
-    def modal(self, context, event):
-        if event.type in {"RIGHTMOUSE", "ESC"}:
-            self.cancel(context)
-            self.report({"WARNING"}, "Recording cancelled.")
-            return {"CANCELLED"}
-        if event.type != "TIMER":
-            return {"RUNNING_MODAL"}
-        finished = True
-        try:
-            recorded_frames = next(self.recording, None)
-            if recorded_frames is not None:
-                context.window_manager.progress_update(recorded_frames)
-                finished = False
-                return {"RUNNING_MODAL"}
-        except RuntimeError as error:
-            report_error(self, self.uuid, error)
-            return {"CANCELLED"}
-        finally:
-            if finished:
-                self.cancel(context)
-        self._report_finished()
-        return {"FINISHED"}
-
-    def cancel(self, context):
-        self.recording.close()
-        if self._timer is not None:
-            context.window_manager.event_timer_remove(self._timer)
-            self._timer = None
-            context.window_manager.progress_end()
-        if self._animation_was_playing:
-            self._animation_was_playing = False
-            bpy.ops.screen.animation_play()
-
-    def _report_finished(self):
-        sim_obj = api.find_simulation(self.uuid)
-        self.report({"INFO"}, f"Finished recording {sim_obj.name}.")
-        if self.start_baking:
-            try:
-                start_baking(self, sim_obj)
-            except RuntimeError as error:
-                report_error(self, self.uuid, error)
-
-
-def start_baking(operator, sim_obj: bpy.types.Object):
-    api.bake(sim_obj)
-    operator.report({"INFO"}, f"Commence baking of {sim_obj.name}.")
-
-
-def selected_simulation_handle(context) -> SimulationHandle | None:
-    uuid = get_selected_simulation_uuid(context.scene)
-    return None if uuid is None else SimulationHandle.get(uuid=uuid)
-
-
-class SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest(
-    SimulationOperator, bpy.types.Operator
-):
-    bl_idname = "scene.squishy_volumes_bake_start_from_latest"
-    bl_label = "Bake (from latest)"
-    bl_description = """Continue baking physics.
-
-This uses the latest state available and runs the simulation
-either until the desired number of frames is reached
-or cancellation occurs due to user input or error."""
-    bl_options = {"REGISTER"}  # noqa: RUF012
-
-    @classmethod
-    def poll(cls, context):
-        sim_obj = get_selected_simulation_object(context.scene)
-        sim_handle = selected_simulation_handle(context)
-        return (
-            sim_obj is not None
-            and sim_handle is not None
-            and not sim_handle.baking()
-            and sim_handle.available_frames() < sim_obj.squishy_volumes.bake_frames
-        )
-
-    def run(self, context):
-        start_baking(self, self.sim_obj)
-        return {"FINISHED"}
-
-
-class SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded(
-    SimulationOperator, bpy.types.Operator
-):
-    bl_idname = "scene.squishy_volumes_bake_start_from_loaded"
-    bl_label = "Bake"
-    bl_description = """Restart baking physics.
-
-This continues from the simulated frame that belongs to
-the current scene frame, counted from the recorded start,
-and runs the simulation either until the desired number
-of frames is reached or cancellation occurs due to user input or error.
-
-Outputs that load the cache with their own frame offset
-may display a different state than the one rebaked from.
-
-Note that this discards already computed frames that
-come after the rebaked one."""
-    bl_options = {"REGISTER"}  # noqa: RUF012
-
-    @classmethod
-    def poll(cls, context):
-        sim_obj = get_selected_simulation_object(context.scene)
-        sim_handle = selected_simulation_handle(context)
-        return (
-            sim_obj is not None
-            and sim_handle is not None
-            and not sim_handle.baking()
-            and rebake_frame(sim_handle, sim_obj.squishy_volumes, context.scene)
-            is not None
-        )
-
-    def run(self, context):
-        sim_obj = self.sim_obj
-        sim_handle = SimulationHandle.get(uuid=self.uuid)
-        loaded_frame = (
-            None
-            if sim_handle is None
-            else rebake_frame(sim_handle, sim_obj.squishy_volumes, context.scene)
-        )
-        if loaded_frame is None:
-            raise api.InvalidBakeRange(
-                f"The displayed frame of {sim_obj.name} has no baked frames after it"
-            )
-        api.bake(sim_obj, from_frame=loaded_frame)
-        self.report(
-            {"INFO"}, f"Commence baking of {sim_obj.name} from frame {loaded_frame}."
-        )
-        return {"FINISHED"}
-
-
-class SCENE_OT_Squishy_Volumes_Bake_Pause(SimulationOperator, bpy.types.Operator):
-    bl_idname = "scene.squishy_volumes_bake_pause"
-    bl_label = "Pause"
-    bl_description = "Pause the computation of the simulation frames."
-    bl_options = {"REGISTER"}  # noqa: RUF012
-
-    @classmethod
-    def poll(cls, context):
-        sim_handle = selected_simulation_handle(context)
-        return sim_handle is not None and sim_handle.baking()
-
-    def run(self, context):
-        sim_obj = self.sim_obj
-        api.pause_bake(sim_obj)
-        self.report({"INFO"}, f"Baking of {sim_obj.name} paused.")
-        return {"FINISHED"}
+from ..registration import class_registration
 
 
 def draw_capture_range(
@@ -492,12 +173,6 @@ class SCENE_PT_Squishy_Volumes_Simulate(bpy.types.Panel):
 
 
 classes = [
-    SCENE_OT_Squishy_Volumes_Fix_Capture_Markers,
-    SCENE_OT_Squishy_Volumes_Record_Input_To_Cache,
-    SCENE_OT_Squishy_Volumes_Record_Input_To_Cache_Modal,
-    SCENE_OT_Squishy_Volumes_Bake_Start_From_Latest,
-    SCENE_OT_Squishy_Volumes_Bake_Start_From_Loaded,
-    SCENE_OT_Squishy_Volumes_Bake_Pause,
     SCENE_PT_Squishy_Volumes_Simulate,
 ]
 

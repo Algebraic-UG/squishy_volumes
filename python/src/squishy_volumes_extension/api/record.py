@@ -29,7 +29,7 @@ from ..capture_markers import (
 from ..capture_markers import set_capture_range as set_stored_and_marked_range
 from ..errors import CaptureRangeError
 from ..input_capture import capture_input_frame, create_input_header
-from ..squishy_volumes_properties import stored_range
+from ..properties import stored_range
 from ..util import giga_f32_to_u64
 from .simulation import reload, scene_or_current, update_frame_driver
 

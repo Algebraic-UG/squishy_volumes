@@ -210,6 +210,6 @@ class FindSimulationByNameTest(RenderTestCase):
 class SetUpRenderDialogTest(RenderTestCase):
     def test_lists_the_cameras_of_the_active_scene(self):
         add_camera("Elsewhere", bpy.data.scenes.new("Other"))
-        items = addon().render_setup.camera_items(None, bpy.context)
+        items = addon().operators.render_setup.camera_items(None, bpy.context)
 
         self.assertEqual([item[0] for item in items], [self.camera.name])
