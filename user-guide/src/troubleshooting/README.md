@@ -49,10 +49,21 @@ This can happen when 'extension.blender.org' was chosen during install.
 Please uninstall and try again with 'User Default'.
 
 
-### Unsupported Blender Version 
+### Unsupported Blender Version
 
 Make sure your Blender version is supported.
 
 You'll see this when you try to install Squishy Volumes in an unsupported Blender version like 4.5.12:
 
 <img src="unsupported_blender.png">
+
+## Headless Usage
+
+Using Squishy Volumes with headless Blender (see also [Scripting](../scripting.md)) you are more likely to run into the following issues.
+
+### Cache Not Loaded
+
+Squishy Volumes' simulation caches are not loaded automatically when opening a .blend file.
+(Headless behaves the same as with UI)
+
+Make sure to call `sv.reload(...)` on any simulations that you have baked prior and that you would like to re-use.
