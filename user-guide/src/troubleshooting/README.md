@@ -12,13 +12,13 @@ You can also just message me (Vollkornaffe) on Discord directly, I'm happy to he
 
 I swear by this. Yet certain problems are so hard to solve 'completely' that we have to cut some corners (at least for now) and this is why this chapter exists.
 
-## No Squishy Volumes UI 
+## No Squishy Volumes UI
 
 If you cannot find the Squishy Volumes [UI](../getting_started/discover_ui.md):
 
 Please make sure that you have [installed](../getting_started/installation.md) Squishy Volumes and that you are in [Object Mode](https://docs.blender.org/manual/en/latest/editors/3dview/modes.html).
 
-If you have several other Add-ons installed, you might need to scroll down in the sidebar. 
+If you have several other Add-ons installed, you might need to scroll down in the sidebar.
 
 ## Installation
 
@@ -30,7 +30,7 @@ Please try to verify that Squishy Volumes is installed in Edit > Preferences (Ct
 
 <img src="verify_installed.png">
 
-### Multiple 
+### Multiple
 
 This can happen by mixing installation methods.
 
@@ -49,10 +49,21 @@ This can happen when 'extension.blender.org' was chosen during install.
 Please uninstall and try again with 'User Default'.
 
 
-### Unsupported Blender Version 
+### Unsupported Blender Version
 
 Make sure your Blender version is supported.
 
 You'll see this when you try to install Squishy Volumes in an unsupported Blender version like 4.5.12:
 
 <img src="unsupported_blender.png">
+
+## Headless Usage
+
+Using Squishy Volumes with headless Blender (see also [Scripting](../scripting.md)) you are more likely to run into the following issues.
+
+### Cache Not Loaded
+
+Squishy Volumes' simulation caches are not loaded automatically when opening a .blend file.
+(Headless behaves the same as with UI)
+
+Make sure to call `sv.reload(...)` on any simulations that you have baked prior and that you would like to re-use.
