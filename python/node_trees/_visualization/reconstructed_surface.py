@@ -70,11 +70,15 @@ class ReconstructedSurfaceVisualization(CustomGeometryGroup):
             )
 
         with g.Frame("Points -> SDF -> Smooth -> Mesh"):
-            geometry = (
+            surface = (
                 g.PointsToSDFGrid(geometry, radius, voxel_size)
                 >> g.SDFGridMean(iterations=smooth_iterations)
                 >> g.GridToMesh(threshold=0)
             )
+
+        with g.Frame("Skip empty point clouds, Points to SDF Grid crashes on them"):
+            point_count = g.DomainSize(geometry, component="POINTCLOUD").o.point_count
+            geometry = g.Switch.geometry(point_count > 0, None, surface)
 
         (
             geometry
