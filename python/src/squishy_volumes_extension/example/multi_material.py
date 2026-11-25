@@ -18,35 +18,36 @@
 
 import bpy
 
-from .. import api
 from .staging import stage_example
 
 EXAMPLE_MULTI_MATERIAL = "Multi Material"
 
 
 def setup_example_multi_material(context: bpy.types.Context):
-    sim_obj = api.add_simulation(EXAMPLE_MULTI_MATERIAL, scene=context.scene)
+    import squishy_volumes as sv
+
+    sim_obj = sv.add_simulation(EXAMPLE_MULTI_MATERIAL, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
 
     sim_props.grid_node_size = 0.2
     sim_props.time_step = 0.005
 
     bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 0))
-    solid_output = api.add_input(sim_obj, context.active_object, api.PARTICLES)
-    api.set_modifier_input(
+    solid_output = sv.add_input(sim_obj, context.active_object, sv.PARTICLES)
+    sv.set_modifier_input(
         solid_output.modifiers["Squishy Volumes Output"], "Scale", 0.1
     )
 
     bpy.ops.mesh.primitive_uv_sphere_add(radius=1, location=(0, 0, 3))
     fluid = context.active_object
-    fluid_output = api.add_input(sim_obj, fluid, api.PARTICLES)
-    api.set_modifier_input(fluid.modifiers["Squishy Volumes Input"], "Type", "Fluid")
-    api.set_modifier_input(
+    fluid_output = sv.add_input(sim_obj, fluid, sv.PARTICLES)
+    sv.set_modifier_input(fluid.modifiers["Squishy Volumes Input"], "Type", "Fluid")
+    sv.set_modifier_input(
         fluid_output.modifiers["Squishy Volumes Output"], "Scale", 0.1
     )
 
     bpy.ops.mesh.primitive_plane_add(size=6, location=(0, 0, -2))
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    sv.add_input(sim_obj, context.active_object, sv.COLLIDER)
 
     stage_example(
         context.scene,
