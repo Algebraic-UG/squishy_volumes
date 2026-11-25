@@ -94,6 +94,8 @@ pub enum SimulationError {
 
     #[error("failed to finalize the input")]
     FinalizeInput(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to replace the previous input")]
+    ReplaceInput(#[source] std::io::Error),
     #[error("failed to start reading the input")]
     StartReadingInput(#[source] squishy_volumes_file_input::Error),
 
