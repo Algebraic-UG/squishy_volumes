@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 import shutil
 import sys
 import tempfile
@@ -25,6 +26,15 @@ from pathlib import Path
 import bpy
 
 from .bootstrap import ADDON_MODULE, ensure_extension_installed
+
+
+def video_dir() -> Path | None:
+    directory = os.environ.get("SQUISHY_VOLUMES_VIDEO_DIR")
+    return None if directory is None else Path(directory)
+
+
+def video_preset() -> str:
+    return os.environ.get("SQUISHY_VOLUMES_VIDEO_PRESET", "PREVIEW")
 
 
 def addon():

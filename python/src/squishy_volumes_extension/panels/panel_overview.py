@@ -24,7 +24,12 @@ import bpy
 from .. import api
 from ..bridge import SimulationHandle, build_info
 from ..cache_paths import check_cache_directory, simulation_input_exists
-from ..example import EXAMPLE_BENCHMARK, EXAMPLE_BOING_BLOCK, setup_example_simulation
+from ..example import (
+    EXAMPLE_BENCHMARK,
+    EXAMPLE_BOING_BLOCK,
+    EXAMPLE_MULTI_MATERIAL,
+    setup_example_simulation,
+)
 from ..get_preferences import (
     first_run_setup_pending,
     get_default_cache_location,
@@ -61,6 +66,11 @@ class SCENE_OT_Squishy_Volumes_Add_Example_Simulation(
                 EXAMPLE_BENCHMARK,
                 """This sets up a million particle scene to benchmark your hardware.
 The UI will be blocked for a few seconds.""",
+            ),
+            (
+                EXAMPLE_MULTI_MATERIAL,
+                EXAMPLE_MULTI_MATERIAL,
+                "An elastic cube and a fluid sphere falling onto a plane.",
             ),
         ],
         name="Choose Example Simulation",

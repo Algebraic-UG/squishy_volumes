@@ -18,6 +18,7 @@
 
 from .benchmark import EXAMPLE_BENCHMARK, setup_example_benchmark
 from .boing_block import EXAMPLE_BOING_BLOCK, setup_example_boing_block
+from .multi_material import EXAMPLE_MULTI_MATERIAL, setup_example_multi_material
 
 
 def setup_example_simulation(context, choice):
@@ -25,4 +26,6 @@ def setup_example_simulation(context, choice):
         return setup_example_boing_block(context)
     if choice == EXAMPLE_BENCHMARK:
         return setup_example_benchmark(context)
+    if choice == EXAMPLE_MULTI_MATERIAL:
+        return setup_example_multi_material(context)
     raise RuntimeError(f"Unknown example simulation: {choice}")
