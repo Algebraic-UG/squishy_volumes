@@ -28,6 +28,30 @@ pub struct Panic {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub struct StoredCause {
+    message: String,
+    source: Option<Box<StoredCause>>,
+}
+
+impl StoredCause {
+    pub fn chain(error: &(dyn std::error::Error + 'static)) -> Vec<String> {
+        std::iter::successors(Some(error), |error| error.source())
+            .map(ToString::to_string)
+            .collect()
+    }
+
+    pub fn from_chain(chain: Vec<String>) -> Option<Self> {
+        chain.into_iter().rev().fold(None, |source, message| {
+            Some(Self {
+                message,
+                source: source.map(Box::new),
+            })
+        })
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
     SimulationInput(#[from] SimulationInputError),
@@ -75,10 +99,12 @@ pub enum SimulationInputError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SimulationError {
-    #[error(
-        "This stored frame is already broken.\nPlease pick an earlier frame to rebake from.\n\nDetails:\n{0}"
-    )]
-    StoredError(String),
+    #[error("frame {frame} failed, rebake from an earlier frame to retry")]
+    StoredFrame {
+        frame: usize,
+        #[source]
+        cause: Option<StoredCause>,
+    },
 
     #[error(transparent)]
     Canceled(#[from] Canceled),

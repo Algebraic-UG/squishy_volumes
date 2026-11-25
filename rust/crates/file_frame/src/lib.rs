@@ -43,5 +43,5 @@ use alembic_rust::{ArchiveReader, Points};
 #[derive(Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct Frame {
     pub io_state: IoState,
-    pub error_message: Option<String>,
+    pub error_chain: Option<Vec<String>>,
 }
