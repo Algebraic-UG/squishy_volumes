@@ -23,7 +23,7 @@ use squishy_volumes_api::{Simulation, SimulationInput};
 use tracing::{info, subscriber::set_global_default, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use super::{Error, SimulationImpl, SimulationInputImpl};
+use super::{Error, SimulationImpl, SimulationInputError, SimulationInputImpl};
 
 pub struct ContextImpl {
     simulation_input: Option<SimulationInputImpl>,
@@ -88,7 +88,7 @@ impl ContextImpl {
             .as_ref()
             .and_then(|simulation_input| simulation_input.panic_message.get())
         {
-            return Err(Error::BrokenSimulationInput(panic_message.clone()));
+            return Err(SimulationInputError::BrokenSimulationInput(panic_message.clone()).into());
         }
         let Some(simulation_input) = self.simulation_input.take() else {
             return Err(Error::MissingInput)?;
@@ -148,6 +148,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        Panic, SimulationError,
         compute_thread::ComputeThread,
         guard::{Breakable, guard_breakable},
     };
@@ -171,17 +172,21 @@ mod tests {
         context
     }
 
-    fn panic_inside<B: Breakable>(breakable: &mut B) {
-        let result = guard_breakable(breakable, |_| -> Result<(), Error> {
+    fn panic_inside<B: Breakable<Error: Into<Error>>>(breakable: &mut B) {
+        let result = guard_breakable(breakable, |_| -> Result<(), B::Error> {
             panic!("{PANIC_MESSAGE}")
         });
         assert!(matches!(
-            result,
-            Err(Error::Panic { thread: "caller", message }) if message == PANIC_MESSAGE
+            result.map_err(Into::into),
+            Err(Error::SimulationInput(SimulationInputError::Panic(Panic { thread: "caller", message }))
+                | Error::Simulation(SimulationError::Panic(Panic { thread: "caller", message })))
+                if message == PANIC_MESSAGE
         ));
     }
 
-    fn core_error(error: anyhow::Error) -> Error {
+    fn core_error<E: std::fmt::Display + std::fmt::Debug + Send + Sync + 'static>(
+        error: anyhow::Error,
+    ) -> E {
         error.downcast().unwrap()
     }
 
@@ -191,7 +196,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(Error::Panic { thread: "caller", message }) if message == PANIC_MESSAGE
+            Err(Error::Panic(Panic { thread: "caller", message })) if message == PANIC_MESSAGE
         ));
     }
 
@@ -213,7 +218,7 @@ mod tests {
         for error in errors {
             assert!(matches!(
                 core_error(error),
-                Error::BrokenSimulation(message) if message == PANIC_MESSAGE
+                SimulationError::BrokenSimulation(message) if message == PANIC_MESSAGE
             ));
         }
     }
@@ -259,11 +264,11 @@ mod tests {
         let simulation_input = context.get_simulation_input().unwrap();
         assert!(matches!(
             core_error(simulation_input.start_frame(json!({})).unwrap_err()),
-            Error::BrokenSimulationInput(message) if message == PANIC_MESSAGE
+            SimulationInputError::BrokenSimulationInput(message) if message == PANIC_MESSAGE
         ));
         assert!(matches!(
             core_error(context.new_simulation().unwrap_err()),
-            Error::BrokenSimulationInput(message) if message == PANIC_MESSAGE
+            Error::SimulationInput(SimulationInputError::BrokenSimulationInput(message)) if message == PANIC_MESSAGE
         ));
         assert!(context.simulation_input.is_some());
         assert!(context.drop_simulation_input().is_ok());

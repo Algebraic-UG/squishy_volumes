@@ -21,7 +21,60 @@ use squishy_volumes_xpu::Canceled;
 use crate::initialization::InitializationError;
 
 #[derive(Debug, thiserror::Error)]
+#[error("internal error (panic) in the {thread} thread: {message}, please report this bug")]
+pub struct Panic {
+    pub thread: &'static str,
+    pub message: String,
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    SimulationInput(#[from] SimulationInputError),
+
+    #[error(transparent)]
+    Simulation(#[from] SimulationError),
+
+    #[error("cannot create a new simulation without recorded input ready")]
+    MissingInput,
+
+    #[error("failed to lock the cache directory")]
+    DirectoryLock(#[from] squishy_volumes_directory_lock::Error),
+
+    #[error("failed to parse the input header")]
+    ParseInputHeader(#[source] serde_json::Error),
+
+    #[error(transparent)]
+    Panic(#[from] Panic),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SimulationInputError {
+    #[error("failed to start recording the input")]
+    StartRecordingInput(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to start an input frame")]
+    StartInputFrame(#[source] squishy_volumes_file_input::Error),
+    #[error("failed to record input frame data")]
+    RecordInputFrame(#[source] squishy_volumes_file_input::Error),
+
+    #[error("failed to parse the frame start")]
+    ParseFrameStart(#[source] serde_json::Error),
+    #[error("failed to parse the bulk meta")]
+    ParseBulkMeta(#[source] serde_json::Error),
+
+    #[error("the allowed disk space of {max_bytes} bytes was exceeded while recording inputs")]
+    DiskSpaceExceeded { max_bytes: u64 },
+
+    #[error(transparent)]
+    Panic(#[from] Panic),
+    #[error(
+        "this input recording can't be used anymore after an internal error (panic: {0}), please record the input again"
+    )]
+    BrokenSimulationInput(String),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SimulationError {
     #[error(
         "This stored frame is already broken.\nPlease pick an earlier frame to rebake from.\n\nDetails:\n{0}"
     )]
@@ -39,18 +92,6 @@ pub enum Error {
     #[error("harness error")]
     Harness(#[from] squishy_volumes_xpu::HarnessError),
 
-    #[error("cannot create a new simulation without recorded input ready")]
-    MissingInput,
-
-    #[error("failed to lock the cache directory")]
-    DirectoryLock(#[from] squishy_volumes_directory_lock::Error),
-
-    #[error("failed to start recording the input")]
-    StartRecordingInput(#[source] squishy_volumes_file_input::Error),
-    #[error("failed to start an input frame")]
-    StartInputFrame(#[source] squishy_volumes_file_input::Error),
-    #[error("failed to record input frame data")]
-    RecordInputFrame(#[source] squishy_volumes_file_input::Error),
     #[error("failed to finalize the input")]
     FinalizeInput(#[source] squishy_volumes_file_input::Error),
     #[error("failed to start reading the input")]
@@ -60,12 +101,6 @@ pub enum Error {
     EncodeInputHeader(#[source] serde_json::Error),
     #[error("failed to encode the poll report")]
     EncodePollReport(#[source] serde_json::Error),
-    #[error("failed to parse the input header")]
-    ParseInputHeader(#[source] serde_json::Error),
-    #[error("failed to parse the frame start")]
-    ParseFrameStart(#[source] serde_json::Error),
-    #[error("failed to parse the bulk meta")]
-    ParseBulkMeta(#[source] serde_json::Error),
     #[error("failed to parse the compute settings")]
     ParseComputeSettings(#[source] serde_json::Error),
 
@@ -80,28 +115,18 @@ pub enum Error {
     #[error("failed to store a frame")]
     StoreFrame(#[source] squishy_volumes_cache::Error),
 
-    #[error("the allowed disk space of {max_bytes} bytes was exceeded while recording inputs")]
-    DiskSpaceExceeded { max_bytes: u64 },
-
     #[error("failed to create the initial state")]
     Initialization(#[source] InitializationError),
 
-    #[error("internal error (panic) in the {thread} thread: {message}, please report this bug")]
-    Panic {
-        thread: &'static str,
-        message: String,
-    },
+    #[error(transparent)]
+    Panic(#[from] Panic),
     #[error(
         "this simulation can't be used anymore after an internal error (panic: {0}), please reload it"
     )]
     BrokenSimulation(String),
-    #[error(
-        "this input recording can't be used anymore after an internal error (panic: {0}), please record the input again"
-    )]
-    BrokenSimulationInput(String),
 }
 
-impl From<squishy_volumes_cpu::Error> for Error {
+impl From<squishy_volumes_cpu::Error> for SimulationError {
     fn from(error: squishy_volumes_cpu::Error) -> Self {
         match error {
             squishy_volumes_cpu::Error::Canceled(canceled) => Self::Canceled(canceled),
@@ -110,7 +135,7 @@ impl From<squishy_volumes_cpu::Error> for Error {
     }
 }
 
-impl From<squishy_volumes_gpu::Error> for Error {
+impl From<squishy_volumes_gpu::Error> for SimulationError {
     fn from(error: squishy_volumes_gpu::Error) -> Self {
         match error {
             squishy_volumes_gpu::Error::Canceled(canceled) => Self::Canceled(canceled),
@@ -119,7 +144,7 @@ impl From<squishy_volumes_gpu::Error> for Error {
     }
 }
 
-impl From<InitializationError> for Error {
+impl From<InitializationError> for SimulationError {
     fn from(error: InitializationError) -> Self {
         match error {
             InitializationError::Canceled(canceled) => Self::Canceled(canceled),

@@ -21,12 +21,12 @@ use std::path::PathBuf;
 use serde_json::Value;
 use squishy_volumes_api::{Simulation, SimulationInput};
 
-use crate::{ContextImpl, guard::guard};
+use crate::{ContextImpl, Error, guard::guard};
 
 impl squishy_volumes_api::Context for ContextImpl {
     fn available_gpus(&self) -> anyhow::Result<Vec<String>> {
         Ok(guard(|| {
-            Ok(squishy_volumes_gpu::GpuContext::available_gpus())
+            Ok::<_, Error>(squishy_volumes_gpu::GpuContext::available_gpus())
         })?)
     }
 
@@ -49,7 +49,7 @@ impl squishy_volumes_api::Context for ContextImpl {
     fn drop_simulation_input(&mut self) -> anyhow::Result<()> {
         Ok(guard(|| {
             self.drop_simulation_input_impl();
-            Ok(())
+            Ok::<_, Error>(())
         })?)
     }
 
@@ -72,7 +72,7 @@ impl squishy_volumes_api::Context for ContextImpl {
     fn drop_simulation(&mut self, uuid: &str) -> anyhow::Result<()> {
         Ok(guard(|| {
             self.drop_simulation_impl(uuid);
-            Ok(())
+            Ok::<_, Error>(())
         })?)
     }
 }

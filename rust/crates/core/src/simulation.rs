@@ -31,7 +31,7 @@ use squishy_volumes_xpu::ReportInfo;
 use tracing::{info, warn};
 
 use crate::{
-    Error, SimulationInputImpl,
+    Error, SimulationError, SimulationInputImpl,
     compute_thread::{ComputeThread, ComputeThreadSettings},
     simulation_input_path,
 };
@@ -63,9 +63,11 @@ impl SimulationImpl {
 
         info!("Finalizing input");
         let directory_lock = input_writer.try_map(|_, input_writer| {
-            let input_size_in_bytes = input_writer.flush().map_err(Error::FinalizeInput)?;
+            let input_size_in_bytes = input_writer
+                .flush()
+                .map_err(SimulationError::FinalizeInput)?;
             info!(input_size_in_bytes);
-            Ok::<_, Error>(())
+            Ok::<_, SimulationError>(())
         })?;
 
         Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
@@ -83,16 +85,16 @@ impl SimulationImpl {
         clean_up: bool,
     ) -> Result<Self, Error> {
         let input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
-            .map_err(Error::StartReadingInput)?;
+            .map_err(SimulationError::StartReadingInput)?;
         let header = input_reader.header().clone();
 
         let cache = Arc::new(
             Cache::new(directory_lock, input_reader.size(), max_bytes_on_disk)
-                .map_err(Error::CreateCache)?,
+                .map_err(SimulationError::CreateCache)?,
         );
 
         if clean_up {
-            cache.drop_frames(0).map_err(Error::DropFrames)?;
+            cache.drop_frames(0).map_err(SimulationError::DropFrames)?;
         }
 
         Ok(Self {
@@ -103,8 +105,8 @@ impl SimulationImpl {
         })
     }
 
-    pub fn input_header_impl(&self) -> Result<Value, Error> {
-        to_value(&self.header).map_err(Error::EncodeInputHeader)
+    pub fn input_header_impl(&self) -> Result<Value, SimulationError> {
+        to_value(&self.header).map_err(SimulationError::EncodeInputHeader)
     }
 
     pub fn baking_impl(&self) -> bool {
@@ -114,8 +116,8 @@ impl SimulationImpl {
             || self.cache.storing()
     }
 
-    pub fn poll_impl(&mut self) -> Result<Value, Error> {
-        self.cache.check().map_err(Error::CheckCache)?;
+    pub fn poll_impl(&mut self) -> Result<Value, SimulationError> {
+        self.cache.check().map_err(SimulationError::CheckCache)?;
         serde_json::to_value(PollInfo {
             current_bytes_on_disk: self.cache.current_bytes_on_disk(),
             progress: self
@@ -125,10 +127,10 @@ impl SimulationImpl {
                 .transpose()?
                 .unwrap_or(Default::default()),
         })
-        .map_err(Error::EncodePollReport)
+        .map_err(SimulationError::EncodePollReport)
     }
 
-    pub fn start_compute_impl(&mut self, compute_settings: Value) -> Result<(), Error> {
+    pub fn start_compute_impl(&mut self, compute_settings: Value) -> Result<(), SimulationError> {
         info!("starting compute");
         let ComputeSettings {
             time_step,
@@ -137,7 +139,7 @@ impl SimulationImpl {
             next_frame,
             number_of_frames,
             max_bytes_on_disk,
-        } = from_value(compute_settings).map_err(Error::ParseComputeSettings)?;
+        } = from_value(compute_settings).map_err(SimulationError::ParseComputeSettings)?;
         self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
 
         let Some(number_of_frames) = NonZero::new(number_of_frames) else {
@@ -149,10 +151,10 @@ impl SimulationImpl {
             warn!(?error, "the previous computation failed");
         }
 
-        self.cache.check().map_err(Error::CheckCache)?;
+        self.cache.check().map_err(SimulationError::CheckCache)?;
         self.cache
             .drop_frames(next_frame)
-            .map_err(Error::DropFrames)?;
+            .map_err(SimulationError::DropFrames)?;
 
         info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {
@@ -167,7 +169,7 @@ impl SimulationImpl {
         Ok(())
     }
 
-    pub fn pause_compute_impl(&mut self) -> Result<(), Error> {
+    pub fn pause_compute_impl(&mut self) -> Result<(), SimulationError> {
         self.compute_thread
             .take()
             .map_or(Ok(()), ComputeThread::stop)

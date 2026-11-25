@@ -21,17 +21,19 @@ use std::sync::OnceLock;
 use serde_json::Value;
 
 use crate::{
-    Error, SimulationImpl,
+    SimulationError, SimulationImpl,
     guard::{Breakable, guard, guard_breakable},
 };
 
 impl Breakable for SimulationImpl {
+    type Error = SimulationError;
+
     fn panic_message(&self) -> &OnceLock<String> {
         &self.panic_message
     }
 
-    fn broken(panic_message: String) -> Error {
-        Error::BrokenSimulation(panic_message)
+    fn broken(panic_message: String) -> Self::Error {
+        SimulationError::BrokenSimulation(panic_message)
     }
 }
 
