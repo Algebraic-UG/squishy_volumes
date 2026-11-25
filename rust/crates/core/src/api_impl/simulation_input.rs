@@ -22,17 +22,19 @@ use serde_json::Value;
 use squishy_volumes_api::InputBulk;
 
 use crate::{
-    Error, SimulationInputImpl,
+    SimulationInputError, SimulationInputImpl,
     guard::{Breakable, guard_breakable},
 };
 
 impl Breakable for SimulationInputImpl {
+    type Error = SimulationInputError;
+
     fn panic_message(&self) -> &OnceLock<String> {
         &self.panic_message
     }
 
-    fn broken(panic_message: String) -> Error {
-        Error::BrokenSimulationInput(panic_message)
+    fn broken(panic_message: String) -> Self::Error {
+        SimulationInputError::BrokenSimulationInput(panic_message)
     }
 }
 

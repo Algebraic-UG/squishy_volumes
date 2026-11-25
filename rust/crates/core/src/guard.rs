@@ -24,27 +24,28 @@ use std::{
 
 use squishy_volumes_util::panic_payload_to_string;
 
-use crate::Error;
+use crate::Panic;
 
 pub trait Breakable {
+    type Error: From<Panic>;
     fn panic_message(&self) -> &OnceLock<String>;
-    fn broken(panic_message: String) -> Error;
+    fn broken(panic_message: String) -> Self::Error;
 }
 
-pub fn guard<R>(f: impl FnOnce() -> Result<R, Error>) -> Result<R, Error> {
-    catch_panic(f).unwrap_or_else(|message| Err(caller_panic(message)))
+pub fn guard<R, E: From<Panic>>(f: impl FnOnce() -> Result<R, E>) -> Result<R, E> {
+    catch_panic(f).unwrap_or_else(|message| Err(caller_panic(message).into()))
 }
 
 pub fn guard_breakable<B: Breakable, T: Deref<Target = B>, R>(
     mut breakable: T,
-    f: impl FnOnce(&mut T) -> Result<R, Error>,
-) -> Result<R, Error> {
+    f: impl FnOnce(&mut T) -> Result<R, B::Error>,
+) -> Result<R, B::Error> {
     if let Some(message) = breakable.panic_message().get() {
         return Err(B::broken(message.clone()));
     }
     catch_panic(|| f(&mut breakable)).unwrap_or_else(|message| {
         let _ = breakable.panic_message().set(message.clone());
-        Err(caller_panic(message))
+        Err(caller_panic(message).into())
     })
 }
 
@@ -53,8 +54,8 @@ fn catch_panic<R>(f: impl FnOnce() -> R) -> Result<R, String> {
     catch_unwind(AssertUnwindSafe(f)).map_err(panic_payload_to_string)
 }
 
-fn caller_panic(message: String) -> Error {
-    Error::Panic {
+fn caller_panic(message: String) -> Panic {
+    Panic {
         thread: "caller",
         message,
     }

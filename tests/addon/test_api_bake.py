@@ -308,7 +308,7 @@ class ComputeFailureTest(AddonTestCase):
     def test_inverted_particles_fail_the_bake(self):
         api().bake(self.sim_obj, bake_frames=5)
 
-        with self.assertRaisesRegex(api().BakeFailed, "Cpu compute error"):
+        with self.assertRaisesRegex(api().BakeFailed, "cpu computation failed"):
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
 
     def test_pausing_after_the_failure_reports_it(self):
@@ -321,7 +321,7 @@ class ComputeFailureTest(AddonTestCase):
         api().pause_bake(self.sim_obj)
 
         [error] = sim_handle.bake_errors
-        self.assertIn("Cpu compute error", error)
+        self.assertIn("cpu computation failed", error)
         self.assertEqual(api().bake_errors(self.sim_obj), [error])
 
     def test_a_repeated_failure_after_a_restart_is_unseen_again(self):
@@ -351,7 +351,7 @@ class ComputeFailureTest(AddonTestCase):
         sim_handle.poll()
         self.assertTrue(api().bake_errors(self.sim_obj))
 
-        with self.assertRaisesRegex(api().BakeFailed, "Cpu compute error"):
+        with self.assertRaisesRegex(api().BakeFailed, "cpu computation failed"):
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
 
 

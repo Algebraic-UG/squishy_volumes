@@ -33,64 +33,63 @@ use strum::IntoEnumIterator as _;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum StateInitializationError {
-    #[error("Io state error")]
+pub enum InitializationError {
+    #[error("io state error")]
     IoState(#[from] IoStateError),
 
-    #[error("Harness error")]
-    HarnessError(#[from] squishy_volumes_xpu::HarnessError),
+    #[error("harness error")]
+    Harness(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error(transparent)]
     Canceled(#[from] squishy_volumes_xpu::Canceled),
 
-    #[error("'{name}': input particle #{particle_index} invalid")]
-    ParticleInvalid {
+    #[error("input particle #{particle_index} of '{name}' is invalid")]
+    InvalidParticle {
         name: String,
         particle_index: usize,
-        #[source]
-        error: ParticleInvalid,
+        source: InvalidParticle,
     },
-    #[error("Expected {expected} values for {name}, but found {actual}")]
-    ParticleInvalidNumber {
+    #[error("expected {expected} values for {name}, but found {actual}")]
+    ValueCount {
         name: &'static str,
         actual: usize,
         expected: usize,
     },
 
-    #[error("Failed to read frame for state initialization")]
-    InputErrorFrame(#[from] squishy_volumes_file_input::Error),
+    #[error("failed to read the first input frame")]
+    InputFrame(#[from] squishy_volumes_file_input::Error),
 }
 
-impl From<FrameVerificationError> for StateInitializationError {
+impl From<FrameVerificationError> for InitializationError {
     fn from(error: FrameVerificationError) -> Self {
         error.attach_frame(0).into()
     }
 }
 
 #[derive(Error, Debug, Clone, Copy)]
-pub enum ParticleInvalid {
-    #[error("This setup requires some input for {attribute}")]
+pub enum InvalidParticle {
+    #[error("this setup requires some input for {attribute}")]
     MissingInput { attribute: &'static str },
 
-    #[error("Some flags are set that are not know: {0:b}")]
-    UnknownFlagsSet(u32),
+    #[error("some flags are set that are not known: {0:b}")]
+    UnknownFlags(u32),
 
-    #[error("The particle solid or fluid flag must be set, but not both")]
+    #[error("the particle solid or fluid flag must be set, but not both")]
     SolidXorFluid,
 
-    #[error("Energy error")]
-    EnergyError(#[from] squishy_volumes_util::EnergyError),
+    #[error("invalid material parameters")]
+    Energy(#[from] squishy_volumes_util::EnergyError),
 }
 
 pub fn initialize_io_state(
     harness: &Harness,
     input_reader: &mut InputReader,
-) -> Result<IoState, StateInitializationError> {
+) -> Result<IoState, InitializationError> {
     let input_frame = {
         let _scope = harness.scope("Input reading".to_string(), 1.try_into().unwrap())?;
         input_reader
             .read_frame(0)
-            .map_err(StateInitializationError::InputErrorFrame)?
+            .map_err(InitializationError::InputFrame)?
     };
     let animated_globals = input_frame.animated_globals;
 
@@ -206,10 +205,10 @@ pub fn initialize_io_state(
         (|| {
             let flags = input_flags[particle_index];
             let flags =
-                ParticleFlags::from_bits(flags).ok_or(ParticleInvalid::UnknownFlagsSet(flags))?;
+                ParticleFlags::from_bits(flags).ok_or(InvalidParticle::UnknownFlags(flags))?;
             if !(flags.contains(ParticleFlags::IS_SOLID) ^ flags.contains(ParticleFlags::IS_FLUID))
             {
-                return Err(ParticleInvalid::SolidXorFluid);
+                return Err(InvalidParticle::SolidXorFluid);
             }
 
             parameters.initial_volume = (inv_scale * input_sizes[particle_index]).powi(3);
@@ -217,7 +216,7 @@ pub fn initialize_io_state(
             parameters.viscosity = flags
                 .contains(ParticleFlags::USE_VISCOSITY)
                 .then(|| {
-                    Ok::<ViscosityParameters, ParticleInvalid>(ViscosityParameters {
+                    Ok::<ViscosityParameters, InvalidParticle>(ViscosityParameters {
                         dynamic: input_viscosities_dynamic?[particle_index],
                         bulk: input_viscosities_bulk?[particle_index],
                     })
@@ -232,7 +231,7 @@ pub fn initialize_io_state(
                     lambda: lambda(youngs_modulus, poisson_ratio)?,
                     sand_alpha: flags
                         .contains(ParticleFlags::USE_SAND_ALPHA)
-                        .then(|| Ok::<f32, ParticleInvalid>(input_sand_alphas?[particle_index]))
+                        .then(|| Ok::<f32, InvalidParticle>(input_sand_alphas?[particle_index]))
                         .transpose()?,
                 }
             } else {
@@ -248,10 +247,10 @@ pub fn initialize_io_state(
 
             Ok(())
         })()
-        .map_err(|error| StateInitializationError::ParticleInvalid {
+        .map_err(|source| InitializationError::InvalidParticle {
             name: name.clone(),
             particle_index,
-            error,
+            source,
         })?;
     }
     */
@@ -268,7 +267,7 @@ enum ApplyBulkError {
 }
 
 impl ApplyBulkError {
-    fn attach_name(self, name: &str) -> StateInitializationError {
+    fn attach_name(self, name: &str) -> InitializationError {
         match self {
             Self::ParticleObject(error) => error.attach_name(name).into(),
             Self::FrameVerification(error) => error.into(),
@@ -445,7 +444,7 @@ mod tests {
 
         assert!(matches!(
             error,
-            StateInitializationError::IoState(IoStateError::ParticleObject { name, .. })
+            InitializationError::IoState(IoStateError::ParticleObject { name, .. })
                 if name == "named_object"
         ));
     }

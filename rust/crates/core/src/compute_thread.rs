@@ -36,11 +36,11 @@ use tracing::info;
 #[cfg(feature = "profile")]
 use squishy_volumes_util::coarse_prof;
 
-use crate::{Error, initialization::initialize_io_state, simulation_input_path};
+use crate::{Panic, SimulationError, initialization::initialize_io_state, simulation_input_path};
 
 pub struct ComputeThread {
     harness: Harness,
-    thread: Option<JoinHandle<Result<(), Error>>>,
+    thread: Option<JoinHandle<Result<(), SimulationError>>>,
 }
 
 pub struct ComputeThreadSettings {
@@ -65,11 +65,11 @@ impl ComputeThread {
             adaptive_time_steps,
             gpu,
         }: ComputeThreadSettings,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, SimulationError> {
         info!("starting compute thread");
 
         let mut input_reader = InputReader::new(simulation_input_path(cache.directory()))
-            .map_err(Error::StartInputReading)?;
+            .map_err(SimulationError::StartReadingInput)?;
 
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
@@ -78,7 +78,7 @@ impl ComputeThread {
 
         let thread = {
             let harness = harness.clone();
-            Some(spawn(move || -> Result<(), Error> {
+            Some(spawn(move || -> Result<(), SimulationError> {
                 info!("compute thread started");
                 let io_state = if next_frame == 0 {
                     info!("creating initial state");
@@ -91,7 +91,7 @@ impl ComputeThread {
                             },
                             make_stats(&io_state, None),
                         )
-                        .map_err(Error::StoreError)?;
+                        .map_err(SimulationError::StoreFrame)?;
                     next_frame += 1;
                     harness.step()?;
                     io_state
@@ -99,9 +99,9 @@ impl ComputeThread {
                     info!("loading checkpoint");
                     let frame = cache
                         .fetch_frame(next_frame - 1)
-                        .map_err(Error::CacheFetch)?;
+                        .map_err(|source| SimulationError::LoadCheckpoint(source.into()))?;
                     if let Some(error_message) = frame.error_message {
-                        return Err(Error::StoredError(error_message));
+                        return Err(SimulationError::StoredError(error_message));
                     }
                     frame.io_state
                 };
@@ -139,7 +139,7 @@ impl ComputeThread {
 
                     let start_compute_frame = Instant::now();
 
-                    let result: Result<(), Error>;
+                    let result: Result<(), SimulationError>;
                     let last_frame_substeps;
                     let io_state = match &mut compute_state {
                         ComputeState::Cpu(cpu_state) => {
@@ -152,7 +152,7 @@ impl ComputeThread {
                                     store_bvh: true,
                                 },
                             )?;
-                            result = cpu_result.map_err(Error::from);
+                            result = cpu_result.map_err(SimulationError::from);
                             last_frame_substeps = cpu_state.last_frame_substeps();
                             io_state
                         }
@@ -165,7 +165,7 @@ impl ComputeThread {
                                     store_bvh: true,
                                 },
                             )?;
-                            result = gpu_result.map_err(Error::from);
+                            result = gpu_result.map_err(SimulationError::from);
                             last_frame_substeps = gpu_state.last_frame_substeps();
                             io_state
                         }
@@ -209,7 +209,7 @@ impl ComputeThread {
                             },
                             stats,
                         )
-                        .map_err(Error::StoreError)?;
+                        .map_err(SimulationError::StoreFrame)?;
 
                     // now check for errors
                     result?;
@@ -240,7 +240,7 @@ impl ComputeThread {
             .is_some_and(|thread| !thread.is_finished())
     }
 
-    pub fn stop(mut self) -> Result<(), Error> {
+    pub fn stop(mut self) -> Result<(), SimulationError> {
         let Some(thread) = self.thread.take() else {
             return Ok(());
         };
@@ -248,12 +248,12 @@ impl ComputeThread {
             self.harness.cancel();
         }
         match thread.join().map_err(compute_panic)? {
-            Err(Error::Canceled(_)) => Ok(()),
+            Err(SimulationError::Canceled(_)) => Ok(()),
             result => result,
         }
     }
 
-    pub fn poll(&mut self) -> Result<Vec<ReportInfo>, Error> {
+    pub fn poll(&mut self) -> Result<Vec<ReportInfo>, SimulationError> {
         let Some(thread) = self.thread.take() else {
             return Ok(Default::default());
         };
@@ -278,11 +278,11 @@ impl Drop for ComputeThread {
     }
 }
 
-fn compute_panic(payload: Box<dyn std::any::Any + Send>) -> Error {
-    Error::Panic {
+fn compute_panic(payload: Box<dyn std::any::Any + Send>) -> SimulationError {
+    SimulationError::Panic(Panic {
         thread: "compute",
         message: panic_payload_to_string(payload),
-    }
+    })
 }
 
 fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
@@ -298,7 +298,7 @@ fn make_stats(io_state: &IoState, compute: Option<ComputeStats>) -> Stats {
 #[cfg(test)]
 impl ComputeThread {
     pub(crate) fn spawn_work(
-        work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
+        work: impl FnOnce(Harness) -> Result<(), SimulationError> + Send + 'static,
     ) -> Self {
         let harness = Harness::new("test".to_string(), NonZero::new(1).unwrap());
         let thread = {
@@ -308,7 +308,7 @@ impl ComputeThread {
         Self { harness, thread }
     }
 
-    pub(crate) fn until_canceled(harness: Harness) -> Result<(), Error> {
+    pub(crate) fn until_canceled(harness: Harness) -> Result<(), SimulationError> {
         while !harness.is_canceled() {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
@@ -322,12 +322,12 @@ mod tests {
     use super::*;
 
     fn compute_thread(
-        work: impl FnOnce(Harness) -> Result<(), Error> + Send + 'static,
+        work: impl FnOnce(Harness) -> Result<(), SimulationError> + Send + 'static,
     ) -> ComputeThread {
         ComputeThread::spawn_work(work)
     }
 
-    fn until_canceled(harness: Harness) -> Result<(), Error> {
+    fn until_canceled(harness: Harness) -> Result<(), SimulationError> {
         ComputeThread::until_canceled(harness)
     }
 
@@ -340,12 +340,15 @@ mod tests {
 
     #[test]
     fn stopping_a_failed_thread_returns_its_error() {
-        let thread = compute_thread(|_| Err(Error::StoredError("broken".to_string())));
+        let thread = compute_thread(|_| Err(SimulationError::StoredError("broken".to_string())));
         while thread.running() {
             std::thread::yield_now();
         }
 
-        assert!(matches!(thread.stop(), Err(Error::StoredError(_))));
+        assert!(matches!(
+            thread.stop(),
+            Err(SimulationError::StoredError(_))
+        ));
     }
 
     #[test]
@@ -357,10 +360,10 @@ mod tests {
 
         assert!(matches!(
             thread.stop(),
-            Err(Error::Panic {
+            Err(SimulationError::Panic(Panic {
                 thread: "compute",
                 message,
-            }) if message == "compute thread test panic"
+            })) if message == "compute thread test panic"
         ));
     }
 
@@ -373,10 +376,10 @@ mod tests {
 
         assert!(matches!(
             thread.poll(),
-            Err(Error::Panic {
+            Err(SimulationError::Panic(Panic {
                 thread: "compute",
                 ..
-            })
+            }))
         ));
     }
 }
