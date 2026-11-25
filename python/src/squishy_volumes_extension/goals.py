@@ -21,8 +21,8 @@ import bpy
 
 from . import api
 from .operator_base import ReportingOperator
+from .properties import get_selected_input_object
 from .registration import class_registration
-from .squishy_volumes_properties import get_selected_input_object
 
 
 class OBJECT_OT_Squishy_Volumes_Input_Object_Add_Goals(

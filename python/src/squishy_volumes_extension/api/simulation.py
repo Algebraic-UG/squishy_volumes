@@ -33,7 +33,7 @@ from ..capture_markers import (
 )
 from ..errors import InvalidInput, SimulationNotFound, SquishyVolumesError
 from ..get_preferences import get_default_cache_location, get_default_compute_device
-from ..squishy_volumes_properties import (
+from ..properties import (
     PER_SIMULATION_PROPERTIES,
     get_input_objects_with_uuid,
     get_simulation_objects,

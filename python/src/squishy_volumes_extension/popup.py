@@ -19,8 +19,8 @@
 import bpy
 
 from .bridge import SimulationHandle
+from .properties import get_simulation_objects
 from .registration import class_registration
-from .squishy_volumes_properties import get_simulation_objects
 
 
 def popup_title(uuid: str) -> str:

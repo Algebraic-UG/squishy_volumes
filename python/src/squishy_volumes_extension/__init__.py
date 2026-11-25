@@ -49,8 +49,8 @@ from .progress_update import (
     unregister_progress_update,
     unregister_progress_update_toggle,
 )
+from .properties import register_properties, unregister_properties
 from .render_setup import register_render_setup, unregister_render_setup
-from .squishy_volumes_properties import register_properties, unregister_properties
 from .view_utils import register_view_utils, unregister_view_utils
 
 bl_info = {

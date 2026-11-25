@@ -21,8 +21,7 @@ import bpy
 from .. import api
 from ..get_preferences import first_run_setup_pending, get_preferences
 from ..operator_base import ReportingOperator, SimulationOperator
-from ..registration import class_registration
-from ..squishy_volumes_properties import (
+from ..properties import (
     INPUT_TYPE_COLLIDER,
     INPUT_TYPE_PARTICLES,
     Squishy_Volumes_Alembic_Attribute,
@@ -33,6 +32,7 @@ from ..squishy_volumes_properties import (
     get_selected_simulation_object,
     get_selected_simulation_uuid,
 )
+from ..registration import class_registration
 from ..util import force_ui_redraw
 
 

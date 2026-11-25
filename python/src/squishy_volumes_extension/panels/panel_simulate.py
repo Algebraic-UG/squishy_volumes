@@ -38,8 +38,7 @@ from ..get_preferences import (
     get_preferences,
 )
 from ..operator_base import SimulationOperator, report_error
-from ..registration import class_registration
-from ..squishy_volumes_properties import (
+from ..properties import (
     Squishy_Volumes_Properties_Simulation,
     capture_frame_count,
     frame_to_load,
@@ -49,6 +48,7 @@ from ..squishy_volumes_properties import (
     get_simulation_object_with_uuid,
     stored_range,
 )
+from ..registration import class_registration
 
 
 def rebake_frame(

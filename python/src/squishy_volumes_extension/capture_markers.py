@@ -19,7 +19,7 @@
 import bpy
 
 from .get_preferences import get_enable_timeline_markers
-from .squishy_volumes_properties import (
+from .properties import (
     Squishy_Volumes_Properties_Simulation,
     stored_range,
 )

@@ -37,12 +37,12 @@ from ..get_preferences import (
 )
 from ..operator_base import ReportingOperator, SimulationOperator
 from ..popup import popup
-from ..registration import class_registration
-from ..squishy_volumes_properties import (
+from ..properties import (
     frame_to_load,
     get_simulation_objects,
     unloaded_simulations,
 )
+from ..registration import class_registration
 from ..util import force_ui_redraw, read_stats, u64_to_giga_f32
 
 
