@@ -93,7 +93,7 @@ def link_from_library(work_dir, name: str, uuid: str = "") -> bpy.types.Object:
 
 @contextmanager
 def shown_warnings():
-    operator_base = addon().operator_base
+    operator_base = addon().operators.operator_base
     with mock.patch.object(
         operator_base, "show_message", wraps=operator_base.show_message
     ) as show_message:

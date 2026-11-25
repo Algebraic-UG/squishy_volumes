@@ -22,7 +22,7 @@ from bpy.app.handlers import persistent
 from .bridge import SimulationHandle
 from .capture_markers import capture_marker_frames
 from .get_preferences import debug_log, get_enable_timeline_markers
-from .popup import show_message
+from .operators.popup import show_message
 from .properties import get_simulation_objects
 from .registration import add_handler, remove_handler
 from .util import force_ui_redraw

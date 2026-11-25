@@ -18,8 +18,8 @@
 
 import bpy
 
-from .api import find_simulation
-from .errors import ScaledInputError
+from ..api import find_simulation
+from ..errors import ScaledInputError
 from .popup import popup, show_message
 
 

@@ -18,9 +18,10 @@
 
 import bpy
 
-from .bridge import SimulationHandle
-from .properties import get_simulation_objects
-from .registration import class_registration
+from ..bridge import SimulationHandle
+from ..get_preferences import get_preferences
+from ..properties import get_simulation_objects
+from ..registration import class_registration
 
 
 def popup_title(uuid: str) -> str:
@@ -72,7 +73,7 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
         if self.show_allow_scaled_input:
             self.layout.separator()
             self.layout.prop(
-                context.preferences.addons[__package__].preferences,
+                get_preferences(),
                 "allow_scaled_input",
             )
 
