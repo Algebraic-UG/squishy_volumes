@@ -33,6 +33,7 @@ use tracing::{info, warn};
 use crate::{
     Error, SimulationError, SimulationInputImpl,
     compute_thread::{ComputeThread, ComputeThreadSettings},
+    simulation_input::replace_input,
     simulation_input_path,
 };
 
@@ -62,13 +63,7 @@ impl SimulationImpl {
         info!("Creating new simulation");
 
         info!("Finalizing input");
-        let directory_lock = input_writer.try_map(|_, input_writer| {
-            let input_size_in_bytes = input_writer
-                .flush()
-                .map_err(SimulationError::FinalizeInput)?;
-            info!(input_size_in_bytes);
-            Ok::<_, SimulationError>(())
-        })?;
+        let directory_lock = input_writer.try_map(replace_input)?;
 
         Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
     }

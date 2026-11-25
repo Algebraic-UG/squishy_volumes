@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    fs::remove_file,
+    fs::{remove_file, rename},
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -29,7 +29,7 @@ use squishy_volumes_directory_lock::DirectoryLock;
 use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta, Header, InputHeader, InputWriter};
 use squishy_volumes_util::AnimatedGlobals;
 
-use crate::{Error, SimulationInputError};
+use crate::{Error, SimulationError, SimulationInputError};
 
 pub struct SimulationInputImpl {
     pub uuid: String,
@@ -48,6 +48,34 @@ pub fn simulation_input_path<P: AsRef<Path>>(cache_dir: P) -> PathBuf {
     cache_dir.as_ref().join("simulation_input.bin")
 }
 
+fn recording_path(cache_dir: &Path) -> PathBuf {
+    cache_dir.join("simulation_input.recording.bin")
+}
+
+fn remove_recording(cache_dir: &Path) {
+    if let Err(e) = remove_file(recording_path(cache_dir)) {
+        tracing::error!("failed to clean up input file: {e:?}");
+    }
+}
+
+pub(crate) fn replace_input(
+    cache_dir: &Path,
+    input_writer: InputWriter,
+) -> Result<(), SimulationError> {
+    let replaced = input_writer
+        .flush()
+        .map_err(SimulationError::FinalizeInput)
+        .and_then(|input_size_in_bytes| {
+            tracing::info!(input_size_in_bytes);
+            rename(recording_path(cache_dir), simulation_input_path(cache_dir))
+                .map_err(SimulationError::ReplaceInput)
+        });
+    if replaced.is_err() {
+        remove_recording(cache_dir);
+    }
+    replaced
+}
+
 impl SimulationInputImpl {
     pub fn new(
         uuid: String,
@@ -56,7 +84,7 @@ impl SimulationInputImpl {
         max_bytes_on_disk: u64,
     ) -> Result<Self, Error> {
         let input_writer = DirectoryLock::new(directory)?.try_map(|directory, ()| {
-            InputWriter::new(simulation_input_path(directory), Header::new(input_header))
+            InputWriter::new(recording_path(directory), Header::new(input_header))
                 .map_err(SimulationInputError::StartRecordingInput)
         })?;
 
@@ -69,11 +97,7 @@ impl SimulationInputImpl {
     }
 
     pub fn clean_up(self) {
-        self.input_writer.release(|directory| {
-            if let Err(e) = remove_file(simulation_input_path(directory)) {
-                tracing::error!("failed to clean up input file: {e:?}");
-            }
-        });
+        self.input_writer.release(remove_recording);
     }
 
     pub fn start_frame_impl(&mut self, frame_start: Value) -> Result<(), SimulationInputError> {
