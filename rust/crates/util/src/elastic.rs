@@ -24,18 +24,18 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Clone, Copy)]
 pub enum EnergyError {
-    #[error("Young's Modulus is negative: {0}")]
+    #[error("Young's modulus is negative: {0}")]
     YoungsModulusOutOfBounds(T),
-    #[error("Poisson's Ratio is not between 0 and 0.5: {0}")]
+    #[error("Poisson's ratio is not between 0 and 0.5: {0}")]
     PoissonsRatioOutOfBounds(T),
-    #[error("Exponent is less than 2: {0}")]
+    #[error("exponent is less than 2: {0}")]
     ExponentOutOfBounds(i32),
-    #[error("Bulk Modulus is negative: {0}")]
+    #[error("bulk modulus is negative: {0}")]
     BulkModulusOutOfBounds(T),
 
-    #[error("The position gradient is not invertible")]
+    #[error("the position gradient is not invertible")]
     PositionGradientNotInvertible,
-    #[error("The position gradient has negative determinant")]
+    #[error("the position gradient has a negative determinant")]
     PositionGradientNonPositive,
 }
 
