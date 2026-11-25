@@ -41,7 +41,6 @@ pub struct StoreThread {
 #[derive(Clone)]
 pub struct FrameSender(mpsc::SyncSender<StoreJob>);
 
-#[allow(clippy::result_large_err)]
 impl FrameSender {
     pub fn send(&self, frame: Frame, stats: Stats) -> StoreResult {
         match self.0.try_send((frame, stats)) {
@@ -57,7 +56,6 @@ impl FrameSender {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl StoreThread {
     pub fn idle() -> Self {
         Self {
@@ -145,7 +143,6 @@ impl Drop for StoreThread {
     }
 }
 
-#[allow(clippy::result_large_err)]
 fn store_until_stopped(
     receiver: mpsc::Receiver<StoreJob>,
     stop_requested: Arc<AtomicBool>,
@@ -167,7 +164,6 @@ fn store_until_stopped(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn write_frame(
     cache_dir: &std::path::Path,
     total_bytes_on_disk: &AtomicU64,
@@ -205,7 +201,6 @@ fn join_and_log(thread: std::thread::JoinHandle<StoreResult>) {
 }
 
 #[cfg(test)]
-#[allow(clippy::result_large_err)]
 mod tests {
     use std::time::Duration;
 
