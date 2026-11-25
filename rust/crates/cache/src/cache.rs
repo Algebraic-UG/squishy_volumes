@@ -44,7 +44,6 @@ pub struct FrameStore {
     max_bytes_on_disk: Arc<AtomicU64>,
 }
 
-#[allow(clippy::result_large_err)]
 impl FrameStore {
     pub fn store_frame(
         &self,
@@ -61,7 +60,6 @@ impl FrameStore {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl CacheState {
     fn new(
         directory: &std::path::Path,
@@ -106,7 +104,6 @@ impl CacheState {
     }
 }
 
-#[allow(clippy::result_large_err)]
 impl Cache {
     pub fn new(
         directory_lock: squishy_volumes_directory_lock::DirectoryLock,
