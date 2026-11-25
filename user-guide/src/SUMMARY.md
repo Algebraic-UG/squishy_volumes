@@ -7,6 +7,8 @@
 - [Discover UI](getting_started/discover_ui.md)
 - [Example Setup](getting_started/example_setup.md)
 
+[Scripting](scripting.md)
+
 [Troubleshooting](troubleshooting/README.md)
 
 [References](references.md)

@@ -16,12 +16,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import sys
 import tomllib
 from pathlib import Path
 
 import bpy
 
-from . import get_preferences
+from . import api, get_preferences
 from .append_handler import register_append_handler, unregister_append_handler
 from .assets import reload_assets
 from .bridge import (
@@ -57,6 +58,8 @@ bl_info = {
     "category": "Physics",
 }
 
+SCRIPTING_ALIAS = "squishy_volumes"
+
 
 def register():
     register_preferences()
@@ -88,8 +91,12 @@ def register():
 
     bpy.app.timers.register(reload_assets, first_interval=0)
 
+    sys.modules[SCRIPTING_ALIAS] = api
+
 
 def unregister():
+    if sys.modules.get(SCRIPTING_ALIAS) is api:
+        del sys.modules[SCRIPTING_ALIAS]
     unregister_drivers()
     unregister_drop_simulation_handles_on_load()
     unregister_prune_simulation_handles()

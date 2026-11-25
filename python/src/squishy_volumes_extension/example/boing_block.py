@@ -18,14 +18,15 @@
 
 import bpy
 
-from .. import api
 from .staging import stage_example
 
 EXAMPLE_BOING_BLOCK = "Boing Block"
 
 
 def setup_example_boing_block(context: bpy.types.Context):
-    sim_obj = api.add_simulation(EXAMPLE_BOING_BLOCK, scene=context.scene)
+    import squishy_volumes as sv
+
+    sim_obj = sv.add_simulation(EXAMPLE_BOING_BLOCK, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
 
     sim_props.grid_node_size = 0.2
@@ -40,8 +41,8 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         rotation=(0, 0, 0),
     )
-    output_obj = api.add_input(sim_obj, context.active_object, api.PARTICLES)
-    api.set_modifier_input(output_obj.modifiers["Squishy Volumes Output"], "Scale", 0.1)
+    output_obj = sv.add_input(sim_obj, context.active_object, sv.PARTICLES)
+    sv.set_modifier_input(output_obj.modifiers["Squishy Volumes Output"], "Scale", 0.1)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -50,7 +51,7 @@ def setup_example_boing_block(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=10,
     )
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    sv.add_input(sim_obj, context.active_object, sv.COLLIDER)
 
     stage_example(
         context.scene,

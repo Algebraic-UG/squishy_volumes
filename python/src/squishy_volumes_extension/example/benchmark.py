@@ -20,14 +20,15 @@ import math
 
 import bpy
 
-from .. import api
 from .staging import stage_example
 
 EXAMPLE_BENCHMARK = "Benchmark"
 
 
 def setup_example_benchmark(context: bpy.types.Context):
-    sim_obj = api.add_simulation(EXAMPLE_BENCHMARK, scene=context.scene)
+    import squishy_volumes as sv
+
+    sim_obj = sv.add_simulation(EXAMPLE_BENCHMARK, scene=context.scene)
     sim_props = sim_obj.squishy_volumes
 
     sim_props.grid_node_size = 0.1
@@ -46,8 +47,8 @@ def setup_example_benchmark(context: bpy.types.Context):
             rotation=rotation,
         )
         monkey = context.active_object
-        output_obj = api.add_input(sim_obj, monkey, api.PARTICLES)
-        api.set_modifier_input(
+        output_obj = sv.add_input(sim_obj, monkey, sv.PARTICLES)
+        sv.set_modifier_input(
             output_obj.modifiers["Squishy Volumes Output"], "Scale", 0.05
         )
         monkey.hide_set(True)
@@ -93,7 +94,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         location=(0, 0, -2),
         scale=(1, 1, 1),
     )
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    sv.add_input(sim_obj, context.active_object, sv.COLLIDER)
 
     bpy.ops.mesh.primitive_torus_add(
         align="WORLD",
@@ -102,7 +103,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         major_radius=4,
         minor_radius=1,
     )
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    sv.add_input(sim_obj, context.active_object, sv.COLLIDER)
 
     bpy.ops.mesh.primitive_plane_add(
         enter_editmode=False,
@@ -111,7 +112,7 @@ def setup_example_benchmark(context: bpy.types.Context):
         scale=(1, 1, 1),
         size=100,
     )
-    api.add_input(sim_obj, context.active_object, api.COLLIDER)
+    sv.add_input(sim_obj, context.active_object, sv.COLLIDER)
 
     camera = stage_example(
         context.scene,
