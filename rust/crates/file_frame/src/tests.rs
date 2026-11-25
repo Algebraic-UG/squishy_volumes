@@ -49,7 +49,7 @@ fn small_frame() -> Frame {
         .io_state
         .particle_objects
         .insert("cube".to_string(), particles);
-    frame.error_message = Some("kept".to_string());
+    frame.error_chain = Some(vec!["outer".to_string(), "inner".to_string()]);
     frame
 }
 
@@ -77,7 +77,10 @@ fn round_trip() {
 
     let frame = Frame::read(&path).unwrap();
     assert_eq!(frame.io_state.time, 1.5);
-    assert_eq!(frame.error_message.as_deref(), Some("kept"));
+    assert_eq!(
+        frame.error_chain,
+        Some(vec!["outer".to_string(), "inner".to_string()])
+    );
     let particles = frame.io_state.get_particle_object("cube").unwrap();
     assert_eq!(particles.num_particles, NUM_PARTICLES);
     for key in attribute::Key::iter() {

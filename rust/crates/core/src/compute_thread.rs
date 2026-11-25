@@ -36,7 +36,9 @@ use tracing::info;
 #[cfg(feature = "profile")]
 use squishy_volumes_util::coarse_prof;
 
-use crate::{Panic, SimulationError, initialization::initialize_io_state, simulation_input_path};
+use crate::{
+    Panic, SimulationError, StoredCause, initialization::initialize_io_state, simulation_input_path,
+};
 
 pub struct ComputeThread {
     harness: Harness,
@@ -87,7 +89,7 @@ impl ComputeThread {
                         .store_frame(
                             Frame {
                                 io_state: io_state.clone(),
-                                error_message: None,
+                                error_chain: None,
                             },
                             make_stats(&io_state, None),
                         )
@@ -100,8 +102,11 @@ impl ComputeThread {
                     let frame = cache
                         .fetch_frame(next_frame - 1)
                         .map_err(|source| SimulationError::LoadCheckpoint(source.into()))?;
-                    if let Some(error_message) = frame.error_message {
-                        return Err(SimulationError::StoredError(error_message));
+                    if let Some(error_chain) = frame.error_chain {
+                        return Err(SimulationError::StoredFrame {
+                            frame: next_frame - 1,
+                            cause: StoredCause::from_chain(error_chain),
+                        });
                     }
                     frame.io_state
                 };
@@ -194,18 +199,14 @@ impl ComputeThread {
                         }),
                     );
 
-                    let error_message = if let Err(ref e) = result {
-                        Some(format!("{e:#?}"))
-                    } else {
-                        None
-                    };
+                    let error_chain = result.as_ref().err().map(|error| StoredCause::chain(error));
 
                     // store state even if error occured
                     frame_store
                         .store_frame(
                             Frame {
                                 io_state,
-                                error_message,
+                                error_chain,
                             },
                             stats,
                         )
@@ -319,6 +320,11 @@ impl ComputeThread {
 
 #[cfg(test)]
 mod tests {
+    use squishy_volumes_directory_lock::DirectoryLock;
+    use squishy_volumes_file_input::{InputHeader, write_test_input};
+    use squishy_volumes_util::EnergyError;
+    use tempfile::TempDir;
+
     use super::*;
 
     fn compute_thread(
@@ -340,15 +346,74 @@ mod tests {
 
     #[test]
     fn stopping_a_failed_thread_returns_its_error() {
-        let thread = compute_thread(|_| Err(SimulationError::StoredError("broken".to_string())));
+        let thread = compute_thread(|_| {
+            Err(SimulationError::StoredFrame {
+                frame: 0,
+                cause: None,
+            })
+        });
         while thread.running() {
             std::thread::yield_now();
         }
 
         assert!(matches!(
             thread.stop(),
-            Err(SimulationError::StoredError(_))
+            Err(SimulationError::StoredFrame { .. })
         ));
+    }
+
+    fn displayed_chain(error: SimulationError) -> Vec<String> {
+        anyhow::Error::from(error)
+            .chain()
+            .map(ToString::to_string)
+            .collect()
+    }
+
+    #[test]
+    fn a_stored_frame_error_displays_like_the_live_one_under_the_frame() {
+        let directory = TempDir::new().unwrap();
+        write_test_input(
+            simulation_input_path(directory.path()),
+            InputHeader::test_input([]),
+            2,
+        );
+        let directory_lock = DirectoryLock::new(directory.path().to_path_buf()).unwrap();
+        let cache = Arc::new(Cache::new(directory_lock, 0, u64::MAX).unwrap());
+        let live_error = || {
+            SimulationError::from(squishy_volumes_cpu::Error::Energy(
+                EnergyError::PositionGradientNotInvertible,
+            ))
+        };
+
+        let frame = Frame {
+            io_state: IoState::default(),
+            error_chain: Some(StoredCause::chain(&live_error())),
+        };
+        let stats = make_stats(&frame.io_state, None);
+        cache.start_storing().store_frame(frame, stats).unwrap();
+        while cache.storing() {
+            std::thread::yield_now();
+        }
+
+        let rebake = ComputeThread::new(ComputeThreadSettings {
+            cache: cache.clone(),
+            max_time_step: 0.01,
+            number_of_frames: NonZero::new(2).unwrap(),
+            next_frame: 1,
+            gpu: None,
+            adaptive_time_steps: true,
+        })
+        .unwrap();
+        while rebake.running() {
+            std::thread::yield_now();
+        }
+        let stored = displayed_chain(rebake.stop().unwrap_err());
+
+        assert_eq!(
+            stored[0],
+            "frame 0 failed, rebake from an earlier frame to retry"
+        );
+        assert_eq!(stored[1..], displayed_chain(live_error()));
     }
 
     #[test]
