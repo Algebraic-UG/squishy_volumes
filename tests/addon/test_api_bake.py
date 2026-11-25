@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import re
 import shutil
 import time
 
@@ -30,6 +31,18 @@ from .support import (
 )
 
 BAKE_TIMEOUT_SEC = 300
+INVERTED_PARTICLES_CAUSE = [
+    "cpu computation failed",
+    "failed to compute the elastic energy of a particle",
+    "the position gradient has a negative determinant",
+]
+
+
+def message_lines(message: str) -> list[str]:
+    lines = (line.strip() for line in message.splitlines())
+    return [
+        re.sub(r"^\d+: ", "", line) for line in lines if line and line != "Caused by:"
+    ]
 
 
 def add_primitive(add_operator, **kwargs) -> bpy.types.Object:
@@ -310,6 +323,52 @@ class ComputeFailureTest(AddonTestCase):
 
         with self.assertRaisesRegex(api().BakeFailed, "cpu computation failed"):
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+
+    def fail_the_bake(self, **kwargs) -> str:
+        api().bake(self.sim_obj, bake_frames=5, **kwargs)
+        with self.assertRaises(api().BakeFailed) as failure:
+            api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+        [error] = api().bake_errors(self.sim_obj)
+        self.assertIn(error, str(failure.exception))
+        return error
+
+    def message_shown_to_the_user(self) -> str:
+        addon().progress_update.update_progress()
+        return simulation_handle(self.sim_obj).last_error
+
+    def assert_readable(self, message: str):
+        self.assertNotRegex(message, r"\b[A-Z]\w* ?[({]")
+        self.assertNotRegex(message, r"(?i)traceback|backtrace|panicked")
+
+    def test_a_live_failure_names_its_cause(self):
+        error = self.fail_the_bake()
+
+        self.assertEqual(message_lines(error), INVERTED_PARTICLES_CAUSE)
+
+    def test_rebaking_from_the_failed_frame_repeats_its_cause(self):
+        self.fail_the_bake()
+        failed_frame = api().baked_frames(self.sim_obj) - 1
+
+        error = self.fail_the_bake()
+
+        self.assertEqual(
+            message_lines(error),
+            [
+                f"frame {failed_frame} failed, rebake from an earlier frame to retry",
+                *INVERTED_PARTICLES_CAUSE,
+            ],
+        )
+
+    def test_the_failures_shown_to_the_user_are_readable(self):
+        live_error = self.fail_the_bake()
+        shown_live = self.message_shown_to_the_user()
+        stored_error = self.fail_the_bake()
+        shown_stored = self.message_shown_to_the_user()
+
+        self.assertIn(live_error, shown_live)
+        self.assertIn(stored_error, shown_stored)
+        for message in [shown_live, shown_stored]:
+            self.assert_readable(message)
 
     def test_pausing_after_the_failure_reports_it(self):
         api().bake(self.sim_obj, bake_frames=5)
