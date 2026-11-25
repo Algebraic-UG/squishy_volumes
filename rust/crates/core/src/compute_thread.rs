@@ -381,7 +381,7 @@ mod tests {
         let cache = Arc::new(Cache::new(directory_lock, 0, u64::MAX).unwrap());
         let live_error = || {
             SimulationError::from(squishy_volumes_cpu::Error::Energy(
-                EnergyError::PositionGradientNotInvertable,
+                EnergyError::PositionGradientNotInvertible,
             ))
         };
 
