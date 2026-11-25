@@ -112,15 +112,16 @@ impl SimulationImpl {
     }
 
     pub fn poll_impl(&mut self) -> Result<Value, SimulationError> {
+        let progress = self
+            .compute_thread
+            .as_mut()
+            .map(ComputeThread::poll)
+            .transpose()?
+            .unwrap_or_default();
         self.cache.check().map_err(SimulationError::CheckCache)?;
         serde_json::to_value(PollInfo {
             current_bytes_on_disk: self.cache.current_bytes_on_disk(),
-            progress: self
-                .compute_thread
-                .as_mut()
-                .map(ComputeThread::poll)
-                .transpose()?
-                .unwrap_or(Default::default()),
+            progress,
         })
         .map_err(SimulationError::EncodePollReport)
     }
@@ -191,4 +192,42 @@ pub struct ComputeSettings {
     pub next_frame: usize,
     pub number_of_frames: usize,
     pub max_bytes_on_disk: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use squishy_volumes_file_input::{InputHeader, write_test_input};
+    use tempfile::TempDir;
+
+    use super::*;
+
+    #[test]
+    fn polling_reports_a_failed_compute_thread_before_a_broken_cache() {
+        let directory = TempDir::new().unwrap();
+        write_test_input(
+            simulation_input_path(directory.path()),
+            InputHeader::test_input([]),
+            2,
+        );
+        let mut simulation = SimulationImpl::load(directory.path().to_path_buf()).unwrap();
+        simulation.compute_thread = Some(ComputeThread::spawn_work(|_| {
+            Err(SimulationError::StoredFrame {
+                frame: 0,
+                cause: None,
+            })
+        }));
+        while simulation.baking_impl() {
+            std::thread::yield_now();
+        }
+        std::fs::write(directory.path().join("frame_00001.abc"), []).unwrap();
+
+        assert!(matches!(
+            simulation.poll_impl(),
+            Err(SimulationError::StoredFrame { .. })
+        ));
+        assert!(matches!(
+            simulation.poll_impl(),
+            Err(SimulationError::CheckCache(_))
+        ));
+    }
 }
