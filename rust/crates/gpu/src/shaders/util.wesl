@@ -22,6 +22,17 @@ fn get_global_index(workgroup_size: u32, num_workgroups: vec3<u32>, global_invoc
         (global_invocation_id.z * workgroup_size * num_workgroups.x * num_workgroups.y);
 }
 
+struct WordWrite {
+    offset: u32,
+    stride: u32,
+    first: u32,
+    words: u32,
+}
+
+fn word_write_destination(word_write: WordWrite, element: u32, word: u32) -> u32 {
+    return (word_write.offset + element) * word_write.stride + word_write.first + word;
+}
+
 fn div_ceil(left: u32, right: u32) -> u32 {
     if left == 0 {
         return 0;
