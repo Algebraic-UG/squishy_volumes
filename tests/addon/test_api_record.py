@@ -144,48 +144,6 @@ class RecordErrorTest(RecordTestCase):
             self.assertTrue(issubclass(error, api().SquishyVolumesError))
 
 
-class RerecordOverBakeTest(RecordTestCase):
-    def setUp(self):
-        super().setUp()
-        sim_props = self.sim_obj.squishy_volumes
-        sim_props.bake_frames = 2
-        sim_props.compute_device = "CPU"
-        api().record_input(self.sim_obj)
-        api().bake(self.sim_obj)
-        api().wait_until_baked(self.sim_obj, timeout_sec=300)
-        self.baked_files = self.cache_files()
-        api().set_capture_range(self.sim_obj, 4, 6)
-
-    def cache_files(self) -> dict[str, bytes]:
-        return {
-            path.name: path.read_bytes()
-            for path in cache_directory(self.sim_obj).iterdir()
-        }
-
-    def assert_previous_bake_is_intact(self):
-        self.assertEqual(self.cache_files(), self.baked_files)
-        handle = simulation_handle(self.sim_obj)
-        self.assertEqual(handle.available_frames(), 2)
-        self.assertEqual(handle.capture_start_frame(), 1)
-        self.assertEqual(self.frame_driver_expression(), "frame - 1")
-
-    def test_cancelled_recording_keeps_the_previous_bake(self):
-        recording = api().iter_record_input(self.sim_obj)
-        next(recording)
-
-        recording.close()
-
-        self.assert_previous_bake_is_intact()
-
-    def test_failed_recording_keeps_the_previous_bake(self):
-        self.cube.scale = (2.0, 2.0, 2.0)
-
-        with self.assertRaises(api().ScaledInputError):
-            api().record_input(self.sim_obj)
-
-        self.assert_previous_bake_is_intact()
-
-
 class UnsavedFileRecordTest(AddonTestCase):
     def test_blend_relative_cache_needs_a_saved_file(self):
         bpy.ops.wm.read_homefile(use_empty=True)

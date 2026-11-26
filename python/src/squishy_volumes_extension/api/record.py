@@ -29,9 +29,8 @@ from ..capture_markers import (
 from ..capture_markers import set_capture_range as set_stored_and_marked_range
 from ..errors import CaptureRangeError
 from ..input_capture import capture_input_frame, create_input_header
-from ..properties import stored_range
 from ..util import giga_f32_to_u64
-from .simulation import reload, scene_or_current, update_frame_driver
+from .simulation import scene_or_current, update_frame_driver
 
 
 def capture_range(
@@ -71,29 +70,12 @@ def iter_record_input(
     scene = scene_or_current(scene)
     sim_props = sim_obj.squishy_volumes
     start, end = capture_range(sim_obj, scene=scene)
-    previous_range = stored_range(sim_props)
     store_capture_range(sim_props, start, end)
 
     sim_handle = SimulationHandle.get(uuid=sim_props.uuid)
     if sim_handle is not None:
         sim_handle.drop()
 
-    try:
-        yield from _record_input(scene, sim_props, start, end)
-        SimulationHandle.new()
-    except BaseException:
-        store_capture_range(sim_props, *previous_range)
-        if sim_handle is not None:
-            reload(sim_obj)
-        raise
-
-    update_frame_driver(sim_props, start)
-    release_cache_file(sim_props)
-
-
-def _record_input(
-    scene: bpy.types.Scene, sim_props, start: int, end: int
-) -> Generator[int]:
     prior_frame = scene.frame_current
     try:
         scene.frame_set(start)
@@ -103,9 +85,13 @@ def _record_input(
             input_header=create_input_header(sim_props),
             max_bytes_on_disk=giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
         )
+        update_frame_driver(sim_props, start)
         yield from _record_frames(scene, sim_props, input_handle, range(start, end + 1))
     finally:
         scene.frame_set(prior_frame)
+
+    release_cache_file(sim_props)
+    SimulationHandle.new()
 
 
 def release_cache_file(sim_props):

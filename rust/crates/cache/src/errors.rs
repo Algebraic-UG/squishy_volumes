@@ -45,8 +45,8 @@ pub enum WriteError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ReadError {
-    #[error("some frames are missing from the sequence")]
-    FrameSequenceBroken,
+    #[error("frame {path:?} is missing from the sequence")]
+    FrameMissing { path: std::path::PathBuf },
     #[error("frame is not computed yet")]
     FrameNotReady,
     #[error("failed to deserialize state")]

@@ -60,6 +60,23 @@ impl FrameStore {
     }
 }
 
+fn ensure_no_frame_missing(
+    directory: &std::path::Path,
+    frames: &mut [usize],
+) -> Result<(), ReadError> {
+    frames.sort_unstable();
+    match frames
+        .iter()
+        .enumerate()
+        .find(|(expected, frame)| expected != *frame)
+    {
+        Some((missing, _)) => Err(ReadError::FrameMissing {
+            path: frame_path(directory, missing),
+        }),
+        None => Ok(()),
+    }
+}
+
 impl CacheState {
     fn new(
         directory: &std::path::Path,
@@ -72,10 +89,7 @@ impl CacheState {
         let total_bytes_on_disk = input_bytes_on_disk + bytes_on_disk_from_frames;
 
         let mut frames = frames.into_iter().map(|(i, _)| i).collect::<Vec<_>>();
-        frames.sort();
-        if !frames.iter().enumerate().all(|(a, b)| a == *b) {
-            Err(ReadError::FrameSequenceBroken)?
-        }
+        ensure_no_frame_missing(directory, &mut frames)?;
 
         let total_bytes_on_disk = Arc::new(AtomicU64::new(total_bytes_on_disk));
         let max_bytes_on_disk = Arc::new(AtomicU64::new(max_bytes_on_disk));
@@ -130,10 +144,7 @@ impl Cache {
             .into_iter()
             .map(|(i, _)| i)
             .collect::<Vec<_>>();
-        frames.sort();
-        if !frames.iter().enumerate().all(|(a, b)| a == *b) {
-            Err(ReadError::FrameSequenceBroken)?
-        }
+        ensure_no_frame_missing(self.state.directory(), &mut frames)?;
         /* TODO: this check can fail.. we don't stop the store thread
         ensure!(
             self.state.available_frames.load(Ordering::Relaxed)
