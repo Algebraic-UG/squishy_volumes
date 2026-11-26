@@ -72,10 +72,10 @@ fn simple() {
     ];
 
     let particle_flags = vec![
-        ParticleFlags::default(),
-        ParticleFlags::default(),
-        ParticleFlags::default(),
-        ParticleFlags::HAS_GOAL,
+        ParticleFlags::IS_ACTIVE,
+        ParticleFlags::IS_ACTIVE,
+        ParticleFlags::IS_ACTIVE,
+        ParticleFlags::HAS_GOAL | ParticleFlags::IS_ACTIVE,
     ];
     let particle_goals_positions_and_collider_bits = vec![
         PositionAndColliderBits {
@@ -125,7 +125,7 @@ fn stiff_and_damped() {
         Vector4::new(-1., 0., 2., 0.),
         Vector4::new(0., 0., 0., 0.),
     ];
-    let particle_flags = vec![ParticleFlags::HAS_GOAL; 4];
+    let particle_flags = vec![ParticleFlags::HAS_GOAL | ParticleFlags::IS_ACTIVE; 4];
     let positions = [
         Vector3::new(0.1, 0.2, 0.3),
         Vector3::new(-0.5, 0.4, 0.),

@@ -38,7 +38,7 @@ impl CpuState {
             .zip(&self.particles.velocities)
             .zip(&self.particles.velocity_gradients)
             .zip(&mut self.particles.flags)
-            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .filter(|(_, flags)| flags.contains(ParticleFlags::IS_ACTIVE))
             .try_for_each(
                 |(
                     (

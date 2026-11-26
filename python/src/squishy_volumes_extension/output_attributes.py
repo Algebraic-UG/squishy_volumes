@@ -31,7 +31,7 @@ class OutputAttribute(NamedTuple):
 FLAGS = OutputAttribute(
     key="Flags",
     name="flags",
-    default=(0.0, 0.0),
+    default=(32.0, 0.0),
 )
 DENSITY = OutputAttribute(
     key="Density",
@@ -145,6 +145,6 @@ PARTICLE_FLAG_BITS = {
     "USE_VISCOSITY": 2,
     "USE_SAND_ALPHA": 3,
     "HAS_GOAL": 4,
-    "TOMBSTONED": 5,
+    "IS_ACTIVE": 5,
     "FAILED": 6,
 }

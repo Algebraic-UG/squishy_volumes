@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{PositionAndColliderBits, get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign, TOMBSTONED};
+import super::util::{PositionAndColliderBits, get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign, IS_ACTIVE};
 
 struct Opposite {
     ab: u32,
@@ -108,7 +108,7 @@ fn main(
     if global_index >= arrayLength(&particle_positions_and_collider_bits) {
         return;
     }
-    if (particle_flags[global_index] & TOMBSTONED) != 0 {
+    if (particle_flags[global_index] & IS_ACTIVE) == 0 {
         return;
     }
 

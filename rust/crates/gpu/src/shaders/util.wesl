@@ -228,7 +228,7 @@ const IS_FLUID: u32 = 1 << 1;
 const USE_VISCOSITY: u32 = 1 << 2;
 const USE_SAND_ALPHA: u32 = 1 << 3;
 const HAS_GOAL: u32 = 1 << 4;
-const TOMBSTONED: u32 = 1 << 5;
+const IS_ACTIVE: u32 = 1 << 5;
 const FAILED: u32 = 1 << 6;
 
 fn initial_volume(p: ParticleParameters) -> f32 {

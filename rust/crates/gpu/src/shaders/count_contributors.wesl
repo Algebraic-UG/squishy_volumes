@@ -18,7 +18,7 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING, TOMBSTONED};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING, IS_ACTIVE};
 
 @group(0) @binding(0)
 var<storage, read_write> flags: array<u32>;
@@ -58,7 +58,7 @@ fn main(
     if global_index >= arrayLength(&positions_and_collider_bits) {
         return;
     }
-    if (flags[global_index] & TOMBSTONED) != 0 {
+    if (flags[global_index] & IS_ACTIVE) == 0 {
         return;
     }
 

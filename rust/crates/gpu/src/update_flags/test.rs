@@ -57,7 +57,7 @@ fn check(
 #[test]
 fn simple() {
     check(
-        &[ParticleFlags::IS_SOLID | ParticleFlags::USE_VISCOSITY | ParticleFlags::TOMBSTONED],
+        &[ParticleFlags::IS_SOLID | ParticleFlags::USE_VISCOSITY | ParticleFlags::IS_ACTIVE],
         &[ParticleFlags::HAS_GOAL],
         Parameters { offset: 0 },
     );

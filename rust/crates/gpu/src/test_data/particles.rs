@@ -125,8 +125,11 @@ impl TestParticles {
         let (particle_parameters, particle_flags) = test_lame_parameters(&mut rng)
             .collect::<Vec<_>>()
             .into_iter()
-            .zip(repeat(ParticleFlags::IS_SOLID))
-            .chain(test_inviscid_parameters(&mut rng).zip(repeat(ParticleFlags::IS_FLUID)))
+            .zip(repeat(ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE))
+            .chain(
+                test_inviscid_parameters(&mut rng)
+                    .zip(repeat(ParticleFlags::IS_FLUID | ParticleFlags::IS_ACTIVE)),
+            )
             .collect::<Vec<_>>()
             .into_iter()
             .cycle()

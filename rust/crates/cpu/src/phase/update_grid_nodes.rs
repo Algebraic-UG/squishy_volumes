@@ -108,7 +108,7 @@ impl CpuState {
             .zip(&self.particles.collider_bits)
             .enumerate()
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
+            .filter_map(|(e, flags)| flags.contains(ParticleFlags::IS_ACTIVE).then_some(e))
             .for_each(|(particle_index, (position, &collider_bits))| {
                 let shift = position_to_shift_quadratic(position, grid_node_size);
                 kernel_quadratic_unrolled!(|grid_id| {
