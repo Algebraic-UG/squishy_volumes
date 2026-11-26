@@ -354,6 +354,14 @@ class BakeErrorTest(BakeTestCase):
 
         self.assertEqual(self.bake_and_wait(bake_frames=2), 2)
 
+    def test_bakes_with_a_limit_beyond_what_bytes_can_count(self):
+        preferences = addon().get_preferences.get_preferences()
+        preferences.sanity_check_allowed_disk_space = False
+        self.addCleanup(setattr, preferences, "sanity_check_allowed_disk_space", True)
+        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e12
+
+        self.assertEqual(self.bake_and_wait(bake_frames=2), 2)
+
     def test_needs_a_loaded_simulation(self):
         unrecorded = api().add_simulation("Unrecorded")
 
