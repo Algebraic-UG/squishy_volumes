@@ -63,3 +63,16 @@ class BakeTimeout(SquishyVolumesError):
 
 class InvalidRenderSetup(SquishyVolumesError):
     pass
+
+
+ERROR_CODES: dict[str, type[SquishyVolumesError]] = {
+    "insufficient_disk_space": InsufficientDiskSpace,
+}
+
+
+def classify_error(error: RuntimeError) -> RuntimeError:
+    code = getattr(error, "error_code", None)
+    if code is None:
+        return error
+    error_class = ERROR_CODES.get(code, SquishyVolumesError)
+    return error_class(str(error))

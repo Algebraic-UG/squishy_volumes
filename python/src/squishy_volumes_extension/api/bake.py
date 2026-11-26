@@ -85,7 +85,7 @@ def pause_bake(sim_obj: bpy.types.Object):
     _loaded_handle(sim_obj).pause_compute()
 
 
-def bake_errors(sim_obj: bpy.types.Object) -> list[str]:
+def bake_errors(sim_obj: bpy.types.Object) -> list[RuntimeError]:
     sim_handle = SimulationHandle.get(uuid=sim_obj.squishy_volumes.uuid)
     if sim_handle is None:
         return []
@@ -109,7 +109,7 @@ def wait_until_baked(
             if sim_handle.bake_errors:
                 raise BakeFailed(
                     f"Baking {sim_obj.name} failed:\n"
-                    + "\n\n".join(sim_handle.bake_errors)
+                    + "\n\n".join(map(str, sim_handle.bake_errors))
                 )
             return sim_handle.available_frames()
         if time.monotonic() > deadline:

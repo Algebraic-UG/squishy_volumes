@@ -21,13 +21,12 @@ use std::path::PathBuf;
 use serde_json::Value;
 use squishy_volumes_api::{Simulation, SimulationInput};
 
-use crate::{ContextImpl, Error, guard::guard};
+use crate::{ContextImpl, Error, guard::guard, with_error_code};
 
 impl squishy_volumes_api::Context for ContextImpl {
     fn available_gpus(&self) -> anyhow::Result<Vec<String>> {
-        Ok(guard(|| {
-            Ok::<_, Error>(squishy_volumes_gpu::GpuContext::available_gpus())
-        })?)
+        guard(|| Ok::<_, Error>(squishy_volumes_gpu::GpuContext::available_gpus()))
+            .map_err(with_error_code)
     }
 
     fn new_simulation_input(
@@ -37,9 +36,8 @@ impl squishy_volumes_api::Context for ContextImpl {
         input_header: Value,
         max_bytes_on_disk: u64,
     ) -> anyhow::Result<()> {
-        Ok(guard(|| {
-            self.new_simulation_input_impl(uuid, directory, input_header, max_bytes_on_disk)
-        })?)
+        guard(|| self.new_simulation_input_impl(uuid, directory, input_header, max_bytes_on_disk))
+            .map_err(with_error_code)
     }
 
     fn get_simulation_input(&mut self) -> Option<&mut dyn SimulationInput> {
@@ -47,18 +45,19 @@ impl squishy_volumes_api::Context for ContextImpl {
     }
 
     fn drop_simulation_input(&mut self) -> anyhow::Result<()> {
-        Ok(guard(|| {
+        guard(|| {
             self.drop_simulation_input_impl();
             Ok::<_, Error>(())
-        })?)
+        })
+        .map_err(with_error_code)
     }
 
     fn new_simulation(&mut self) -> anyhow::Result<String> {
-        Ok(guard(|| self.new_simulation_impl())?)
+        guard(|| self.new_simulation_impl()).map_err(with_error_code)
     }
 
     fn load_simulation(&mut self, uuid: String, directory: PathBuf) -> anyhow::Result<()> {
-        Ok(guard(|| self.load_simulation_impl(uuid, directory))?)
+        guard(|| self.load_simulation_impl(uuid, directory)).map_err(with_error_code)
     }
 
     fn get_simulation(&self, uuid: &str) -> Option<&dyn Simulation> {
@@ -70,9 +69,10 @@ impl squishy_volumes_api::Context for ContextImpl {
     }
 
     fn drop_simulation(&mut self, uuid: &str) -> anyhow::Result<()> {
-        Ok(guard(|| {
+        guard(|| {
             self.drop_simulation_impl(uuid);
             Ok::<_, Error>(())
-        })?)
+        })
+        .map_err(with_error_code)
     }
 }

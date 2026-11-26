@@ -143,7 +143,9 @@ Note that this also discards all computed frames in the cache."""
                 start_baking(self, sim_obj)
             except RuntimeError as error:
                 return self.finish_with_warning(
-                    self.uuid, f"{sim_obj.name} is recorded but not baking:\n{error}"
+                    self.uuid,
+                    f"{sim_obj.name} is recorded but not baking:\n{error}",
+                    error,
                 )
         return {"FINISHED"}
 

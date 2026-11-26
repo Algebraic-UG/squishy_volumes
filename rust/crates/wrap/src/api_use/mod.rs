@@ -16,8 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::Result;
 use pyo3::{prelude::*, types::PyList};
+
+use crate::wrap_error::Result;
 
 pub mod simulation;
 pub mod simulation_input;

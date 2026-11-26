@@ -35,6 +35,9 @@ use static_context as context;
 
 use context::{core_build_info, initialize, try_with_context};
 
+mod wrap_error;
+use wrap_error::CoreError;
+
 mod api_use;
 use crate::api_use::{available_gpus, simulation::Simulation, simulation_input::SimulationInput};
 
@@ -49,6 +52,7 @@ fn squishy_volumes_wrap(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<Simulation>()?;
     m.add_class::<SimulationInput>()?;
+    m.add_class::<CoreError>()?;
 
     Ok(())
 }
@@ -74,6 +78,6 @@ impl CombinedBuildInfo {
 }
 
 #[pyfunction]
-fn build_info_as_json() -> anyhow::Result<String> {
+fn build_info_as_json() -> wrap_error::Result<String> {
     Ok(to_string(&CombinedBuildInfo::new()?)?)
 }

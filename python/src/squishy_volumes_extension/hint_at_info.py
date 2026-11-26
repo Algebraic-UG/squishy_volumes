@@ -20,6 +20,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
+from .errors import classify_error
+
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -30,7 +32,10 @@ def hint_at_info[**P, R](func: Callable[P, R]) -> Callable[P, R]:
         try:
             return func(*args, **kwargs)
         except RuntimeError as cause:
-            cause.add_note("View the full message in 'Info'.")
-            raise
+            error = classify_error(cause)
+            error.add_note("View the full message in 'Info'.")
+            if error is cause:
+                raise
+            raise error.with_traceback(cause.__traceback__) from None
 
     return wrapper

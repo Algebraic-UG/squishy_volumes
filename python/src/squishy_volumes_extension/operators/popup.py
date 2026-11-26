@@ -19,9 +19,31 @@
 import bpy
 
 from ..bridge import SimulationHandle
+from ..errors import InsufficientDiskSpace, ScaledInputError
 from ..get_preferences import get_preferences
 from ..properties import get_simulation_objects
 from ..registration import class_registration
+
+FIXING_PREFERENCES = {
+    ScaledInputError: "allow_scaled_input",
+    InsufficientDiskSpace: "sanity_check_allowed_disk_space",
+}
+
+DISABLING_LABELS = {
+    "sanity_check_allowed_disk_space": "Disable Disk Space Check",
+}
+
+
+def fixing_preference(errors: list[RuntimeError]) -> str:
+    return next(
+        (
+            preference
+            for error in errors
+            for error_class, preference in FIXING_PREFERENCES.items()
+            if isinstance(error, error_class)
+        ),
+        "",
+    )
 
 
 def popup_title(uuid: str) -> str:
@@ -41,7 +63,7 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
 
     uuid: bpy.props.StringProperty()
     message: bpy.props.StringProperty()
-    show_allow_scaled_input: bpy.props.BoolProperty(options={"SKIP_SAVE"})
+    fixing_preference: bpy.props.StringProperty(options={"SKIP_SAVE"})
 
     def execute(self, context):
         sim = SimulationHandle.get(uuid=self.uuid)
@@ -70,12 +92,18 @@ class SCENE_OT_Squishy_Volumes_Popup(bpy.types.Operator):
         assert self.layout is not None
         for line in self.message.splitlines():
             self.layout.label(text=line)
-        if self.show_allow_scaled_input:
+        if self.fixing_preference:
             self.layout.separator()
-            self.layout.prop(
-                get_preferences(),
-                "allow_scaled_input",
-            )
+            disabling_label = DISABLING_LABELS.get(self.fixing_preference)
+            if disabling_label is None:
+                self.layout.prop(get_preferences(), self.fixing_preference)
+            else:
+                self.layout.prop(
+                    get_preferences(),
+                    self.fixing_preference,
+                    text=disabling_label,
+                    invert_checkbox=True,
+                )
 
 
 classes = [
@@ -86,18 +114,18 @@ classes = [
 register_popup, unregister_popup = class_registration(classes)
 
 
-def popup(uuid: str, message: str, show_allow_scaled_input: bool = False):
+def popup(uuid: str, message: str, fixing_preference: str = ""):
     if bpy.app.background or not bpy.context.window:
         return
     bpy.ops.scene.squishy_volumes_popup(
         "INVOKE_DEFAULT",
         uuid=uuid,
         message=message,
-        show_allow_scaled_input=show_allow_scaled_input,
+        fixing_preference=fixing_preference,
     )
 
 
-def show_message(uuid: str, message: str, show_allow_scaled_input: bool = False):
+def show_message(uuid: str, message: str, fixing_preference: str = ""):
     sim = SimulationHandle.get(uuid=uuid)
     if sim is not None:
         message = f"""{message}
@@ -105,4 +133,4 @@ def show_message(uuid: str, message: str, show_allow_scaled_input: bool = False)
         if sim.last_error == message:
             return
         sim.last_error = message
-    popup(uuid, message, show_allow_scaled_input)
+    popup(uuid, message, fixing_preference)

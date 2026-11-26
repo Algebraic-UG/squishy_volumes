@@ -24,6 +24,7 @@ use squishy_volumes_api::InputBulk;
 use crate::{
     SimulationInputError, SimulationInputImpl,
     guard::{Breakable, guard_breakable},
+    with_error_code,
 };
 
 impl Breakable for SimulationInputImpl {
@@ -40,14 +41,16 @@ impl Breakable for SimulationInputImpl {
 
 impl squishy_volumes_api::SimulationInput for SimulationInputImpl {
     fn start_frame(&mut self, frame_start: Value) -> anyhow::Result<()> {
-        Ok(guard_breakable(self, |simulation_input| {
+        guard_breakable(self, |simulation_input| {
             simulation_input.start_frame_impl(frame_start)
-        })?)
+        })
+        .map_err(with_error_code)
     }
 
     fn record_input(&mut self, meta: Value, bulk: InputBulk) -> anyhow::Result<()> {
-        Ok(guard_breakable(self, |simulation_input| {
+        guard_breakable(self, |simulation_input| {
             simulation_input.record_input_impl(meta, bulk)
-        })?)
+        })
+        .map_err(with_error_code)
     }
 }

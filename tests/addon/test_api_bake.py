@@ -17,9 +17,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import importlib
+import json
 import re
 import shutil
 import time
+from types import SimpleNamespace
+from unittest import mock
 
 import bpy
 from mathutils import Vector
@@ -293,10 +296,55 @@ class BakeErrorTest(BakeTestCase):
     def test_refuses_more_disk_space_than_is_free(self):
         self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e9
 
-        with self.assertRaisesRegex(RuntimeError, "GB are free on the disk"):
+        with self.assertRaises(api().InsufficientDiskSpace) as refusal:
             api().bake(self.sim_obj, bake_frames=2)
 
+        self.assertIn("GB are free on the disk", str(refusal.exception))
         self.assertFalse(api().is_baking(self.sim_obj))
+
+    def test_a_core_error_without_a_code_is_a_plain_runtime_error(self):
+        wrapped_simulation = type(simulation_handle(self.sim_obj).handle)
+        missing_directory = cache_directory(self.sim_obj) / "missing"
+
+        with self.assertRaises(RuntimeError) as failure:
+            wrapped_simulation.load(uuid="missing", directory=str(missing_directory))
+
+        self.assertIsNone(failure.exception.error_code)
+        with self.assertRaises(AttributeError):
+            failure.exception.error_code = "insufficient_disk_space"
+
+    def raw_disk_space_error(self) -> RuntimeError:
+        sim_handle = simulation_handle(self.sim_obj)
+        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e9
+        with mock.patch.object(type(sim_handle), "start_compute") as start_compute:
+            api().bake(self.sim_obj, bake_frames=2)
+        settings = start_compute.call_args.kwargs["compute_settings"]
+        with self.assertRaises(RuntimeError) as raw:
+            sim_handle.handle.start_compute(compute_settings=json.dumps(settings))
+        return raw.exception
+
+    def fail_polling_with(self, error: RuntimeError):
+        sim_handle = simulation_handle(self.sim_obj)
+        self.addCleanup(setattr, sim_handle, "handle", sim_handle.handle)
+        sim_handle.handle = SimpleNamespace(poll=mock.Mock(side_effect=error))
+
+    def test_a_disk_space_failure_while_baking_keeps_its_class(self):
+        self.fail_polling_with(self.raw_disk_space_error())
+
+        [error] = api().bake_errors(self.sim_obj)
+
+        self.assertIsInstance(error, api().InsufficientDiskSpace)
+        self.assertIn("GB are free on the disk", str(error))
+
+    def test_a_disk_space_failure_while_baking_offers_to_disable_the_check(self):
+        self.fail_polling_with(self.raw_disk_space_error())
+        progress_update = addon().progress_update
+
+        with mock.patch.object(progress_update, "show_message") as show_message:
+            progress_update.update_progress()
+
+        [(_uuid, _message, preference)] = [c.args for c in show_message.call_args_list]
+        self.assertEqual(preference, "sanity_check_allowed_disk_space")
 
     def test_bakes_beyond_the_free_space_with_the_check_disabled(self):
         preferences = addon().get_preferences.get_preferences()
@@ -402,8 +450,8 @@ class ComputeFailureTest(AddonTestCase):
         with self.assertRaises(api().BakeFailed) as failure:
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
         [error] = api().bake_errors(self.sim_obj)
-        self.assertIn(error, str(failure.exception))
-        return error
+        self.assertIn(str(error), str(failure.exception))
+        return str(error)
 
     def message_shown_to_the_user(self) -> str:
         addon().progress_update.update_progress()
@@ -453,7 +501,7 @@ class ComputeFailureTest(AddonTestCase):
         api().pause_bake(self.sim_obj)
 
         [error] = sim_handle.bake_errors
-        self.assertIn("cpu computation failed", error)
+        self.assertIn("cpu computation failed", str(error))
         self.assertEqual(api().bake_errors(self.sim_obj), [error])
 
     def test_a_repeated_failure_after_a_restart_is_unseen_again(self):
@@ -462,16 +510,17 @@ class ComputeFailureTest(AddonTestCase):
         with self.assertRaises(api().BakeFailed):
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
         sim_handle = simulation_handle(self.sim_obj)
-        first_errors = list(sim_handle.bake_errors)
+        first_errors = list(map(str, sim_handle.bake_errors))
         shown = (sim_handle.bake_errors, len(sim_handle.bake_errors))
 
         api().bake(self.sim_obj, from_frame=0, bake_frames=5)
         with self.assertRaises(api().BakeFailed):
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
 
-        self.assertEqual(sim_handle.bake_errors, first_errors)
+        self.assertEqual(list(map(str, sim_handle.bake_errors)), first_errors)
         self.assertEqual(
-            unseen_bake_errors(sim_handle.bake_errors, shown), first_errors
+            list(map(str, unseen_bake_errors(sim_handle.bake_errors, shown))),
+            first_errors,
         )
 
     def test_the_failure_survives_an_earlier_poll(self):
@@ -525,5 +574,13 @@ class BakeOperatorTest(BakeTestCase):
         sim_props.bake_frames = 2
         sim_props.max_giga_bytes_on_disk = 1e9
 
-        with self.assertRaisesRegex(RuntimeError, "GB are free on the disk"):
+        operator_base = addon().operators.operator_base
+        with (
+            mock.patch.object(operator_base, "popup") as popup,
+            self.assertRaisesRegex(RuntimeError, "GB are free on the disk"),
+        ):
             bpy.ops.scene.squishy_volumes_bake_start_from_latest(uuid=sim_props.uuid)
+
+        [(_uuid, message, preference)] = [c.args for c in popup.call_args_list]
+        self.assertIn("GB are free on the disk", message)
+        self.assertEqual(preference, "sanity_check_allowed_disk_space")

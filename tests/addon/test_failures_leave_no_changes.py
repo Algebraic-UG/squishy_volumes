@@ -358,6 +358,10 @@ class RecordAndBakeWithoutDiskSpaceTest(AddonTestCase):
         self.assertFalse(api().is_baking(sim_obj))
         [warning] = warning_messages(show_message)
         self.assertIn("not baking", warning)
+        self.assertEqual(
+            show_message.call_args.kwargs["fixing_preference"],
+            "sanity_check_allowed_disk_space",
+        )
         self.assertIn("GB are free on the disk", simulation_handle(sim_obj).last_error)
 
 
