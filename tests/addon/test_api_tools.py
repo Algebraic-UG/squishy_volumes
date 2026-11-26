@@ -70,6 +70,8 @@ class AddGoalsTest(ToolTestCase):
         self.assertEqual(choose.name, "Cube - Choose")
         self.assertEqual(choose.type, "MESH")
         self.assertEqual(len(choose.data.vertices), 42)
+        self.assertEqual(choose.display_type, "WIRE")
+        self.assertTrue(choose.hide_render)
         self.assertEqual(move.type, "EMPTY")
         self.assertEqual(move.parent, choose)
         modifier = node_modifier(self.ball, "Squishy Volumes Goals")
