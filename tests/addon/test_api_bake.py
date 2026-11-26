@@ -278,7 +278,7 @@ class BakeErrorListTest(BakeTestCase):
     def test_waiting_fails_even_after_someone_else_polled(self):
         simulation_handle(self.sim_obj).poll()
 
-        with self.assertRaisesRegex(api().BakeFailed, "missing"):
+        with self.assertRaisesRegex(api().BakeFailed, "frame_00001.abc.* missing"):
             api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
 
     def test_errors_are_kept_until_cleared(self):
