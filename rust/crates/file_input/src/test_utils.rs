@@ -18,7 +18,9 @@
 
 use std::{fmt::Debug, path::Path};
 
-use crate::{Header, InputConsts, InputHeader, InputObject, InputReader, InputWriter};
+use squishy_volumes_util::AnimatedGlobals;
+
+use crate::{FrameBulk, Header, InputConsts, InputHeader, InputObject, InputReader, InputWriter};
 
 impl InputHeader {
     pub fn test_input(objects: impl IntoIterator<Item = (String, InputObject)>) -> Self {
@@ -34,9 +36,21 @@ pub fn write_test_input<P: AsRef<Path> + Debug>(
     header: InputHeader,
     number_of_frames: usize,
 ) -> InputReader {
+    let frames = (0..number_of_frames).map(|_| (bytemuck::Zeroable::zeroed(), Vec::new()));
+    write_test_input_frames(path, header, frames)
+}
+
+pub fn write_test_input_frames<'a, P: AsRef<Path> + Debug>(
+    path: P,
+    header: InputHeader,
+    frames: impl IntoIterator<Item = (AnimatedGlobals, Vec<FrameBulk<'a>>)>,
+) -> InputReader {
     let mut writer = InputWriter::new(&path, Header::new(header)).unwrap();
-    for _ in 0..number_of_frames {
-        writer.start_frame(&bytemuck::Zeroable::zeroed()).unwrap();
+    for (animated_globals, bulks) in frames {
+        writer.start_frame(&animated_globals).unwrap();
+        for bulk in &bulks {
+            writer.record_bulk(bulk).unwrap();
+        }
     }
     writer.flush().unwrap();
     InputReader::new(path).unwrap()
