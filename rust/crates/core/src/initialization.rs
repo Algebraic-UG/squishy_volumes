@@ -281,30 +281,15 @@ fn apply_particle_bulk(
     bulk: &OwnedFrameBulk,
 ) -> Result<(), ApplyBulkError> {
     match attribute {
-        FrameBulkParticles::IsSolid
-        | FrameBulkParticles::IsFluid
-        | FrameBulkParticles::UseViscosity
-        | FrameBulkParticles::UseSandAlpha
-        | FrameBulkParticles::HasGoal
-        | FrameBulkParticles::IsActive => {
-            let flag = match attribute {
-                FrameBulkParticles::IsSolid => ParticleFlags::IS_SOLID,
-                FrameBulkParticles::IsFluid => ParticleFlags::IS_FLUID,
-                FrameBulkParticles::UseViscosity => ParticleFlags::USE_VISCOSITY,
-                FrameBulkParticles::UseSandAlpha => ParticleFlags::USE_SAND_ALPHA,
-                FrameBulkParticles::HasGoal => ParticleFlags::HAS_GOAL,
-                FrameBulkParticles::IsActive => todo!(),
-                _ => unreachable!(),
-            };
+        FrameBulkParticles::Flags => {
             (
                 particles.view_attr_mut::<attribute::Flags>()?,
-                bulk.assume_bools()?,
+                bulk.assume_ints::<[u32; 2]>()?,
             )
                 .into_par_iter()
-                .for_each(|(fs, bit)| {
-                    let mut tmp = ParticleFlags(two_f32_to_u32(*fs));
-                    tmp.set(flag, *bit);
-                    *fs = u32_to_two_f32(tmp.0);
+                .for_each(|(fs, [mask, values])| {
+                    let flags = ParticleFlags(two_f32_to_u32(*fs)).overwritten(*mask, *values);
+                    *fs = u32_to_two_f32(flags.0);
                 });
         }
         FrameBulkParticles::ColliderBits => {

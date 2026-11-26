@@ -61,23 +61,6 @@ impl SimulationInput {
     }
 
     #[pyo3(signature = (*, meta, bulk))]
-    pub fn record_input_bool<'py>(
-        &self,
-        meta: &str,
-        bulk: PyReadonlyArray1<'py, bool>,
-    ) -> Result<()> {
-        try_with_context(|context| {
-            context
-                .get_simulation_input()
-                .context("Not recording input")?
-                .record_input(
-                    from_str(meta).context("Meta string isn't valid JSON")?,
-                    InputBulk::Bool(Cow::Borrowed(bulk.as_slice()?)),
-                )
-        })
-    }
-
-    #[pyo3(signature = (*, meta, bulk))]
     pub fn record_input_float<'py>(
         &self,
         meta: &str,

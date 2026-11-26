@@ -91,7 +91,6 @@ pub mod scatter;
 pub mod step;
 pub mod test_status;
 pub mod test_svd;
-pub mod update_flags;
 pub mod viscosity;
 pub mod write_words;
 
@@ -125,7 +124,6 @@ pub use scatter::Scatter;
 pub use step::Step;
 pub use test_status::TestStatus;
 pub use test_svd::TestSvd;
-pub use update_flags::UpdateFlags;
 pub use viscosity::Viscosity;
 pub use write_words::WriteWords;
 

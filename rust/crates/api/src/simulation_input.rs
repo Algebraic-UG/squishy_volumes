@@ -28,7 +28,6 @@ pub trait SimulationInput {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum InputBulk<'a> {
-    Bool(Cow<'a, [bool]>),
     Floats(Cow<'a, [f32]>),
     Ints(Cow<'a, [i32]>),
 }
@@ -42,7 +41,6 @@ impl InputBulk<'_> {
     #[inline]
     pub fn len(&self) -> usize {
         match self {
-            InputBulk::Bool(cow) => cow.len(),
             InputBulk::Floats(cow) => cow.len(),
             InputBulk::Ints(cow) => cow.len(),
         }

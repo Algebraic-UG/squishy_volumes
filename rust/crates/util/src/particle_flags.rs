@@ -41,6 +41,12 @@ bitflags::bitflags! {
     }
 }
 
+impl ParticleFlags {
+    pub fn overwritten(self, mask: u32, values: u32) -> Self {
+        Self((self.0 & !mask) | (values & mask))
+    }
+}
+
 impl Default for ParticleFlags {
     fn default() -> Self {
         Self::IS_ACTIVE

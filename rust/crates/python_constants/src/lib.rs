@@ -129,8 +129,21 @@ impl InputAttribute {
 
 fn particle_attributes() -> Vec<InputAttribute> {
     FrameBulkParticles::iter()
+        .filter(|variant| *variant != FrameBulkParticles::Flags)
         .map(|variant| InputAttribute::new("PARTICLE_", format!("{variant:?}")))
         .collect()
+}
+
+fn particle_flag_attributes() -> [InputAttribute; 2] {
+    let flag_attribute = |constant: &str, name: &str| InputAttribute {
+        constant: constant.to_string(),
+        key: format!("{:?}", FrameBulkParticles::Flags),
+        name: name.to_string(),
+    };
+    [
+        flag_attribute("PARTICLE_MASK", "sv_mask"),
+        flag_attribute("PARTICLE_FLAGS", "sv_flags"),
+    ]
 }
 
 fn collider_attributes() -> Vec<InputAttribute> {
@@ -152,12 +165,14 @@ fn render_tuple(name: &str, attributes: &[InputAttribute]) -> String {
 fn render_input_attributes() -> String {
     let mut body = named_tuple_class("InputAttribute", &[("key", "str"), ("name", "str")]);
     let particles = particle_attributes();
+    let particle_flags = particle_flag_attributes();
     let colliders = collider_attributes();
-    for attribute in particles.iter().chain(&colliders) {
+    for attribute in particles.iter().chain(&particle_flags).chain(&colliders) {
         body.push_str(&attribute.render());
     }
     body.push('\n');
     body.push_str(&render_tuple("PARTICLE_ATTRIBUTES", &particles));
+    body.push_str(&render_tuple("FLAG_ATTRIBUTES", &particle_flags));
     body.push_str(&render_tuple("COLLIDER_ATTRIBUTES", &colliders));
     body
 }

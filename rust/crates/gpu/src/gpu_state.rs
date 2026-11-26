@@ -25,7 +25,7 @@ use std::{
     time::Duration,
 };
 
-use nalgebra::{Matrix1x3, Matrix3, Matrix4x3, Vector3, Vector4, stack};
+use nalgebra::{Matrix1x3, Matrix3, Matrix4, Matrix4x3, Vector3, Vector4, stack};
 use squishy_volumes_file_frame::{
     IoState, IoStateError, ParticleObjectError, ParticlesObject, combine_matrices, two_f32_to_u32,
     u32_to_two_f32,
@@ -52,12 +52,44 @@ struct PendingInput {
     globals: Allocation,
     next_collider_input: Option<step::ColliderInput>,
     particle_updates: Vec<PendingParticleUpdate>,
+    host_updates: Vec<HostUpdate>,
 }
 
 struct PendingParticleUpdate {
-    attribute: FrameBulkParticles,
-    allocation: Allocation,
+    buffer: ParticleBuffer,
+    layout: WordLayout,
+    source: Allocation,
+    mask: Option<Allocation>,
     offset: u32,
+}
+
+struct HostUpdate {
+    vectors: HostVectors,
+    offset: usize,
+    values: Vec<[f32; 3]>,
+}
+
+#[derive(Clone, Copy)]
+enum HostVectors {
+    InitialPositions,
+    GoalPositions,
+}
+
+#[derive(Clone, Copy)]
+enum ParticleBuffer {
+    Flags,
+    Parameters,
+    PositionsAndColliderBits,
+    PositionGradients,
+    Velocities,
+    Goals,
+}
+
+#[derive(Clone, Copy)]
+struct WordLayout {
+    stride: u32,
+    first: u32,
+    words: u32,
 }
 
 pub struct GpuState {
@@ -65,7 +97,7 @@ pub struct GpuState {
 
     gpu_context: GpuContext,
 
-    update_flags: UpdateFlags,
+    write_words: WriteWords,
     pipeline_part: Step,
 
     step_input: step::Input,
@@ -84,6 +116,9 @@ pub struct GpuState {
 
     // if we need to redo the frame
     variable_particle_input_backup: VariableParticleInputBackup,
+
+    initial_positions: Vec<[f32; 3]>,
+    goal_positions: Vec<[f32; 3]>,
 
     profile_data_csv_writer: Option<ProfileDataCsvWriter>,
 }
@@ -155,7 +190,6 @@ impl VariableParticleInputBackup {
         .collect::<Vec<_>>();
 
         let _ = io_state.collect::<attribute::ElasticEnergy>()?;
-        let _ = io_state.collect::<attribute::InitialPosition>()?;
 
         for p in io_state.particle_objects.values() {
             if !p.attributes.is_empty() {
@@ -243,9 +277,9 @@ impl GpuState {
             .unwrap();
         let workgroup_size = 64.try_into().unwrap(); // TODO: make configurable?
 
-        let update_flags = UpdateFlags::new(
+        let write_words = WriteWords::new(
             &mut gpu_context,
-            update_flags::Settings {
+            write_words::Settings {
                 workgroup_size,
                 dispatch_limit,
             },
@@ -277,11 +311,10 @@ impl GpuState {
             len: num_particles as u32,
         });
 
-        let particle_goals = io_state
-            .collect::<attribute::GoalPosition>()?
-            .map(Into::<Vector3<f32>>::into)
-            .map(|p| p.push(0.))
-            .collect::<Vec<_>>();
+        let initial_positions: Vec<[f32; 3]> =
+            io_state.collect::<attribute::InitialPosition>()?.collect();
+        let goal_positions: Vec<[f32; 3]> =
+            io_state.collect::<attribute::GoalPosition>()?.collect();
 
         let variable_particle_input_backup = VariableParticleInputBackup::new(&mut io_state)?;
 
@@ -301,6 +334,10 @@ impl GpuState {
             let indirect_grid_nodes =
                 Allocation::new(device, "indirect_grid_nodes", &[Indirect::default()])?;
 
+            let particle_goals: Vec<Vector4<f32>> = goal_positions
+                .iter()
+                .map(|p| Vector3::from(*p).push(0.))
+                .collect();
             let particle_goals = Allocation::new(device, "particle_goals", &particle_goals)?;
             let variable_particle_input = variable_particle_input_backup.to_data(device)?;
 
@@ -337,7 +374,7 @@ impl GpuState {
         Ok(Self {
             animated_globals,
             gpu_context,
-            update_flags,
+            write_words,
             pipeline_part,
             step_input,
             pending_input: None,
@@ -349,6 +386,8 @@ impl GpuState {
             steps_per_frame,
             frame_input,
             variable_particle_input_backup,
+            initial_positions,
+            goal_positions,
             profile_data_csv_writer,
         })
     }
@@ -676,6 +715,18 @@ impl GpuState {
                 .collect()
         };
         self.time_step_history = latest_time_step_limits(&history).to_vec();
+        for HostUpdate {
+            vectors,
+            offset,
+            values,
+        } in pending_input.host_updates
+        {
+            let vectors = match vectors {
+                HostVectors::InitialPositions => &mut self.initial_positions,
+                HostVectors::GoalPositions => &mut self.goal_positions,
+            };
+            vectors[offset..offset + values.len()].copy_from_slice(&values);
+        }
         self.animated_globals = pending_input.animated_globals;
         self.step_input.globals = pending_input.globals;
         self.step_input.collider_input = pending_input.next_collider_input;
@@ -724,8 +775,10 @@ impl GpuState {
                 (|| {
                     // TODO
                     pt.insert_attr::<a::ElasticEnergy>(repeat_n(0., r().len()))?;
-                    pt.insert_attr::<a::InitialPosition>(repeat_n([0.; 3], r().len()))?;
-                    pt.insert_attr::<a::GoalPosition>(repeat_n([0.; 3], r().len()))?;
+                    pt.insert_attr::<a::InitialPosition>(
+                        self.initial_positions[r()].iter().copied(),
+                    )?;
+                    pt.insert_attr::<a::GoalPosition>(self.goal_positions[r()].iter().copied())?;
 
                     pt.insert_attr::<a::Flags>(
                         ps.flags[r()].iter().map(|flag| u32_to_two_f32(flag.0)),
@@ -876,6 +929,7 @@ impl GpuState {
                 globals: self.step_input.globals.clone(),
                 next_collider_input: self.step_input.collider_input.clone(),
                 particle_updates: Vec::new(),
+                host_updates: Vec::new(),
             });
         };
 
@@ -886,17 +940,16 @@ impl GpuState {
         )?;
 
         let mut particle_updates = Vec::new();
+        let mut host_updates = Vec::new();
         for bulk in next_input_frame.bulk {
-            if let BulkAttribute::Particles(attribute) = bulk.meta.captured_attribute {
-                let update = pending_particle_update(
-                    self.gpu_context.device(),
-                    self.frame_input.header(),
-                    attribute,
-                    &bulk,
-                )
-                .map_err(|error| error.into_gpu_error(&self.frame_input))?;
-                particle_updates.extend(update);
-            }
+            pending_updates(
+                self.gpu_context.device(),
+                self.frame_input.header(),
+                &bulk,
+                &mut particle_updates,
+                &mut host_updates,
+            )
+            .map_err(|error| error.into_gpu_error(&self.frame_input))?;
         }
 
         self.frame_input.load_next()?;
@@ -907,6 +960,7 @@ impl GpuState {
             globals,
             next_collider_input,
             particle_updates,
+            host_updates,
         })
     }
 
@@ -916,52 +970,50 @@ impl GpuState {
         pending_input: &PendingInput,
     ) -> Result<(), Error> {
         for PendingParticleUpdate {
-            attribute,
-            allocation,
+            buffer,
+            layout:
+                WordLayout {
+                    stride,
+                    first,
+                    words,
+                },
+            source,
+            mask,
             offset,
         } in &pending_input.particle_updates
         {
-            match attribute {
-                FrameBulkParticles::IsSolid => todo!(),
-                FrameBulkParticles::IsFluid => todo!(),
-                FrameBulkParticles::UseViscosity => todo!(),
-                FrameBulkParticles::UseSandAlpha => todo!(),
-                FrameBulkParticles::IsActive => todo!(),
-
-                FrameBulkParticles::HasGoal => {
-                    self.update_flags.record(
-                        &mut self.gpu_context,
-                        &mut encoder.into(),
-                        update_flags::Input {
-                            new_flags: allocation.clone(),
-                            flags: self
-                                .step_input
-                                .variable_particle_input
-                                .particle_flags
-                                .clone(),
-                        },
-                        update_flags::Parameters { offset: *offset },
-                    )?;
-                }
-
-                FrameBulkParticles::ColliderBits => todo!(),
-                FrameBulkParticles::Transform => todo!(),
-                FrameBulkParticles::Size => todo!(),
-                FrameBulkParticles::Density => todo!(),
-                FrameBulkParticles::YoungsModulus => todo!(),
-                FrameBulkParticles::PoissonsRatio => todo!(),
-                FrameBulkParticles::InitialPosition => todo!(),
-                FrameBulkParticles::Velocity => todo!(),
-                FrameBulkParticles::ViscosityDynamic => todo!(),
-                FrameBulkParticles::ViscosityBulk => todo!(),
-                FrameBulkParticles::Exponent => todo!(),
-                FrameBulkParticles::BulkModulus => todo!(),
-                FrameBulkParticles::SandAlpha => todo!(),
-
-                FrameBulkParticles::GoalPosition => unreachable!(),
-            }
+            let target = self.particle_buffer(*buffer).clone();
+            self.write_words.record(
+                &mut self.gpu_context,
+                &mut encoder.into(),
+                write_words::Input {
+                    source: source.clone(),
+                    mask: mask.clone(),
+                    target,
+                },
+                write_words::Parameters {
+                    offset: *offset,
+                    stride: *stride,
+                    first: *first,
+                    words: *words,
+                },
+            )?;
         }
         Ok(())
+    }
+
+    fn particle_buffer(&self, buffer: ParticleBuffer) -> &Allocation {
+        let variable = &self.step_input.variable_particle_input;
+        match buffer {
+            ParticleBuffer::Flags => &variable.particle_flags,
+            ParticleBuffer::Parameters => &variable.particle_parameters,
+            ParticleBuffer::PositionsAndColliderBits => {
+                &variable.particle_positions_and_collider_bits
+            }
+            ParticleBuffer::PositionGradients => &variable.particle_position_gradients,
+            ParticleBuffer::Velocities => &variable.particle_velocities,
+            ParticleBuffer::Goals => &self.step_input.particle_goals,
+        }
     }
 
     fn record_steps(
@@ -1212,62 +1264,230 @@ impl PendingUpdateError {
     }
 }
 
-fn pending_particle_update(
+fn words<T>() -> u32 {
+    (size_of::<T>() / size_of::<u32>()) as u32
+}
+
+fn word_offset(byte_offset: usize) -> u32 {
+    (byte_offset / size_of::<u32>()) as u32
+}
+
+macro_rules! parameter {
+    ($field:ident) => {
+        (
+            ParticleBuffer::Parameters,
+            WordLayout {
+                stride: words::<ParticleParameters>(),
+                first: word_offset(std::mem::offset_of!(ParticleParameters, $field)),
+                words: 1,
+            },
+        )
+    };
+}
+
+const VECTOR_LAYOUT: WordLayout = WordLayout {
+    stride: 4,
+    first: 0,
+    words: 3,
+};
+
+struct UpdateSink<'a> {
+    device: &'a wgpu::Device,
+    offset: usize,
+    particle_updates: &'a mut Vec<PendingParticleUpdate>,
+    host_updates: &'a mut Vec<HostUpdate>,
+}
+
+impl UpdateSink<'_> {
+    fn push<T: bytemuck::Pod>(
+        &mut self,
+        target: (ParticleBuffer, WordLayout),
+        values: &[T],
+    ) -> Result<(), PendingUpdateError> {
+        self.push_masked(target, bytemuck::cast_slice(values), None)
+    }
+
+    fn push_host(&mut self, vectors: HostVectors, values: Vec<[f32; 3]>) {
+        self.host_updates.push(HostUpdate {
+            vectors,
+            offset: self.offset,
+            values,
+        });
+    }
+
+    fn push_masked(
+        &mut self,
+        (buffer, layout): (ParticleBuffer, WordLayout),
+        values: &[u32],
+        mask: Option<&[u32]>,
+    ) -> Result<(), PendingUpdateError> {
+        self.particle_updates.push(PendingParticleUpdate {
+            buffer,
+            layout,
+            source: Allocation::new(self.device, "particle_update", values)?,
+            mask: mask
+                .map(|mask| Allocation::new(self.device, "particle_update_mask", mask))
+                .transpose()?,
+            offset: self.offset as u32,
+        });
+        Ok(())
+    }
+}
+
+fn pending_updates(
     device: &wgpu::Device,
     header: &Header,
+    bulk: &OwnedFrameBulk,
+    particle_updates: &mut Vec<PendingParticleUpdate>,
+    host_updates: &mut Vec<HostUpdate>,
+) -> Result<(), PendingUpdateError> {
+    let BulkAttribute::Particles(attribute) = bulk.meta.captured_attribute else {
+        return Ok(());
+    };
+    let particle_range = &header
+        .get_particle_object(&bulk.meta.object_name)?
+        .particle_range;
+    if particle_range.is_empty() {
+        return Ok(());
+    }
+    let mut sink = UpdateSink {
+        device,
+        offset: particle_range.start,
+        particle_updates,
+        host_updates,
+    };
+    let inv_scale = 1. / header.consts.simulation_scale;
+    pending_particle_updates(&mut sink, inv_scale, attribute, bulk)
+}
+
+fn scaled_vectors(
+    bulk: &OwnedFrameBulk,
+    inv_scale: f32,
+) -> Result<Vec<[f32; 3]>, FrameVerificationError> {
+    Ok(bulk
+        .assume_floats::<[f32; 3]>()?
+        .iter()
+        .map(|vector| vector.map(|component| component * inv_scale))
+        .collect())
+}
+
+fn pending_particle_updates(
+    sink: &mut UpdateSink,
+    inv_scale: f32,
     attribute: FrameBulkParticles,
     bulk: &OwnedFrameBulk,
-) -> Result<Option<PendingParticleUpdate>, PendingUpdateError> {
-    let offset = header
-        .get_particle_object(&bulk.meta.object_name)?
-        .particle_range
-        .start as u32;
-
-    let allocation = match attribute {
-        FrameBulkParticles::IsSolid => todo!(),
-        FrameBulkParticles::IsFluid => todo!(),
-        FrameBulkParticles::UseViscosity => todo!(),
-        FrameBulkParticles::UseSandAlpha => todo!(),
-        FrameBulkParticles::IsActive => todo!(),
-
-        // TODO: The GPU should handle bool data as well
-        FrameBulkParticles::HasGoal => {
-            let flags: Vec<ParticleFlags> = bulk
-                .assume_bools()?
+) -> Result<(), PendingUpdateError> {
+    match attribute {
+        FrameBulkParticles::Flags => {
+            let (masks, values): (Vec<u32>, Vec<u32>) = bulk
+                .assume_ints::<[u32; 2]>()?
                 .iter()
-                .map(|bit| {
-                    if *bit {
-                        ParticleFlags::HAS_GOAL
-                    } else {
-                        ParticleFlags::default()
-                    }
+                .map(|[mask, values]| (*mask, *values))
+                .unzip();
+            sink.push_masked(
+                (
+                    ParticleBuffer::Flags,
+                    WordLayout {
+                        stride: 1,
+                        first: 0,
+                        words: 1,
+                    },
+                ),
+                &values,
+                Some(&masks),
+            )
+        }
+        FrameBulkParticles::ColliderBits => sink.push(
+            (
+                ParticleBuffer::PositionsAndColliderBits,
+                WordLayout {
+                    stride: words::<PositionAndColliderBits>(),
+                    first: word_offset(std::mem::offset_of!(
+                        PositionAndColliderBits,
+                        collider_bits
+                    )),
+                    words: 1,
+                },
+            ),
+            bulk.assume_ints::<u32>()?,
+        ),
+        FrameBulkParticles::Transform => {
+            let transforms = bulk.assume_floats::<[[f32; 4]; 4]>()?;
+            let positions: Vec<[f32; 3]> = transforms
+                .iter()
+                .map(|[_, _, _, [x, y, z, _]]| [*x, *y, *z].map(|c| c * inv_scale))
+                .collect();
+            let gradients: Vec<Matrix4x3<f32>> = transforms
+                .iter()
+                .map(|transform| {
+                    let mut gradient = Matrix4::from(*transform)
+                        .fixed_view::<4, 3>(0, 0)
+                        .into_owned();
+                    gradient.row_mut(3).fill(0.);
+                    gradient
                 })
                 .collect();
-
-            Allocation::new(device, "new_flags", &flags)?
+            sink.push(
+                (ParticleBuffer::PositionsAndColliderBits, VECTOR_LAYOUT),
+                &positions,
+            )?;
+            let gradient_words = words::<Matrix4x3<f32>>();
+            sink.push(
+                (
+                    ParticleBuffer::PositionGradients,
+                    WordLayout {
+                        stride: gradient_words,
+                        first: 0,
+                        words: gradient_words,
+                    },
+                ),
+                &gradients,
+            )
         }
-        FrameBulkParticles::ColliderBits => todo!(),
-        FrameBulkParticles::Transform => todo!(),
-        FrameBulkParticles::Size => todo!(),
-        FrameBulkParticles::Density => todo!(),
-        FrameBulkParticles::YoungsModulus => todo!(),
-        FrameBulkParticles::PoissonsRatio => todo!(),
-        FrameBulkParticles::InitialPosition => todo!(),
-        FrameBulkParticles::Velocity => todo!(),
-        FrameBulkParticles::ViscosityDynamic => todo!(),
-        FrameBulkParticles::ViscosityBulk => todo!(),
-        FrameBulkParticles::Exponent => todo!(),
-        FrameBulkParticles::BulkModulus => todo!(),
-        FrameBulkParticles::SandAlpha => todo!(),
-
-        // already handled
+        FrameBulkParticles::Size => {
+            let sizes: Vec<f32> = bulk
+                .assume_floats::<f32>()?
+                .iter()
+                .map(|size| size * inv_scale)
+                .collect();
+            sink.push(parameter!(initial_size), &sizes)
+        }
+        FrameBulkParticles::Density => sink.push(parameter!(density), bulk.assume_floats::<f32>()?),
+        FrameBulkParticles::YoungsModulus => {
+            sink.push(parameter!(youngs_modulus), bulk.assume_floats::<f32>()?)
+        }
+        FrameBulkParticles::PoissonsRatio => {
+            sink.push(parameter!(poissons_ratio), bulk.assume_floats::<f32>()?)
+        }
+        FrameBulkParticles::ViscosityDynamic => {
+            sink.push(parameter!(viscosity_dynamic), bulk.assume_floats::<f32>()?)
+        }
+        FrameBulkParticles::ViscosityBulk => {
+            sink.push(parameter!(viscosity_bulk), bulk.assume_floats::<f32>()?)
+        }
+        FrameBulkParticles::BulkModulus => {
+            sink.push(parameter!(bulk_modulus), bulk.assume_floats::<f32>()?)
+        }
+        FrameBulkParticles::SandAlpha => {
+            sink.push(parameter!(sand_alpha), bulk.assume_floats::<f32>()?)
+        }
+        FrameBulkParticles::Exponent => sink.push(parameter!(exponent), bulk.assume_ints::<i32>()?),
+        FrameBulkParticles::Velocity => sink.push(
+            (ParticleBuffer::Velocities, VECTOR_LAYOUT),
+            &scaled_vectors(bulk, inv_scale)?,
+        ),
         FrameBulkParticles::GoalPosition => {
-            return Ok(None);
+            let goals = scaled_vectors(bulk, inv_scale)?;
+            sink.push((ParticleBuffer::Goals, VECTOR_LAYOUT), &goals)?;
+            sink.push_host(HostVectors::GoalPositions, goals);
+            Ok(())
         }
-    };
-    Ok(Some(PendingParticleUpdate {
-        attribute,
-        allocation,
-        offset,
-    }))
+        FrameBulkParticles::InitialPosition => {
+            sink.push_host(
+                HostVectors::InitialPositions,
+                scaled_vectors(bulk, inv_scale)?,
+            );
+            Ok(())
+        }
+    }
 }

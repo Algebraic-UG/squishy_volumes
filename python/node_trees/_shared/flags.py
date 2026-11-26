@@ -20,7 +20,13 @@ from bpy.types import GeometryNodeTree
 from nodebpy import TreeBuilder
 from nodebpy import geometry as g
 from nodebpy.builder import BooleanSocket, CustomGeometryGroup, IntegerSocket
-from nodebpy.types import InputGeometry, InputInteger, InputMenu, InputVector
+from nodebpy.types import (
+    InputBoolean,
+    InputGeometry,
+    InputInteger,
+    InputMenu,
+    InputVector,
+)
 
 from . import names
 from .attributes import vector_attribute
@@ -34,9 +40,62 @@ def vector_2d_to_int(vector: InputVector) -> IntegerSocket:
 
 
 def is_bit_set(bits: InputInteger, bit: InputInteger) -> BooleanSocket:
-    return g.Compare.integer.not_equal(
-        g.BitMath.l_and(bits, g.BitMath.shift(1, bit)), 0
-    ).o.result
+    return g.Compare.integer.not_equal(g.BitMath.l_and(bits, bit), 0).o.result
+
+
+class FlagBit(CustomGeometryGroup):
+    _name = "Squishy Volumes Flag Bit"
+
+    def __init__(self, flag: InputMenu = "HAS_GOAL"):
+        super().__init__(Flag=flag)
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        index = tree.inputs.menu("Flag") >> g.MenuSwitch.integer(
+            items=names.outputs.PARTICLE_FLAG_BITS
+        )
+        g.BitMath.shift(1, index) >> tree.outputs.integer("Bit")
+
+
+class StoreFlag(CustomGeometryGroup):
+    _name = "Squishy Volumes Store Flag"
+
+    def __init__(
+        self,
+        geometry: InputGeometry = ...,
+        selection: InputBoolean = True,
+        flag: InputMenu = "HAS_GOAL",
+        value: InputBoolean = False,
+        or_: InputBoolean = False,
+    ):
+        super().__init__(
+            Geometry=geometry, Selection=selection, Flag=flag, Value=value, Or=or_
+        )
+
+    def _build_group(self, tree: TreeBuilder[GeometryNodeTree]):
+        geometry = tree.inputs.geometry("Geometry")
+        selection = tree.inputs.boolean("Selection", True, hide_value=True)
+        bit = FlagBit(tree.inputs.menu("Flag")).o.bit
+        value = tree.inputs.boolean("Value")
+        or_ = tree.inputs.boolean("Or")
+
+        mask_name = names.inputs.PARTICLE_MASK.name
+        values_name = names.inputs.PARTICLE_FLAGS.name
+        mask = g.NamedAttribute(mask_name, data_type="INT").o.attribute
+        values = g.NamedAttribute(values_name, data_type="INT").o.attribute
+        new_value = g.Switch(
+            value | (or_ & is_bit_set(values, bit)), false=0, true=bit, input_type="INT"
+        ).o.output
+        (
+            g.StoreNamedAttribute.point.integer(
+                geometry, selection=selection, name=mask_name, value=mask | bit
+            )
+            >> g.StoreNamedAttribute.point.integer(
+                selection=selection,
+                name=values_name,
+                value=(values & ~bit) | new_value,
+            )
+            >> tree.outputs.geometry("Geometry")
+        )
 
 
 class GetFlag(CustomGeometryGroup):
@@ -49,7 +108,5 @@ class GetFlag(CustomGeometryGroup):
         flags = vector_attribute(
             tree.inputs.geometry("Geometry"), names.outputs.FLAGS.name, (0, 0, 0)
         )
-        bit = tree.inputs.menu("Flag") >> g.MenuSwitch.integer(
-            items=names.outputs.PARTICLE_FLAG_BITS
-        )
+        bit = FlagBit(tree.inputs.menu("Flag")).o.bit
         is_bit_set(vector_2d_to_int(flags), bit) >> tree.outputs.boolean()

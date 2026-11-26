@@ -160,9 +160,7 @@ def _bulk_meta(obj, input_type: str, key: str) -> dict:
 
 
 def _record_bulk(*, sim_input_handle: SimulationInputHandle, meta: dict, bulk):
-    if bulk.dtype == "bool":
-        sim_input_handle.record_input_bool(meta=meta, bulk=bulk)
-    elif bulk.dtype == "float32":
+    if bulk.dtype == "float32":
         sim_input_handle.record_input_float(meta=meta, bulk=bulk)
     elif bulk.dtype == "int32":
         sim_input_handle.record_input_int(meta=meta, bulk=bulk)
@@ -188,6 +186,37 @@ def _record_attributes(
                 mesh=mesh, attribute=mesh.attributes[attribute.name]
             ),
         )
+
+
+def _record_flags(*, sim_input_handle: SimulationInputHandle, obj, input_type: str):
+    attributes = obj.data.attributes
+    names = [attribute.name for attribute in input_attributes.FLAG_ATTRIBUTES]
+    found = [name for name in names if name in attributes]
+    if not found:
+        return
+    if len(found) != len(names):
+        raise InvalidInput(
+            f"{obj.name} has the attribute {found[0]}, "
+            f"but needs both {' and '.join(names)}."
+        )
+    for name in names:
+        attribute = attributes[name]
+        if attribute.data_type != "INT" or attribute.domain != "POINT":
+            raise InvalidInput(
+                f"{name} of {obj.name} is a {attribute.data_type} attribute "
+                f"on the {attribute.domain} domain, but has to be INT on POINT."
+            )
+
+    _record_bulk(
+        sim_input_handle=sim_input_handle,
+        meta=_bulk_meta(obj, input_type, input_attributes.PARTICLE_FLAGS.key),
+        bulk=np.column_stack(
+            [
+                attribute_to_numpy_array(mesh=obj.data, attribute=attributes[name])
+                for name in names
+            ]
+        ).ravel(),
+    )
 
 
 def capture_input_frame(
@@ -234,6 +263,11 @@ Or apply the object scale."""
                 obj=evaluated_obj,
                 input_type=input_type,
                 attributes=input_attributes.PARTICLE_ATTRIBUTES,
+            )
+            _record_flags(
+                sim_input_handle=sim_input_handle,
+                obj=evaluated_obj,
+                input_type=input_type,
             )
 
         if input_type == INPUT_TYPE_COLLIDER:
