@@ -18,14 +18,17 @@
 
 mod cache;
 mod errors;
+mod space;
 mod stats;
 mod store_thread;
 mod util;
 
+use space::*;
 use stats::*;
 use store_thread::*;
 use util::*;
 
 pub use cache::{Cache, FrameStore};
 pub use errors::*;
+pub use space::SpaceLimits;
 pub use stats::{ComputeStats, Stats};

@@ -17,8 +17,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import colorsys
+import sys
 import time
-from types import SimpleNamespace
 from unittest import mock
 
 import bpy
@@ -419,7 +419,8 @@ class ExampleWithoutDiskSpaceTest(AddonTestCase):
         super().tearDown()
 
     def test_setup_finishes_without_baking(self):
-        with mock.patch("shutil.disk_usage", return_value=SimpleNamespace(free=0)):
+        bake_module = sys.modules[f"{addon().__name__}.api.bake"]
+        with mock.patch.object(bake_module, "giga_f32_to_u64", return_value=10**18):
             result = bpy.ops.scene.squishy_volumes_add_example_simulation(
                 startup_choice="Boing Block"
             )
@@ -429,7 +430,7 @@ class ExampleWithoutDiskSpaceTest(AddonTestCase):
         self.assertEqual(bpy.context.scene.squishy_volumes.selected_simulation, sim_obj)
         self.assertFalse(addon().api.is_baking(sim_obj))
         self.assertEqual(addon().api.baked_frames(sim_obj), 0)
-        self.assertIn("run out of space", simulation_handle(sim_obj).last_error)
+        self.assertIn("GB are free on the disk", simulation_handle(sim_obj).last_error)
 
 
 class ExampleWithFailedRecordingTest(AddonTestCase):

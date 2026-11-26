@@ -346,11 +346,9 @@ class RecordAndBakeWithoutDiskSpaceTest(AddonTestCase):
         sim_obj = api().add_simulation("Jelly")
         bpy.ops.mesh.primitive_cube_add()
         api().add_input(sim_obj, bpy.context.active_object, output_object=False)
+        sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e9
 
-        with (
-            mock.patch("shutil.disk_usage", return_value=SimpleNamespace(free=0)),
-            shown_warnings() as show_message,
-        ):
+        with shown_warnings() as show_message:
             result = bpy.ops.scene.squishy_volumes_record_input_to_cache(
                 uuid=sim_obj.squishy_volumes.uuid, start_baking=True
             )
@@ -360,7 +358,7 @@ class RecordAndBakeWithoutDiskSpaceTest(AddonTestCase):
         self.assertFalse(api().is_baking(sim_obj))
         [warning] = warning_messages(show_message)
         self.assertIn("not baking", warning)
-        self.assertIn("run out of space", simulation_handle(sim_obj).last_error)
+        self.assertIn("GB are free on the disk", simulation_handle(sim_obj).last_error)
 
 
 class SetUpRenderWithoutCyclesTest(AddonTestCase):

@@ -26,7 +26,7 @@ use super::*;
 struct CacheState {
     input_bytes_on_disk: u64,
     total_bytes_on_disk: Arc<AtomicU64>,
-    max_bytes_on_disk: Arc<AtomicU64>,
+    available_space: AvailableSpace,
 
     available_frames: Arc<AtomicUsize>,
     store_thread: Mutex<StoreThread>,
@@ -40,8 +40,7 @@ pub struct Cache {
 
 pub struct FrameStore {
     sender: FrameSender,
-    total_bytes_on_disk: Arc<AtomicU64>,
-    max_bytes_on_disk: Arc<AtomicU64>,
+    space_budget: SpaceBudget,
 }
 
 impl FrameStore {
@@ -50,11 +49,7 @@ impl FrameStore {
         frame: squishy_volumes_file_frame::Frame,
         stats: Stats,
     ) -> Result<(), Error> {
-        if self.total_bytes_on_disk.load(Ordering::Relaxed)
-            >= self.max_bytes_on_disk.load(Ordering::Relaxed)
-        {
-            Err(WriteError::ExceedingSpace)?
-        }
+        self.space_budget.ensure_room_for_a_frame()?;
         self.sender.send(frame, stats)?;
         Ok(())
     }
@@ -78,11 +73,7 @@ fn ensure_no_frame_missing(
 }
 
 impl CacheState {
-    fn new(
-        directory: &std::path::Path,
-        input_bytes_on_disk: u64,
-        max_bytes_on_disk: u64,
-    ) -> Result<Self, Error> {
+    fn new(directory: &std::path::Path, input_bytes_on_disk: u64) -> Result<Self, Error> {
         tracing::info!(?directory, "opening cache");
 
         let (bytes_on_disk_from_frames, frames) = discover_frames(directory)?;
@@ -91,8 +82,6 @@ impl CacheState {
         let mut frames = frames.into_iter().map(|(i, _)| i).collect::<Vec<_>>();
         ensure_no_frame_missing(directory, &mut frames)?;
 
-        let total_bytes_on_disk = Arc::new(AtomicU64::new(total_bytes_on_disk));
-        let max_bytes_on_disk = Arc::new(AtomicU64::new(max_bytes_on_disk));
         let available_frames = Arc::new(AtomicUsize::new(
             frames
                 .iter()
@@ -109,8 +98,8 @@ impl CacheState {
 
         Ok(Self {
             input_bytes_on_disk,
-            total_bytes_on_disk,
-            max_bytes_on_disk,
+            total_bytes_on_disk: Arc::new(AtomicU64::new(total_bytes_on_disk)),
+            available_space: available_space_on_disk,
 
             available_frames,
             store_thread,
@@ -122,11 +111,9 @@ impl Cache {
     pub fn new(
         directory_lock: squishy_volumes_directory_lock::DirectoryLock,
         input_bytes_on_disk: u64,
-        max_bytes_on_disk: u64,
     ) -> Result<Self, Error> {
-        let state = directory_lock.try_map(|directory, ()| {
-            CacheState::new(directory, input_bytes_on_disk, max_bytes_on_disk)
-        })?;
+        let state = directory_lock
+            .try_map(|directory, ()| CacheState::new(directory, input_bytes_on_disk))?;
         Ok(Self { state })
     }
 
@@ -164,17 +151,25 @@ impl Cache {
         Ok(())
     }
 
-    pub fn set_max_bytes_on_disk(&self, max_bytes_on_disk: u64) {
-        self.state
-            .max_bytes_on_disk
-            .store(max_bytes_on_disk, Ordering::Relaxed);
+    fn space_budget(&self, limits: SpaceLimits) -> SpaceBudget {
+        SpaceBudget::new(
+            self.state.directory().to_path_buf(),
+            self.state.total_bytes_on_disk.clone(),
+            limits,
+            self.state.available_space,
+        )
+    }
+
+    pub fn ensure_free_space(&self, limits: SpaceLimits) -> Result<(), Error> {
+        Ok(self.space_budget(limits).ensure_free_space()?)
     }
 
     pub fn current_bytes_on_disk(&self) -> u64 {
         self.state.total_bytes_on_disk.load(Ordering::Relaxed)
     }
 
-    pub fn start_storing(&self) -> FrameStore {
+    pub fn start_storing(&self, limits: SpaceLimits) -> FrameStore {
+        let space_budget = self.space_budget(limits);
         let sender = self
             .state
             .store_thread
@@ -182,13 +177,12 @@ impl Cache {
             .expect(STORE_THREAD_POISONED)
             .start(
                 self.state.directory().to_path_buf(),
-                self.state.total_bytes_on_disk.clone(),
+                space_budget.clone(),
                 self.state.available_frames.clone(),
             );
         FrameStore {
             sender,
-            total_bytes_on_disk: self.state.total_bytes_on_disk.clone(),
-            max_bytes_on_disk: self.state.max_bytes_on_disk.clone(),
+            space_budget,
         }
     }
 
@@ -296,6 +290,11 @@ pub fn clean_up_frames(
 mod tests {
     use super::*;
 
+    const UNLIMITED: SpaceLimits = SpaceLimits {
+        max_bytes_on_disk: u64::MAX,
+        check_free_space: false,
+    };
+
     fn temp_dir(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "squishy_volumes_cache_test_{name}_{}",
@@ -332,11 +331,11 @@ mod tests {
     fn open_cache(dir: &std::path::Path) -> Cache {
         let directory_lock =
             squishy_volumes_directory_lock::DirectoryLock::new(dir.to_path_buf()).unwrap();
-        Cache::new(directory_lock, 0, u64::MAX).unwrap()
+        Cache::new(directory_lock, 0).unwrap()
     }
 
     fn store_empty_frames(cache: &Cache, count: usize) {
-        let frame_store = cache.start_storing();
+        let frame_store = cache.start_storing(UNLIMITED);
         for _ in 0..count {
             frame_store
                 .store_frame(
@@ -404,7 +403,7 @@ mod tests {
     fn storing_while_frame_store_is_alive() {
         let dir = temp_dir("storing_while_alive");
         let cache = open_cache(&dir);
-        let frame_store = cache.start_storing();
+        let frame_store = cache.start_storing(UNLIMITED);
         assert!(cache.storing());
 
         drop(frame_store);
@@ -502,7 +501,7 @@ mod tests {
             squishy_volumes_directory_lock::DirectoryLock::new(dir.clone()).unwrap();
 
         assert!(matches!(
-            Cache::new(directory_lock, 0, u64::MAX),
+            Cache::new(directory_lock, 0),
             Err(Error::Cleanup(CleanupError::ReadStats { path, .. })) if path == stats_path(&dir)
         ));
         std::fs::remove_dir_all(dir).unwrap();
@@ -548,7 +547,7 @@ mod tests {
         write_empty_frames(&dir, 8);
         let directory_lock =
             squishy_volumes_directory_lock::DirectoryLock::new(dir.clone()).unwrap();
-        let cache = Cache::new(directory_lock, 0, u64::MAX).unwrap();
+        let cache = Cache::new(directory_lock, 0).unwrap();
 
         let held_frame = std::fs::OpenOptions::new()
             .read(true)
@@ -566,6 +565,68 @@ mod tests {
         assert_eq!(remaining_frames(&dir), [0, 1, 2, 3, 4, 5]);
 
         drop(held_frame);
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    fn cache_with_free_space(
+        dir: &std::path::Path,
+        input_bytes_on_disk: u64,
+        available_space: fn(&std::path::Path) -> Result<u64, WriteError>,
+    ) -> Cache {
+        let directory_lock =
+            squishy_volumes_directory_lock::DirectoryLock::new(dir.to_path_buf()).unwrap();
+        let mut cache = Cache::new(directory_lock, input_bytes_on_disk).unwrap();
+        cache.state.available_space = available_space;
+        cache
+    }
+
+    fn limit_of_1000_bytes(check_free_space: bool) -> SpaceLimits {
+        SpaceLimits {
+            max_bytes_on_disk: 1000,
+            check_free_space,
+        }
+    }
+
+    fn store_one_frame(cache: &Cache, limits: SpaceLimits) -> Result<(), Error> {
+        cache.start_storing(limits).store_frame(
+            squishy_volumes_file_frame::Frame::default(),
+            Stats::default(),
+        )
+    }
+
+    #[test]
+    fn storing_needs_free_space_for_the_remaining_budget() {
+        let dir = temp_dir("free_space_short");
+        let cache = cache_with_free_space(&dir, 100, |_| Ok(899));
+
+        assert!(matches!(
+            store_one_frame(&cache, limit_of_1000_bytes(true)),
+            Err(Error::Write(WriteError::InsufficientDiskSpace {
+                remaining: 900,
+                available: 899
+            }))
+        ));
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn storing_counts_bytes_already_in_the_cache_towards_the_budget() {
+        let dir = temp_dir("free_space_enough");
+        let cache = cache_with_free_space(&dir, 100, |_| Ok(900));
+
+        store_one_frame(&cache, limit_of_1000_bytes(true)).unwrap();
+        drop(cache);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn storing_ignores_free_space_when_the_check_is_off() {
+        let dir = temp_dir("free_space_unchecked");
+        let cache = cache_with_free_space(&dir, 100, |_| Ok(0));
+
+        store_one_frame(&cache, limit_of_1000_bytes(false)).unwrap();
         drop(cache);
         std::fs::remove_dir_all(dir).unwrap();
     }

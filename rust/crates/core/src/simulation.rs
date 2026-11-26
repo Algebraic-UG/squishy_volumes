@@ -24,7 +24,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, from_value, to_value};
-use squishy_volumes_cache::Cache;
+use squishy_volumes_cache::{Cache, SpaceLimits};
 use squishy_volumes_directory_lock::DirectoryLock;
 use squishy_volumes_file_input::{Header, InputReader};
 use squishy_volumes_xpu::ReportInfo;
@@ -53,11 +53,7 @@ struct PollInfo {
 
 impl SimulationImpl {
     pub fn new(
-        SimulationInputImpl {
-            input_writer,
-            max_bytes_on_disk,
-            ..
-        }: SimulationInputImpl,
+        SimulationInputImpl { input_writer, .. }: SimulationInputImpl,
     ) -> Result<Self, Error> {
         info!("Creating new simulation");
 
@@ -70,26 +66,22 @@ impl SimulationImpl {
             Ok::<_, SimulationError>(())
         })?;
 
-        Self::load_with_lock(directory_lock, max_bytes_on_disk, true)
+        Self::load_with_lock(directory_lock, true)
     }
 
     pub fn load(directory: PathBuf) -> Result<Self, Error> {
         info!("Loading old simulation");
         let directory_lock = DirectoryLock::new(directory)?;
-        Self::load_with_lock(directory_lock, u64::MAX, false)
+        Self::load_with_lock(directory_lock, false)
     }
 
-    fn load_with_lock(
-        directory_lock: DirectoryLock,
-        max_bytes_on_disk: u64,
-        clean_up: bool,
-    ) -> Result<Self, Error> {
+    fn load_with_lock(directory_lock: DirectoryLock, clean_up: bool) -> Result<Self, Error> {
         let input_reader = InputReader::new(simulation_input_path(directory_lock.directory()))
             .map_err(SimulationError::StartReadingInput)?;
         let header = input_reader.header().clone();
 
         let cache = Arc::new(
-            Cache::new(directory_lock, input_reader.size(), max_bytes_on_disk)
+            Cache::new(directory_lock, input_reader.size())
                 .map_err(SimulationError::CreateCache)?,
         );
 
@@ -140,8 +132,12 @@ impl SimulationImpl {
             next_frame,
             number_of_frames,
             max_bytes_on_disk,
+            check_disk_space,
         } = from_value(compute_settings).map_err(SimulationError::ParseComputeSettings)?;
-        self.cache.set_max_bytes_on_disk(max_bytes_on_disk);
+        let space_limits = SpaceLimits {
+            max_bytes_on_disk,
+            check_free_space: check_disk_space,
+        };
 
         let Some(number_of_frames) = NonZero::new(number_of_frames) else {
             warn!("asked to compute 0 frames");
@@ -156,6 +152,9 @@ impl SimulationImpl {
         self.cache
             .drop_frames(next_frame)
             .map_err(SimulationError::DropFrames)?;
+        self.cache
+            .ensure_free_space(space_limits)
+            .map_err(SimulationError::StartBaking)?;
 
         info!("starting thread");
         self.compute_thread = Some(ComputeThread::new(ComputeThreadSettings {
@@ -165,6 +164,7 @@ impl SimulationImpl {
             next_frame,
             adaptive_time_steps,
             gpu,
+            space_limits,
         })?);
 
         Ok(())
@@ -197,6 +197,7 @@ pub struct ComputeSettings {
     pub next_frame: usize,
     pub number_of_frames: usize,
     pub max_bytes_on_disk: u64,
+    pub check_disk_space: bool,
 }
 
 #[cfg(test)]
@@ -234,5 +235,39 @@ mod tests {
             simulation.poll_impl(),
             Err(SimulationError::CheckCache(_))
         ));
+    }
+
+    #[test]
+    fn baking_does_not_start_without_free_space_for_the_budget() {
+        let directory = TempDir::new().unwrap();
+        write_test_input(
+            simulation_input_path(directory.path()),
+            InputHeader::test_input([]),
+            2,
+        );
+        let mut simulation = SimulationImpl::load(directory.path().to_path_buf()).unwrap();
+
+        let result = simulation.start_compute_impl(
+            to_value(ComputeSettings {
+                time_step: 0.01,
+                gpu: None,
+                adaptive_time_steps: false,
+                next_frame: 0,
+                number_of_frames: 2,
+                max_bytes_on_disk: u64::MAX,
+                check_disk_space: true,
+            })
+            .unwrap(),
+        );
+
+        assert!(matches!(
+            result,
+            Err(SimulationError::StartBaking(
+                squishy_volumes_cache::Error::Write(
+                    squishy_volumes_cache::WriteError::InsufficientDiskSpace { .. }
+                )
+            ))
+        ));
+        assert!(!simulation.baking_impl());
     }
 }

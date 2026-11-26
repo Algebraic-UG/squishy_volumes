@@ -87,6 +87,7 @@ fn main() -> Result<()> {
             next_frame,
             number_of_frames,
             max_bytes_on_disk,
+            check_disk_space: true,
         })
         .unwrap(),
     )?;

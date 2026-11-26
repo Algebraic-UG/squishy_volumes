@@ -137,7 +137,7 @@ The latter is locked while a simulation uses the directory.""",
     )
 
     max_giga_bytes_on_disk: bpy.props.FloatProperty(
-        name="Max Diskspace (Gigabytes)",
+        name="Max Disk Space (Gigabytes)",
         description="""Simulations can use a lot of disk space!
 
 Once it is exceeded, the computation will stop.

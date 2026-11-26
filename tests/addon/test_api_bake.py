@@ -57,6 +57,7 @@ class BakeTestCase(AddonTestCase):
         super().setUp()
         self.sim_obj = api().add_simulation("Jelly")
         self.sim_obj.squishy_volumes.compute_device = "CPU"
+        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1.0
         cube = add_primitive(bpy.ops.mesh.primitive_cube_add, size=2)
         api().add_input(self.sim_obj, cube, api().PARTICLES)
         plane = add_primitive(
@@ -270,6 +271,7 @@ class RebakeFromShownFrameTest(BakeTestCase):
         reloaded = api().add_simulation("Reloaded")
         reloaded.squishy_volumes.directory = directory
         reloaded.squishy_volumes.compute_device = "CPU"
+        reloaded.squishy_volumes.max_giga_bytes_on_disk = 1.0
         reloaded.squishy_volumes.bake_frames = 4
 
         api().reload(reloaded)
@@ -289,12 +291,20 @@ class BakeErrorTest(BakeTestCase):
         self.assertFalse(api().is_baking(self.sim_obj))
 
     def test_refuses_more_disk_space_than_is_free(self):
-        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e12
+        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e9
 
-        with self.assertRaises(api().InsufficientDiskSpace):
+        with self.assertRaisesRegex(RuntimeError, "GB are free on the disk"):
             api().bake(self.sim_obj, bake_frames=2)
 
         self.assertFalse(api().is_baking(self.sim_obj))
+
+    def test_bakes_beyond_the_free_space_with_the_check_disabled(self):
+        preferences = addon().get_preferences.get_preferences()
+        preferences.sanity_check_allowed_disk_space = False
+        self.addCleanup(setattr, preferences, "sanity_check_allowed_disk_space", True)
+        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1e9
+
+        self.assertEqual(self.bake_and_wait(bake_frames=2), 2)
 
     def test_needs_a_loaded_simulation(self):
         unrecorded = api().add_simulation("Unrecorded")
@@ -367,6 +377,7 @@ class ComputeFailureTest(AddonTestCase):
         self.preferences.allow_scaled_input = True
         self.sim_obj = api().add_simulation("Mirrored")
         self.sim_obj.squishy_volumes.compute_device = "CPU"
+        self.sim_obj.squishy_volumes.max_giga_bytes_on_disk = 1.0
         cube = add_primitive(bpy.ops.mesh.primitive_cube_add, size=2)
         cube.scale = (-1.0, 1.0, 1.0)
         api().add_input(self.sim_obj, cube, api().PARTICLES)
@@ -512,7 +523,7 @@ class BakeOperatorTest(BakeTestCase):
     def test_errors_raise_in_scripts(self):
         sim_props = self.sim_obj.squishy_volumes
         sim_props.bake_frames = 2
-        sim_props.max_giga_bytes_on_disk = 1e12
+        sim_props.max_giga_bytes_on_disk = 1e9
 
-        with self.assertRaisesRegex(RuntimeError, "run out of space"):
+        with self.assertRaisesRegex(RuntimeError, "GB are free on the disk"):
             bpy.ops.scene.squishy_volumes_bake_start_from_latest(uuid=sim_props.uuid)
