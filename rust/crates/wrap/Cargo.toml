@@ -35,8 +35,7 @@ version = "0.29.0"
 features = ["abi3-py311", "anyhow", "extension-module"]
 
 [dependencies.hot-lib-reloader]
-git = "https://github.com/Vollkornaffe/hot-lib-reloader-rs.git"
-rev = "24f732c67ac8255b1d92986b10fd7da8f643507a"
+version = "0.8.2"
 optional = true
 
 [build-dependencies]

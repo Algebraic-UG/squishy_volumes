@@ -1518,8 +1518,9 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "hot-lib-reloader"
-version = "0.7.0"
-source = "git+https://github.com/Vollkornaffe/hot-lib-reloader-rs.git?rev=24f732c67ac8255b1d92986b10fd7da8f643507a#24f732c67ac8255b1d92986b10fd7da8f643507a"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15ab81229a2ea97fe1c9c31f36b2f1a7850304fb3dac5790fa2e9804ea68111a"
 dependencies = [
  "crc32fast",
  "hot-lib-reloader-macro",
@@ -1527,13 +1528,14 @@ dependencies = [
  "log",
  "notify 6.1.1",
  "notify-debouncer-full",
- "thiserror 1.0.69",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "hot-lib-reloader-macro"
-version = "0.7.0"
-source = "git+https://github.com/Vollkornaffe/hot-lib-reloader-rs.git?rev=24f732c67ac8255b1d92986b10fd7da8f643507a#24f732c67ac8255b1d92986b10fd7da8f643507a"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62680ce3b216830fc95e1fbcc769bfb7ed8f98b92058102b3a731258b0d9d0e1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4148,7 +4150,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.5",
  "windows-sys 0.61.2",
