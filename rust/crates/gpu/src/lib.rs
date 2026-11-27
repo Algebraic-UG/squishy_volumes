@@ -130,6 +130,8 @@ pub use write_words::WriteWords;
 #[cfg(test)]
 mod cone;
 #[cfg(test)]
+mod shader_particle_flags;
+#[cfg(test)]
 mod test_util;
 #[cfg(test)]
 mod torus;

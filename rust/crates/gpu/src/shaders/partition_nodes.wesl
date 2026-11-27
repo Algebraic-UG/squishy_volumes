@@ -18,7 +18,10 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{PositionAndColliderBits, get_global_index, node_offset, position_to_low_node, murmur_of_node_id, TABLE_TRIES_EXCEEDED};
+import package::util::dispatch::get_global_index;
+import package::util::status::TABLE_TRIES_EXCEEDED;
+import package::util::grid::{PositionAndColliderBits, node_offset, position_to_low_node};
+import package::util::murmur::murmur_of_node_id;
 
 @group(0) @binding(0)
 var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;

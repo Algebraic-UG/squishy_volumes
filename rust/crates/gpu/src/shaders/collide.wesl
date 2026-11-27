@@ -16,7 +16,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{PositionAndColliderBits, get_global_index, F32_MAX, U32_MAX, NORMALIZATION_EPS, Triangle, try_normalize, sign, IS_ACTIVE};
+import package::util::dispatch::get_global_index;
+import package::util::consts::{F32_MAX, NORMALIZATION_EPS, U32_MAX};
+import package::util::particle_flags::IS_ACTIVE;
+import package::util::grid::PositionAndColliderBits;
+import package::util::geometry::Triangle;
 
 struct Opposite {
     ab: u32,

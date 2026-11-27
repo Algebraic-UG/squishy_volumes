@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, get_global_index, int_pow, int_log};
+import package::util::dispatch::{Indirect, int_log, int_pow};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;

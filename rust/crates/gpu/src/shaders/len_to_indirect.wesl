@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, find_dispatch_xyz, INDIRECT_LIMIT_EXCEEDED};
+import package::util::dispatch::{Indirect, find_dispatch_xyz};
+import package::util::status::INDIRECT_LIMIT_EXCEEDED;
 
 @group(0) @binding(0)
 var<storage, read> len: u32;

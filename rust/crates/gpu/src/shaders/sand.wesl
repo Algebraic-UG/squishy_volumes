@@ -16,8 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, get_global_index, ParticleParameters, IS_SOLID, USE_SAND_ALPHA, mu, lambda};
-import super::external::wgebra::svd3::{Svd, svd, recompose};
+import package::util::dispatch::get_global_index;
+import package::util::particle_parameters::{ParticleParameters, lambda, mu};
+import package::external::wgebra::svd3::{svd, recompose};
 
 @group(0) @binding(0)
 var<storage, read_write> particle_parameters: array<ParticleParameters>;

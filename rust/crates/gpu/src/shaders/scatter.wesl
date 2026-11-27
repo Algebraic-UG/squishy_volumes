@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, div_ceil, murmur_of_cell, block_offset, kernel_quadratic, first_piola_stress_neo_hookean, first_piola_stress_inviscid};
+import package::util::dispatch::{Indirect, get_global_index};
+import package::util::grid::{NodeIdAndColliderBits, kernel_quadratic};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;

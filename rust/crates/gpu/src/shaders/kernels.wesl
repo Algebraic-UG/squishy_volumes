@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, kernel_linear, kernel_quadratic, kernel_cubic};
+import package::util::dispatch::get_global_index;
+import package::util::grid::{kernel_cubic, kernel_linear, kernel_quadratic};
 
 @group(0) @binding(0)
 var<storage, read_write> values: array<f32>;

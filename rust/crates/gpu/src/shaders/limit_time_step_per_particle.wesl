@@ -16,8 +16,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, INVERSE_EPS, PARTICLE_CLOSE_TO_INVERTED, FAILED, IS_ACTIVE, TimeStepLimits, SINGULAR_VALUE_SEPARATION, first_piola_stress_neo_hookean_svd_in_diagonal_space, first_piola_stress_inviscid_svd_in_diagonal_space, second_derivative_neo_hookean_svd_in_diagonal_space, second_derivative_inviscid_svd_in_diagonal_space, F32_MIN, partial_elastic_energy_inviscid_by_invariant_3, double_partial_elastic_energy_inviscid_by_invariant_3, mat3x3f_max_elem, mat3x3f_abs, F32_MAX, lambda, mu};
-import super::external::wgebra::svd3::{Svd, svd, recompose};
+import package::util::dispatch::get_global_index;
+import package::util::consts::{F32_MAX, SINGULAR_VALUE_SEPARATION};
+import package::util::particle_flags::{IS_ACTIVE, IS_FLUID, IS_SOLID, USE_VISCOSITY};
+import package::util::particle_parameters::{ParticleParameters, lambda, mu};
+import package::util::time_step_limits::TimeStepLimits;
+import package::util::matrix::{mat3x3f_abs, mat3x3f_max_elem};
+import package::util::elastic::{
+    double_partial_elastic_energy_inviscid_by_invariant_3,
+    first_piola_stress_inviscid_svd_in_diagonal_space,
+    first_piola_stress_neo_hookean_svd_in_diagonal_space,
+    partial_elastic_energy_inviscid_by_invariant_3,
+    second_derivative_inviscid_svd_in_diagonal_space,
+    second_derivative_neo_hookean_svd_in_diagonal_space,
+};
+import package::external::wgebra::svd3::svd;
 
 @group(0) @binding(0)
 var<storage, read_write> flags: array<u32>;

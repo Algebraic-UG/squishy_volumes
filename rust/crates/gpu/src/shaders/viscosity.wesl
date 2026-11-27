@@ -16,7 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, get_global_index, ParticleParameters, USE_VISCOSITY, trace, from_diagonal_element};
+import package::util::dispatch::get_global_index;
+import package::util::particle_parameters::ParticleParameters;
+import package::util::matrix::{from_diagonal_element, trace};
 
 @group(0) @binding(0)
 var<storage, read_write> particle_parameters: array<ParticleParameters>;

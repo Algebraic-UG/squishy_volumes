@@ -16,7 +16,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING};
+import package::util::dispatch::{Indirect, get_global_index};
+import package::util::status::{TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED};
+import package::util::grid::NodeIdAndColliderBits;
+import package::util::murmur::murmur_of_node_id;
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;
