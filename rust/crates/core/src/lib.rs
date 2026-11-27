@@ -21,6 +21,7 @@ mod api_impl;
 mod cancellation_tests;
 mod compute_thread;
 mod context;
+mod error_code;
 mod errors;
 mod guard;
 mod initialization;
@@ -30,6 +31,7 @@ mod simulation;
 mod simulation_input;
 
 pub use context::*;
+pub use error_code::*;
 pub use errors::*;
 pub use simulation::*;
 pub use simulation_input::*;

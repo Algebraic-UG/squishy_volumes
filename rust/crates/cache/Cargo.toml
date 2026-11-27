@@ -14,6 +14,7 @@ bytemuck.workspace = true
 bitflags.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+fs4 = { version = "1.1.0", default-features = false }
 
 squishy_volumes_directory_lock.path = "../directory_lock"
 squishy_volumes_file_frame.path = "../file_frame"

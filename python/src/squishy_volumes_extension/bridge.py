@@ -26,6 +26,7 @@ import numpy
 from bpy.app.handlers import persistent
 
 from .cache_paths import absolute_cache_directory
+from .errors import classify_error
 from .get_preferences import debug_log
 from .hint_at_info import *
 from .registration import add_handler, remove_handler
@@ -117,7 +118,7 @@ class SimulationHandle:
         self.handle = handle
         self.last_error = None
         self.poll_info = None
-        self.bake_errors: list[str] = []
+        self.bake_errors: list[RuntimeError] = []
 
     @staticmethod
     def exists(*, uuid: str) -> bool:
@@ -154,13 +155,13 @@ class SimulationHandle:
         try:
             self.poll_info = json.loads(self.handle.poll())
         except RuntimeError as error:
-            return self._record_bake_error(str(error))
+            return self._record_bake_error(classify_error(error))
         return poll_info != self.poll_info
 
-    def _record_bake_error(self, message: str) -> bool:
-        if message in self.bake_errors:
+    def _record_bake_error(self, error: RuntimeError) -> bool:
+        if str(error) in map(str, self.bake_errors):
             return False
-        self.bake_errors.append(message)
+        self.bake_errors.append(error)
         return True
 
     @hint_at_info
@@ -185,7 +186,7 @@ class SimulationHandle:
         try:
             self.handle.pause_compute()
         except RuntimeError as error:
-            self._record_bake_error(str(error))
+            self._record_bake_error(classify_error(error))
 
     @hint_at_info
     def available_frames(self) -> int:

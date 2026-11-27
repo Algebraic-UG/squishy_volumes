@@ -96,8 +96,11 @@ def index_by_object(obj):
     return next(i for i, other in enumerate(bpy.data.objects) if other.name == obj.name)
 
 
+U64_MAX = 2**64 - 1
+
+
 def giga_f32_to_u64(giga_float: float) -> int:
-    return int(float(giga_float) * 1e9)
+    return min(int(float(giga_float) * 1e9), U64_MAX)
 
 
 def u64_to_giga_f32(u: int) -> float:

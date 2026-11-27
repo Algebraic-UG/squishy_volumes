@@ -24,7 +24,7 @@ uv run --with toml "${scripts_dir}/update_lib_version.py"
 
 cd "${wrap_dir}"
 # a separate target dir keeps the library watched by hot reloading in target/release untouched
-uvx --python 3.11 maturin build --no-default-features --release --target-dir "${repo_root}/rust/target/zip" --out "${wheels_dir}"
+uvx --python 3.12 maturin build --no-default-features --release --target-dir "${repo_root}/rust/target/zip" --out "${wheels_dir}"
 
 cd -
 uv run --with toml "${scripts_dir}/update_manifest.py"

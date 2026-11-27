@@ -48,11 +48,15 @@ It's a good idea to point this to a separate disk from the operating system.""",
     )
 
     sanity_check_allowed_disk_space: bpy.props.BoolProperty(
-        name="Sanity Check Max Diskspace",
+        name="Sanity Check Max Disk Space",
         description="""Enable/Disable the sanity check for allowed disk space.
 
-Each time a bake is started, the max allowed diskspace is compared to
-the currently free space on the disk where the cache is located.""",
+When a bake starts and before each frame is stored, the remaining allowed
+disk space (max minus what the cache already uses) is compared to
+the currently free space on the disk where the cache is located.
+If too little is free, baking stops with an error.
+
+Changes take effect the next time a bake starts.""",
         default=True,
         options=set(),
     )

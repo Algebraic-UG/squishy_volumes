@@ -24,7 +24,7 @@ use std::{
     time::Instant,
 };
 
-use squishy_volumes_cache::{Cache, ComputeStats, Stats};
+use squishy_volumes_cache::{Cache, ComputeStats, SpaceLimits, Stats};
 use squishy_volumes_cpu::{CpuRunParameters, CpuState};
 use squishy_volumes_file_frame::{Frame, IoState};
 use squishy_volumes_file_input::InputReader;
@@ -55,6 +55,8 @@ pub struct ComputeThreadSettings {
 
     pub gpu: Option<String>,
     pub adaptive_time_steps: bool,
+
+    pub space_limits: SpaceLimits,
 }
 
 impl ComputeThread {
@@ -66,6 +68,7 @@ impl ComputeThread {
             mut next_frame,
             adaptive_time_steps,
             gpu,
+            space_limits,
         }: ComputeThreadSettings,
     ) -> Result<Self, SimulationError> {
         info!("starting compute thread");
@@ -76,7 +79,7 @@ impl ComputeThread {
         let harness = Harness::new("Simulating Frames".to_string(), number_of_frames);
         harness.step_to(next_frame)?;
 
-        let frame_store = cache.start_storing();
+        let frame_store = cache.start_storing(space_limits);
 
         let thread = {
             let harness = harness.clone();
@@ -327,6 +330,11 @@ mod tests {
 
     use super::*;
 
+    const UNLIMITED: SpaceLimits = SpaceLimits {
+        max_bytes_on_disk: u64::MAX,
+        check_free_space: false,
+    };
+
     fn compute_thread(
         work: impl FnOnce(Harness) -> Result<(), SimulationError> + Send + 'static,
     ) -> ComputeThread {
@@ -378,7 +386,7 @@ mod tests {
             2,
         );
         let directory_lock = DirectoryLock::new(directory.path().to_path_buf()).unwrap();
-        let cache = Arc::new(Cache::new(directory_lock, 0, u64::MAX).unwrap());
+        let cache = Arc::new(Cache::new(directory_lock, 0).unwrap());
         let live_error = || {
             SimulationError::from(squishy_volumes_cpu::Error::Energy(
                 EnergyError::PositionGradientNotInvertible,
@@ -390,7 +398,10 @@ mod tests {
             error_chain: Some(StoredCause::chain(&live_error())),
         };
         let stats = make_stats(&frame.io_state, None);
-        cache.start_storing().store_frame(frame, stats).unwrap();
+        cache
+            .start_storing(UNLIMITED)
+            .store_frame(frame, stats)
+            .unwrap();
         while cache.storing() {
             std::thread::yield_now();
         }
@@ -402,6 +413,7 @@ mod tests {
             next_frame: 1,
             gpu: None,
             adaptive_time_steps: true,
+            space_limits: UNLIMITED,
         })
         .unwrap();
         while rebake.running() {

@@ -17,7 +17,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::sync::{
-    Arc,
+    Arc, Mutex, PoisonError,
     atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
     mpsc,
 };
@@ -33,26 +33,47 @@ const STOP_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis
 type StoreJob = (Frame, Stats);
 type StoreResult = Result<(), WriteError>;
 
+#[derive(Clone, Default)]
+struct StoreFailure(Arc<Mutex<Option<WriteError>>>);
+
+impl StoreFailure {
+    fn set(&self, error: WriteError) {
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = Some(error);
+    }
+
+    fn take(&self) -> Option<WriteError> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
+    }
+}
+
 pub struct StoreThread {
-    thread: Option<std::thread::JoinHandle<StoreResult>>,
+    thread: Option<std::thread::JoinHandle<()>>,
     stop_requested: Arc<AtomicBool>,
+    failure: StoreFailure,
 }
 
 #[derive(Clone)]
-pub struct FrameSender(mpsc::SyncSender<StoreJob>);
+pub struct FrameSender {
+    sender: mpsc::SyncSender<StoreJob>,
+    failure: StoreFailure,
+}
 
 impl FrameSender {
     pub fn send(&self, frame: Frame, stats: Stats) -> StoreResult {
-        match self.0.try_send((frame, stats)) {
+        match self.sender.try_send((frame, stats)) {
             Ok(()) => Ok(()),
             Err(mpsc::TrySendError::Full(job)) => {
                 tracing::warn!(
                     "store queue is full ({QUEUED_FRAMES} frames), computation waits for the disk"
                 );
-                self.0.send(job).map_err(|_| WriteError::Sending)
+                self.sender.send(job).map_err(|_| self.failure_or_sending())
             }
-            Err(mpsc::TrySendError::Disconnected(_)) => Err(WriteError::Sending),
+            Err(mpsc::TrySendError::Disconnected(_)) => Err(self.failure_or_sending()),
         }
+    }
+
+    fn failure_or_sending(&self) -> WriteError {
+        self.failure.take().unwrap_or(WriteError::Sending)
     }
 }
 
@@ -61,16 +82,18 @@ impl StoreThread {
         Self {
             thread: None,
             stop_requested: Arc::default(),
+            failure: StoreFailure::default(),
         }
     }
 
     pub fn start(
         &mut self,
         cache_dir: std::path::PathBuf,
-        total_bytes_on_disk: Arc<AtomicU64>,
+        space_budget: SpaceBudget,
         available_frames: Arc<AtomicUsize>,
     ) -> FrameSender {
-        self.start_with(move |frame, stats| {
+        let total_bytes_on_disk = space_budget.total_bytes_on_disk.clone();
+        self.start_with(space_budget, move |frame, stats| {
             write_frame(
                 &cache_dir,
                 &total_bytes_on_disk,
@@ -83,17 +106,27 @@ impl StoreThread {
 
     fn start_with(
         &mut self,
+        space_budget: SpaceBudget,
         write: impl FnMut(Frame, Stats) -> StoreResult + Send + 'static,
     ) -> FrameSender {
         self.stop();
         tracing::info!("starting store thread");
         let (sender, receiver) = mpsc::sync_channel::<StoreJob>(QUEUED_FRAMES);
         self.stop_requested = Arc::default();
+        self.failure = StoreFailure::default();
         let stop_requested = self.stop_requested.clone();
+        let failure = self.failure.clone();
         self.thread = Some(std::thread::spawn(move || {
-            store_until_stopped(receiver, stop_requested, write)
+            // the failure must be set before the receiver drops, senders look for it once disconnected
+            if let Err(error) = store_until_stopped(&receiver, stop_requested, &space_budget, write)
+            {
+                failure.set(error);
+            }
         }));
-        FrameSender(sender)
+        FrameSender {
+            sender,
+            failure: self.failure.clone(),
+        }
     }
 
     pub fn running(&self) -> bool {
@@ -116,19 +149,23 @@ impl StoreThread {
         {
             return Ok(());
         }
-        self.thread.take().map_or(Ok(()), |thread| {
+        if let Some(thread) = self.thread.take() {
             thread
                 .join()
                 .map_err(|payload| WriteError::StoreThreadPanicked {
                     message: panic_payload_to_string(payload),
-                })?
-        })
+                })?;
+        }
+        self.failure.take().map_or(Ok(()), Err)
     }
 
     pub fn stop(&mut self) {
         self.request_stop();
         if let Some(thread) = self.thread.take() {
             join_and_log(thread);
+        }
+        if let Some(error) = self.failure.take() {
+            tracing::error!("store thread error: {error}");
         }
     }
 
@@ -144,8 +181,9 @@ impl Drop for StoreThread {
 }
 
 fn store_until_stopped(
-    receiver: mpsc::Receiver<StoreJob>,
+    receiver: &mpsc::Receiver<StoreJob>,
     stop_requested: Arc<AtomicBool>,
+    space_budget: &SpaceBudget,
     mut write: impl FnMut(Frame, Stats) -> StoreResult,
 ) -> StoreResult {
     loop {
@@ -155,7 +193,10 @@ fn store_until_stopped(
             break;
         }
         match job {
-            Ok((frame, stats)) => write(frame, stats)?,
+            Ok((frame, stats)) => {
+                space_budget.ensure_room_for_a_frame()?;
+                write(frame, stats)?
+            }
             Err(mpsc::RecvTimeoutError::Timeout) => {}
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         }
@@ -185,18 +226,12 @@ fn write_frame(
     Ok(())
 }
 
-fn join_and_log(thread: std::thread::JoinHandle<StoreResult>) {
-    match thread.join() {
-        Err(payload) => {
-            tracing::error!(
-                payload = panic_payload_to_string(payload),
-                "store thread panicked"
-            );
-        }
-        Ok(Err(e)) => {
-            tracing::error!("store thread error: {e}");
-        }
-        Ok(Ok(())) => {}
+fn join_and_log(thread: std::thread::JoinHandle<()>) {
+    if let Err(payload) = thread.join() {
+        tracing::error!(
+            payload = panic_payload_to_string(payload),
+            "store thread panicked"
+        );
     }
 }
 
@@ -207,6 +242,7 @@ mod tests {
     use super::*;
 
     const HANG_TIMEOUT: Duration = Duration::from_secs(10);
+    const FRAME_BYTES: u64 = 100;
 
     struct GatedStore {
         store_thread: StoreThread,
@@ -216,17 +252,35 @@ mod tests {
         release_writes: mpsc::Sender<()>,
     }
 
-    fn gated_store() -> GatedStore {
+    fn budget(max_bytes_on_disk: u64) -> SpaceBudget {
+        SpaceBudget::new(
+            std::path::PathBuf::new(),
+            Arc::default(),
+            SpaceLimits {
+                max_bytes_on_disk,
+                check_free_space: false,
+            },
+            available_space_on_disk,
+        )
+    }
+
+    fn unlimited_budget() -> SpaceBudget {
+        budget(u64::MAX)
+    }
+
+    fn gated_store(space_budget: SpaceBudget) -> GatedStore {
         let written = Arc::new(AtomicUsize::new(0));
         let (started_tx, started_writing) = mpsc::channel();
         let (release_writes, release_rx) = mpsc::channel::<()>();
         let mut store_thread = StoreThread::idle();
         let sender = {
             let written = written.clone();
-            store_thread.start_with(move |_, _| {
+            let total_bytes_on_disk = space_budget.total_bytes_on_disk.clone();
+            store_thread.start_with(space_budget, move |_, _| {
                 started_tx.send(()).ok();
                 release_rx.recv().ok();
                 written.fetch_add(1, Ordering::Relaxed);
+                total_bytes_on_disk.fetch_add(FRAME_BYTES, Ordering::Relaxed);
                 Ok(())
             })
         };
@@ -270,7 +324,7 @@ mod tests {
 
     #[test]
     fn stop_finishes_current_frame_and_discards_queue() {
-        let gated = gated_store();
+        let gated = gated_store(unlimited_budget());
         fill_while_first_frame_is_written(&gated);
         let blocked_producer = {
             let sender = gated.sender.clone();
@@ -299,14 +353,14 @@ mod tests {
     #[test]
     fn stop_does_not_wait_for_live_senders() {
         let mut store_thread = StoreThread::idle();
-        let _sender = store_thread.start_with(|_, _| Ok(()));
+        let _sender = store_thread.start_with(unlimited_budget(), |_, _| Ok(()));
 
         within_timeout(move || store_thread.stop());
     }
 
     #[test]
     fn running_until_queued_frames_are_written_after_last_sender_is_dropped() {
-        let gated = gated_store();
+        let gated = gated_store(unlimited_budget());
         fill_while_first_frame_is_written(&gated);
         let GatedStore {
             store_thread,
@@ -328,9 +382,63 @@ mod tests {
     }
 
     #[test]
+    fn reaching_the_limit_discards_the_queued_frames_and_reports_it() {
+        let gated = gated_store(budget(FRAME_BYTES / 2));
+        fill_while_first_frame_is_written(&gated);
+        let GatedStore {
+            store_thread,
+            sender,
+            written,
+            release_writes,
+            ..
+        } = gated;
+
+        drop(sender);
+        for _ in 0..=QUEUED_FRAMES {
+            release_writes.send(()).ok();
+        }
+        let mut store_thread = wait_until_stopped(store_thread);
+
+        assert_eq!(written.load(Ordering::Relaxed), 1);
+        assert!(matches!(
+            store_thread.check(),
+            Err(WriteError::ExceedingSpace)
+        ));
+    }
+
+    #[test]
+    fn sending_after_the_limit_stopped_the_thread_reports_the_limit() {
+        let gated = gated_store(budget(FRAME_BYTES / 2));
+        fill_while_first_frame_is_written(&gated);
+        let blocked_producer = {
+            let sender = gated.sender.clone();
+            std::thread::spawn(move || sender.send(Frame::default(), Stats::default()))
+        };
+        let GatedStore {
+            store_thread,
+            sender,
+            release_writes,
+            ..
+        } = gated;
+
+        for _ in 0..=QUEUED_FRAMES {
+            release_writes.send(()).ok();
+        }
+        let _stopped = wait_until_stopped(store_thread);
+
+        let blocked_result = within_timeout(move || blocked_producer.join().unwrap());
+        let later_result = sender.send(Frame::default(), Stats::default());
+        assert!(matches!(
+            (blocked_result, later_result),
+            (Err(WriteError::ExceedingSpace), Err(WriteError::Sending))
+                | (Ok(()), Err(WriteError::ExceedingSpace))
+        ));
+    }
+
+    #[test]
     fn running_while_a_sender_is_alive() {
         let mut store_thread = StoreThread::idle();
-        let sender = store_thread.start_with(|_, _| Ok(()));
+        let sender = store_thread.start_with(unlimited_budget(), |_, _| Ok(()));
         std::thread::sleep(STOP_POLL_INTERVAL * 2);
         assert!(store_thread.running());
 
@@ -341,7 +449,7 @@ mod tests {
     #[test]
     fn write_error_is_reported_by_check_after_the_thread_ended() {
         let mut store_thread = StoreThread::idle();
-        let sender = store_thread.start_with(|_, _| {
+        let sender = store_thread.start_with(unlimited_budget(), |_, _| {
             Err(WriteError::Stats {
                 path: std::path::PathBuf::new(),
                 source: std::io::Error::other("disk full"),
@@ -365,7 +473,8 @@ mod tests {
     #[test]
     fn panic_is_reported_by_check_after_the_thread_ended() {
         let mut store_thread = StoreThread::idle();
-        let sender = store_thread.start_with(|_, _| panic!("store thread test panic"));
+        let sender =
+            store_thread.start_with(unlimited_budget(), |_, _| panic!("store thread test panic"));
         sender.send(Frame::default(), Stats::default()).unwrap();
 
         let mut store_thread = wait_until_stopped(store_thread);

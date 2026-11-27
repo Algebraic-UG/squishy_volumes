@@ -16,10 +16,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod coded_error;
 mod context;
 mod simulation;
 mod simulation_input;
 
+pub use coded_error::*;
 pub use context::*;
 pub use simulation::*;
 pub use simulation_input::*;

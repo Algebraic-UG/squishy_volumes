@@ -140,6 +140,8 @@ pub enum SimulationError {
     DropFrames(#[source] squishy_volumes_cache::Error),
     #[error("failed to store a frame")]
     StoreFrame(#[source] squishy_volumes_cache::Error),
+    #[error("can't start baking")]
+    StartBaking(#[source] squishy_volumes_cache::Error),
 
     #[error("failed to create the initial state")]
     Initialization(#[source] InitializationError),

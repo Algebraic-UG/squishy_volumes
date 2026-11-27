@@ -18,13 +18,13 @@
 
 use std::borrow::Cow;
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use numpy::PyReadonlyArray1;
 use pyo3::prelude::*;
 use serde_json::from_str;
 use squishy_volumes_api::InputBulk;
 
-use crate::try_with_context;
+use crate::{try_with_context, wrap_error::Result};
 
 #[pyclass]
 pub struct SimulationInput;
@@ -39,7 +39,7 @@ impl SimulationInput {
         input_header: &str,
         max_bytes_on_disk: u64,
     ) -> Result<Self> {
-        try_with_context(move |context| {
+        Ok(try_with_context(move |context| {
             context.new_simulation_input(
                 uuid,
                 directory.into(),
@@ -47,17 +47,17 @@ impl SimulationInput {
                 max_bytes_on_disk,
             )?;
             Ok(Self)
-        })
+        })?)
     }
 
     #[pyo3(signature = (*, frame_start))]
     pub fn start_frame(&self, frame_start: &str) -> Result<()> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation_input()
                 .context("Not recording input")?
                 .start_frame(from_str(frame_start).context("Frame start string isn't valid JSON")?)
-        })
+        })?)
     }
 
     #[pyo3(signature = (*, meta, bulk))]
@@ -66,7 +66,7 @@ impl SimulationInput {
         meta: &str,
         bulk: PyReadonlyArray1<'py, f32>,
     ) -> Result<()> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation_input()
                 .context("Not recording input")?
@@ -74,7 +74,7 @@ impl SimulationInput {
                     from_str(meta).context("Meta string isn't valid JSON")?,
                     InputBulk::Floats(Cow::Borrowed(bulk.as_slice()?)),
                 )
-        })
+        })?)
     }
 
     #[pyo3(signature = (*, meta, bulk))]
@@ -83,7 +83,7 @@ impl SimulationInput {
         meta: &str,
         bulk: PyReadonlyArray1<'py, i32>,
     ) -> Result<()> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation_input()
                 .context("Not recording input")?
@@ -91,10 +91,10 @@ impl SimulationInput {
                     from_str(meta).context("Meta string isn't valid JSON")?,
                     InputBulk::Ints(Cow::Borrowed(bulk.as_slice()?)),
                 )
-        })
+        })?)
     }
 
     pub fn drop(&self) -> Result<()> {
-        try_with_context(|context| context.drop_simulation_input())
+        Ok(try_with_context(|context| context.drop_simulation_input())?)
     }
 }

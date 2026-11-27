@@ -85,14 +85,14 @@ cd squishy_volumes
 This isn't technically needed for actual wheel building below since the `uvx` command takes care of the environment.
 But it is needed for the `./rust` level `cargo build` command to succeed.
 ```
-uv python install 3.11
-uv python list 3.11
+uv python install 3.12
+uv python list 3.12
 ```
 Copy the path and set the environment variable for PyO3.
 
 For example:
 ```
-export PYO3_PYTHON=/home/<user>/.local/share/uv/python/cpython-3.11.11-linux-x86_64-gnu/bin/python3.11
+export PYO3_PYTHON=/home/<user>/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/bin/python3.12
 ```
 
 ### Wrap
@@ -106,7 +106,7 @@ rm python/src/squishy_volumes_extension/wheels/*
 Build new wheel, omit `--no-default-features` for hot reloading.
 ```
 cd rust/crates/wrap
-uvx --python 3.11 maturin build --no-default-features --release --out ../../../python/src/squishy_volumes_extension/wheels/
+uvx --python 3.12 maturin build --no-default-features --release --out ../../../python/src/squishy_volumes_extension/wheels/
 ```
 Update manifest to include new wheel.
 ```

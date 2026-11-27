@@ -112,6 +112,7 @@ The UI will be blocked for a few seconds.""",
             return self.finish_with_warning(
                 sim_obj.squishy_volumes.uuid,
                 f"{sim_obj.name} is set up but not baking:\n{error}",
+                error,
             )
         return {"FINISHED"}
 

@@ -16,22 +16,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import shutil
 import time
 
 import bpy
 
 from ..bridge import SimulationHandle
-from ..cache_paths import absolute_cache_directory
 from ..errors import (
     BakeFailed,
     BakeTimeout,
-    InsufficientDiskSpace,
     InvalidBakeRange,
     SimulationNotLoaded,
 )
 from ..get_preferences import get_sanity_check_allowed_disk_space
-from ..util import giga_f32_to_u64, u64_to_giga_f32
+from ..util import giga_f32_to_u64
 from .record import release_cache_file
 
 
@@ -67,7 +64,6 @@ def bake(
     if next_frame >= number_of_frames:
         return
 
-    _check_disk_space(sim_props)
     sim_handle.last_error = None
     release_cache_file(sim_props)
     sim_handle.start_compute(
@@ -80,6 +76,7 @@ def bake(
             "next_frame": next_frame,
             "number_of_frames": number_of_frames,
             "max_bytes_on_disk": giga_f32_to_u64(sim_props.max_giga_bytes_on_disk),
+            "check_disk_space": get_sanity_check_allowed_disk_space(),
         }
     )
 
@@ -88,7 +85,7 @@ def pause_bake(sim_obj: bpy.types.Object):
     _loaded_handle(sim_obj).pause_compute()
 
 
-def bake_errors(sim_obj: bpy.types.Object) -> list[str]:
+def bake_errors(sim_obj: bpy.types.Object) -> list[RuntimeError]:
     sim_handle = SimulationHandle.get(uuid=sim_obj.squishy_volumes.uuid)
     if sim_handle is None:
         return []
@@ -112,7 +109,7 @@ def wait_until_baked(
             if sim_handle.bake_errors:
                 raise BakeFailed(
                     f"Baking {sim_obj.name} failed:\n"
-                    + "\n\n".join(sim_handle.bake_errors)
+                    + "\n\n".join(map(str, sim_handle.bake_errors))
                 )
             return sim_handle.available_frames()
         if time.monotonic() > deadline:
@@ -129,21 +126,3 @@ def _loaded_handle(sim_obj: bpy.types.Object) -> SimulationHandle:
             f"{sim_obj.name} has no loaded cache, record its input or reload it first"
         )
     return sim_handle
-
-
-def _check_disk_space(sim_props):
-    if not get_sanity_check_allowed_disk_space():
-        return
-    allowed = sim_props.max_giga_bytes_on_disk
-    free = u64_to_giga_f32(
-        shutil.disk_usage(absolute_cache_directory(sim_props.directory)).free
-    )
-    if allowed > free:
-        raise InsufficientDiskSpace(
-            f"""The disk might run out of space!
-
-Squishy Volumes is allowed to use up to {allowed:.2f} GB,
-but only {free:.2f} GB are free.
-
-This check can be disabled in the add-on preferences."""
-        )

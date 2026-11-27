@@ -22,7 +22,7 @@ from bpy.app.handlers import persistent
 from .bridge import SimulationHandle
 from .capture_markers import capture_marker_frames
 from .get_preferences import debug_log, get_enable_timeline_markers
-from .operators.popup import show_message
+from .operators.popup import fixing_preference, show_message
 from .properties import get_simulation_objects
 from .registration import add_handler, remove_handler
 from .util import force_ui_redraw
@@ -30,7 +30,7 @@ from .util import force_ui_redraw
 PROGRESS_INTERVAL = 0.25
 
 _last_seen_capture_markers: dict[str, tuple[int, ...]] = {}
-_shown_bake_errors: dict[str, tuple[list[str], int]] = {}
+_shown_bake_errors: dict[str, tuple[list[RuntimeError], int]] = {}
 
 
 def capture_markers_changed(sim_obj: bpy.types.Object) -> bool:
@@ -55,8 +55,8 @@ def simulation_progressed(sim_obj: bpy.types.Object) -> bool:
 
 
 def unseen_bake_errors(
-    errors: list[str], shown: tuple[list[str], int] | None
-) -> list[str]:
+    errors: list[RuntimeError], shown: tuple[list[RuntimeError], int] | None
+) -> list[RuntimeError]:
     if shown is None or shown[0] is not errors:
         return list(errors)
     return errors[shown[1] :]
@@ -67,7 +67,7 @@ def show_new_bake_errors(uuid: str, sim_handle: SimulationHandle):
     unseen = unseen_bake_errors(errors, _shown_bake_errors.get(uuid))
     _shown_bake_errors[uuid] = (errors, len(errors))
     if unseen:
-        show_message(uuid, "\n\n".join(unseen))
+        show_message(uuid, "\n\n".join(map(str, unseen)), fixing_preference(unseen))
 
 
 def update_progress():

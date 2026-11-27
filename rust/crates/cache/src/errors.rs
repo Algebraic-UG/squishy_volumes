@@ -39,6 +39,17 @@ pub enum WriteError {
     Sending,
     #[error("exceeding allowed disk space")]
     ExceedingSpace,
+    #[error(
+        "only {:.2} GB are free on the disk, but the cache may still grow by {:.2} GB, disable the disk space check to bake anyway",
+        giga_bytes(*.available),
+        giga_bytes(*.remaining)
+    )]
+    InsufficientDiskSpace { remaining: u64, available: u64 },
+    #[error("failed to query the free space for the cache directory {path:?}")]
+    QueryFreeSpace {
+        path: std::path::PathBuf,
+        source: std::io::Error,
+    },
     #[error("internal error (panic) in the store thread: {message}, please report this bug")]
     StoreThreadPanicked { message: String },
 }
@@ -85,4 +96,8 @@ pub enum CleanupError {
         path: std::path::PathBuf,
         source: std::io::Error,
     },
+}
+
+fn giga_bytes(bytes: u64) -> f64 {
+    bytes as f64 * 1e-9
 }

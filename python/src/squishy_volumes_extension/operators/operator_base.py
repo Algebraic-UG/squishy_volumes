@@ -19,12 +19,11 @@
 import bpy
 
 from ..api import find_simulation
-from ..errors import ScaledInputError
-from .popup import popup, show_message
+from .popup import fixing_preference, popup, show_message
 
 
 def report_error(operator, uuid: str, error: RuntimeError):
-    popup(uuid, str(error), isinstance(error, ScaledInputError))
+    popup(uuid, str(error), fixing_preference([error]))
     operator.report({"ERROR"}, str(error))
 
 
@@ -41,8 +40,12 @@ class ReportingOperator:
     def run(self, context) -> set[str]:
         raise NotImplementedError
 
-    def finish_with_warning(self, uuid: str, message: str) -> set[str]:
-        show_message(uuid, message)
+    def finish_with_warning(
+        self, uuid: str, message: str, cause: RuntimeError | None = None
+    ) -> set[str]:
+        show_message(
+            uuid, message, fixing_preference=fixing_preference([cause] if cause else [])
+        )
         self.report({"WARNING"}, message.splitlines()[0])
         return {"FINISHED"}
 

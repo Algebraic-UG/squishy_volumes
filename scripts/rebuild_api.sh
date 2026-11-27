@@ -14,7 +14,7 @@ echo "Adding license headers"
 ./scripts/add_license_headers.sh
 
 cd rust/crates/wrap
-uvx --python 3.11 maturin build --release --out ../../../python/src/squishy_volumes_extension/wheels/
+uvx --python 3.12 maturin build --release --out ../../../python/src/squishy_volumes_extension/wheels/
 
 cd -
 cd rust/crates/hot

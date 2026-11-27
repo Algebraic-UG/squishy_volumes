@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use pyo3::prelude::*;
 use serde_json::{from_str, to_string};
 
-use crate::try_with_context;
+use crate::{try_with_context, wrap_error::Result};
 
 #[pyclass]
 pub struct Simulation(pub String);
@@ -29,19 +29,19 @@ pub struct Simulation(pub String);
 impl Simulation {
     #[staticmethod]
     pub fn new() -> Result<Self> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             let uuid = context.new_simulation()?;
             Ok(Self(uuid))
-        })
+        })?)
     }
 
     #[staticmethod]
     #[pyo3(signature = (*, uuid, directory))]
     pub fn load(uuid: String, directory: String) -> Result<Self> {
-        try_with_context(move |context| {
+        Ok(try_with_context(move |context| {
             context.load_simulation(uuid.clone(), directory.into())?;
             Ok(Self(uuid))
-        })
+        })?)
     }
 
     pub fn uuid(&self) -> String {
@@ -49,38 +49,38 @@ impl Simulation {
     }
 
     pub fn input_header(&self) -> Result<String> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             Ok(to_string(
                 &context
                     .get_simulation(&self.0)
                     .with_context(|| format!("No simulation found for {}", self.0))?
                     .input_header()?,
             )?)
-        })
+        })?)
     }
 
     pub fn poll(&self) -> Result<String> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             Ok(to_string(
                 &context
                     .get_simulation_mut(&self.0)
                     .with_context(|| format!("No simulation found for {}", self.0))?
                     .poll()?,
             )?)
-        })
+        })?)
     }
 
     pub fn baking(&self) -> Result<bool> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation(&self.0)
                 .map_or(Ok(false), |simulation| simulation.baking())
-        })
+        })?)
     }
 
     #[pyo3(signature = (*, compute_settings))]
     pub fn start_compute(&self, compute_settings: &str) -> Result<()> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
@@ -88,27 +88,29 @@ impl Simulation {
                     from_str(compute_settings)
                         .context("Compute settings string isn't valid json")?,
                 )
-        })
+        })?)
     }
 
     pub fn pause_compute(&self) -> Result<()> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation_mut(&self.0)
                 .with_context(|| format!("No simulation found for {}", self.0))?
                 .pause_compute()
-        })
+        })?)
     }
 
     pub fn available_frames(&self) -> Result<usize> {
-        try_with_context(|context| {
+        Ok(try_with_context(|context| {
             context
                 .get_simulation(&self.0)
                 .map_or(Ok(0), |simulation| simulation.available_frames())
-        })
+        })?)
     }
 
     pub fn drop(&self) -> Result<()> {
-        try_with_context(move |context| context.drop_simulation(&self.0))
+        Ok(try_with_context(move |context| {
+            context.drop_simulation(&self.0)
+        })?)
     }
 }

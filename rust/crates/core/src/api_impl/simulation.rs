@@ -23,6 +23,7 @@ use serde_json::Value;
 use crate::{
     SimulationError, SimulationImpl,
     guard::{Breakable, guard, guard_breakable},
+    with_error_code,
 };
 
 impl Breakable for SimulationImpl {
@@ -39,34 +40,30 @@ impl Breakable for SimulationImpl {
 
 impl squishy_volumes_api::Simulation for SimulationImpl {
     fn input_header(&self) -> anyhow::Result<Value> {
-        Ok(guard_breakable(self, |simulation| {
-            simulation.input_header_impl()
-        })?)
+        guard_breakable(self, |simulation| simulation.input_header_impl()).map_err(with_error_code)
     }
 
     fn baking(&self) -> anyhow::Result<bool> {
-        Ok(guard_breakable(self, |simulation| {
-            Ok(simulation.baking_impl())
-        })?)
+        guard_breakable(self, |simulation| Ok(simulation.baking_impl())).map_err(with_error_code)
     }
 
     fn poll(&mut self) -> anyhow::Result<Value> {
-        Ok(guard_breakable(self, |simulation| simulation.poll_impl())?)
+        guard_breakable(self, |simulation| simulation.poll_impl()).map_err(with_error_code)
     }
 
     fn start_compute(&mut self, compute_settings: Value) -> anyhow::Result<()> {
-        Ok(guard_breakable(self, |simulation| {
+        guard_breakable(self, |simulation| {
             simulation.start_compute_impl(compute_settings)
-        })?)
+        })
+        .map_err(with_error_code)
     }
 
     fn pause_compute(&mut self) -> anyhow::Result<()> {
-        Ok(guard(|| self.pause_compute_impl())?)
+        guard(|| self.pause_compute_impl()).map_err(with_error_code)
     }
 
     fn available_frames(&self) -> anyhow::Result<usize> {
-        Ok(guard_breakable(self, |simulation| {
-            Ok(simulation.available_frames_impl())
-        })?)
+        guard_breakable(self, |simulation| Ok(simulation.available_frames_impl()))
+            .map_err(with_error_code)
     }
 }
