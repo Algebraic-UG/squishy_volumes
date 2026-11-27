@@ -22,6 +22,17 @@ fn get_global_index(workgroup_size: u32, num_workgroups: vec3<u32>, global_invoc
         (global_invocation_id.z * workgroup_size * num_workgroups.x * num_workgroups.y);
 }
 
+struct WordWrite {
+    offset: u32,
+    stride: u32,
+    first: u32,
+    words: u32,
+}
+
+fn word_write_destination(word_write: WordWrite, element: u32, word: u32) -> u32 {
+    return (word_write.offset + element) * word_write.stride + word_write.first + word;
+}
+
 fn div_ceil(left: u32, right: u32) -> u32 {
     if left == 0 {
         return 0;
@@ -228,7 +239,7 @@ const IS_FLUID: u32 = 1 << 1;
 const USE_VISCOSITY: u32 = 1 << 2;
 const USE_SAND_ALPHA: u32 = 1 << 3;
 const HAS_GOAL: u32 = 1 << 4;
-const TOMBSTONED: u32 = 1 << 5;
+const IS_ACTIVE: u32 = 1 << 5;
 const FAILED: u32 = 1 << 6;
 
 fn initial_volume(p: ParticleParameters) -> f32 {

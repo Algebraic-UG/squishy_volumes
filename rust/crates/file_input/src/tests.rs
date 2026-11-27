@@ -349,10 +349,7 @@ fn test_frame_truncated_mid_bulk() {
     write_full(&path, 10, 9, 3);
     let (_, bulk) = InputFrame::test_input_0(10, 9, 3);
     let last_bulk = bulk.last().unwrap();
-    let element_size = match last_bulk.data {
-        InputBulk::Bool(_) => 1,
-        InputBulk::Floats(_) | InputBulk::Ints(_) => 4,
-    };
+    let element_size = 4;
     let data_len = u64::try_from(last_bulk.data.len()).unwrap();
     let length_prefix_pos = index_offset(&path) - element_size * data_len - 8;
     overwrite_at(

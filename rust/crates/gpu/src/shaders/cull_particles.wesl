@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, PositionAndColliderBits, TOMBSTONED};
+import super::util::{get_global_index, PositionAndColliderBits, IS_ACTIVE};
 
 @group(0) @binding(0)
 var<storage, read_write> particle_flags: array<u32>;
@@ -54,7 +54,7 @@ fn main(
     }
 
     var flags = particle_flags[global_index];
-    if (flags & TOMBSTONED) != 0 {
+    if (flags & IS_ACTIVE) == 0 {
         return;
     }
 
@@ -62,7 +62,7 @@ fn main(
     let domain_min = vec3f(DOMAIN_MIN_X, DOMAIN_MIN_Y, DOMAIN_MIN_Z);
     let domain_max = vec3f(DOMAIN_MAX_X, DOMAIN_MAX_Y, DOMAIN_MAX_Z);
     if any(position < domain_min) || any(position > domain_max) {
-        flags |= TOMBSTONED;
+        flags &= ~IS_ACTIVE;
         particle_flags[global_index] = flags;
     }
 }

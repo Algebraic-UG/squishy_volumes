@@ -33,7 +33,7 @@ impl CpuState {
             .zip(&mut self.particles.velocities)
             .zip(&mut self.particles.velocity_gradients)
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
+            .filter_map(|(e, flags)| flags.contains(ParticleFlags::IS_ACTIVE).then_some(e))
             .for_each(
                 |(((position, &collider_bits), velocity), velocity_gradient)| {
                     let nodes = quadratic_stencil(position, grid_node_size).map(|node_id| {

@@ -43,6 +43,8 @@ def add_goals(
 
     choose = bpy.data.objects.new(f"{obj.name} - Choose", _icosphere_mesh(obj.name))
     choose.location = obj.matrix_world.translation if location is None else location
+    choose.display_type = "WIRE"
+    choose.hide_render = True
     move = bpy.data.objects.new(f"{obj.name} - Move", None)
     move.parent = choose
     for collection in obj.users_collection:

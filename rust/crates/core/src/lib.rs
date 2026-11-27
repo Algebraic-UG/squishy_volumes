@@ -24,6 +24,8 @@ mod context;
 mod errors;
 mod guard;
 mod initialization;
+#[cfg(test)]
+mod overwrite_tests;
 mod simulation;
 mod simulation_input;
 

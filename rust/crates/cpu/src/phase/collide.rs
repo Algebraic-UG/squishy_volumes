@@ -59,7 +59,7 @@ impl CpuState {
             .zip(&mut self.particles.velocities)
             .zip(&mut self.particles.collider_bits)
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
+            .filter_map(|(e, flags)| flags.contains(ParticleFlags::IS_ACTIVE).then_some(e))
             .for_each(|((p, velocity), collider_bits)| {
                 let leaf =
                     p.map(|c| (c / self.frame_input.header().consts.leaf_size).floor() as i32);

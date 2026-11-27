@@ -57,7 +57,7 @@ impl CpuState {
             .par_iter()
             .zip(&self.particles.position_gradients)
             .zip(&self.particles.flags)
-            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .filter(|(_, flags)| flags.contains(ParticleFlags::IS_ACTIVE))
             .map(|((parameters, position_gradient), flags)| {
                 let principal_stretches = principal_stretches(position_gradient);
                 (
@@ -91,7 +91,7 @@ impl CpuState {
             .velocities
             .par_iter()
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
+            .filter_map(|(e, flags)| flags.contains(ParticleFlags::IS_ACTIVE).then_some(e))
             .map(|velocity| {
                 squishy_volumes_util::limit_time_step_by_velocity(velocity, grid_node_size)
             })
@@ -110,7 +110,7 @@ impl CpuState {
             .velocity_gradients
             .par_iter()
             .zip(&self.particles.flags)
-            .filter_map(|(e, flags)| (!flags.contains(ParticleFlags::TOMBSTONED)).then_some(e))
+            .filter_map(|(e, flags)| flags.contains(ParticleFlags::IS_ACTIVE).then_some(e))
             .map(|velocity_gradient| {
                 squishy_volumes_util::limit_time_step_by_deformation(velocity_gradient)
             })

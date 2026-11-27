@@ -33,7 +33,7 @@ impl CpuState {
             .zip(&mut self.particles.velocities)
             .zip(&self.particles.goal_positions)
             .zip(&self.particles.flags)
-            .filter(|(_, flags)| !flags.contains(ParticleFlags::TOMBSTONED))
+            .filter(|(_, flags)| flags.contains(ParticleFlags::IS_ACTIVE))
             .for_each(|(((position, velocity), goal_position), flags)| {
                 let to_goal = flags
                     .contains(ParticleFlags::HAS_GOAL)

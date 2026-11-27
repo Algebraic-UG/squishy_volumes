@@ -52,7 +52,7 @@ fn test_single_undeformed() {
         settings,
         InputData {
             time_step,
-            particle_flags: &[ParticleFlags::IS_SOLID],
+            particle_flags: &[ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE],
             particle_parameters: &[ParticleParameters::default()],
             particle_positions_and_collider_bits: &[PositionAndColliderBits {
                 position: Vector3::zeros(),
@@ -98,12 +98,12 @@ fn test_many_random_props() {
     let mut rng = ChaCha8Rng::seed_from_u64(42);
 
     let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = test_lame_parameters(&mut rng)
-        .zip(repeat(ParticleFlags::IS_SOLID))
+        .zip(repeat(ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE))
         .collect::<Vec<_>>()
         .into_iter()
         .chain(
             (test_inviscid_parameters(&mut rng))
-                .zip(repeat(ParticleFlags::IS_FLUID))
+                .zip(repeat(ParticleFlags::IS_FLUID | ParticleFlags::IS_ACTIVE))
                 .collect::<Vec<_>>(),
         )
         .cycle()

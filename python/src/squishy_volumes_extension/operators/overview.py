@@ -27,6 +27,7 @@ from ..example import (
     EXAMPLE_BENCHMARK,
     EXAMPLE_BOING_BLOCK,
     EXAMPLE_MULTI_MATERIAL,
+    EXAMPLE_PULL_APART,
     setup_example_simulation,
 )
 from ..get_preferences import (
@@ -66,6 +67,11 @@ The UI will be blocked for a few seconds.""",
                 EXAMPLE_MULTI_MATERIAL,
                 EXAMPLE_MULTI_MATERIAL,
                 "An elastic cube and a fluid sphere falling onto a plane.",
+            ),
+            (
+                EXAMPLE_PULL_APART,
+                EXAMPLE_PULL_APART,
+                "Two goals pulling the halves of an elastic cube apart.",
             ),
         ],
         name="Choose Example Simulation",

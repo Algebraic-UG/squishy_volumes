@@ -101,8 +101,10 @@ pub mod attribute {
         fn visit<T: Trait>(&mut self) -> Self::Output;
     }
 
+    const ACTIVE: f32 = crate::ParticleFlags::IS_ACTIVE.bits() as f32;
+
     define_keys! {
-        (Flags,                 "flags",                    [f32;2],    [0.;2],        false, ),
+        (Flags,                 "flags",                    [f32;2],    [ACTIVE, 0.],  false, ),
         (Density,               "density",                  f32,        1000.,         false, ),
         (InitialSize,           "initial_size",             f32,        0.25,          true,  ),
         (ViscosityDynamic,      "viscosity_dynamic",        f32,        3.,            false, ),

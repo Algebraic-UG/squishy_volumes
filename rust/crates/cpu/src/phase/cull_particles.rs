@@ -34,7 +34,7 @@ impl CpuState {
             .par_iter_mut()
             .zip(&self.particles.positions)
             .for_each(|(flags, position)| {
-                if flags.contains(ParticleFlags::TOMBSTONED) {
+                if !flags.contains(ParticleFlags::IS_ACTIVE) {
                     return;
                 }
 
@@ -46,7 +46,7 @@ impl CpuState {
                     return;
                 }
 
-                *flags |= ParticleFlags::TOMBSTONED;
+                flags.remove(ParticleFlags::IS_ACTIVE);
             });
     }
 }

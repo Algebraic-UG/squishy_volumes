@@ -16,11 +16,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import importlib
 import re
 import shutil
 import time
 
 import bpy
+from mathutils import Vector
 
 from .support import (
     AddonTestCase,
@@ -148,6 +150,66 @@ class BakeTest(BakeTestCase):
 
         api().pause_bake(self.sim_obj)
         api().wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+
+
+def attribute_rows(data, name: str) -> list[tuple[float, ...]]:
+    attribute = data.attributes[name]
+    width = {"INT": 1, "FLOAT2": 2, "FLOAT_VECTOR": 3}[attribute.data_type]
+    key = "value" if width == 1 else "vector"
+    values = [0] * (len(attribute.data) * width)
+    attribute.data.foreach_get(key, values)
+    return [tuple(values[i : i + width]) for i in range(0, len(values), width)]
+
+
+class AnimatedGoalsBakeTest(BakeTestCase):
+    def evaluated(self, obj: bpy.types.Object, scene_frame: int):
+        bpy.context.scene.frame_set(scene_frame)
+        return obj.evaluated_get(bpy.context.evaluated_depsgraph_get()).data
+
+    def test_bakes_moving_goals_over_several_frames(self):
+        cube = bpy.data.objects["Cube"]
+        for name in ("Flags", "Goal Position"):
+            cube.squishy_volumes.alembic_attributes[name].enabled = True
+        choose, move = api().add_goals(cube)
+        for frame, offset in ((1, 0.0), (3, 0.5)):
+            choose.location.x = 2 * offset
+            choose.keyframe_insert("location", frame=frame)
+            move.location.z = offset
+            move.keyframe_insert("location", frame=frame)
+        api().set_capture_range(self.sim_obj, 1, 3)
+        api().record_input(self.sim_obj)
+
+        self.assertEqual(self.bake_and_wait(bake_frames=3), 3)
+
+        self.assertEqual(api().bake_errors(self.sim_obj), [])
+        output_attributes = importlib.import_module(
+            f"{addon().__name__}.output_attributes"
+        )
+        has_goal_bit = 1 << output_attributes.PARTICLE_FLAG_BITS["HAS_GOAL"]
+        captured = self.evaluated(cube, 3)
+        has_goal = [
+            bool(flags & has_goal_bit)
+            for (flags,) in attribute_rows(captured, "sv_flags")
+        ]
+        goals = attribute_rows(captured, "sv_goal_position")
+        output_obj = bpy.data.objects["Cube - Output"]
+        output_obj.modifiers["Squishy Volumes Output"].show_viewport = False
+        baked = self.evaluated(output_obj, 3)
+        baked_has_goal = [
+            bool(int(low) & has_goal_bit)
+            for low, _high in attribute_rows(baked, "flags")
+        ]
+        baked_goals = [
+            tuple(output_obj.matrix_world @ Vector(goal))
+            for goal in attribute_rows(baked, "goal_position")
+        ]
+
+        self.assertTrue(any(has_goal))
+        self.assertFalse(all(has_goal))
+        self.assertEqual(baked_has_goal, has_goal)
+        for index in (index for index, goal in enumerate(has_goal) if goal):
+            for found, expected in zip(baked_goals[index], goals[index], strict=True):
+                self.assertAlmostEqual(found, expected, places=4, msg=index)
 
 
 class RebakeFromShownFrameTest(BakeTestCase):

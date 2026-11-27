@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic, TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED, TOMBSTONED};
+import super::util::{Indirect, PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, kernel_quadratic, TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED, IS_ACTIVE};
 
 @group(0) @binding(0)
 var<storage, read_write> time_step: f32;
@@ -72,7 +72,7 @@ fn main(
         return;
     }
 
-    if (particle_flags[global_index] & TOMBSTONED) != 0 {
+    if (particle_flags[global_index] & IS_ACTIVE) == 0 {
         return;
     }
 

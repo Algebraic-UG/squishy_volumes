@@ -59,6 +59,17 @@ class ExampleTestCase(AddonTestCase):
         addon().api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
         super().tearDown()
 
+    def rebake_on_cpu(self, frames: int) -> int:
+        api = addon().api
+        deadline = time.monotonic() + BAKE_TIMEOUT_SEC
+        while api.baked_frames(self.sim_obj) < 1 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        api.pause_bake(self.sim_obj)
+        api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+        self.sim_obj.squishy_volumes.compute_device = "CPU"
+        api.bake(self.sim_obj, from_frame=0, bake_frames=frames)
+        return api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
+
     def assert_started_baking(self):
         self.assertTrue(self.baking_after_setup or self.baked_after_setup > 0)
 
@@ -177,18 +188,8 @@ class BoingBlockExampleTest(StagingTests, ExampleTestCase):
 
     def test_rebake_provides_all_requested_frames(self):
         api = addon().api
-        deadline = time.monotonic() + BAKE_TIMEOUT_SEC
-        while api.baked_frames(self.sim_obj) < 1 and time.monotonic() < deadline:
-            time.sleep(0.01)
-        api.pause_bake(self.sim_obj)
-        api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC)
-        self.sim_obj.squishy_volumes.compute_device = "CPU"
+        self.assertEqual(self.rebake_on_cpu(3), 3)
 
-        api.bake(self.sim_obj, from_frame=0, bake_frames=3)
-
-        self.assertEqual(
-            api.wait_until_baked(self.sim_obj, timeout_sec=BAKE_TIMEOUT_SEC), 3
-        )
         sim_handle = simulation_handle(self.sim_obj)
         self.assertIsNone(sim_handle.last_error)
         self.assertEqual(api.bake_errors(self.sim_obj), [])
@@ -224,6 +225,44 @@ class MultiMaterialExampleTest(StagingTests, ExampleTestCase):
 
     def test_starts_baking(self):
         self.assert_started_baking()
+
+
+class PullApartExampleTest(StagingTests, ExampleTestCase):
+    example = "Pull Apart"
+    visualization_scale = 0.1
+    baked_frames = 12
+
+    def particle_xs(self, frame: int) -> list[float]:
+        output_obj = bpy.data.objects["Cube - Output"]
+        output_obj.modifiers["Squishy Volumes Output"].show_viewport = False
+        bpy.context.scene.frame_set(bpy.context.scene.frame_start + frame)
+        evaluated = output_obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        return [point.co.x for point in evaluated.data.points]
+
+    def test_records_the_cube_with_two_goals(self):
+        self.assertEqual([obj.name for obj in input_objects(self.sim_obj)], ["Cube"])
+        goals = [
+            modifier.node_group.name
+            for modifier in bpy.data.objects["Cube"].modifiers
+            if modifier.type == "NODES"
+        ]
+        self.assertEqual(goals.count("Squishy Volumes Set Goals"), 2)
+
+    def test_goals_pull_the_halves_apart(self):
+        self.assertEqual(self.rebake_on_cpu(self.baked_frames), self.baked_frames)
+        self.assertEqual(addon().api.bake_errors(self.sim_obj), [])
+
+        start = self.particle_xs(0)
+        end = self.particle_xs(self.baked_frames - 1)
+        moves = {"right": [], "left": []}
+        for x0, x1 in zip(start, end, strict=True):
+            if abs(x0) > 0.5:
+                moves["right" if x0 > 0 else "left"].append(x1 - x0)
+        right = sum(moves["right"]) / len(moves["right"])
+        left = sum(moves["left"]) / len(moves["left"])
+
+        self.assertGreater(right, 0.15)
+        self.assertLess(left, -0.15)
 
 
 class BoingBlockVisualizationTest(ExampleTestCase):

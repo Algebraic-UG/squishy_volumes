@@ -162,7 +162,7 @@ fn specific() {
             globals: Default::default(),
             particle_goals: &vec![Vector4::zeros(); n],
             variable_particle_input: VariableParticleInputData {
-                particle_flags: &vec![ParticleFlags::IS_SOLID; n],
+                particle_flags: &vec![ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE; n],
                 particle_parameters: &vec![Default::default(); n],
                 particle_positions_and_collider_bits: &particle_positions_and_collider_bits,
                 #[allow(clippy::toplevel_ref_arg)]
@@ -215,7 +215,7 @@ fn test_single_undeformed() {
             globals: Default::default(),
             particle_goals: &[Vector4::zeros()],
             variable_particle_input: VariableParticleInputData {
-                particle_flags: &[ParticleFlags::IS_SOLID],
+                particle_flags: &[ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE],
                 particle_parameters: &[Default::default()],
                 particle_positions_and_collider_bits: &[PositionAndColliderBits {
                     position: Vector3::zeros(),

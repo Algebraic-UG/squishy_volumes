@@ -24,6 +24,7 @@ from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 
 from ._shared import names
+from ._shared.flags import StoreFlag
 from ._shared.inside import is_inside_object
 
 DRIVEN_BY_SIMULATION = "This is driven by the simulation this input is assigned to."
@@ -183,22 +184,10 @@ class ParticleParameters(CustomGeometryGroup):
         with g.Frame("Flags"):
             geometry = (
                 geometry
-                >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.PARTICLE_IS_SOLID.name,
-                    value=material_type == 0,
-                )
-                >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.PARTICLE_IS_FLUID.name,
-                    value=material_type == 1,
-                )
-                >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.PARTICLE_USE_VISCOSITY.name,
-                    value=viscosity,
-                )
-                >> g.StoreNamedAttribute.point.boolean(
-                    name=names.inputs.PARTICLE_USE_SAND_ALPHA.name,
-                    value=sand_alpha,
-                )
+                >> StoreFlag(flag="IS_SOLID", value=material_type == 0)
+                >> StoreFlag(flag="IS_FLUID", value=material_type == 1)
+                >> StoreFlag(flag="USE_VISCOSITY", value=viscosity)
+                >> StoreFlag(flag="USE_SAND_ALPHA", value=sand_alpha)
             )
 
         geometry >> tree.outputs.geometry()

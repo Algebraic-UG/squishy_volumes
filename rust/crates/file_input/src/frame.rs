@@ -47,6 +47,18 @@ impl BulkAttribute {
             Self::Collider(inner) => inner.elem_count(),
         }
     }
+
+    fn data_type(&self) -> &'static str {
+        match self {
+            Self::Particles(
+                FrameBulkParticles::Flags
+                | FrameBulkParticles::ColliderBits
+                | FrameBulkParticles::Exponent,
+            )
+            | Self::Collider(FrameBulkCollider::Triangles) => INT,
+            Self::Particles(_) | Self::Collider(_) => FLOAT,
+        }
+    }
 }
 
 #[derive(
@@ -60,12 +72,7 @@ impl BulkAttribute {
     strum_macros::EnumIter,
 )]
 pub enum FrameBulkParticles {
-    IsSolid,
-    IsFluid,
-    UseViscosity,
-    UseSandAlpha,
-    HasGoal,
-    IsActive,
+    Flags,
     ColliderBits,
     Transform,
     Size,
@@ -85,13 +92,7 @@ pub enum FrameBulkParticles {
 impl FrameBulkParticles {
     fn elem_count(&self) -> usize {
         match self {
-            Self::IsSolid
-            | Self::IsFluid
-            | Self::UseViscosity
-            | Self::UseSandAlpha
-            | Self::HasGoal
-            | Self::IsActive
-            | Self::ColliderBits
+            Self::ColliderBits
             | Self::Size
             | Self::Density
             | Self::YoungsModulus
@@ -101,6 +102,7 @@ impl FrameBulkParticles {
             | Self::Exponent
             | Self::BulkModulus
             | Self::SandAlpha => 1,
+            Self::Flags => 2,
             Self::InitialPosition | Self::Velocity | Self::GoalPosition => 3,
             Self::Transform => 16,
         }
@@ -145,11 +147,11 @@ pub fn random_particle_bulk(
     vec![FrameBulk {
         meta: FrameBulkMeta {
             object_name,
-            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::IsSolid),
+            captured_attribute: BulkAttribute::Particles(FrameBulkParticles::Flags),
         },
-        data: InputBulk::Bool(Cow::Owned(
-            rng.random_iter::<bool>()
-                .take(num_particles as usize)
+        data: InputBulk::Ints(Cow::Owned(
+            rng.random_iter::<i32>()
+                .take(2 * num_particles as usize)
                 .collect(),
         )),
     }]
@@ -196,7 +198,6 @@ pub struct InputFrame {
 }
 
 impl FrameBulk<'_> {
-    // TODO: also verify the type
     pub fn verify(&self, header: &crate::Header) -> Result<(), crate::FrameVerificationError> {
         let num = match &self.meta.captured_attribute {
             BulkAttribute::Particles(_) => header
@@ -214,14 +215,29 @@ impl FrameBulk<'_> {
                 .len(),
         };
 
-        let found = self.data.len();
-        let expected = num * self.meta.captured_attribute.elem_count();
+        self.verify_data(num).map_err(|error| {
+            error
+                .attach_attr(self.meta.captured_attribute)
+                .attach_name(self.meta.object_name.clone())
+        })
+    }
+
+    fn verify_data(&self, num: usize) -> Result<(), BulkAttributeError> {
+        let attribute = self.meta.captured_attribute;
+
+        let expected = attribute.data_type();
+        let found = match self.data {
+            InputBulk::Floats(_) => FLOAT,
+            InputBulk::Ints(_) => INT,
+        };
         if expected != found {
-            Err(
-                crate::BulkAttributeError::LengthMismatch { found, expected }
-                    .attach_attr(self.meta.captured_attribute)
-                    .attach_name(self.meta.object_name.clone()),
-            )?;
+            return Err(BulkAttributeError::TypeMismatch { expected, found });
+        }
+
+        let found = self.data.len();
+        let expected = num * attribute.elem_count();
+        if expected != found {
+            return Err(BulkAttributeError::LengthMismatch { found, expected });
         }
 
         Ok(())
@@ -230,7 +246,6 @@ impl FrameBulk<'_> {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, PartialOrd)]
 pub enum OwnedInputBulk {
-    Bool(Vec<bool>),
     Floats(Vec<f32>),
     Ints(Vec<i32>),
 }
@@ -238,7 +253,6 @@ pub enum OwnedInputBulk {
 impl From<InputBulk<'_>> for OwnedInputBulk {
     fn from(value: InputBulk) -> Self {
         match value {
-            InputBulk::Bool(cow) => Self::Bool(cow.into_owned()),
             InputBulk::Floats(cow) => Self::Floats(cow.into_owned()),
             InputBulk::Ints(cow) => Self::Ints(cow.into_owned()),
         }
@@ -260,7 +274,6 @@ impl From<FrameBulk<'_>> for OwnedFrameBulk {
     }
 }
 
-const BOOL: &str = "bool";
 const FLOAT: &str = "float";
 const INT: &str = "int";
 
@@ -272,22 +285,10 @@ impl OwnedFrameBulk {
     }
 
     #[inline]
-    pub fn assume_bools(&self) -> Result<&[bool], FrameVerificationError> {
-        let expected = BOOL;
-        let found = match &self.data {
-            OwnedInputBulk::Bool(vec) => return Ok(vec.as_slice()),
-            OwnedInputBulk::Floats(_) => FLOAT,
-            OwnedInputBulk::Ints(_) => INT,
-        };
-        Err(self.verification_error(BulkAttributeError::TypeMismatch { expected, found }))
-    }
-
-    #[inline]
     pub fn assume_floats<T: bytemuck::Pod>(&self) -> Result<&[T], FrameVerificationError> {
         let expected = FLOAT;
         (|| {
             let found = match &self.data {
-                OwnedInputBulk::Bool(_) => BOOL,
                 OwnedInputBulk::Floats(vec) => {
                     return Ok(bytemuck::try_cast_slice(vec.as_slice())?);
                 }
@@ -303,7 +304,6 @@ impl OwnedFrameBulk {
         let expected = INT;
         (|| {
             let found = match &self.data {
-                OwnedInputBulk::Bool(_) => BOOL,
                 OwnedInputBulk::Floats(_) => FLOAT,
                 OwnedInputBulk::Ints(vec) => return Ok(bytemuck::try_cast_slice(vec.as_slice())?),
             };

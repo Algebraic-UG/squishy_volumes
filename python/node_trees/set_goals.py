@@ -24,6 +24,7 @@ from nodebpy import geometry as g
 from nodebpy.builder import CustomGeometryGroup
 
 from ._shared import names
+from ._shared.flags import StoreFlag
 from ._shared.inside import is_inside_object
 from ._shared.matrix import self_matrix
 
@@ -37,7 +38,7 @@ class SetGoals(CustomGeometryGroup):
         choose = tree.inputs.object("Choose")
         move = tree.inputs.object("Move")
 
-        with g.Frame(label="Detect Choosen Particles"):
+        with g.Frame(label="Detect Chosen Particles"):
             inside = is_inside_object(choose.geometry("RELATIVE"), g.Position())
 
         with g.Frame(label="Local -> Chooser -> Mover -> Back to Local"):
@@ -47,25 +48,15 @@ class SetGoals(CustomGeometryGroup):
                 @ choose.matrix().invert()
                 @ self_matrix()
             )
-        with g.Frame(label="Store Flag"):
-            inside = inside >> g.Reroute()
-            geometry = (
-                geometry
-                >> g.StoreNamedAttribute.point.boolean(
+        with g.Frame(label="Store Flag and Goal"):
+            (
+                StoreFlag(geometry, flag="HAS_GOAL", value=inside, or_=True)
+                >> g.StoreNamedAttribute.point.vector(
                     selection=inside,
-                    name=names.inputs.PARTICLE_HAS_GOAL.name,
-                    value=True,
+                    name=names.inputs.PARTICLE_GOAL_POSITION.name,
+                    value=goal_position.transform(self_matrix()),
                 )
                 >> g.SetPosition(selection=inside, position=goal_position)
-            )
-
-        with g.Frame(label="Store Goal"):
-            (
-                geometry
-                >> g.StoreNamedAttribute.point.vector(
-                    name=names.inputs.PARTICLE_GOAL_POSITION.name,
-                    value=g.Position().o.position.transform(self_matrix()),
-                )
                 >> tree.outputs.geometry()
             )
 

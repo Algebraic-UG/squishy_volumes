@@ -18,6 +18,7 @@
 
 use std::{collections::BTreeMap, num::NonZero};
 
+use nalgebra::{Matrix4, Vector3};
 use squishy_volumes_file_frame::{
     IoState, IoStateError, ParticleObjectError, ParticlesObject, combine_matrices, two_f32_to_u32,
     u32_to_two_f32,
@@ -26,7 +27,9 @@ use squishy_volumes_file_input::{
     BulkAttribute, FrameBulkParticles, FrameVerificationError, Header, Object, ObjectParticles,
     OwnedFrameBulk,
 };
-use squishy_volumes_util::{AnimatedGlobals, ParticleFlags, SplitParameters, attribute};
+use squishy_volumes_util::{
+    AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, attribute,
+};
 use squishy_volumes_xpu::FrameInput;
 
 use super::*;
@@ -397,46 +400,123 @@ impl CpuState {
     }
 }
 
+fn sorted_indices<'a>(
+    reverse_sort_map: &'a [u32],
+    header: &Header,
+    bulk: &OwnedFrameBulk,
+) -> Result<impl Iterator<Item = usize> + 'a, FrameVerificationError> {
+    let ObjectParticles { particle_range, .. } =
+        header.get_particle_object(&bulk.meta.object_name)?;
+    Ok(reverse_sort_map[particle_range.clone()]
+        .iter()
+        .map(|index| *index as usize))
+}
+
 fn apply_particle_bulk(
     particles: &mut Particles,
     header: &Header,
     attribute: FrameBulkParticles,
     bulk: &OwnedFrameBulk,
 ) -> Result<(), FrameVerificationError> {
-    let ObjectParticles { particle_range, .. } =
-        header.get_particle_object(&bulk.meta.object_name)?;
+    let inv_scale = 1. / header.consts.simulation_scale;
+    let indices = sorted_indices(&particles.reverse_sort_map, header, bulk)?;
+    let parameters = &mut particles.parameters;
     match attribute {
-        FrameBulkParticles::IsSolid => todo!(),
-        FrameBulkParticles::IsFluid => todo!(),
-        FrameBulkParticles::UseViscosity => todo!(),
-        FrameBulkParticles::UseSandAlpha => todo!(),
-        FrameBulkParticles::IsActive => todo!(),
-
-        FrameBulkParticles::HasGoal => {
-            let bits: &[bool] = bulk.assume_bools()?;
-            for (i, bit) in particle_range.clone().into_iter().zip(bits) {
-                let index = particles.reverse_sort_map[i];
-                particles.flags[index as usize].set(ParticleFlags::HAS_GOAL, *bit);
+        FrameBulkParticles::Flags => overwrite(
+            &mut particles.flags,
+            indices,
+            bulk.assume_ints::<[u32; 2]>()?,
+            |flags, [mask, values]| *flags = flags.overwritten(mask, values),
+        ),
+        FrameBulkParticles::ColliderBits => overwrite(
+            &mut particles.collider_bits,
+            indices,
+            bulk.assume_ints::<u32>()?,
+            |bits, value| *bits = value,
+        ),
+        FrameBulkParticles::Transform => {
+            let transforms = bulk.assume_floats::<[[f32; 4]; 4]>()?;
+            for (index, transform) in indices.zip(transforms) {
+                let transform = Matrix4::from(*transform);
+                particles.positions[index] = transform.fixed_view::<3, 1>(0, 3) * inv_scale;
+                particles.position_gradients[index] = transform.fixed_view::<3, 3>(0, 0).into();
             }
         }
-
-        FrameBulkParticles::ColliderBits => todo!(),
-        FrameBulkParticles::Transform => todo!(),
-        FrameBulkParticles::Size => todo!(),
-        FrameBulkParticles::Density => todo!(),
-        FrameBulkParticles::YoungsModulus => todo!(),
-        FrameBulkParticles::PoissonsRatio => todo!(),
-        FrameBulkParticles::InitialPosition => todo!(),
-        FrameBulkParticles::Velocity => todo!(),
-        FrameBulkParticles::ViscosityDynamic => todo!(),
-        FrameBulkParticles::ViscosityBulk => todo!(),
-        FrameBulkParticles::Exponent => todo!(),
-        FrameBulkParticles::BulkModulus => todo!(),
-        FrameBulkParticles::SandAlpha => todo!(),
-
+        FrameBulkParticles::Size => overwrite_floats(parameters, indices, bulk, |p, v| {
+            p.initial_size = v * inv_scale
+        })?,
+        FrameBulkParticles::Density => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.density = v)?
+        }
+        FrameBulkParticles::YoungsModulus => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.youngs_modulus = v)?
+        }
+        FrameBulkParticles::PoissonsRatio => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.poissons_ratio = v)?
+        }
+        FrameBulkParticles::ViscosityDynamic => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.viscosity_dynamic = v)?
+        }
+        FrameBulkParticles::ViscosityBulk => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.viscosity_bulk = v)?
+        }
+        FrameBulkParticles::BulkModulus => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.bulk_modulus = v)?
+        }
+        FrameBulkParticles::SandAlpha => {
+            overwrite_floats(parameters, indices, bulk, |p, v| p.sand_alpha = v)?
+        }
+        FrameBulkParticles::Exponent => overwrite(
+            parameters,
+            indices,
+            bulk.assume_ints::<i32>()?,
+            |p, value| p.exponent = value,
+        ),
+        FrameBulkParticles::InitialPosition => {
+            overwrite_vectors(&mut particles.initial_positions, indices, bulk, inv_scale)?
+        }
+        FrameBulkParticles::Velocity => {
+            overwrite_vectors(&mut particles.velocities, indices, bulk, inv_scale)?
+        }
         FrameBulkParticles::GoalPosition => {
-            todo!()
+            overwrite_vectors(&mut particles.goal_positions, indices, bulk, inv_scale)?
         }
     }
+    Ok(())
+}
+
+fn overwrite<T, V: Copy>(
+    targets: &mut [T],
+    indices: impl Iterator<Item = usize>,
+    values: &[V],
+    set: impl Fn(&mut T, V),
+) {
+    for (index, value) in indices.zip(values) {
+        set(&mut targets[index], *value);
+    }
+}
+
+fn overwrite_floats(
+    parameters: &mut [ParticleParameters],
+    indices: impl Iterator<Item = usize>,
+    bulk: &OwnedFrameBulk,
+    set: impl Fn(&mut ParticleParameters, f32),
+) -> Result<(), FrameVerificationError> {
+    overwrite(parameters, indices, bulk.assume_floats::<f32>()?, set);
+    Ok(())
+}
+
+fn overwrite_vectors(
+    vectors: &mut [Vector3<f32>],
+    indices: impl Iterator<Item = usize>,
+    bulk: &OwnedFrameBulk,
+    inv_scale: f32,
+) -> Result<(), FrameVerificationError> {
+    overwrite(
+        vectors,
+        indices,
+        bulk.assume_floats::<[f32; 3]>()?,
+        |vector, value| *vector = Vector3::from(value) * inv_scale,
+    );
     Ok(())
 }

@@ -131,7 +131,7 @@ fn solid_simple() {
     let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
         &test_position_gradients_simple(),
-        &vec![ParticleFlags::IS_SOLID; parameters.len()],
+        &vec![ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE; parameters.len()],
         &parameters,
     );
 }
@@ -142,7 +142,7 @@ fn solid_random() {
     let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
         &test_position_gradients_random(100),
-        &vec![ParticleFlags::IS_SOLID; parameters.len()],
+        &vec![ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE; parameters.len()],
         &parameters,
     );
 }
@@ -153,7 +153,7 @@ fn fluid_simple() {
     let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
         &test_position_gradients_simple(),
-        &vec![ParticleFlags::IS_FLUID; parameters.len()],
+        &vec![ParticleFlags::IS_FLUID | ParticleFlags::IS_ACTIVE; parameters.len()],
         &parameters,
     );
 }
@@ -164,7 +164,7 @@ fn fluid_random() {
     let parameters = test_lame_parameters(&mut rng).collect::<Vec<_>>();
     check(
         &test_position_gradients_random(100),
-        &vec![ParticleFlags::IS_FLUID; parameters.len()],
+        &vec![ParticleFlags::IS_FLUID | ParticleFlags::IS_ACTIVE; parameters.len()],
         &parameters,
     );
 }
@@ -174,10 +174,13 @@ fn mixed_random() {
     let mut rng = ChaCha8Rng::seed_from_u64(42);
     let n = 100;
     let (particle_parameters, particle_flags): (Vec<_>, Vec<_>) = test_lame_parameters(&mut rng)
-        .zip(repeat(ParticleFlags::IS_SOLID))
+        .zip(repeat(ParticleFlags::IS_SOLID | ParticleFlags::IS_ACTIVE))
         .collect::<Vec<_>>()
         .into_iter()
-        .chain((test_inviscid_parameters(&mut rng)).zip(repeat(ParticleFlags::IS_FLUID)))
+        .chain(
+            (test_inviscid_parameters(&mut rng))
+                .zip(repeat(ParticleFlags::IS_FLUID | ParticleFlags::IS_ACTIVE)),
+        )
         .unzip();
 
     check(

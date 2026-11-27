@@ -27,30 +27,6 @@ class InputAttribute(NamedTuple):
     name: str
 
 
-PARTICLE_IS_SOLID = InputAttribute(
-    key="IsSolid",
-    name="sv_is_solid",
-)
-PARTICLE_IS_FLUID = InputAttribute(
-    key="IsFluid",
-    name="sv_is_fluid",
-)
-PARTICLE_USE_VISCOSITY = InputAttribute(
-    key="UseViscosity",
-    name="sv_use_viscosity",
-)
-PARTICLE_USE_SAND_ALPHA = InputAttribute(
-    key="UseSandAlpha",
-    name="sv_use_sand_alpha",
-)
-PARTICLE_HAS_GOAL = InputAttribute(
-    key="HasGoal",
-    name="sv_has_goal",
-)
-PARTICLE_IS_ACTIVE = InputAttribute(
-    key="IsActive",
-    name="sv_is_active",
-)
 PARTICLE_COLLIDER_BITS = InputAttribute(
     key="ColliderBits",
     name="sv_collider_bits",
@@ -107,6 +83,14 @@ PARTICLE_GOAL_POSITION = InputAttribute(
     key="GoalPosition",
     name="sv_goal_position",
 )
+PARTICLE_MASK = InputAttribute(
+    key="Flags",
+    name="sv_mask",
+)
+PARTICLE_FLAGS = InputAttribute(
+    key="Flags",
+    name="sv_flags",
+)
 COLLIDER_POSITION = InputAttribute(
     key="Position",
     name="sv_position",
@@ -117,12 +101,6 @@ COLLIDER_FRICTION = InputAttribute(
 )
 
 PARTICLE_ATTRIBUTES = (
-    PARTICLE_IS_SOLID,
-    PARTICLE_IS_FLUID,
-    PARTICLE_USE_VISCOSITY,
-    PARTICLE_USE_SAND_ALPHA,
-    PARTICLE_HAS_GOAL,
-    PARTICLE_IS_ACTIVE,
     PARTICLE_COLLIDER_BITS,
     PARTICLE_TRANSFORM,
     PARTICLE_SIZE,
@@ -137,6 +115,10 @@ PARTICLE_ATTRIBUTES = (
     PARTICLE_BULK_MODULUS,
     PARTICLE_SAND_ALPHA,
     PARTICLE_GOAL_POSITION,
+)
+FLAG_ATTRIBUTES = (
+    PARTICLE_MASK,
+    PARTICLE_FLAGS,
 )
 COLLIDER_ATTRIBUTES = (
     COLLIDER_POSITION,

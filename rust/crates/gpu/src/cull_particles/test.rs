@@ -40,7 +40,7 @@ fn check(
                 if position.iter().zip(&domain_min).any(|(c, d)| c < d)
                     || position.iter().zip(&domain_max).any(|(c, d)| c > d)
                 {
-                    *flags | ParticleFlags::TOMBSTONED
+                    *flags - ParticleFlags::IS_ACTIVE
                 } else {
                     *flags
                 }
@@ -58,10 +58,10 @@ fn simple() {
     let dispatch_limit = (u16::MAX as u32).try_into().unwrap();
 
     let particle_flags = vec![
-        ParticleFlags::default(),
-        ParticleFlags::default(),
-        ParticleFlags::default(),
-        ParticleFlags::HAS_GOAL,
+        ParticleFlags::IS_ACTIVE,
+        ParticleFlags::IS_ACTIVE,
+        ParticleFlags::IS_ACTIVE,
+        ParticleFlags::HAS_GOAL | ParticleFlags::IS_ACTIVE,
     ];
     let particle_goals_positions_and_collider_bits = [
         Vector3::new(0.5, 0.5, 0.5),

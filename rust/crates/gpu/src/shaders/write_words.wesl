@@ -16,18 +16,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, HAS_GOAL, REACHED_FRAME_TIME};
+import super::util::{get_global_index, REACHED_FRAME_TIME, WordWrite, word_write_destination};
 
 @group(0) @binding(0)
-var<storage, read_write> new_flags: array<u32>;
+var<storage, read_write> source: array<u32>;
 
 @group(0) @binding(1)
-var<storage, read_write> flags: array<u32>;
+var<storage, read_write> destination: array<u32>;
 
 @group(0) @binding(2)
 var<storage, read_write> status: atomic<u32>;
 
-var<immediate> offset: u32;
+var<immediate> word_write: WordWrite;
 
 override WORKGROUP_SIZE: u32;
 override SHADER_ID: u32;
@@ -46,17 +46,14 @@ fn main(
     if global_index == 0 {
         set_shader_id();
     }
-    if global_index >= arrayLength(&new_flags) {
+    if global_index >= arrayLength(&source) / word_write.words {
         return;
     }
 
-    var f = flags[offset + global_index];
-    var new_f = new_flags[global_index];
-
-    f &= ~HAS_GOAL;
-    f |= new_f & HAS_GOAL;
-
-    flags[offset + global_index] = f;
+    for (var word = 0u; word < word_write.words; word++) {
+        let source_index = global_index * word_write.words + word;
+        destination[word_write_destination(word_write, global_index, word)] = source[source_index];
+    }
 }
 
 fn set_shader_id() {

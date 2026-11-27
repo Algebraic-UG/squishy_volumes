@@ -24,7 +24,6 @@
     bytemuck::Pod,
     Debug,
     PartialEq,
-    Default,
     serde::Serialize,
     serde::Deserialize,
 )]
@@ -37,7 +36,19 @@ bitflags::bitflags! {
         const USE_VISCOSITY = 1 << 2;
         const USE_SAND_ALPHA = 1 << 3;
         const HAS_GOAL = 1 << 4;
-        const TOMBSTONED = 1 << 5;
+        const IS_ACTIVE = 1 << 5;
         const FAILED = 1 << 6;
+    }
+}
+
+impl ParticleFlags {
+    pub fn overwritten(self, mask: u32, values: u32) -> Self {
+        Self((self.0 & !mask) | (values & mask))
+    }
+}
+
+impl Default for ParticleFlags {
+    fn default() -> Self {
+        Self::IS_ACTIVE
     }
 }

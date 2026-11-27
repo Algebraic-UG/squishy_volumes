@@ -125,6 +125,19 @@ class RecordErrorTest(RecordTestCase):
         self.cube.scale = (1.0, 1.0, 1.0)
         self.assertEqual(api().record_input(self.sim_obj), 3)
 
+    def test_flag_attributes_must_be_integers_on_points(self):
+        self.cube.modifiers.clear()
+        attributes = self.cube.data.attributes
+        attributes.new("sv_flags", "INT", "POINT")
+        for data_type, domain in (("BOOLEAN", "POINT"), ("INT", "FACE")):
+            with self.subTest(data_type=data_type, domain=domain):
+                mask = attributes.new("sv_mask", data_type, domain)
+
+                with self.assertRaisesRegex(api().InvalidInput, "sv_mask"):
+                    api().record_input(self.sim_obj)
+
+                attributes.remove(mask)
+
     def test_more_than_sixteen_colliders_are_rejected(self):
         for index in range(16):
             collider = add_primitive(
