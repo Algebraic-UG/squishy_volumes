@@ -163,7 +163,8 @@ impl CpuState {
         })
     }
 
-    pub fn to_io_state(&self, store_bvh: bool, store_grid: bool) -> Result<IoState, Error> {
+    pub fn to_io_state(&mut self, store_bvh: bool, store_grid: bool) -> Result<IoState, Error> {
+        self.particles.recompute_elastic_energies();
         let time = self.frame_input.time();
         let animated_globals = self.animated_globals;
 
