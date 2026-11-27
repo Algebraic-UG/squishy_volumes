@@ -131,6 +131,11 @@ TODO: describe how to hot reload while developing
 > [!TIP]
 > It's very similar to https://github.com/Algebraic-UG/blend_rust.
 
+Hot reload only swaps the core library.
+After changing the `api` or `wrap` crate, run the VS Code task "Refresh API".
+It kills Blender, uninstalls the extension, rebuilds the API and starts Blender again with "Blender: Start".
+Both starts use the Blender marked `"isDefault": true` in `blender.executables`, which the extension offers to set after you pick one.
+
 ### Using VSCode for Python
 
 See this helpful [video](https://www.youtube.com/watch?v=zP0s1i9EXeM).
