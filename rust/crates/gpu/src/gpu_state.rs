@@ -367,7 +367,8 @@ impl GpuState {
 
         let profile_data_csv_writer = profiling_output_file
             .map(ProfileDataCsvWriter::new)
-            .transpose()?;
+            .transpose()
+            .map_err(Error::CreateProfilingCsv)?;
 
         harness.step()?;
 
@@ -596,11 +597,9 @@ impl GpuState {
             tracing::info!(self.max_num_grid_nodes, num_grid_nodes);
 
             if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
-                profile_data_csv_writer.buffer_data(
-                    &self.gpu_context,
-                    &mut profiler,
-                    new_recorded_steps,
-                )?;
+                profile_data_csv_writer
+                    .buffer_data(&self.gpu_context, &mut profiler, new_recorded_steps)
+                    .map_err(Error::CollectProfilingData)?;
             }
 
             let result = mapped_downloads.status.to_result(&self.gpu_context);
@@ -732,9 +731,9 @@ impl GpuState {
         self.step_input.collider_input = pending_input.next_collider_input;
 
         if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
-            profile_data_csv_writer.write_frame(
-                self.frame_input.time()..self.frame_input.time() + seconds_per_frame,
-            )?;
+            profile_data_csv_writer
+                .write_frame(self.frame_input.time()..self.frame_input.time() + seconds_per_frame)
+                .map_err(Error::WriteProfilingCsv)?;
         };
 
         self.variable_particle_input_backup.flags = particle_flags;

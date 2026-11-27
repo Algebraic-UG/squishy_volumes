@@ -21,8 +21,8 @@ use std::{collections::BTreeMap, iter::once, num::NonZeroU32};
 use squishy_volumes_xpu::Harness;
 
 use crate::{
-    Allocation, AllocatorError, CommandEncoder, CompiledModule, ComputePass, Error, ExceedingLimit,
-    GpuAllocator, GpuStatus,
+    Allocation, AllocatorError, CommandEncoder, CompiledModule, ComputePass, ContextError, Error,
+    ExceedingLimit, GpuAllocator, GpuStatus,
 };
 
 pub struct GpuContext {
@@ -73,14 +73,14 @@ impl GpuContext {
             .collect()
     }
 
-    pub fn new(gpu: Option<String>) -> Result<Self, Error> {
+    pub fn new(gpu: Option<String>) -> Result<Self, ContextError> {
         let instance = Self::new_instance();
         let adapter = if let Some(requested) = gpu {
             tracing::info!(requested, "Requested specific GPU");
             Self::available_adapters()
                 .into_iter()
                 .find(|adapter| adapter.get_info().name == requested)
-                .ok_or(Error::AdapterNotFound {
+                .ok_or(ContextError::AdapterNotFound {
                     requested,
                     available: Self::available_gpus(),
                 })?
@@ -96,8 +96,12 @@ impl GpuContext {
             ..
         } = adapter.limits();
 
-        if max_compute_workgroups_per_dimension < u16::MAX as u32 {
-            return Err(Error::SmallMaxWorkGroupPerDimension);
+        let required_workgroups_per_dimension = u16::MAX as u32;
+        if max_compute_workgroups_per_dimension < required_workgroups_per_dimension {
+            return Err(ContextError::SmallMaxWorkgroupsPerDimension {
+                allowed: max_compute_workgroups_per_dimension,
+                required: required_workgroups_per_dimension,
+            });
         }
 
         let downlevel_capabilities = adapter.get_downlevel_capabilities();
@@ -105,7 +109,7 @@ impl GpuContext {
             .flags
             .contains(wgpu::DownlevelFlags::COMPUTE_SHADERS)
             .then_some(())
-            .ok_or(Error::ComputeNotSupported)?;
+            .ok_or(ContextError::ComputeNotSupported)?;
 
         let enable_scope_profiling = adapter
             .features()
@@ -129,7 +133,7 @@ impl GpuContext {
         missing_features
             .is_empty()
             .then_some(())
-            .ok_or(Error::MissingRequiredFeatures(missing_features))?;
+            .ok_or(ContextError::MissingRequiredFeatures(missing_features))?;
 
         let mut exceeding_limits: Vec<ExceedingLimit> = Default::default();
         required_limits.check_limits_with_fail_fn(
@@ -147,7 +151,7 @@ impl GpuContext {
         exceeding_limits
             .is_empty()
             .then_some(())
-            .ok_or(Error::ExceedingRequiredLimits(exceeding_limits))?;
+            .ok_or(ContextError::ExceedingRequiredLimits(exceeding_limits))?;
 
         let wgpu::AdapterInfo {
             subgroup_min_size,
@@ -160,7 +164,7 @@ impl GpuContext {
                     .get_info()
                     .subgroup_min_size
                     .try_into()
-                    .map_err(|_| Error::SubgroupSizeZero)?,
+                    .map_err(|_| ContextError::SubgroupSizeZero)?,
             )
         } else {
             tracing::warn!(
@@ -181,7 +185,8 @@ impl GpuContext {
                 trace: wgpu::Trace::Off,
             }))?;
 
-        let status = Allocation::new(&device, "status", &[GpuStatus::default()])?;
+        let status = Allocation::new(&device, "status", &[GpuStatus::default()])
+            .map_err(ContextError::AllocateStatus)?;
 
         Ok(Self {
             instance,

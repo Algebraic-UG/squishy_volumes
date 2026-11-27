@@ -29,53 +29,22 @@ pub struct ExceedingLimit {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("io state error")]
-    IoState(#[from] IoStateError),
-
+pub enum ContextError {
     #[error("failed to find adapter '{requested}' (available are: {available:?})")]
     AdapterNotFound {
         requested: String,
         available: Vec<String>,
     },
 
-    #[error("failed to map {label}")]
-    MapRange {
-        label: &'static str,
-        source: wgpu::MapRangeError,
-    },
-
-    #[error("exceeding the theoretical maximum of grid nodes, most likely encountered a bug")]
-    MaxGridNodesExceeded,
-
-    #[error("failed to create GPU pipeline")]
-    PipelineCreation(#[from] PipelineError),
-
-    #[error("csv profiling failed")]
-    CsvProfiler(#[from] ProfilerError),
-
-    #[error("failed to poll the device")]
-    Poll(#[from] wgpu::PollError),
-
-    #[error("harness error")]
-    Harness(#[from] squishy_volumes_xpu::HarnessError),
-
-    #[error(transparent)]
-    Canceled(#[from] squishy_volumes_xpu::Canceled),
-
-    #[error("frame input error")]
-    FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
-
-    #[error("no particle input")]
-    NoParticles,
-
     #[error("failed to request the adapter")]
     RequestAdapter(#[from] wgpu::RequestAdapterError),
 
-    #[error("we can not deal with a small max workgroup dispatch yet")]
-    SmallMaxWorkGroupPerDimension,
+    #[error(
+        "the adapter allows only {allowed} workgroups per dispatch dimension, but {required} are required"
+    )]
+    SmallMaxWorkgroupsPerDimension { allowed: u32, required: u32 },
 
-    #[error("subgroup size is zero")]
+    #[error("the adapter reports a subgroup size of zero")]
     SubgroupSizeZero,
 
     #[error("adapter does not support compute shaders")]
@@ -89,6 +58,49 @@ pub enum Error {
 
     #[error("failed to request the device")]
     RequestDevice(#[from] wgpu::RequestDeviceError),
+
+    #[error("failed to allocate the status binding")]
+    AllocateStatus(#[source] AllocatorError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("io state error")]
+    IoState(#[from] IoStateError),
+
+    #[error("frame input error")]
+    FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
+
+    #[error(transparent)]
+    Canceled(#[from] squishy_volumes_xpu::Canceled),
+
+    #[error("harness error")]
+    Harness(#[from] squishy_volumes_xpu::HarnessError),
+
+    #[error("failed to set up the gpu")]
+    Context(#[from] ContextError),
+
+    #[error("failed to map {label} for downloading")]
+    MapRange {
+        label: &'static str,
+        source: wgpu::MapRangeError,
+    },
+
+    #[error("exceeding the theoretical maximum of grid nodes, most likely encountered a bug")]
+    MaxGridNodesExceeded,
+
+    #[error("failed to create the gpu pipeline")]
+    PipelineCreation(#[from] PipelineError),
+
+    #[error("failed to create the profiling csv")]
+    CreateProfilingCsv(#[source] ProfilerError),
+    #[error("failed to collect the profiling data")]
+    CollectProfilingData(#[source] ProfilerError),
+    #[error("failed to write the profiling csv")]
+    WriteProfilingCsv(#[source] ProfilerError),
+
+    #[error("failed to wait for the gpu")]
+    Poll(#[from] wgpu::PollError),
 
     #[error("failed to allocate a binding")]
     Allocation(#[from] AllocatorError),
@@ -108,7 +120,7 @@ pub enum Error {
         source: ShaderError,
     },
 
-    #[error("input to the GPU wasn't valid")]
+    #[error("input to the gpu wasn't valid")]
     Input(#[from] InputError),
 }
 
