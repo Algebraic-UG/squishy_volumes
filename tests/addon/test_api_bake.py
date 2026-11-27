@@ -300,6 +300,7 @@ class BakeErrorTest(BakeTestCase):
             api().bake(self.sim_obj, bake_frames=2)
 
         self.assertIn("GB are free on the disk", str(refusal.exception))
+        self.assertEqual(refusal.exception.error_code, "insufficient_disk_space")
         self.assertFalse(api().is_baking(self.sim_obj))
 
     def test_a_core_error_without_a_code_is_a_plain_runtime_error(self):
@@ -334,6 +335,7 @@ class BakeErrorTest(BakeTestCase):
         [error] = api().bake_errors(self.sim_obj)
 
         self.assertIsInstance(error, api().InsufficientDiskSpace)
+        self.assertEqual(error.error_code, "insufficient_disk_space")
         self.assertIn("GB are free on the disk", str(error))
 
     def test_a_disk_space_failure_while_baking_offers_to_disable_the_check(self):

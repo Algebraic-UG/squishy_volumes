@@ -18,7 +18,7 @@
 
 
 class SquishyVolumesError(RuntimeError):
-    pass
+    error_code: str | None = None
 
 
 class SimulationNotFound(SquishyVolumesError):
@@ -74,5 +74,6 @@ def classify_error(error: RuntimeError) -> RuntimeError:
     code = getattr(error, "error_code", None)
     if code is None:
         return error
-    error_class = ERROR_CODES.get(code, SquishyVolumesError)
-    return error_class(str(error))
+    classified = ERROR_CODES.get(code, SquishyVolumesError)(str(error))
+    classified.error_code = code
+    return classified
