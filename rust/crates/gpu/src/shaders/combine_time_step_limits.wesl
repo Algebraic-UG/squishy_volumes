@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, Indirect, int_pow, div_ceil, find_dispatch_xyz, TIME_STEP_ZERO, TimeStepLimits};
+import package::util::{get_global_index, TIME_STEP_ZERO, TimeStepLimits};
 
 @group(0) @binding(0)
 var<storage, read_write> limits: array<TimeStepLimits>;

@@ -18,7 +18,7 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import super::util::{PositionAndColliderBits, get_global_index, node_offset, position_to_low_node, murmur_of_node_id, TABLE_TRIES_EXCEEDED};
+import package::util::{PositionAndColliderBits, get_global_index, node_offset, position_to_low_node, murmur_of_node_id, TABLE_TRIES_EXCEEDED};
 
 @group(0) @binding(0)
 var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;

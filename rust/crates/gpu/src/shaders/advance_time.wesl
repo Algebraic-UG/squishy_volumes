@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{REACHED_FRAME_TIME};
+import package::util::REACHED_FRAME_TIME;
 
 @group(0) @binding(0)
 var<storage, read_write> time_step: f32;

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, IS_ACTIVE, NORMALIZATION_EPS, AnimatedGlobals};
+import package::util::{get_global_index, PositionAndColliderBits, HAS_GOAL, IS_ACTIVE, NORMALIZATION_EPS, AnimatedGlobals};
 
 @group(0) @binding(0)
 var<storage, read_write> time_step: f32;

@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{Indirect, get_global_index};
-import super::external::wgebra::svd3::{Svd, svd};
+import package::util::get_global_index;
+import package::external::wgebra::svd3::{Svd, svd};
 
 @group(0) @binding(0)
 var<storage, read_write> matrices: array<mat3x3f>;

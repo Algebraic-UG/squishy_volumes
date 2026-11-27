@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{get_global_index, try_normalize, Triangle};
+import package::util::{get_global_index, try_normalize, Triangle};
 
 @group(0) @binding(0)
 var<storage, read_write> vertex_triangle_offsets: array<u32>;

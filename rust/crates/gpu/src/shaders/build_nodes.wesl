@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import super::util::{PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, node_offset, position_to_low_node};
+import package::util::{PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, node_offset, position_to_low_node};
 
 @group(0) @binding(0)
 var<storage, read_write> positions_and_collider_bits: array<PositionAndColliderBits>;
