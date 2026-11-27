@@ -24,10 +24,6 @@ struct Triangle {
     c: u32,
 }
 
-fn perp(a: vec2f, b: vec2f) -> f32 {
-    return a.x * b.y - a.y * b.x;
-}
-
 fn try_normalize(n: vec3f, alternative: vec3f) -> vec3f {
     let l2 = dot(n, n);
     if l2 < NORMALIZATION_EPS * NORMALIZATION_EPS {

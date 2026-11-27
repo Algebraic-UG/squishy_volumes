@@ -26,20 +26,6 @@ struct NodeIdAndColliderBits {
     collider_bits: u32,
 }
 
-fn block_offset(block: u32) -> vec3i {
-    var offset = vec3i(0);
-    if (block & 1) == 1 {
-        offset.x = 1;
-    }
-    if (block & 2) == 2 {
-        offset.y = 1;
-    }
-    if (block & 4) == 4 {
-        offset.z = 1;
-    }
-    return offset;
-}
-
 fn node_offset(node: u32) -> vec3i {
     switch node {
         case 0: { return vec3i(0, 0, 0); }
