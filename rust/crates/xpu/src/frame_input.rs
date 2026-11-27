@@ -22,7 +22,7 @@ use squishy_volumes_file_input::{
 };
 use squishy_volumes_mesh_util::{Topology, TopologyInput};
 
-use crate::Collider;
+use crate::{Collider, SolverError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum FrameInputError {
@@ -194,8 +194,8 @@ impl FrameInput {
         Ok(())
     }
 
-    pub fn next_frame_error(&self, error: FrameVerificationError) -> FrameInputError {
-        error.attach_frame(self.frame + 1).into()
+    pub fn next_frame_error(&self, error: FrameVerificationError) -> SolverError {
+        SolverError::ApplyNextInput(error.attach_frame(self.frame + 1))
     }
 
     pub fn header(&self) -> &Header {

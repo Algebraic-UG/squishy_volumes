@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use squishy_volumes_file_frame::IoStateError;
-
 use crate::{AllocatorError, ProfilerError, ShaderError};
 
 #[allow(dead_code)] // fields are read in the error below
@@ -65,16 +63,13 @@ pub enum ContextError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("io state error")]
-    IoState(#[from] IoStateError),
-
-    #[error("frame input error")]
-    FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
+    #[error(transparent)]
+    Solver(#[from] squishy_volumes_xpu::SolverError),
 
     #[error(transparent)]
     Canceled(#[from] squishy_volumes_xpu::Canceled),
 
-    #[error("harness error")]
+    #[error("failed to start a progress report")]
     Harness(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error("failed to set up the gpu")]
