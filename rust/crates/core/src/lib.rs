@@ -21,6 +21,8 @@ mod api_impl;
 mod cancellation_tests;
 mod compute_thread;
 mod context;
+#[cfg(test)]
+mod elastic_energy_tests;
 mod error_code;
 mod errors;
 mod guard;
