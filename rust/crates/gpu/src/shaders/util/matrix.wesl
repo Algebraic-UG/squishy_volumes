@@ -20,14 +20,6 @@ fn trace(m: mat3x3f) -> f32 {
     return m[0].x + m[1].y + m[2].z;
 }
 
-fn from_diagonal(d: vec3f) -> mat3x3f {
-    return mat3x3f(
-        vec3f(d.x, 0., 0.),
-        vec3f(0., d.y, 0.),
-        vec3f(0., 0., d.z),
-    );
-}
-
 fn from_diagonal_element(e: f32) -> mat3x3f {
     return mat3x3f(
         vec3f(e, 0., 0.),

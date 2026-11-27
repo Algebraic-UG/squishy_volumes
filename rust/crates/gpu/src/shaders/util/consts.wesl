@@ -16,9 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const F32_MIN: f32 = -3.4028234663852886e38f;
 const F32_MAX: f32 = 3.4028234663852886e38f;
 const U32_MAX: u32 = ~0u;
 const NORMALIZATION_EPS: f32 = 1e-5;
-const INVERSE_EPS: f32 = 1e-7;
 const SINGULAR_VALUE_SEPARATION: f32 = 1e-5;
