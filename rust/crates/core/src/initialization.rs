@@ -58,6 +58,9 @@ pub enum InitializationError {
 
     #[error("failed to read the first input frame")]
     InputFrame(#[from] squishy_volumes_file_input::Error),
+
+    #[error("particle object '{name}' has no particles")]
+    EmptyParticleObject { name: String },
 }
 
 impl From<FrameVerificationError> for InitializationError {
@@ -85,6 +88,8 @@ pub fn initialize_io_state(
     harness: &Harness,
     input_reader: &mut InputReader,
 ) -> Result<IoState, InitializationError> {
+    reject_empty_particle_objects(input_reader)?;
+
     let input_frame = {
         let _scope = harness.scope("Input reading".to_string(), 1.try_into().unwrap())?;
         input_reader
@@ -258,6 +263,20 @@ pub fn initialize_io_state(
     Ok(io_state)
 }
 
+fn reject_empty_particle_objects(input_reader: &InputReader) -> Result<(), InitializationError> {
+    let empty_object = input_reader
+        .header()
+        .objects
+        .iter()
+        .find(|(_, object)| {
+            matches!(object, Object::Particles(particles) if particles.particle_range.is_empty())
+        });
+    match empty_object {
+        Some((name, _)) => Err(InitializationError::EmptyParticleObject { name: name.clone() }),
+        None => Ok(()),
+    }
+}
+
 #[derive(Error, Debug)]
 enum ApplyBulkError {
     #[error(transparent)]
@@ -404,9 +423,55 @@ mod tests {
     use std::borrow::Cow;
 
     use squishy_volumes_api::InputBulk;
-    use squishy_volumes_file_input::{FrameBulk, FrameBulkMeta};
+    use squishy_volumes_file_input::{
+        FrameBulk, FrameBulkMeta, InputHeader, InputObject, InputObjectParticles, write_test_input,
+    };
+    use tempfile::TempDir;
 
     use super::*;
+
+    fn particles(name: &str, num_particles: u32) -> (String, InputObject) {
+        (
+            name.to_string(),
+            InputObject::Particles(InputObjectParticles {
+                num_particles,
+                alembic_attributes: Default::default(),
+            }),
+        )
+    }
+
+    fn initialization_error(
+        objects: impl IntoIterator<Item = (String, InputObject)>,
+    ) -> InitializationError {
+        let dir = TempDir::new().unwrap();
+        let mut input_reader = write_test_input(
+            dir.path().join("input.bin"),
+            InputHeader::test_input(objects),
+            1,
+        );
+        let harness = Harness::new("test".to_string(), 1.try_into().unwrap());
+        initialize_io_state(&harness, &mut input_reader)
+            .err()
+            .expect("initialization should fail")
+    }
+
+    #[test]
+    fn empty_particle_object_next_to_filled_one_is_rejected() {
+        let error = initialization_error([particles("filled", 3), particles("hollow", 0)]);
+        assert!(matches!(
+            error,
+            InitializationError::EmptyParticleObject { name } if name == "hollow"
+        ));
+    }
+
+    #[test]
+    fn only_empty_particle_object_is_rejected() {
+        let error = initialization_error([particles("empty", 0)]);
+        assert!(matches!(
+            error,
+            InitializationError::EmptyParticleObject { name } if name == "empty"
+        ));
+    }
 
     #[test]
     fn particle_bulk_error_names_the_object() {
