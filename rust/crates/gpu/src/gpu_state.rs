@@ -41,6 +41,7 @@ use squishy_volumes_util::{
 use squishy_volumes_xpu::{FrameInput, Harness, SolverError};
 
 use crate::{
+    elastic::Elastic,
     step::{VariableParticleInput, VariableParticleInputData},
     time_step_limits::TimeStepLimits,
 };
@@ -99,6 +100,7 @@ pub struct GpuState {
 
     write_words: WriteWords,
     pipeline_part: Step,
+    elastic: Elastic,
 
     step_input: step::Input,
 
@@ -301,6 +303,7 @@ impl GpuState {
                 domain_max: consts.scaled_domain_max().into(),
             },
         )?;
+        let elastic = Elastic::new(&mut gpu_context, elastic::Settings { workgroup_size })?;
         harness.step()?;
 
         let device = gpu_context.device();
@@ -383,6 +386,7 @@ impl GpuState {
             gpu_context,
             write_words,
             pipeline_part,
+            elastic,
             step_input,
             pending_input: None,
             max_num_grid_nodes,
@@ -687,6 +691,8 @@ impl GpuState {
             return self.produce_next_state_from(harness, gpu_run_parameters, start_time);
         }
 
+        let elastic_energies = self.download_elastic_energies(harness)?;
+
         let MappedDownloads {
             status: _,
             time,
@@ -778,8 +784,7 @@ impl GpuState {
                 // TODO: multi threading
                 use attribute as a;
                 (|| {
-                    // TODO
-                    pt.insert_attr::<a::ElasticEnergy>(repeat_n(0., r().len()))?;
+                    pt.insert_attr::<a::ElasticEnergy>(elastic_energies[r()].iter().copied())?;
                     pt.insert_attr::<a::InitialPosition>(
                         self.initial_positions[r()].iter().copied(),
                     )?;
@@ -1066,6 +1071,36 @@ impl GpuState {
                 break Ok((output, new_recorded_steps));
             }
         }
+    }
+
+    fn download_elastic_energies(&mut self, harness: &Harness) -> Result<Vec<f32>, Error> {
+        let variable = &self.step_input.variable_particle_input;
+        let input = elastic::Input {
+            indirect: self.step_input.indirect_particles.clone(),
+            position_gradients: variable.particle_position_gradients.clone(),
+            particle_flags: variable.particle_flags.clone(),
+            particle_parameters: variable.particle_parameters.clone(),
+        };
+        let mut encoder = self
+            .gpu_context
+            .device()
+            .create_command_encoder(&Default::default());
+        let elastic::Output { energies, .. } = self.elastic.record(
+            &mut self.gpu_context,
+            &mut (&mut encoder).into(),
+            input,
+            elastic::Parameters,
+        )?;
+        let downloads = DownloadsToHost::new(&self.gpu_context, [energies]);
+        downloads.copy(&mut encoder);
+        self.gpu_context.queue().submit([encoder.finish()]);
+        let downloads_ready = downloads.prep();
+        self.wait_for_gpu(harness)?;
+        let [energies] = downloads_ready.try_into().unwrap();
+        let energies =
+            energies.map(|energy: &f32| if energy.is_finite() { *energy } else { 0. })?;
+        self.gpu_context.reset_status()?;
+        Ok(energies)
     }
 
     fn wait_for_gpu(&self, harness: &Harness) -> Result<(), Error> {
