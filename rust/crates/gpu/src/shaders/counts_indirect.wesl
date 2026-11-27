@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::{Indirect, find_dispatch_xyz};
+import package::util::dispatch::{Indirect, find_dispatch_xyz};
 
 @group(0) @binding(0)
 var<storage, read_write> indirect: Indirect;

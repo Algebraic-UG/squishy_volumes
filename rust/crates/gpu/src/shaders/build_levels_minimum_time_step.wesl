@@ -16,7 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::{Indirect, get_global_index, F32_MAX, TimeStepLimits};
+import package::util::dispatch::{Indirect, get_global_index};
+import package::util::consts::F32_MAX;
+import package::util::time_step_limits::TimeStepLimits;
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;

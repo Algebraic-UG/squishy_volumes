@@ -18,7 +18,10 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import package::util::{Indirect, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, TABLE_TRIES_EXCEEDED};
+import package::util::dispatch::{Indirect, get_global_index};
+import package::util::status::TABLE_TRIES_EXCEEDED;
+import package::util::grid::NodeIdAndColliderBits;
+import package::util::murmur::murmur_of_node_id;
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;

@@ -16,7 +16,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::{Indirect, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, elastic_energy_neo_hookean, elastic_energy_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, mu, lambda};
+import package::util::dispatch::{Indirect, get_global_index};
+import package::util::particle_flags::{IS_FLUID, IS_SOLID};
+import package::util::particle_parameters::{ParticleParameters, lambda, mu};
+import package::util::elastic::{
+    elastic_energy_inviscid,
+    elastic_energy_neo_hookean,
+    first_piola_stress_inviscid,
+    first_piola_stress_neo_hookean,
+};
 
 @group(0) @binding(0)
 var<storage, read> indirect: Indirect;

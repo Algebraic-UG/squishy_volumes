@@ -16,7 +16,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::{PositionAndColliderBits, get_global_index, first_piola_stress_neo_hookean, first_piola_stress_inviscid, ParticleParameters, IS_SOLID, IS_FLUID, USE_SAND_ALPHA, USE_VISCOSITY, PARTICLE_CLOSE_TO_INVERTED, FAILED, IS_ACTIVE, mu, lambda, mass, initial_volume};
+import package::util::dispatch::get_global_index;
+import package::util::status::PARTICLE_CLOSE_TO_INVERTED;
+import package::util::particle_flags::{
+    FAILED,
+    IS_ACTIVE,
+    IS_FLUID,
+    IS_SOLID,
+    USE_SAND_ALPHA,
+    USE_VISCOSITY,
+};
+import package::util::particle_parameters::{ParticleParameters, initial_volume, lambda, mass, mu};
+import package::util::grid::PositionAndColliderBits;
+import package::util::elastic::{first_piola_stress_inviscid, first_piola_stress_neo_hookean};
 import package::sand::sand_plasticity;
 import package::fluid::fluid_plasticity;
 import package::viscosity::cauchy_stress_general_viscosity;

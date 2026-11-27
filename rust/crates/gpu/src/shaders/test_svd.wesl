@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::get_global_index;
+import package::util::dispatch::get_global_index;
 import package::external::wgebra::svd3::{Svd, svd};
 
 @group(0) @binding(0)

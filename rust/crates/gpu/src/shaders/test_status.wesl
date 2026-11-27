@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::TABLE_TRIES_EXCEEDED;
+import package::util::status::TABLE_TRIES_EXCEEDED;
 
 @group(0) @binding(0)
 var<storage, read_write> status: atomic<u32>;

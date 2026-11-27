@@ -16,7 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::{get_global_index, Triangle, try_normalize, DEGENERATE_TRIANGLE};
+import package::util::dispatch::get_global_index;
+import package::util::status::DEGENERATE_TRIANGLE;
+import package::util::geometry::{Triangle, try_normalize};
 
 @group(0) @binding(0)
 var<storage, read_write> vertex_positions: array<vec3f>;

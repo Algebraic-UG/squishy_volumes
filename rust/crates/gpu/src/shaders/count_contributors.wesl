@@ -18,7 +18,16 @@
 
 // Inspired by https://nosferalatu.com/SimpleGPUHashTable.html
 
-import package::util::{PositionAndColliderBits, NodeIdAndColliderBits, get_global_index, murmur_of_node_id, node_offset, position_to_low_node, TABLE_TRIES_EXCEEDED, TABLE_ENTRY_MISSING, IS_ACTIVE};
+import package::util::dispatch::get_global_index;
+import package::util::status::{TABLE_ENTRY_MISSING, TABLE_TRIES_EXCEEDED};
+import package::util::particle_flags::IS_ACTIVE;
+import package::util::grid::{
+    NodeIdAndColliderBits,
+    PositionAndColliderBits,
+    node_offset,
+    position_to_low_node,
+};
+import package::util::murmur::murmur_of_node_id;
 
 @group(0) @binding(0)
 var<storage, read_write> flags: array<u32>;

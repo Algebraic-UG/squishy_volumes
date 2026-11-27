@@ -16,7 +16,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import package::util::{get_global_index, REACHED_FRAME_TIME, WordWrite, word_write_destination};
+import package::util::dispatch::get_global_index;
+import package::util::word_write::{WordWrite, word_write_destination};
+import package::util::status::REACHED_FRAME_TIME;
 
 @group(0) @binding(0)
 var<storage, read_write> source: array<u32>;
