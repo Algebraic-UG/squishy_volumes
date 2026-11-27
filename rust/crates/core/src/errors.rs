@@ -115,7 +115,7 @@ pub enum SimulationError {
     #[error("cpu computation failed")]
     Cpu(#[source] squishy_volumes_cpu::Error),
 
-    #[error("harness error")]
+    #[error("failed to start a progress report")]
     Harness(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error("failed to finalize the input")]

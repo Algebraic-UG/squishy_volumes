@@ -30,7 +30,7 @@ use squishy_volumes_file_input::{
 use squishy_volumes_util::{
     AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, attribute,
 };
-use squishy_volumes_xpu::FrameInput;
+use squishy_volumes_xpu::{FrameInput, SolverError};
 
 use super::*;
 
@@ -61,7 +61,30 @@ impl CpuState {
         let animated_globals = io_state.animated_globals;
 
         let n = input_reader.header().total_particles;
+        let particles = Self::read_particles(&mut io_state, n).map_err(SolverError::ReadState)?;
 
+        let adaptive_time_step_state =
+            AdaptiveTimeStepState::from_history(&io_state.time_step_history);
+
+        let frame_input = FrameInput::new(input_reader, io_state.collider, frame, time)
+            .map_err(SolverError::PrepareInput)?;
+
+        Ok(Self {
+            animated_globals,
+
+            particles,
+
+            frame_input,
+
+            phase: Default::default(),
+            adaptive_time_step_state,
+            grid_nodes: Default::default(),
+            interpolated_input: Default::default(),
+            last_frame_substeps: 0,
+        })
+    }
+
+    fn read_particles(io_state: &mut IoState, n: usize) -> Result<Particles, IoStateError> {
         let flags = io_state
             .collect::<attribute::Flags>()?
             .map(two_f32_to_u32)
@@ -123,7 +146,7 @@ impl CpuState {
             }
         }
 
-        let particles = Particles {
+        Ok(Particles {
             sort_map: (0..n as u32).collect(),
             reverse_sort_map: (0..n as u32).collect(),
 
@@ -137,25 +160,6 @@ impl CpuState {
             velocity_gradients,
             elastic_energies,
             collider_bits,
-        };
-
-        let adaptive_time_step_state =
-            AdaptiveTimeStepState::from_history(&io_state.time_step_history);
-
-        let frame_input = FrameInput::new(input_reader, io_state.collider, frame, time)?;
-
-        Ok(Self {
-            animated_globals,
-
-            particles,
-
-            frame_input,
-
-            phase: Default::default(),
-            adaptive_time_step_state,
-            grid_nodes: Default::default(),
-            interpolated_input: Default::default(),
-            last_frame_substeps: 0,
         })
     }
 
@@ -272,7 +276,8 @@ impl CpuState {
 
                 Ok::<_, IoStateError>((name.clone(), ps))
             })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
+            .collect::<Result<BTreeMap<_, _>, _>>()
+            .map_err(SolverError::StoreState)?;
 
         let collider = self.frame_input.collider_start().to_io_collider();
 
@@ -390,7 +395,9 @@ impl CpuState {
             }
         }
 
-        self.frame_input.load_next()?;
+        self.frame_input
+            .load_next()
+            .map_err(SolverError::LoadNextInput)?;
 
         Ok((self.to_io_state(store_bvh, store_grid)?, Ok(())))
     }

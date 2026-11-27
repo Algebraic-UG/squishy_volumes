@@ -16,15 +16,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use squishy_volumes_file_frame::IoStateError;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("io state error")]
-    IoState(#[from] IoStateError),
-
-    #[error("failed to access the frame input")]
-    FrameInput(#[from] squishy_volumes_xpu::FrameInputError),
+    #[error(transparent)]
+    Solver(#[from] squishy_volumes_xpu::SolverError),
 
     #[error("the time step ended up being 0")]
     ZeroTimeStep,
@@ -40,7 +35,7 @@ pub enum Error {
         frame: usize,
     },
 
-    #[error("harness error")]
+    #[error("failed to start a progress report")]
     Harness(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error(transparent)]

@@ -45,7 +45,7 @@ pub enum ProfilerError {
     #[error("recorded {steps} steps, but the labels aren't a multiple of that {labels:?}")]
     NotMultipleOfRecordedSteps { steps: usize, labels: Vec<String> },
 
-    #[error("failed to write the profiler output")]
+    #[error(transparent)]
     Io(#[from] io::Error),
 }
 

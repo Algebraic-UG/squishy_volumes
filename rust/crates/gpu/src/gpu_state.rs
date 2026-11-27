@@ -38,7 +38,7 @@ use squishy_volumes_util::{
     AnimatedGlobals, ParticleFlags, ParticleParameters, SplitParameters, TIME_STEP_HISTORY_LENGTH,
     attribute, latest_time_step_limits, limit_time_step_by_collider_velocities,
 };
-use squishy_volumes_xpu::{FrameInput, Harness};
+use squishy_volumes_xpu::{FrameInput, Harness, SolverError};
 
 use crate::{
     step::{VariableParticleInput, VariableParticleInputData},
@@ -132,7 +132,7 @@ struct VariableParticleInputBackup {
     velocity_gradients: Vec<Matrix4x3<f32>>,
 }
 impl VariableParticleInputBackup {
-    fn new(io_state: &mut IoState) -> Result<VariableParticleInputBackup, Error> {
+    fn new(io_state: &mut IoState) -> Result<VariableParticleInputBackup, IoStateError> {
         tracing::info!("preparing variable particle data for transfer");
         let positions_and_collider_bits: Vec<PositionAndColliderBits> = io_state
             .collect::<attribute::Position>()?
@@ -243,7 +243,8 @@ impl GpuState {
         let animated_globals = io_state.animated_globals;
         let time_step_history = latest_time_step_limits(&io_state.time_step_history).to_vec();
 
-        let frame_input = FrameInput::new(input_reader, take(&mut io_state.collider), frame, time)?;
+        let frame_input = FrameInput::new(input_reader, take(&mut io_state.collider), frame, time)
+            .map_err(SolverError::PrepareInput)?;
         let consts = &frame_input.header().consts;
 
         let num_particles = frame_input.header().total_particles;
@@ -311,12 +312,17 @@ impl GpuState {
             len: num_particles as u32,
         });
 
-        let initial_positions: Vec<[f32; 3]> =
-            io_state.collect::<attribute::InitialPosition>()?.collect();
-        let goal_positions: Vec<[f32; 3]> =
-            io_state.collect::<attribute::GoalPosition>()?.collect();
+        let initial_positions: Vec<[f32; 3]> = io_state
+            .collect::<attribute::InitialPosition>()
+            .map_err(SolverError::ReadState)?
+            .collect();
+        let goal_positions: Vec<[f32; 3]> = io_state
+            .collect::<attribute::GoalPosition>()
+            .map_err(SolverError::ReadState)?
+            .collect();
 
-        let variable_particle_input_backup = VariableParticleInputBackup::new(&mut io_state)?;
+        let variable_particle_input_backup =
+            VariableParticleInputBackup::new(&mut io_state).map_err(SolverError::ReadState)?;
 
         harness.step()?;
 
@@ -367,7 +373,8 @@ impl GpuState {
 
         let profile_data_csv_writer = profiling_output_file
             .map(ProfileDataCsvWriter::new)
-            .transpose()?;
+            .transpose()
+            .map_err(Error::CreateProfilingCsv)?;
 
         harness.step()?;
 
@@ -596,11 +603,9 @@ impl GpuState {
             tracing::info!(self.max_num_grid_nodes, num_grid_nodes);
 
             if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
-                profile_data_csv_writer.buffer_data(
-                    &self.gpu_context,
-                    &mut profiler,
-                    new_recorded_steps,
-                )?;
+                profile_data_csv_writer
+                    .buffer_data(&self.gpu_context, &mut profiler, new_recorded_steps)
+                    .map_err(Error::CollectProfilingData)?;
             }
 
             let result = mapped_downloads.status.to_result(&self.gpu_context);
@@ -732,9 +737,9 @@ impl GpuState {
         self.step_input.collider_input = pending_input.next_collider_input;
 
         if let Some(profile_data_csv_writer) = self.profile_data_csv_writer.as_mut() {
-            profile_data_csv_writer.write_frame(
-                self.frame_input.time()..self.frame_input.time() + seconds_per_frame,
-            )?;
+            profile_data_csv_writer
+                .write_frame(self.frame_input.time()..self.frame_input.time() + seconds_per_frame)
+                .map_err(Error::WriteProfilingCsv)?;
         };
 
         self.variable_particle_input_backup.flags = particle_flags;
@@ -861,7 +866,8 @@ impl GpuState {
 
                 Ok::<_, IoStateError>((name.clone(), pt))
             })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
+            .collect::<Result<BTreeMap<_, _>, _>>()
+            .map_err(SolverError::StoreState)?;
 
         let collider = self.frame_input.collider_start().to_io_collider();
         let bvh = store_bvh.then(|| self.frame_input.bvh().clone());
@@ -923,7 +929,9 @@ impl GpuState {
 
     fn prepare_pending_input(&mut self) -> Result<PendingInput, Error> {
         let Some(next_input_frame) = self.frame_input.next_input_frame() else {
-            self.frame_input.load_next()?;
+            self.frame_input
+                .load_next()
+                .map_err(SolverError::LoadNextInput)?;
             return Ok(PendingInput {
                 animated_globals: self.animated_globals,
                 globals: self.step_input.globals.clone(),
@@ -952,7 +960,9 @@ impl GpuState {
             .map_err(|error| error.into_gpu_error(&self.frame_input))?;
         }
 
-        self.frame_input.load_next()?;
+        self.frame_input
+            .load_next()
+            .map_err(SolverError::LoadNextInput)?;
         let next_collider_input = get_collider_input(self.gpu_context.device(), &self.frame_input)?;
 
         Ok(PendingInput {
