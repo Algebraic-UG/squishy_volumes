@@ -13,6 +13,47 @@
             "group": "build"
         },
         {
+            "label": "Refresh API",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Refresh API: kill Blender",
+                "Refresh API: uninstall extension",
+                "Refresh API: rebuild",
+                "Refresh API: start Blender"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "Refresh API: kill Blender",
+            "type": "shell",
+            "command": "pkill -x blender; while pgrep -x blender >/dev/null; do sleep 0.2; done",
+            "hide": true
+        },
+        {
+            "label": "Refresh API: uninstall extension",
+            "type": "shell",
+            "command": "true",
+            "args": [
+                "${input:startBlenderToUninstall}"
+            ],
+            "hide": true
+        },
+        {
+            "label": "Refresh API: rebuild",
+            "type": "shell",
+            "command": "while pgrep -x blender >/dev/null; do sleep 0.2; done; ./scripts/rebuild_api.sh",
+            "hide": true
+        },
+        {
+            "label": "Refresh API: start Blender",
+            "type": "shell",
+            "command": "true",
+            "args": [
+                "${input:startBlender}"
+            ],
+            "hide": true
+        },
+        {
             "label": "build-assets",
             "type": "shell",
             "command": "uv",
@@ -36,6 +77,21 @@
             "options": {
                 "cwd": "${workspaceFolder}/python"
             }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "startBlenderToUninstall",
+            "type": "command",
+            "command": "blender.start",
+            "args": {
+                "script": "scripts/uninstall_dev_extension.py"
+            }
+        },
+        {
+            "id": "startBlender",
+            "type": "command",
+            "command": "blender.start"
         }
     ]
 }
