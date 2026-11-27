@@ -17,7 +17,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use nalgebra::{Matrix3, Vector3};
-use squishy_volumes_util::{ParticleFlags, ParticleParameters};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use squishy_volumes_util::{
+    ParticleFlags, ParticleParameters, try_elastic_energy_inviscid, try_elastic_energy_neo_hookean,
+};
 
 #[derive(Default, Debug, Clone)]
 pub struct Particles {
@@ -39,4 +42,37 @@ pub struct Particles {
 
     pub elastic_energies: Vec<f32>,
     pub collider_bits: Vec<u32>,
+}
+
+impl Particles {
+    pub fn recompute_elastic_energies(&mut self) {
+        (
+            &mut self.elastic_energies,
+            &self.flags,
+            &self.parameters,
+            &self.position_gradients,
+        )
+            .into_par_iter()
+            .for_each(|(elastic_energy, flags, parameters, position_gradient)| {
+                let energy = if flags.contains(ParticleFlags::IS_SOLID) {
+                    try_elastic_energy_neo_hookean(
+                        parameters.mu(),
+                        parameters.lambda(),
+                        position_gradient,
+                    )
+                } else if flags.contains(ParticleFlags::IS_FLUID) {
+                    try_elastic_energy_inviscid(
+                        parameters.bulk_modulus,
+                        parameters.exponent,
+                        position_gradient,
+                    )
+                } else {
+                    return;
+                };
+                *elastic_energy = energy
+                    .ok()
+                    .filter(|energy| energy.is_finite())
+                    .unwrap_or(0.);
+            });
+    }
 }
