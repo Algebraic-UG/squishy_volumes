@@ -34,10 +34,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum InitializationError {
-    #[error("io state error")]
+    #[error("failed to set up the initial particles")]
     IoState(#[from] IoStateError),
 
-    #[error("harness error")]
+    #[error("failed to start a progress report")]
     Harness(#[from] squishy_volumes_xpu::HarnessError),
 
     #[error(transparent)]
