@@ -36,7 +36,3 @@ fn try_normalize(n: vec3f, alternative: vec3f) -> vec3f {
         return n / sqrt(l2);
     }
 }
-
-fn sign(v: f32) -> f32 {
-    return select(-1., 1., v >= 0.);
-}
